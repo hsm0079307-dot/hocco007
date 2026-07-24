@@ -109,7 +109,9 @@
   body.print-mode .print-confirm-bar{display:flex;}
   @media print{ .print-confirm-bar{display:none !important;} }
 
-  .region-panel{position:absolute;top:90px;right:12px;z-index:500;background:var(--bg-side);border:1px solid var(--line);border-radius:12px;padding:10px;width:200px;max-height:60vh;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.4);}
+  .region-panel{position:absolute;top:90px;right:12px;z-index:500;background:var(--bg-side);border:1px solid var(--line);border-radius:12px;padding:0 10px 10px;width:200px;max-height:60vh;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.4);}
+  .region-drag-handle{position:sticky;top:0;background:var(--bg-side);margin:0 -10px 8px;padding:8px 10px 6px;cursor:grab;font-size:11px;color:var(--text-dim);border-bottom:1px dashed var(--line);user-select:none;}
+  .region-drag-handle:active{cursor:grabbing;}
   .region-crumb{font-size:11px;color:var(--text-dim);margin-bottom:8px;display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
   .region-crumb .crumb-link{cursor:pointer;color:var(--accent);}
   .region-crumb .crumb-link:hover{text-decoration:underline;}
@@ -267,6 +269,7 @@
         <button class="btn btn-ghost" id="printCancelBtn">✕ 취소</button>
       </div>
       <div class="region-panel" id="regionPanel">
+        <div class="region-drag-handle" id="regionDragHandle">⠿⠿ 끌어서 이동</div>
         <div class="region-crumb" id="regionCrumb"></div>
         <div class="region-grid" id="regionGrid"></div>
       </div>
@@ -1379,6 +1382,56 @@ const L = (function(){
   const SIDO_LIST = ['서울','경기','인천'];
   const SIDO_LABELS = {'서울':'서울특별시','경기':'경기도','인천':'인천광역시'};
   let regionSido = null; // null이면 시도 목록, 값이 있으면 그 시도의 시군구 목록
+
+  // 시도 선택 패널을 마우스로 끌어서 옮길 수 있게 함 (지도 확대축소 버튼 등과 겹칠 때 위치 조정용)
+  (function enableRegionPanelDrag(){
+    const panel = document.getElementById('regionPanel');
+    const handle = document.getElementById('regionDragHandle');
+    const wrap = document.querySelector('.map-wrap');
+    if(!panel || !handle || !wrap) return;
+    const POS_KEY = 'regionPanelPos';
+    try{
+      const saved = JSON.parse(localStorage.getItem(POS_KEY)||'null');
+      if(saved && typeof saved.left==='number' && typeof saved.top==='number'){
+        panel.style.left = saved.left+'px';
+        panel.style.top = saved.top+'px';
+        panel.style.right = 'auto';
+      }
+    }catch(e){}
+    let startX=0, startY=0, startLeft=0, startTop=0, dragging=false;
+    handle.addEventListener('mousedown', (e)=>{
+      e.preventDefault();
+      dragging = true;
+      const rect = panel.getBoundingClientRect();
+      const wrapRect = wrap.getBoundingClientRect();
+      startLeft = rect.left - wrapRect.left;
+      startTop = rect.top - wrapRect.top;
+      startX = e.clientX; startY = e.clientY;
+      panel.style.right = 'auto';
+      panel.style.left = startLeft+'px';
+      panel.style.top = startTop+'px';
+    });
+    document.addEventListener('mousemove', (e)=>{
+      if(!dragging) return;
+      const wrapRect = wrap.getBoundingClientRect();
+      let newLeft = startLeft + (e.clientX-startX);
+      let newTop = startTop + (e.clientY-startY);
+      newLeft = Math.max(0, Math.min(newLeft, wrapRect.width - panel.offsetWidth));
+      newTop = Math.max(0, Math.min(newTop, wrapRect.height - panel.offsetHeight));
+      panel.style.left = newLeft+'px';
+      panel.style.top = newTop+'px';
+    });
+    document.addEventListener('mouseup', ()=>{
+      if(!dragging) return;
+      dragging = false;
+      try{
+        localStorage.setItem(POS_KEY, JSON.stringify({
+          left: parseFloat(panel.style.left)||0,
+          top: parseFloat(panel.style.top)||0
+        }));
+      }catch(e){}
+    });
+  })();
 
   function renderRegionPanel(){
     const crumbEl = document.getElementById('regionCrumb');
