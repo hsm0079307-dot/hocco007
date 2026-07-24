@@ -2161,6 +2161,16 @@ const L = (function(){
     renderAll();
   });
 
+  // ---------- ESC로 상세보기 → 전체화면(목록) 복귀 ----------
+  document.addEventListener('keydown', (e)=>{
+    if(e.key !== 'Escape') return;
+    if(overlay.classList.contains('show')) return;
+    if(modeOverlay.classList.contains('show')) return;
+    if(currentView !== 'detail') return;
+    currentView = 'list';
+    renderAll();
+  });
+
   // ---------- render all ----------
   function renderSeoulShapes(){
     if(!seoulShapeLayer) return;
