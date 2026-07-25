@@ -2063,7 +2063,12 @@ const L = (function(){
     lastDate:['최근일자','일자','날짜','최근일지','최근 일지'],
     memo:['비고','메모','설명'],
     lat:['위도','lat','latitude'],
-    lng:['경도','lng','longitude','long']
+    lng:['경도','lng','longitude','long'],
+    polygon:['구역경계좌표','구역 경계 좌표','폴리곤','경계좌표','폴리곤좌표'],
+    managementCompany:['정비업체'],
+    designCompany:['설계업체'],
+    trustCompany:['신탁사'],
+    manager:['담당자']
   };
   function matchHeader(h){
     h = String(h).trim();
@@ -2105,17 +2110,34 @@ const L = (function(){
       return;
     }
 
-    let added = 0;
+    // 현장명이 비슷하면(괄호/공백/'단지''구역''아파트' 등 접미어 무시) 같은 현장으로 보고
+    // 새로 만들지 않고 기존 카드를 업데이트합니다. 값이 빈 칸인 컬럼은 기존 값을 그대로 둡니다.
+    function normalizeSiteName(s){
+      let t = String(s||'').trim();
+      t = t.replace(/[\(\[][^\)\]]*[\)\]]/g, '');
+      t = t.replace(/\s+/g, '');
+      const suffixes = ['일대','번지','아파트단지','아파트','단지','정비구역','주택정비형','재건축사업','재건축','재개발사업','재개발','구역','조합','신탁'];
+      let changed = true;
+      while(changed){
+        changed = false;
+        for(const suf of suffixes){
+          if(t.length>suf.length && t.endsWith(suf)){ t = t.slice(0, -suf.length); changed = true; }
+        }
+      }
+      return t;
+    }
+
+    let added = 0, updated = 0;
     rows.forEach(r=>{
       const name = String(r[colMap.name]||'').trim();
       const rawDistrict = String(r[colMap.district]||'').trim();
-      if(!name || !rawDistrict) return;
+      if(!name) return;
       const rawCity = colMap.city ? String(r[colMap.city]||'').trim() : '';
-      const matchedDistrict = resolveDistrict(rawDistrict, rawCity);
+      const matchedDistrict = rawDistrict ? resolveDistrict(rawDistrict, rawCity) : '';
       let lastDate = colMap.lastDate ? String(r[colMap.lastDate]||'').trim() : '';
       if(lastDate instanceof Date) lastDate = lastDate.toISOString().slice(0,10);
-      sites.push({
-        id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now())+Math.random()+added,
+
+      const fields = {
         name,
         district: matchedDistrict,
         dong: colMap.dong ? String(r[colMap.dong]||'').trim() : '',
@@ -2130,28 +2152,85 @@ const L = (function(){
         lastDate,
         lat: colMap.lat ? (parseFloat(r[colMap.lat])||null) : null,
         lng: colMap.lng ? (parseFloat(r[colMap.lng])||null) : null,
-        memo: colMap.memo ? String(r[colMap.memo]||'').trim() : ''
-      });
-      added++;
+        memo: colMap.memo ? String(r[colMap.memo]||'').trim() : '',
+        polygon: colMap.polygon ? parsePolygon(String(r[colMap.polygon]||'').replace(/\r\n/g,'\n')) : null,
+        managementCompany: colMap.managementCompany ? String(r[colMap.managementCompany]||'').trim() : '',
+        designCompany: colMap.designCompany ? String(r[colMap.designCompany]||'').trim() : '',
+        trustCompany: colMap.trustCompany ? String(r[colMap.trustCompany]||'').trim() : '',
+        manager: colMap.manager ? String(r[colMap.manager]||'').trim() : ''
+      };
+
+      if(!rawDistrict && !colMap.district){
+        // 구 컬럼 자체가 없는 파일(좌표만 채워넣는 용도)도 매칭만 되면 허용
+      }
+
+      const target = normalizeSiteName(name);
+      const existing = sites.find(s=> normalizeSiteName(s.name) === target);
+
+      if(existing){
+        Object.keys(fields).forEach(k=>{
+          const v = fields[k];
+          const isEmpty = v===''||v===null||(Array.isArray(v)&&v.length===0);
+          if(!isEmpty) existing[k] = v;
+        });
+        updated++;
+      } else {
+        if(!matchedDistrict){ return; } // 새 현장인데 구 정보가 없으면 건너뜀
+        sites.push(Object.assign({
+          id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now())+Math.random()+added
+        }, fields));
+        added++;
+      }
     });
 
     await saveSites();
     renderAll();
-    alert(added + '건의 현장이 추가되었습니다.');
+    alert(`${updated}건 업데이트, ${added}건 신규 추가되었습니다.`);
     e.target.value = '';
   });
 
   document.getElementById('templateBtn').addEventListener('click', ()=>{
-    const sample = [
-      {'현장명':'월계 시영(미미삼)','도시':'서울','구':'노원구','상태':'재건축','단계':'시장모니터링',
-       '면적':'232298.6','예상발주':'27년 상반기','신축세대':'6103','조합원수':'3986','최근일자':'2026-07-09','비고':'예시 데이터입니다','위도':'','경도':''},
-      {'현장명':'해운대 예시현장','도시':'부산','구':'해운대구','상태':'재건축','단계':'사전관리',
-       '면적':'','예상발주':'','신축세대':'','조합원수':'','최근일자':'2026-07-01','비고':'부산 지역 예시','위도':'','경도':''}
-    ];
-    const ws = XLSX.utils.json_to_sheet(sample);
+    let rows;
+    if(sites.length > 0){
+      // 지금 등록된 실제 현장 데이터를 그대로 엑셀로 내보냄 -> 여기서 값을 고치고
+      // (예: 구역경계좌표만 채우고) 그대로 "엑셀 업로드"에 다시 올리면 같은 현장명은
+      // 새로 만들지 않고 업데이트됩니다.
+      rows = sites.map(s=>({
+        '현장명': s.name||'',
+        '도시': '',
+        '구': s.district||'',
+        '동': s.dong||'',
+        '상태': s.status||'',
+        '단계': s.stage||'',
+        '면적': s.area||'',
+        '예상발주': s.orderExpected||'',
+        '신축세대': s.households||'',
+        '연면적': s.totalFloorArea||'',
+        '규모': s.scale||'',
+        '조합원수': s.unionMembers||'',
+        '최근일자': s.lastDate||'',
+        '정비업체': s.managementCompany||'',
+        '설계업체': s.designCompany||'',
+        '신탁사': s.trustCompany||'',
+        '담당자': s.manager||'',
+        '위도': s.lat||'',
+        '경도': s.lng||'',
+        '비고': s.memo||'',
+        '구역경계좌표': (s.polygon && s.polygon.length) ? s.polygon.map(p=>p.join(',')).join('\n') : ''
+      }));
+    } else {
+      rows = [
+        {'현장명':'월계 시영(미미삼)','도시':'서울','구':'노원구','상태':'재건축','단계':'시장모니터링',
+         '면적':'232298.6','예상발주':'27년 상반기','신축세대':'6103','조합원수':'3986','최근일자':'2026-07-09','비고':'예시 데이터입니다','위도':'','경도':'',
+         '구역경계좌표':'37.601,127.055\n37.603,127.058\n37.598,127.060'},
+        {'현장명':'해운대 예시현장','도시':'부산','구':'해운대구','상태':'재건축','단계':'사전관리',
+         '면적':'','예상발주':'','신축세대':'','조합원수':'','최근일자':'2026-07-01','비고':'부산 지역 예시','위도':'','경도':'','구역경계좌표':''}
+      ];
+    }
+    const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'sites');
-    XLSX.writeFile(wb, '시장모니터링_양식.xlsx');
+    XLSX.writeFile(wb, (sites.length>0 ? '현재현장_'+currentOffice : '시장모니터링_양식') + '.xlsx');
   });
 
   // ---------- search ----------
