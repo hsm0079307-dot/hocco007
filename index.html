@@ -1696,6 +1696,9 @@ const L = (function(){
 
   function sitePosition(s){
     if(s.lat && s.lng) return [s.lat, s.lng];
+    // 위도/경도가 따로 없어도 구역 경계(폴리곤)가 있으면 그 도형의 중심을 사용.
+    // (이게 없으면 라벨/마커가 구역 도형과 상관없이 그 구의 대표 위치 근처로 몰려버림)
+    if(s.polygon && s.polygon.length>=3) return centroidOf(s.polygon);
     const c = DISTRICTS[s.district];
     if(!c) return null;
     const [dx,dy] = jitterOffset(s.id);
