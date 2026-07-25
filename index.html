@@ -183,15 +183,27 @@
   .edit-field textarea{min-height:70px;resize:vertical;}
 
   .log-add{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;}
-  .log-add input[type=date]{flex:1 1 130px;min-width:120px;background:var(--bg-side-2);border:1px solid var(--line);border-radius:10px;padding:7px 8px;color:var(--text-main);font-size:12px;}
-  .log-add input[type=text]{flex:2 1 160px;min-width:0;background:var(--bg-side-2);border:1px solid var(--line);border-radius:10px;padding:7px 10px;color:var(--text-main);font-size:12px;}
-  /* 날짜 입력칸의 달력 아이콘이 어두운 배경에서 검게 나와 안 보이던 것을 흰색으로 강제 반전 */
-  .log-add input[type=date]::-webkit-calendar-picker-indicator{
-    filter: invert(1) brightness(2);
-    opacity: 1;
+  .log-date-wrap{position:relative;flex:1 1 130px;min-width:120px;}
+  .log-date-wrap input[type=date]{width:100%;box-sizing:border-box;background:var(--bg-side-2);border:1px solid var(--line);border-radius:10px;padding:7px 26px 7px 8px;color:var(--text-main);font-size:12px;}
+  /* 브라우저가 그리는 원래 달력 아이콘은 검은색이라 안 보여서 완전히 투명하게 숨기고,
+     같은 자리에 우리가 직접 흰색 SVG 달력 아이콘을 그려서 겹쳐 놓음(클릭은 그대로 원래 인풋이 받음) */
+  .log-date-wrap input[type=date]::-webkit-calendar-picker-indicator{
+    opacity: 0;
+    position: absolute;
+    right: 0; top: 0;
+    width: 26px; height: 100%;
     cursor: pointer;
-    background: transparent;
+    margin: 0;
   }
+  .log-date-wrap::after{
+    content:'';
+    position:absolute; right:8px; top:50%; transform:translateY(-50%);
+    width:14px; height:14px; pointer-events:none;
+    background-color:#fff;
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M7 2v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2H7zm12 7H5v11h14V9z"/></svg>') center/contain no-repeat;
+    mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M7 2v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2H7zm12 7H5v11h14V9z"/></svg>') center/contain no-repeat;
+  }
+  .log-add input[type=text]{flex:2 1 160px;min-width:0;background:var(--bg-side-2);border:1px solid var(--line);border-radius:10px;padding:7px 10px;color:var(--text-main);font-size:12px;}
   .log-item{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin-bottom:7px;display:flex;gap:10px;align-items:flex-start;}
   .log-date{font-size:12px;color:var(--accent);font-weight:600;flex:none;white-space:nowrap;padding-top:1px;}
   .log-text{flex:1;font-size:12px;line-height:1.5;}
@@ -1297,7 +1309,7 @@ const L = (function(){
       const logs = (site.logs||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
       body.innerHTML = `
         <div class="log-add">
-          <input type="date" id="logDate">
+          <div class="log-date-wrap"><input type="date" id="logDate"></div>
           <input type="text" id="logText" placeholder="방문 내용을 입력하세요">
           <button class="btn btn-primary btn-sm" id="logAddBtn">추가</button>
         </div>
