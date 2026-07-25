@@ -2173,6 +2173,11 @@ const L = (function(){
           const isEmpty = v===''||v===null||(Array.isArray(v)&&v.length===0);
           if(!isEmpty) existing[k] = v;
         });
+        // 새 구역경계좌표가 들어왔으면, 예전에 대충 잡아뒀던 자리에 드래그로
+        // 고정해둔 라벨 위치(labelPos)는 지워서 새 폴리곤 위치 기준으로 다시 계산되게 함
+        if(fields.polygon && fields.polygon.length){
+          delete existing.labelPos;
+        }
         updated++;
       } else {
         if(!matchedDistrict){ return; } // 새 현장인데 구 정보가 없으면 건너뜀
