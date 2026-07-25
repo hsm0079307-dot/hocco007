@@ -38,6 +38,11 @@
   .search-box input{background:transparent;border:none;outline:none;color:var(--text-main);font-size:11px;width:100%;}
   .search-box input::placeholder{color:var(--text-dim);}
   .manager-filter{flex:0 0 auto;max-width:132px;background:var(--bg-side-2);border:1px solid var(--line);border-radius:999px;padding:7px 10px;color:var(--text-main);font-size:11px;outline:none;cursor:pointer;}
+  #capacityWarning{border-color:#f0c33c;color:#f0c33c;}
+  #capacityWarning.capacity-danger{border-color:#ff5c5c;color:#ff5c5c;background:rgba(255,92,92,.12);}
+  .stale-summary-btn{border-color:#f0c33c;color:#f0c33c;font-size:12px;padding:7px 12px;}
+  .stale-summary-btn.active{background:#f0c33c;color:#1a1a1a;border-color:#f0c33c;}
+  .sort-select{background:var(--bg-side-2);border:1px solid var(--line);border-radius:8px;padding:3px 6px;color:var(--text-main);font-size:11px;outline:none;cursor:pointer;}
   .btn{border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-size:13px;cursor:pointer;font-weight:600;white-space:nowrap;transition:.15s;letter-spacing:.2px;}
   .btn-primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600;}
   .btn-primary:hover{background:#ffc933;}
@@ -265,10 +270,17 @@
   <div class="topbar blueprint-grid">
     <div class="brand">강서사업소 스크린</div>
     <span class="sync-status" id="syncStatus"></span>
+    <span class="sync-status" id="capacityWarning" style="display:none;"></span>
+    <button class="btn btn-ghost stale-summary-btn" id="staleSummaryBtn" style="display:none;"></button>
     <div class="search-box">
       <input id="searchInput" placeholder="현장명 · 구 · 비고 검색">
     </div>
     <select id="managerFilter" class="manager-filter" title="담당자별 보기"><option value="">담당자 전체</option></select>
+    <label class="file-label btn btn-ghost">
+      백업 복원
+      <input id="backupImportInput" type="file" accept=".json" style="display:none;">
+    </label>
+    <button class="btn btn-ghost" id="backupExportBtn">백업 저장</button>
     <label class="file-label btn btn-ghost" style="margin-left:auto;">
       엑셀 업로드
       <input id="excelInput" type="file" accept=".xlsx,.xls,.csv" style="display:none;">
@@ -832,6 +844,8 @@ const L = (function(){
   }
   let searchText = '';
   let selectedManager = '';
+  let sortMode = 'default'; // 'default' | 'manager' | 'recent'
+  let staleOnlyFilter = false; // 상단 미방문 요약 배지를 눌러 미방문 현장만 볼 수 있게 하는 토글
   let map, districtLayer, siteLayer, focusLayer, seoulShapeLayer;
   let currentView = 'list';     // 'list' | 'detail'
   let currentDetailId = null;
@@ -1031,11 +1045,33 @@ const L = (function(){
       try{ localStorage.setItem(DISTRICT_LABEL_KEY, json); }catch(e2){}
     }
   }
+  // JSONBin 무료 플랜은 바이너리(bin) 하나당 용량이 100KB로 제한되어 있어,
+  // 여기에 가까워지면 클라우드 동기화가 조용히 실패할 수 있음 → 미리 눈에 띄게 경고
+  const JSONBIN_FREE_LIMIT_BYTES = 100 * 1024;
+  function checkCapacityWarning(jsonStr){
+    const el = document.getElementById('capacityWarning');
+    if(!el) return;
+    let bytes;
+    try{ bytes = new TextEncoder().encode(jsonStr).length; }
+    catch(e){ bytes = jsonStr.length; }
+    if(bytes >= JSONBIN_FREE_LIMIT_BYTES * 0.8){
+      const pct = Math.min(999, Math.round(bytes / JSONBIN_FREE_LIMIT_BYTES * 100));
+      el.style.display = 'inline-flex';
+      el.classList.toggle('capacity-danger', bytes >= JSONBIN_FREE_LIMIT_BYTES);
+      el.textContent = bytes >= JSONBIN_FREE_LIMIT_BYTES
+        ? `🚫 동기화 용량 초과(${pct}%) — 백업 후 데이터 정리 필요`
+        : `⚠ 동기화 용량 ${pct}% 사용중`;
+    }else{
+      el.style.display = 'none';
+    }
+  }
+
   async function saveSites(){
     if(currentOffice==='전체') return; // 전체보기는 읽기 전용 집계 뷰라 저장하지 않음
     allOfficesData[currentOffice] = sites;
     renderOfficeTabs(); // 사업소 탭의 건수 요약을 데이터 변경 즉시 갱신
     const json = JSON.stringify(allOfficesData);
+    checkCapacityWarning(json);
     try{
       if(window.storage){
         await window.storage.set(STORAGE_KEY, json, false);
@@ -1108,9 +1144,20 @@ const L = (function(){
         if(!hay.includes(searchText.toLowerCase())) return false;
       }
       if(selectedManager && (s.manager||'')!==selectedManager) return false;
+      if(staleOnlyFilter && !staleClassOf(s.lastDate)) return false;
       return true;
     });
     // 정렬하지 않고 sites 배열의 순서를 그대로 유지 — 현장 목록에서 드래그로 재배치한 순서가 그대로 반영됨
+  }
+  // 목록 정렬 옵션 적용(기본=드래그 순서 유지, 그 외엔 정렬된 새 배열을 반환)
+  function applySortMode(list){
+    if(sortMode==='manager'){
+      return list.slice().sort((a,b)=> (a.manager||'').localeCompare(b.manager||'','ko') || a.name.localeCompare(b.name,'ko'));
+    }
+    if(sortMode==='recent'){
+      return list.slice().sort((a,b)=> (b.lastDate||'').localeCompare(a.lastDate||''));
+    }
+    return list;
   }
 
   // ---------- sidebar dispatcher ----------
@@ -1126,14 +1173,23 @@ const L = (function(){
 
   // ---------- list render ----------
   function renderListView(){
-    const fs = filteredSites();
+    const fs = applySortMode(filteredSites());
+    const sortOptionsHtml = `
+      <select id="sortSelect" class="sort-select" title="정렬">
+        <option value="default"${sortMode==='default'?' selected':''}>기본순</option>
+        <option value="manager"${sortMode==='manager'?' selected':''}>담당자순</option>
+        <option value="recent"${sortMode==='recent'?' selected':''}>최근수정일순</option>
+      </select>`;
     if(fs.length===0){
       sidebarEl.innerHTML = `
-        <div class="sidebar-head"><h2>현장 목록</h2><span>0 개</span></div>
+        <div class="sidebar-head"><h2>현장 목록</h2><div style="display:flex;align-items:center;gap:6px;">${sortOptionsHtml}<span>0 개</span></div></div>
         <div class="list"><div class="empty">표시할 현장이 없습니다.<br>우측 상단에서 현장을 추가하거나 엑셀을 업로드해보세요.</div></div>`;
+      const sortEl0 = document.getElementById('sortSelect');
+      if(sortEl0) sortEl0.addEventListener('change', (e)=>{ sortMode = e.target.value; renderListView(); });
       return;
     }
-    const canDrag = currentOffice!=='전체';
+    // 정렬을 '기본'이 아닌 다른 기준으로 보고 있을 땐 드래그 재배치가 화면 순서와 어긋나 헷갈릴 수 있어 비활성화
+    const canDrag = currentOffice!=='전체' && sortMode==='default';
     const cards = fs.map(s=>{
       const typeParts = [s.status, s.stage].filter(Boolean);
       const typeLine = typeParts.length ? typeParts.map(escapeHtml).join(' / ') : '-';
@@ -1153,8 +1209,10 @@ const L = (function(){
     }).join('');
 
     sidebarEl.innerHTML = `
-      <div class="sidebar-head"><h2>현장 목록</h2><span>${fs.length} 개</span></div>
+      <div class="sidebar-head"><h2>현장 목록</h2><div style="display:flex;align-items:center;gap:6px;">${sortOptionsHtml}<span>${fs.length} 개</span></div></div>
       <div class="list" id="list">${cards}</div>`;
+    const sortEl = document.getElementById('sortSelect');
+    if(sortEl) sortEl.addEventListener('change', (e)=>{ sortMode = e.target.value; renderListView(); });
 
     sidebarEl.querySelectorAll('.card-actions button').forEach(btn=>{
       btn.addEventListener('click', async (e)=>{
@@ -2379,6 +2437,68 @@ const L = (function(){
     renderAll();
   });
 
+  // ---------- 미방문 요약 배지: 누르면 미방문 현장만 필터링 ----------
+  document.getElementById('staleSummaryBtn').addEventListener('click', ()=>{
+    staleOnlyFilter = !staleOnlyFilter;
+    currentView = 'list';
+    renderAll();
+  });
+
+  // ---------- 데이터 백업 저장(내보내기) ----------
+  document.getElementById('backupExportBtn').addEventListener('click', ()=>{
+    const payload = { exportedAt: new Date().toISOString(), offices: allOfficesData };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const stamp = new Date().toISOString().slice(0,10).replace(/-/g,'');
+    a.href = url;
+    a.download = `시장모니터링_백업_${stamp}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  });
+
+  // ---------- 데이터 백업 복원(가져오기) ----------
+  document.getElementById('backupImportInput').addEventListener('change', async (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    if(currentOffice==='전체'){
+      alert('전체보기에서는 복원할 수 없습니다. 상단에서 사업소를 선택한 뒤 다시 시도해주세요.');
+      e.target.value=''; return;
+    }
+    if(!(await ensureUnlocked())){ e.target.value=''; return; }
+    try{
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const offices = (parsed && parsed.offices && typeof parsed.offices==='object') ? parsed.offices : parsed;
+      if(!offices || typeof offices !== 'object' || Array.isArray(offices)){
+        alert('올바른 백업 파일이 아닙니다. (백업 저장으로 받은 JSON 파일인지 확인해주세요)');
+        e.target.value=''; return;
+      }
+      const summary = OFFICES.map(o=>`${o.replace('사업소','')} ${(offices[o]||[]).length}건`).join(' / ');
+      const ok = confirm(`이 백업 파일로 복원할까요?\n(${summary})\n\n현재 저장되어 있던 데이터는 이 내용으로 모두 덮어써집니다.`);
+      if(!ok){ e.target.value=''; return; }
+      allOfficesData = offices;
+      sites = computeSites();
+      selectedDistrict = null;
+      selectedDong = null;
+      dongAutoSkipped = false;
+      regionFocusMode = false;
+      currentView = 'list';
+      await saveSites();
+      renderOfficeTabs();
+      renderAll();
+      renderSeoulShapes();
+      renderRegionPanel();
+      alert('백업 복원이 완료되었습니다.');
+    }catch(err){
+      console.error('백업 복원 실패', err);
+      alert('백업 파일을 읽는 중 오류가 발생했습니다. JSON 형식을 확인해주세요.');
+    }
+    e.target.value = '';
+  });
+
   // ---------- ESC로 상세보기 → 전체화면(목록) 복귀 ----------
   document.addEventListener('keydown', (e)=>{
     if(e.key !== 'Escape') return;
@@ -2423,9 +2543,24 @@ const L = (function(){
   function renderAll(){
     renderTabs();
     renderManagerFilter();
+    renderStaleSummary();
     renderSidebar();
     renderMap();
     renderSeoulShapes();
+  }
+  // 상단에 '미방문 30일↑ N건' 배지를 띄워서 방치된 현장을 한눈에 알 수 있게 함. 누르면 그 현장들만 필터링해서 봄
+  function renderStaleSummary(){
+    const btn = document.getElementById('staleSummaryBtn');
+    if(!btn) return;
+    const staleCount = sites.filter(s=>staleClassOf(s.lastDate)).length;
+    if(staleCount===0){
+      btn.style.display = 'none';
+      staleOnlyFilter = false;
+      return;
+    }
+    btn.style.display = 'inline-flex';
+    btn.classList.toggle('active', staleOnlyFilter);
+    btn.textContent = staleOnlyFilter ? '✕ 전체 보기' : `⚠ 미방문 30일↑ ${staleCount}건`;
   }
   // 현재 사업소에 실제로 존재하는 담당자 목록으로 필터 옵션을 채움
   function renderManagerFilter(){
@@ -2486,6 +2621,7 @@ const L = (function(){
       initMap();
       await loadSites();
       await loadDistrictLabelOverrides();
+      checkCapacityWarning(JSON.stringify(allOfficesData));
       const brandEl = document.querySelector('.brand');
       if(brandEl) brandEl.textContent = currentOffice + ' 스크린';
       renderOfficeTabs();
