@@ -43,6 +43,14 @@
   .stale-summary-btn{border-color:#f0c33c;color:#f0c33c;font-size:12px;padding:7px 12px;}
   .stale-summary-btn.active{background:#f0c33c;color:#1a1a1a;border-color:#f0c33c;}
   .sort-select{background:var(--bg-side-2);border:1px solid var(--line);border-radius:8px;padding:3px 6px;color:var(--text-main);font-size:11px;outline:none;cursor:pointer;}
+  .rich-toolbar{display:flex;align-items:center;gap:4px;margin-bottom:6px;padding:4px 6px;background:var(--bg-side-2);border:1px solid var(--line);border-radius:8px;flex-wrap:wrap;}
+  .rich-toolbar button{background:transparent;border:1px solid var(--line);border-radius:6px;padding:4px 9px;font-size:12px;color:var(--text-main);cursor:pointer;}
+  .rich-toolbar button:hover{border-color:var(--accent);}
+  .rich-toolbar input[type=color]{width:26px;height:26px;padding:0;border:1px solid var(--line);border-radius:6px;background:none;cursor:pointer;}
+  .rich-toolbar select{background:var(--bg-side-2);border:1px solid var(--line);border-radius:6px;padding:4px 6px;font-size:12px;color:var(--text-main);cursor:pointer;}
+  .rich-editor{min-height:160px;background:var(--bg-side-2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;color:var(--text-main);font-size:13px;line-height:1.5;outline:none;white-space:pre-wrap;word-break:break-word;}
+  .rich-editor:focus{border-color:var(--accent);}
+  .rich-content{white-space:pre-wrap;word-break:break-word;}
   .btn{border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-size:13px;cursor:pointer;font-weight:600;white-space:nowrap;transition:.15s;letter-spacing:.2px;}
   .btn-primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600;}
   .btn-primary:hover{background:#ffc933;}
@@ -1434,17 +1442,79 @@ const L = (function(){
     }else{
       const fieldMap = {'영업':'salesNote','추진경과':'progressNote','공고':'announcementNote'};
       const key = fieldMap[detailTab];
+      const hasContent = site[key] && stripHtml(site[key]).trim().length>0;
       body.innerHTML = `
         <div class="section-head"><span>${detailTab}</span><button id="editToggle" class="btn btn-ghost btn-sm">${editMode?'저장':'수정'}</button></div>
         ${editMode
-          ? `<div class="edit-field"><textarea id="e_note" style="min-height:160px;">${escapeHtml(site[key]||'')}</textarea></div>`
-          : `<div class="kv"><div class="v pre">${escapeHtml(site[key]||'등록된 내용이 없습니다.')}</div></div>`}
+          ? `<div class="rich-toolbar">
+               <button type="button" data-cmd="bold" title="굵게"><b>B</b></button>
+               <button type="button" data-cmd="underline" title="밑줄"><u>U</u></button>
+               <input type="color" id="richColor" title="글자 색" value="#ff5c5c">
+               <select id="richSize" title="글자 크기">
+                 <option value="">크기</option>
+                 <option value="2">작게</option>
+                 <option value="3">보통</option>
+                 <option value="5">크게</option>
+                 <option value="7">아주 크게</option>
+               </select>
+               <button type="button" id="richClear" title="서식 지우기">서식 지우기</button>
+             </div>
+             <div class="rich-editor" id="e_note" contenteditable="true">${ensureRichHtml(site[key])}</div>`
+          : `<div class="kv"><div class="v pre rich-content">${hasContent ? ensureRichHtml(site[key]) : '등록된 내용이 없습니다.'}</div></div>`}
       `;
+      if(editMode){
+        const editorEl = document.getElementById('e_note');
+        let savedRange = null;
+        function saveSel(){
+          const sel = window.getSelection();
+          if(sel && sel.rangeCount>0){
+            const r = sel.getRangeAt(0);
+            if(editorEl.contains(r.commonAncestorContainer)) savedRange = r.cloneRange();
+          }
+        }
+        function restoreSel(){
+          if(!savedRange) return;
+          const sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(savedRange);
+        }
+        editorEl.addEventListener('mouseup', saveSel);
+        editorEl.addEventListener('keyup', saveSel);
+        editorEl.addEventListener('blur', saveSel);
+        body.querySelectorAll('.rich-toolbar [data-cmd]').forEach(btn=>{
+          btn.addEventListener('mousedown', (e)=>{ e.preventDefault(); });
+          btn.addEventListener('click', ()=>{
+            restoreSel(); editorEl.focus();
+            document.execCommand(btn.dataset.cmd, false, null);
+            saveSel();
+          });
+        });
+        const colorInput = document.getElementById('richColor');
+        colorInput.addEventListener('input', ()=>{
+          restoreSel(); editorEl.focus();
+          document.execCommand('foreColor', false, colorInput.value);
+          saveSel();
+        });
+        const sizeSelect = document.getElementById('richSize');
+        sizeSelect.addEventListener('change', ()=>{
+          if(!sizeSelect.value) return;
+          restoreSel(); editorEl.focus();
+          document.execCommand('fontSize', false, sizeSelect.value);
+          sizeSelect.value = '';
+          saveSel();
+        });
+        document.getElementById('richClear').addEventListener('mousedown', (e)=>{ e.preventDefault(); });
+        document.getElementById('richClear').addEventListener('click', ()=>{
+          restoreSel(); editorEl.focus();
+          document.execCommand('removeFormat', false, null);
+          saveSel();
+        });
+      }
       const editBtn = document.getElementById('editToggle');
       editBtn.addEventListener('click', async ()=>{
         if(!(await ensureUnlocked())) return;
         if(editMode){
-          site[key] = document.getElementById('e_note').value;
+          site[key] = sanitizeRichHtml(document.getElementById('e_note').innerHTML);
           await saveSites();
           editMode = false;
         }else{
@@ -1457,6 +1527,58 @@ const L = (function(){
 
   function escapeHtml(str){
     return String(str).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  // 영업/추진경과/공고 노트에서 색상·크기·밑줄 서식을 지원하기 위한 리치텍스트 헬퍼들
+  function looksLikeRichHtml(s){
+    return /<\/?(b|strong|u|span|br|div|i|em)[ >]/i.test(s||'');
+  }
+  // 예전에 일반 텍스트로 저장된 내용도 안전하게 이스케이프해서 줄바꿈만 유지한 채 보여줌
+  function ensureRichHtml(raw){
+    if(!raw) return '';
+    if(looksLikeRichHtml(raw)) return raw;
+    return escapeHtml(raw).replace(/\n/g,'<br>');
+  }
+  function stripHtml(html){
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html||'';
+    return tmp.textContent || tmp.innerText || '';
+  }
+  // 저장 전 허용된 태그(b,u,span 등)와 안전한 style 속성(color·font-size 등)만 남기고 나머지는 모두 제거
+  function sanitizeRichHtml(html){
+    const allowedTags = new Set(['B','STRONG','U','SPAN','BR','DIV','I','EM','FONT']);
+    const allowedStyle = new Set(['color','font-size','text-decoration','font-weight','font-style']);
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html||'';
+    (function clean(node){
+      [...node.childNodes].forEach(child=>{
+        if(child.nodeType===1){
+          if(!allowedTags.has(child.tagName)){
+            const parent = child.parentNode;
+            while(child.firstChild) parent.insertBefore(child.firstChild, child);
+            parent.removeChild(child);
+            return;
+          }
+          const style = child.getAttribute('style');
+          [...child.attributes].forEach(attr=>child.removeAttribute(attr.name));
+          if(style){
+            const kept = [];
+            style.split(';').forEach(rule=>{
+              const parts = rule.split(':');
+              const k = parts[0] && parts[0].trim().toLowerCase();
+              const v = parts[1] && parts[1].trim();
+              if(k && v && allowedStyle.has(k) && !/url\(|expression\(|javascript:/i.test(v)){
+                kept.push(`${k}:${v}`);
+              }
+            });
+            if(kept.length) child.setAttribute('style', kept.join(';'));
+          }
+          clean(child);
+        }else if(child.nodeType!==3){
+          child.parentNode.removeChild(child);
+        }
+      });
+    })(tmp);
+    return tmp.innerHTML;
   }
 
   // "2026-07-10" -> "26년 7월 10일"
@@ -2446,6 +2568,10 @@ const L = (function(){
 
   // ---------- 데이터 백업 저장(내보내기) ----------
   document.getElementById('backupExportBtn').addEventListener('click', ()=>{
+    if(guestMode){
+      alert('Guest 모드에서는 백업을 받을 수 없어요. 관리자로 다시 입장해주세요.');
+      return;
+    }
     const payload = { exportedAt: new Date().toISOString(), offices: allOfficesData };
     const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
     const url = URL.createObjectURL(blob);
