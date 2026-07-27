@@ -43,6 +43,15 @@
   .stale-summary-btn{border-color:#f0c33c;color:#f0c33c;font-size:12px;padding:7px 12px;}
   .stale-summary-btn.active{background:#f0c33c;color:#1a1a1a;border-color:#f0c33c;}
   .sort-select{background:var(--bg-side-2);border:1px solid var(--line);border-radius:8px;padding:3px 6px;color:var(--text-main);font-size:11px;outline:none;cursor:pointer;}
+  .schedule-ticker{display:flex;gap:8px;align-items:center;padding:0 14px;border-bottom:1px solid var(--line);overflow-x:auto;white-space:nowrap;}
+  .schedule-ticker:empty{display:none;padding:0;border-bottom:none;}
+  .schedule-ticker .sch-chip{display:inline-flex;align-items:center;gap:5px;background:var(--bg-side-2);border:1px solid var(--line);border-radius:999px;padding:5px 12px;margin:6px 0;white-space:nowrap;cursor:pointer;font-size:11.5px;color:var(--text-dim);flex:none;}
+  .schedule-ticker .sch-chip:hover{border-color:var(--accent);color:var(--text-main);}
+  .schedule-ticker .sch-chip.urgent{border-color:#ff5c5c;color:#ff5c5c;}
+  .schedule-ticker .sch-name{font-weight:700;color:var(--text-main);}
+  .schedule-ticker .sch-chip.urgent .sch-name{color:#ff5c5c;}
+  .schedule-ticker .sch-dday{font-weight:700;color:var(--accent);}
+  .schedule-ticker .sch-chip.urgent .sch-dday{color:#ff5c5c;}
   .rich-toolbar{display:flex;align-items:center;gap:4px;margin-bottom:6px;padding:4px 6px;background:var(--bg-side-2);border:1px solid var(--line);border-radius:8px;flex-wrap:wrap;}
   .rich-toolbar button{background:transparent;border:1px solid var(--line);border-radius:6px;padding:4px 9px;font-size:12px;color:var(--text-main);cursor:pointer;}
   .rich-toolbar button:hover{border-color:var(--accent);}
@@ -301,6 +310,7 @@
     <button class="btn btn-ghost" id="templateBtn">양식 다운로드</button>
     <button class="btn btn-primary" id="addBtn">+ 현장 추가</button>
   </div>
+  <div class="schedule-ticker" id="scheduleTicker"></div>
 
   <div class="tabs blueprint-grid" id="officeTabs"></div>
   <div class="tabs blueprint-grid" id="tabs"></div>
@@ -1660,6 +1670,17 @@ const L = (function(){
     const dd = parseInt(m[3],10);
     return `${yy}년 ${mo}월 ${dd}일`;
   }
+  function formatDateKrWithDow(dateStr){
+    if(!dateStr) return '';
+    const m = String(dateStr).match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if(!m) return dateStr;
+    const mo = parseInt(m[2],10);
+    const dd = parseInt(m[3],10);
+    const dowNames = ['일','월','화','수','목','금','토'];
+    const dateObj = new Date(dateStr+'T00:00:00');
+    const dow = isNaN(dateObj.getTime()) ? '' : dowNames[dateObj.getDay()];
+    return `${mo}월 ${dd}일${dow?`(${dow})`:''}`;
+  }
   function formatDateKrNoYear(dateStr){
     if(!dateStr) return '';
     const m = String(dateStr).match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
@@ -2739,9 +2760,42 @@ const L = (function(){
     renderTabs();
     renderManagerFilter();
     renderStaleSummary();
+    renderScheduleTicker();
     renderSidebar();
     renderMap();
     renderSeoulShapes();
+  }
+  // topbar 아래에 모든 현장의 '다가오는 일정'을 임박한 순서로 모아 보여줌. 클릭하면 그 현장 개요로 바로 이동
+  function renderScheduleTicker(){
+    const el = document.getElementById('scheduleTicker');
+    if(!el) return;
+    const items = [];
+    sites.forEach(s=>{
+      (s.schedules||[]).forEach(sc=>{
+        if(!sc.date) return;
+        const dd = scheduleDday(sc.date);
+        if(dd===null || dd<0) return;
+        items.push({siteId:s.id, siteName:s.name, title:sc.title, date:sc.date, dd});
+      });
+    });
+    items.sort((a,b)=>a.dd-b.dd);
+    if(items.length===0){ el.innerHTML=''; return; }
+    el.innerHTML = items.map(it=>{
+      const urgent = it.dd<=7;
+      return `<span class="sch-chip${urgent?' urgent':''}" data-site-id="${it.siteId}">
+        <span class="sch-name">${escapeHtml(it.siteName)}</span> ${escapeHtml(it.title)} ${formatDateKrWithDow(it.date)}
+        <span class="sch-dday">${it.dd===0?'D-DAY':'D-'+it.dd}</span>
+      </span>`;
+    }).join('');
+    el.querySelectorAll('.sch-chip').forEach(chip=>{
+      chip.addEventListener('click', ()=>{
+        currentDetailId = chip.dataset.siteId;
+        currentView = 'detail';
+        detailTab = '개요';
+        editMode = false;
+        renderAll();
+      });
+    });
   }
   // 상단에 '미방문 30일↑ N건' 배지를 띄워서 방치된 현장을 한눈에 알 수 있게 함. 누르면 그 현장들만 필터링해서 봄
   function renderStaleSummary(){
