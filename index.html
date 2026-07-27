@@ -51,6 +51,11 @@
   .rich-editor{min-height:160px;background:var(--bg-side-2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;color:var(--text-main);font-size:13px;line-height:1.5;outline:none;white-space:pre-wrap;word-break:break-word;}
   .rich-editor:focus{border-color:var(--accent);}
   .rich-content{white-space:pre-wrap;word-break:break-word;}
+  .schedule-countdown{font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;background:var(--bg-side-2);border:1px solid var(--accent);color:var(--accent);white-space:nowrap;}
+  .schedule-countdown.urgent{background:#ff5c5c;color:#fff;border-color:#ff5c5c;}
+  .schedule-dday{font-weight:700;color:var(--accent);}
+  .log-item.schedule-urgent{border-color:#ff5c5c;}
+  .log-item.schedule-past{opacity:.5;}
   .btn{border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-size:13px;cursor:pointer;font-weight:600;white-space:nowrap;transition:.15s;letter-spacing:.2px;}
   .btn-primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600;}
   .btn-primary:hover{background:#ffc933;}
@@ -921,6 +926,30 @@ const L = (function(){
     if(days>=30) return `${days}일간 미방문 · 미수정`;
     return '';
   }
+  // 총회·이사회 등 다가오는 일정까지 남은 일수(D-day) 계산
+  function scheduleDday(dateStr){
+    const d = new Date(dateStr+'T00:00:00');
+    if(isNaN(d.getTime())) return null;
+    const today = new Date(); today.setHours(0,0,0,0);
+    return Math.round((d - today) / 86400000);
+  }
+  // 지난 일정은 제외하고, 오늘 이후 중 가장 임박한 일정 하나를 찾음
+  function nearestSchedule(site){
+    const list = (site.schedules||[])
+      .filter(sc=>sc.date)
+      .map(sc=>Object.assign({}, sc, {dd: scheduleDday(sc.date)}))
+      .filter(sc=>sc.dd!==null && sc.dd>=0);
+    list.sort((a,b)=>a.dd-b.dd);
+    return list[0] || null;
+  }
+  // 상세보기 우측 상단에 띄울 D-day 카운트다운 배지
+  function scheduleCountdownBadge(site){
+    const ns = nearestSchedule(site);
+    if(!ns) return '';
+    const label = ns.dd===0 ? 'D-DAY' : `D-${ns.dd}`;
+    const urgent = ns.dd<=7;
+    return `<span class="schedule-countdown${urgent?' urgent':''}" title="${escapeHtml(ns.title)} · ${escapeHtml(ns.date)}">⏰ ${escapeHtml(ns.title)} ${label}</span>`;
+  }
 
   // ---------- storage ----------
   // Claude 아티팩트 안에서는 window.storage를 쓰고,
@@ -1288,9 +1317,12 @@ const L = (function(){
 
     sidebarEl.innerHTML = `
       <div class="detail">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
           <button class="back-btn" id="backBtn">← 목록으로</button>
-          <button class="btn btn-ghost btn-sm no-print" id="printBtn">🖨 인쇄</button>
+          <div style="display:flex;align-items:center;gap:8px;">
+            ${scheduleCountdownBadge(site)}
+            <button class="btn btn-ghost btn-sm no-print" id="printBtn">🖨 인쇄</button>
+          </div>
         </div>
         <div class="badge-row">
           ${site.status? `<span class="badge"><span class="dot" style="background:${colorForStatus(site.status)}"></span>${escapeHtml(site.status)}</span>`:''}
@@ -1361,8 +1393,27 @@ const L = (function(){
     if(!body) return;
 
     if(detailTab==='개요'){
+      const schedules = (site.schedules||[]).slice().sort((a,b)=> (a.date||'').localeCompare(b.date||''));
+      const scheduleItemsHtml = schedules.length ? schedules.map(sc=>{
+        const dd = sc.date ? scheduleDday(sc.date) : null;
+        const past = dd!==null && dd<0;
+        const ddLabel = dd===null ? '' : (dd===0?'D-DAY':(dd>0?`D-${dd}`:'지남'));
+        const urgentClass = (dd!==null && dd>=0 && dd<=7) ? 'schedule-urgent' : '';
+        return `<div class="log-item ${past?'schedule-past':''} ${urgentClass}">
+          <div class="log-date">${escapeHtml(formatDateKr(sc.date)||sc.date)}${ddLabel?` <span class="schedule-dday">${ddLabel}</span>`:''}</div>
+          <div class="log-text">${escapeHtml(sc.title)}</div>
+          <button class="log-del" data-schid="${sc.id}">삭제</button>
+        </div>`;
+      }).join('') : '<div class="empty">등록된 일정이 없습니다.</div>';
       body.innerHTML = `
         <div class="visit-row"><span>마지막 방문 ${escapeHtml(formatDateKr(lastVisit(site))||'-')}</span><span>총 ${visitCount(site)}회</span></div>
+        <div class="section-head"><span>다가오는 일정</span></div>
+        <div class="log-add">
+          <input type="text" id="schTitle" placeholder="예: 총회, 이사회">
+          <div class="log-date-wrap"><input type="date" id="schDate"></div>
+          <button class="btn btn-primary btn-sm" id="schAddBtn">추가</button>
+        </div>
+        <div class="schedule-list">${scheduleItemsHtml}</div>
         <div class="section-head"><span>사업 현황</span><button id="editToggle" class="btn btn-ghost btn-sm">${editMode?'저장':'수정'}</button></div>
         ${editMode ? `
           <div class="edit-field"><label>조합원수</label><input id="e_union" value="${escapeHtml(site.unionMembers||'')}"></div>
@@ -1400,6 +1451,24 @@ const L = (function(){
           editMode = true;
         }
         renderAll();
+      });
+      document.getElementById('schAddBtn').addEventListener('click', async ()=>{
+        if(!(await ensureUnlocked())) return;
+        const t = document.getElementById('schTitle').value.trim();
+        const d = document.getElementById('schDate').value;
+        if(!t || !d){ alert('일정명과 날짜를 입력해주세요.'); return; }
+        site.schedules = site.schedules || [];
+        site.schedules.push({id: crypto.randomUUID?crypto.randomUUID():String(Date.now()), title:t, date:d});
+        await saveSites();
+        renderAll();
+      });
+      body.querySelectorAll('.schedule-list .log-del').forEach(btn=>{
+        btn.addEventListener('click', async ()=>{
+          if(!(await ensureUnlocked())) return;
+          site.schedules = (site.schedules||[]).filter(sc=>sc.id!==btn.dataset.schid);
+          await saveSites();
+          renderAll();
+        });
       });
 
     }else if(detailTab==='일지'){
