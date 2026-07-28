@@ -1834,50 +1834,54 @@ const L = (function(){
       L.marker(pos, {icon}).addTo(districtLayer);
     }
 
-    // 같은 구에 현장이 여러개면 이름표끼리 겹치지 않게 순번을 매겨둠
-    const districtGroups = {};
-    fs.forEach(s=>{ (districtGroups[s.district] = districtGroups[s.district]||[]).push(s); });
+    // 구를 선택하기 전(줌아웃 상태)에는 구 핀만 보여주고, 현장 이름표/리더라인/점은 그리지 않음
+    // (전에는 항상 다 그려서 구 핀 + 현장 22개 이름표가 한 화면에 겹쳐 지저분했음)
+    if(selectedDistrict){
+      // 같은 구에 현장이 여러개면 이름표끼리 겹치지 않게 순번을 매겨둠
+      const districtGroups = {};
+      fs.forEach(s=>{ (districtGroups[s.district] = districtGroups[s.district]||[]).push(s); });
 
-    fs.forEach(s=>{
-      const basePos = sitePosition(s);
-      if(!basePos) return;
-      const group = districtGroups[s.district] || [s];
-      const idx = group.indexOf(s);
-      // 사용자가 드래그로 직접 옮겨서 고정해둔 위치(labelPos)가 있으면 그걸 우선 사용
-      const labelPos = s.labelPos ? s.labelPos : labelPosition(basePos, idx, group.length, s.id);
+      fs.forEach(s=>{
+        const basePos = sitePosition(s);
+        if(!basePos) return;
+        const group = districtGroups[s.district] || [s];
+        const idx = group.indexOf(s);
+        // 사용자가 드래그로 직접 옮겨서 고정해둔 위치(labelPos)가 있으면 그걸 우선 사용
+        const labelPos = s.labelPos ? s.labelPos : labelPosition(basePos, idx, group.length, s.id);
 
-      // 점(dot) -> 이름표까지 이어지는 가느다란 리더라인
-      L.polyline([basePos, labelPos], {color:'#0a2440', weight:2, opacity:.85, interactive:false}).addTo(siteLayer);
+        // 점(dot) -> 이름표까지 이어지는 가느다란 리더라인
+        L.polyline([basePos, labelPos], {color:'#0a2440', weight:2, opacity:.85, interactive:false}).addTo(siteLayer);
 
-      const goToDetailFor = (site)=>{
-        currentDetailId = site.id;
-        currentView = 'detail';
-        detailTab = '개요';
-        editMode = false;
-        renderAll();
-      };
+        const goToDetailFor = (site)=>{
+          currentDetailId = site.id;
+          currentView = 'detail';
+          detailTab = '개요';
+          editMode = false;
+          renderAll();
+        };
 
-      // 구역 경계(폴리곤)가 있으면 실제 모양을 색칠해서 표시, 없으면 작은 점
-      if(s.polygon && s.polygon.length>=3){
-        L.polygon(s.polygon, {
-          color:colorForStatus(s.status), weight:1.5,
-          fillColor:colorForStatus(s.status), fillOpacity:.45,
-          interactive:true
-        }).addTo(siteLayer).on('click', ()=>goToDetailFor(s));
-      }else{
-        const dot = L.divIcon({className:'', html:`<div class="site-dot" style="background:#111"></div>`, iconSize:[10,10]});
-        L.marker(basePos, {icon:dot}).addTo(siteLayer).on('click', ()=>goToDetailFor(s));
-      }
+        // 구역 경계(폴리곤)가 있으면 실제 모양을 색칠해서 표시, 없으면 작은 점
+        if(s.polygon && s.polygon.length>=3){
+          L.polygon(s.polygon, {
+            color:colorForStatus(s.status), weight:1.5,
+            fillColor:colorForStatus(s.status), fillOpacity:.45,
+            interactive:true
+          }).addTo(siteLayer).on('click', ()=>goToDetailFor(s));
+        }else{
+          const dot = L.divIcon({className:'', html:`<div class="site-dot" style="background:#111"></div>`, iconSize:[10,10]});
+          L.marker(basePos, {icon:dot}).addTo(siteLayer).on('click', ()=>goToDetailFor(s));
+        }
 
-      // 바깥쪽(서울 중심에서 먼 방향 = 경기도 방향)에 이름표 배치, 항상 보임, 클릭 가능
-      const labelIcon = L.divIcon({className:'', html:`<div class="site-label" style="background:${colorForStatus(s.status)}${labelEditMode?';cursor:grab;box-shadow:0 0 0 2px #fff, 0 2px 6px rgba(0,0,0,.4);':''}">${escapeHtml(s.name)}</div>`, iconSize:null});
-      const labelMarker = L.marker(labelPos, {icon:labelIcon}).addTo(siteLayer);
-      if(labelEditMode){
-        enableLabelDrag(labelMarker, s, labelPos);
-      }else{
-        labelMarker.on('click', ()=>goToDetailFor(s));
-      }
-    });
+        // 바깥쪽(서울 중심에서 먼 방향 = 경기도 방향)에 이름표 배치, 항상 보임, 클릭 가능
+        const labelIcon = L.divIcon({className:'', html:`<div class="site-label" style="background:${colorForStatus(s.status)}${labelEditMode?';cursor:grab;box-shadow:0 0 0 2px #fff, 0 2px 6px rgba(0,0,0,.4);':''}">${escapeHtml(s.name)}</div>`, iconSize:null});
+        const labelMarker = L.marker(labelPos, {icon:labelIcon}).addTo(siteLayer);
+        if(labelEditMode){
+          enableLabelDrag(labelMarker, s, labelPos);
+        }else{
+          labelMarker.on('click', ()=>goToDetailFor(s));
+        }
+      });
+    }
 
     clearDistrictBtn.style.display = selectedDistrict ? 'inline-flex' : 'none';
   }
