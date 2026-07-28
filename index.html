@@ -87,8 +87,11 @@
   .event-row input[type=text]{flex:1;}
   .list .card{margin-bottom:0;}
   .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px;margin-bottom:10px;cursor:pointer;position:relative;}
-  .card-compact{padding:8px;margin-bottom:0;}
-  .card-compact .card-date{margin-top:5px;}
+  .card-compact{padding:6px 8px;margin-bottom:0;}
+  .card-compact .card-name{font-size:12.5px;}
+  .card-compact .card-date{margin-top:2px;font-size:10.5px;}
+  .card-compact .card-actions button{padding:1px 4px;font-size:9px;}
+  .card-compact .card-row{gap:3px;}
 
   .card:hover{background:var(--card-hover);border-color:var(--accent);}
   .card.selected{border-color:var(--accent);}
@@ -1224,19 +1227,13 @@ const L = (function(){
       return;
     }
     const cards = fs.map(s=>{
-      const badge = s.status ? `<span class="badge"><span class="dot" style="background:${colorForStatus(s.status)}"></span>${escapeHtml(s.status)}</span>` : '';
       const stale = isStale(s);
       return `
       <div class="card card-compact ${stale?'stale':''}" data-id="${s.id}">
         <div class="card-row">
           <div class="card-main">
-            <div class="card-top">
-              <div class="card-name">${escapeHtml(s.name)}</div>
-              ${badge}
-              ${s.stage?`<span class="stage-inline" style="color:${stageAccentColor(s.stage)}">▶ ${escapeHtml(s.stage)}</span>`:''}
-              ${stale?`<span class="stale-badge">⚠ 방문 필요</span>`:''}
-            </div>
-            <div class="card-date">담당: ${escapeHtml(s.manager||'-')} / 수정: ${s.lastDate ? escapeHtml(formatDateKrNoYear(s.lastDate)) : '-'}</div>
+            <div class="card-name">${escapeHtml(s.name)}</div>
+            <div class="card-date">담당: ${escapeHtml(s.manager||'-')}</div>
           </div>
           <div class="card-actions">
             <button data-act="edit" data-id="${s.id}">수정</button>
