@@ -482,12 +482,27 @@ const L = (function(){
       fillColor: options.fillColor||options.color||'#333',
       fillOpacity: options.fillOpacity!=null?options.fillOpacity:0.3
     });
+    let tooltipObj = null;
+    const centerLatLng = (()=>{
+      const lat = points.reduce((s,p)=>s+p[0],0)/points.length;
+      const lng = points.reduce((s,p)=>s+p[1],0)/points.length;
+      return new kakao.maps.LatLng(lat, lng);
+    })();
     return {
       _kobj: kobj,
       addTo(target){ kobj.setMap(realMap(target)); if(target.addLayer) target.addLayer(this); return this; },
-      _setMapNull(){ kobj.setMap(null); },
+      _setMapNull(){ kobj.setMap(null); if(tooltipObj) tooltipObj.setMap(null); },
       on(evt, cb){ if(evt==='click') kakao.maps.event.addListener(kobj, 'click', cb); return this; },
-      bindTooltip(){ return this; },
+      bindTooltip(html){
+        const wrap = document.createElement('div');
+        wrap.innerHTML = (html||'').trim();
+        const content = wrap.firstElementChild || wrap;
+        tooltipObj = new kakao.maps.CustomOverlay({
+          position: centerLatLng, content, xAnchor:0.5, yAnchor:1.6, zIndex:999
+        });
+        tooltipObj.setMap(kobj.getMap());
+        return this;
+      },
       getBounds(){ return latLngBounds(points); }
     };
   }
@@ -521,14 +536,24 @@ const L = (function(){
       content: content,
       xAnchor: 0.5, yAnchor: 0.5
     });
+    let tooltipObj = null;
     return {
       _kobj: kobj,
       _el: content,
       addTo(target){ kobj.setMap(realMap(target)); if(target.addLayer) target.addLayer(this); return this; },
-      _setMapNull(){ kobj.setMap(null); },
+      _setMapNull(){ kobj.setMap(null); if(tooltipObj) tooltipObj.setMap(null); },
       on(evt, cb){ if(evt==='click') content.addEventListener('click', cb); return this; },
-      bindTooltip(){ return this; },
-      setLatLng(p){ kobj.setPosition(toLatLng(p)); return this; }
+      bindTooltip(html){
+        const wrap = document.createElement('div');
+        wrap.innerHTML = (html||'').trim();
+        const tContent = wrap.firstElementChild || wrap;
+        tooltipObj = new kakao.maps.CustomOverlay({
+          position: toLatLng(pos), content: tContent, xAnchor:0.5, yAnchor:1.9, zIndex:999
+        });
+        tooltipObj.setMap(kobj.getMap());
+        return this;
+      },
+      setLatLng(p){ kobj.setPosition(toLatLng(p)); if(tooltipObj) tooltipObj.setPosition(toLatLng(p)); return this; }
     };
   }
 
@@ -1816,8 +1841,24 @@ const L = (function(){
         });
       }else{
         marker.on('click', ()=>{
-          selectedDistrict = (selectedDistrict===d) ? null : d;
+          if(selectedDistrict===d){
+            selectedDistrict = null;
+            regionFocusMode = false;
+            resetMapToSeoul();
+          }else{
+            selectedDistrict = d;
+            regionFocusMode = true;
+            const sidoName = d.split(' ')[0];
+            const guName = d.split(' ').pop();
+            const shape = shapeFor(sidoName, guName);
+            if(map){
+              if(shape) map.fitBounds(L.latLngBounds(shape), {padding:[30,30]});
+              else map.setView(DISTRICTS[d] || centroid, 13);
+            }
+          }
           renderAll();
+          renderSeoulShapes();
+          renderRegionPanel();
         });
       }
     });
@@ -1835,7 +1876,6 @@ const L = (function(){
     }
 
     // 구를 선택하기 전(줌아웃 상태)에는 구 핀만 보여주고, 현장 이름표/리더라인/점은 그리지 않음
-    // (전에는 항상 다 그려서 구 핀 + 현장 22개 이름표가 한 화면에 겹쳐 지저분했음)
     if(selectedDistrict){
       // 같은 구에 현장이 여러개면 이름표끼리 겹치지 않게 순번을 매겨둠
       const districtGroups = {};
