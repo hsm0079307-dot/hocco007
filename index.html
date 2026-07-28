@@ -1875,7 +1875,7 @@ const L = (function(){
       L.marker(pos, {icon}).addTo(districtLayer);
     }
 
-    // 구를 선택하기 전(줌아웃 상태)에는 구 핀만 보여주고, 현장 이름표/리더라인/점은 그리지 않음
+    // 구를 선택하기 전(줌아웃 상태)에는 구 핀만 보여주고, 현장 이름표/점은 그리지 않음
     if(selectedDistrict){
       // 같은 구에 현장이 여러개면 이름표끼리 겹치지 않게 순번을 매겨둠
       const districtGroups = {};
@@ -1888,9 +1888,6 @@ const L = (function(){
         const idx = group.indexOf(s);
         // 사용자가 드래그로 직접 옮겨서 고정해둔 위치(labelPos)가 있으면 그걸 우선 사용
         const labelPos = s.labelPos ? s.labelPos : labelPosition(basePos, idx, group.length, s.id);
-
-        // 점(dot) -> 이름표까지 이어지는 가느다란 리더라인
-        L.polyline([basePos, labelPos], {color:'#0a2440', weight:2, opacity:.85, interactive:false}).addTo(siteLayer);
 
         const goToDetailFor = (site)=>{
           currentDetailId = site.id;
