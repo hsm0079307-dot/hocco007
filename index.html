@@ -144,6 +144,13 @@
   .region-item{background:var(--bg-side-2);border:1px solid var(--line);border-radius:8px;padding:6px 4px;font-size:11.5px;text-align:center;cursor:pointer;color:var(--text-main);}
   .region-item:hover{background:var(--card-hover);}
   .region-item.active{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);}
+  .manager-filter-wrap{position:relative;}
+  .manager-filter-panel{position:absolute;top:100%;right:0;margin-top:4px;background:var(--bg-side);border:1px solid var(--line);border-radius:10px;padding:6px;width:190px;max-height:320px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.4);z-index:600;}
+  .manager-filter-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;cursor:pointer;font-size:12.5px;color:var(--text-main);white-space:nowrap;}
+  .manager-filter-item:hover{background:var(--card-hover);}
+  .manager-filter-item .chk{width:15px;height:15px;flex:none;border:1px solid var(--line);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;line-height:1;color:var(--accent-ink);background:var(--bg-side-2);}
+  .manager-filter-item .chk.checked{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700;}
+  .manager-filter-all{border-bottom:1px dashed var(--line);margin-bottom:4px;padding-bottom:8px;}
 
   /* modal */
   .overlay{position:fixed;inset:0;background:rgba(3,12,22,.7);display:none;align-items:center;justify-content:center;z-index:1000;padding:16px;}
@@ -273,9 +280,10 @@
     <button class="btn btn-ghost" id="templateBtn">양식 다운로드</button>
     <button class="btn btn-ghost" id="exportBtn">엑셀 다운로드</button>
     <button class="btn btn-ghost" id="calendarBtn">📅 일정 캘린더</button>
-    <select id="managerFilter" class="btn btn-ghost" style="cursor:pointer;">
-      <option value="">담당자 전체</option>
-    </select>
+    <div class="manager-filter-wrap" id="managerFilterWrap">
+      <button class="btn btn-ghost" id="managerFilterBtn" type="button">담당자 전체 ▾</button>
+      <div class="manager-filter-panel" id="managerFilterPanel" style="display:none;"></div>
+    </div>
     <button class="btn btn-primary" id="addBtn">+ 현장 추가</button>
   </div>
 
@@ -809,7 +817,7 @@ const L = (function(){
   let currentOffice = localStorage.getItem('currentOffice') || '강서사업소';
   let allOfficesData = {};
   let selectedStage = '전체';
-  let selectedManager = '';
+  let selectedManagers = new Set();
   let selectedDistrict = null;
   let searchText = '';
   let map, districtLayer, siteLayer, focusLayer, seoulShapeLayer;
@@ -1002,15 +1010,50 @@ const L = (function(){
     `;
   }
 
-  // ---------- 담당자 필터 ----------
+  // ---------- 담당자 필터 (다중 선택) ----------
   function renderManagerFilter(){
-    const sel = document.getElementById('managerFilter');
-    if(!sel) return;
+    const btn = document.getElementById('managerFilterBtn');
+    const panel = document.getElementById('managerFilterPanel');
+    if(!btn || !panel) return;
     const managers = Array.from(new Set(sites.map(s=>s.manager).filter(Boolean))).sort();
-    const current = sel.value;
-    sel.innerHTML = `<option value="">담당자 전체</option>` + managers.map(m=>`<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join('');
-    sel.value = managers.includes(current) ? current : '';
+    // 사업소를 바꿔서 더 이상 존재하지 않는 담당자가 선택돼 있으면 정리
+    selectedManagers = new Set(Array.from(selectedManagers).filter(m=>managers.includes(m)));
+    btn.textContent = (selectedManagers.size===0 ? '담당자 전체' : selectedManagers.size===1 ? Array.from(selectedManagers)[0] : `담당자 ${selectedManagers.size}명`) + ' ▾';
+    panel.innerHTML = `
+      <div class="manager-filter-item manager-filter-all" data-all="1">
+        <span class="chk ${selectedManagers.size===0?'checked':''}">${selectedManagers.size===0?'✓':''}</span>담당자 전체
+      </div>
+      ${managers.map(m=>`
+        <div class="manager-filter-item" data-manager="${escapeHtml(m)}">
+          <span class="chk ${selectedManagers.has(m)?'checked':''}">${selectedManagers.has(m)?'✓':''}</span>${escapeHtml(m)}
+        </div>`).join('')}
+    `;
+    panel.querySelectorAll('.manager-filter-item').forEach(item=>{
+      item.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        if(item.dataset.all){
+          selectedManagers.clear();
+        }else{
+          const m = item.dataset.manager;
+          if(selectedManagers.has(m)) selectedManagers.delete(m); else selectedManagers.add(m);
+        }
+        renderManagerFilter();
+        panel.style.display = 'block'; // 목록 갱신 후에도 계속 열어둬서 여러 개 연속으로 체크 가능
+        renderAll();
+      });
+    });
   }
+  document.getElementById('managerFilterBtn').addEventListener('click', (e)=>{
+    e.stopPropagation();
+    const panel = document.getElementById('managerFilterPanel');
+    panel.style.display = panel.style.display==='none' ? 'block' : 'none';
+  });
+  document.addEventListener('click', (e)=>{
+    const wrap = document.getElementById('managerFilterWrap');
+    if(wrap && !wrap.contains(e.target)){
+      document.getElementById('managerFilterPanel').style.display = 'none';
+    }
+  });
 
   // ---------- 엑셀 내보내기 ----------
   function exportSitesToExcel(){
@@ -1028,10 +1071,6 @@ const L = (function(){
     XLSX.writeFile(wb, `${currentOffice}_현장목록_${today}.xlsx`);
   }
   document.getElementById('exportBtn').addEventListener('click', exportSitesToExcel);
-  document.getElementById('managerFilter').addEventListener('change', (e)=>{
-    selectedManager = e.target.value;
-    renderAll();
-  });
 
   // ---------- 일정 캘린더 ----------
   const today0 = new Date();
@@ -1185,7 +1224,7 @@ const L = (function(){
   function sitesForTabCount(){
     return sites.filter(s=>{
       if(selectedDistrict && s.district!==selectedDistrict) return false;
-      if(selectedManager && s.manager!==selectedManager) return false;
+      if(selectedManagers.size>0 && !selectedManagers.has(s.manager)) return false;
       if(searchText){
         const hay = (s.name+' '+s.district+' '+(s.memo||'')+' '+(s.status||'')).toLowerCase();
         if(!hay.includes(searchText.toLowerCase())) return false;
@@ -1221,7 +1260,7 @@ const L = (function(){
     return sites.filter(s=>{
       if(selectedStage!=='전체' && s.stage!==selectedStage) return false;
       if(selectedDistrict && s.district!==selectedDistrict) return false;
-      if(selectedManager && s.manager!==selectedManager) return false;
+      if(selectedManagers.size>0 && !selectedManagers.has(s.manager)) return false;
       if(searchText){
         const hay = (s.name+' '+s.district+' '+(s.memo||'')+' '+(s.status||'')).toLowerCase();
         if(!hay.includes(searchText.toLowerCase())) return false;
