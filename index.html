@@ -68,6 +68,15 @@
   .cal-cell.today{border-color:var(--accent);}
   .cal-daynum{font-weight:700;color:var(--text-main);margin-bottom:3px;}
   .cal-event{display:block;padding:2px 5px;border-radius:5px;margin-bottom:2px;font-size:10px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;}
+  .cal-agenda{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);}
+  .cal-agenda h3{font-size:12px;color:var(--text-dim);margin:0 0 8px;font-weight:600;}
+  .cal-agenda-item{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--text-main);padding:4px 2px;cursor:pointer;border-radius:6px;}
+  .cal-agenda-item:hover{background:var(--bg-side-2);}
+  .cal-agenda-empty{font-size:12px;color:var(--text-dim);}
+  .cal-inline-agenda{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding:8px 16px;background:var(--bg-side-2);border-bottom:1px solid var(--line);font-size:12px;max-height:64px;overflow-y:auto;}
+  .cal-inline-label{font-weight:600;color:var(--text-dim);white-space:nowrap;}
+  .cal-inline-item{display:flex;align-items:center;gap:5px;cursor:pointer;color:var(--text-main);white-space:nowrap;}
+  .cal-inline-item:hover{color:var(--accent);}
   .tab{flex:none;padding:6px 14px;border-radius:999px;background:var(--bg-side-2);color:var(--text-dim);font-size:12px;cursor:pointer;border:1px solid var(--line);white-space:nowrap;display:flex;gap:6px;align-items:center;}
   .tab.active{background:var(--accent);color:var(--accent-ink);border-style:solid;font-weight:600;}
   .tab .count{opacity:.8;font-size:12px;}
@@ -269,6 +278,8 @@
     </select>
     <button class="btn btn-primary" id="addBtn">+ 현장 추가</button>
   </div>
+
+  <div class="cal-inline-agenda" id="calInlineAgenda"></div>
 
   <div class="stats-bar blueprint-grid" id="statsBar"></div>
 
@@ -1123,6 +1134,19 @@ const L = (function(){
         ${dowNames.map(d=>`<div class="cal-dow">${d}</div>`).join('')}
         ${cellHtml}
       </div>
+      <div class="cal-agenda">
+        <h3>이번 달 일정</h3>
+        ${(()=>{
+          const items = Object.keys(events).sort().flatMap(dateKey=>{
+            const d = new Date(dateKey);
+            const md = `${d.getMonth()+1}.${d.getDate()}`;
+            return events[dateKey].map(ev=>({md, ev}));
+          });
+          return items.length
+            ? items.map(({md,ev})=>`<div class="cal-agenda-item" data-id="${ev.site.id}"><span class="cal-dot" style="background:${ev.color}"></span>${md} ${escapeHtml(ev.site.name)}(${escapeHtml(ev.label)})</div>`).join('')
+            : '<div class="cal-agenda-empty">이번 달 일정이 없습니다.</div>';
+        })()}
+      </div>
     `;
     document.getElementById('calPrev').addEventListener('click', ()=>{
       calMonth--; if(calMonth<0){ calMonth=11; calYear--; }
@@ -1137,7 +1161,7 @@ const L = (function(){
       renderCalendarView();
     });
     document.getElementById('calClose').addEventListener('click', closeCalendarView);
-    calendarViewEl.querySelectorAll('.cal-event').forEach(el=>{
+    calendarViewEl.querySelectorAll('.cal-event, .cal-agenda-item').forEach(el=>{
       el.addEventListener('click', ()=>{
         const id = el.dataset.id;
         closeCalendarView();
@@ -2247,6 +2271,48 @@ const L = (function(){
     });
   }
 
+  // 오늘부터 몇 달 뒤까지의 일정을 다 모음 (달력 '이번 달' 기준이 아니라 '앞으로 N개월' 기준이라
+  // 예를 들어 7월 말에 봐도 8월 1일 일정이 잘림 없이 보임)
+  function collectUpcomingEvents(monthsAhead){
+    const now = new Date(today0.getFullYear(), today0.getMonth(), today0.getDate());
+    const cutoff = new Date(now.getFullYear(), now.getMonth()+monthsAhead, now.getDate());
+    const map = {};
+    sites.forEach(s=>{
+      eventsOf(s).forEach(ev=>{
+        if(!ev.date || !ev.label) return;
+        const d = new Date(ev.date);
+        if(isNaN(d.getTime())) return;
+        if(d>=now && d<=cutoff){
+          if(!map[ev.date]) map[ev.date] = [];
+          map[ev.date].push({site:s, label:ev.label, color:colorForEventLabel(ev.label)});
+        }
+      });
+    });
+    return map;
+  }
+  function renderInlineAgenda(){
+    const el = document.getElementById('calInlineAgenda');
+    if(!el) return;
+    const upcoming = collectUpcomingEvents(3); // 앞으로 3개월치
+    const items = Object.keys(upcoming).sort().flatMap(dateKey=>{
+      const d = new Date(dateKey);
+      const md = `${d.getMonth()+1}.${d.getDate()}`;
+      return upcoming[dateKey].map(ev=>({md, ev}));
+    });
+    if(items.length===0){ el.innerHTML = `<span class="cal-inline-label">📅 다가오는 일정(3개월)</span><span style="color:var(--text-dim);">없음</span>`; return; }
+    el.innerHTML = `<span class="cal-inline-label">📅 다가오는 일정(3개월)</span>` + items.map(({md,ev})=>
+      `<span class="cal-inline-item" data-id="${ev.site.id}"><span class="cal-dot" style="background:${ev.color}"></span>${md} ${escapeHtml(ev.site.name)}(${escapeHtml(ev.label)})</span>`
+    ).join('');
+    el.querySelectorAll('.cal-inline-item').forEach(elm=>{
+      elm.addEventListener('click', ()=>{
+        currentDetailId = elm.dataset.id;
+        currentView = 'detail';
+        detailTab = '개요';
+        editMode = false;
+        renderAll();
+      });
+    });
+  }
   function renderAll(){
     renderStatsBar();
     renderManagerFilter();
@@ -2254,6 +2320,7 @@ const L = (function(){
     renderSidebar();
     renderMap();
     renderSeoulShapes();
+    renderInlineAgenda();
   }
 
   // ---------- 모드 선택 ----------
