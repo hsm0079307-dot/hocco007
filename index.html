@@ -789,6 +789,7 @@ const L = (function(){
 
   let sites = [];
   const OFFICES = ['강서사업소','강남사업소','강북사업소'];
+  const ALL_OFFICE = '__ALL__'; // 3개 사업소를 합쳐서 보는 가상 탭 (조회 전용, 추가/수정/삭제 불가)
   let currentOffice = localStorage.getItem('currentOffice') || '강서사업소';
   let allOfficesData = {};
   let selectedStage = '전체';
@@ -883,8 +884,8 @@ const L = (function(){
     if(allOfficesData['강서사업소'].length===0){
       allOfficesData['강서사업소'] = makeDefaultSites();
     }
-    sites = allOfficesData[currentOffice] || [];
-    if(!OFFICES.includes(currentOffice)){ currentOffice = '강서사업소'; sites = allOfficesData[currentOffice]; }
+    if(currentOffice!==ALL_OFFICE && !OFFICES.includes(currentOffice)){ currentOffice = '강서사업소'; }
+    sites = currentOffice===ALL_OFFICE ? OFFICES.flatMap(o=>allOfficesData[o]||[]) : (allOfficesData[currentOffice]||[]);
     sites.forEach(s=>{ s.district = migrateDistrict(s.district); });
     // 이미 저장돼있던 기존 데이터에도(=새로고침만 해도) 목동1단지 구역경계가 채워지도록 1회성 보정 (강서사업소 한정)
     const gangseoSites = allOfficesData['강서사업소'];
@@ -924,7 +925,7 @@ const L = (function(){
     }
   }
   async function saveSites(){
-    allOfficesData[currentOffice] = sites;
+    if(currentOffice!==ALL_OFFICE) allOfficesData[currentOffice] = sites;
     const json = JSON.stringify(allOfficesData);
     try{
       if(window.storage){
@@ -1129,7 +1130,6 @@ const L = (function(){
   });
 
   // ---------- tabs ----------
-  // 구/담당자/검색 필터는 반영하되 단계(stage) 필터만 뺀 기준 목록 (탭 카운트가 구 필터를 반영하도록)
   function sitesForTabCount(){
     return sites.filter(s=>{
       if(selectedDistrict && s.district!==selectedDistrict) return false;
@@ -1479,8 +1479,8 @@ const L = (function(){
   function renderOfficeSwitcher(){
     const el = document.getElementById('officeSwitcher');
     if(!el) return;
-    el.innerHTML = OFFICES.map(o=>
-      `<button class="office-btn ${o===currentOffice?'active':''}" data-office="${o}">${o.replace('사업소','')}</button>`
+    el.innerHTML = [ALL_OFFICE, ...OFFICES].map(o=>
+      `<button class="office-btn ${o===currentOffice?'active':''}" data-office="${o}">${o===ALL_OFFICE?'전체':o.replace('사업소','')}</button>`
     ).join('');
     el.querySelectorAll('.office-btn').forEach(btn=>{
       btn.addEventListener('click', ()=> switchOffice(btn.dataset.office));
@@ -1490,13 +1490,13 @@ const L = (function(){
     if(office===currentOffice) return;
     currentOffice = office;
     try{ localStorage.setItem('currentOffice', office); }catch(e){}
-    sites = allOfficesData[office] || [];
+    sites = office===ALL_OFFICE ? OFFICES.flatMap(o=>allOfficesData[o]||[]) : (allOfficesData[office] || []);
     selectedDistrict = null;
     regionFocusMode = false;
     currentView = 'list';
     selectedStage = '전체';
     const brandEl = document.querySelector('.brand');
-    if(brandEl) brandEl.textContent = office + ' 스크린';
+    if(brandEl) brandEl.textContent = (office===ALL_OFFICE?'전체':office) + ' 스크린';
     renderOfficeSwitcher();
     renderAll();
     renderSeoulShapes();
@@ -1877,7 +1877,6 @@ const L = (function(){
 
     // 구를 선택하기 전(줌아웃 상태)에는 구 핀만 보여주고, 현장 이름표/점은 그리지 않음
     if(selectedDistrict){
-      // 같은 구에 현장이 여러개면 이름표끼리 겹치지 않게 순번을 매겨둠
       const districtGroups = {};
       fs.forEach(s=>{ (districtGroups[s.district] = districtGroups[s.district]||[]).push(s); });
 
@@ -1886,7 +1885,6 @@ const L = (function(){
         if(!basePos) return;
         const group = districtGroups[s.district] || [s];
         const idx = group.indexOf(s);
-        // 사용자가 드래그로 직접 옮겨서 고정해둔 위치(labelPos)가 있으면 그걸 우선 사용
         const labelPos = s.labelPos ? s.labelPos : labelPosition(basePos, idx, group.length, s.id);
 
         const goToDetailFor = (site)=>{
@@ -1897,7 +1895,6 @@ const L = (function(){
           renderAll();
         };
 
-        // 구역 경계(폴리곤)가 있으면 실제 모양을 색칠해서 표시, 없으면 작은 점
         if(s.polygon && s.polygon.length>=3){
           L.polygon(s.polygon, {
             color:colorForStatus(s.status), weight:1.5,
@@ -1909,7 +1906,6 @@ const L = (function(){
           L.marker(basePos, {icon:dot}).addTo(siteLayer).on('click', ()=>goToDetailFor(s));
         }
 
-        // 바깥쪽(서울 중심에서 먼 방향 = 경기도 방향)에 이름표 배치, 항상 보임, 클릭 가능
         const labelIcon = L.divIcon({className:'', html:`<div class="site-label" style="background:${colorForStatus(s.status)}${labelEditMode?';cursor:grab;box-shadow:0 0 0 2px #fff, 0 2px 6px rgba(0,0,0,.4);':''}">${escapeHtml(s.name)}</div>`, iconSize:null});
         const labelMarker = L.marker(labelPos, {icon:labelIcon}).addTo(siteLayer);
         if(labelEditMode){
@@ -1959,6 +1955,7 @@ const L = (function(){
   function closeModal(){ overlay.classList.remove('show'); editingId=null; }
 
   document.getElementById('addBtn').addEventListener('click', async ()=>{
+    if(currentOffice===ALL_OFFICE){ alert('전체 보기에서는 추가할 수 없습니다. 먼저 사업소를 선택해주세요.'); return; }
     if(!(await ensureUnlocked())) return;
     openModal(null);
   });
@@ -1975,6 +1972,7 @@ const L = (function(){
   }
 
   document.getElementById('saveBtn').addEventListener('click', async ()=>{
+    if(currentOffice===ALL_OFFICE){ alert('전체 보기에서는 수정할 수 없습니다. 먼저 사업소를 선택해주세요.'); return; }
     if(!(await ensureUnlocked())) return;
     const name = document.getElementById('f_name').value.trim();
     if(!name){ alert('현장명을 입력해주세요.'); return; }
@@ -2016,6 +2014,7 @@ const L = (function(){
   });
 
   async function deleteSite(id){
+    if(currentOffice===ALL_OFFICE){ alert('전체 보기에서는 삭제할 수 없습니다. 먼저 사업소를 선택해주세요.'); return; }
     if(!confirm('이 현장을 삭제할까요?')) return;
     sites = sites.filter(s=>s.id!==id);
     await saveSites();
@@ -2063,6 +2062,7 @@ const L = (function(){
   document.getElementById('excelInput').addEventListener('change', async (e)=>{
     const file = e.target.files[0];
     if(!file) return;
+    if(currentOffice===ALL_OFFICE){ alert('전체 보기에서는 엑셀 업로드를 할 수 없습니다. 먼저 사업소를 선택해주세요.'); e.target.value=''; return; }
     if(!(await ensureUnlocked())){ e.target.value=''; return; }
     const buf = await file.arrayBuffer();
     const wb = XLSX.read(buf, {type:'array'});
