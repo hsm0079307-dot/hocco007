@@ -79,7 +79,12 @@
   .sidebar::before{content:none;}
   .sidebar-head h2{font-size:12px;margin:0;letter-spacing:normal;color:var(--text-dim);}
   .sidebar-head span{color:var(--accent);font-size:12px;font-weight:600;}
-  .list{flex:1;overflow-y:auto;padding:6px 10px 20px;display:grid;grid-template-columns:1fr;gap:8px;align-content:start;}
+  .list{flex:1;overflow-y:auto;padding:6px 10px 20px;display:grid;grid-template-columns:1fr 1fr;gap:8px;align-content:start;}
+  .card.dragging{opacity:.4;}
+  .card.drag-over{outline:2px dashed #dba13a;outline-offset:2px;}
+  .event-row{margin-bottom:6px;}
+  .event-row input[type=date]{flex:none;width:120px;}
+  .event-row input[type=text]{flex:1;}
   .list .card{margin-bottom:0;}
   .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px;margin-bottom:10px;cursor:pointer;position:relative;}
   .card-compact{padding:8px;margin-bottom:0;}
@@ -357,14 +362,11 @@
         <label>최근 일지 날짜</label>
         <input id="f_date" type="date">
       </div>
-      <div class="field">
-        <label>총회일</label>
-        <input id="f_assemblyDate" type="date">
-      </div>
-      <div class="field">
-        <label>입찰마감일</label>
-        <input id="f_bidDeadline" type="date">
-      </div>
+    </div>
+    <div class="field">
+      <label>일정 (날짜 + 내용, 예: 정기총회, 전체회의, 입찰마감 등 자유롭게 추가)</label>
+      <div id="f_events_list"></div>
+      <button type="button" class="btn btn-ghost btn-sm" id="addEventRowBtn">+ 일정 추가</button>
     </div>
     <div class="field-row">
       <div class="field">
@@ -789,7 +791,7 @@ const L = (function(){
 
   let sites = [];
   const OFFICES = ['강서사업소','강남사업소','강북사업소'];
-  const ALL_OFFICE = '__ALL__'; // 3개 사업소를 합쳐서 보는 가상 탭 (조회 전용, 추가/수정/삭제 불가)
+  const ALL_OFFICE = '__ALL__';
   let currentOffice = localStorage.getItem('currentOffice') || '강서사업소';
   let allOfficesData = {};
   let selectedStage = '전체';
@@ -1003,7 +1005,7 @@ const L = (function(){
       '면적(m²)': s.area||'', '예상발주': s.orderExpected||'', '신축세대': s.households||'',
       '연면적(m²)': s.totalFloorArea||'', '규모': s.scale||'', '조합원수': s.unionMembers||'',
       '정비업체': s.managementCompany||'', '설계업체': s.designCompany||'', '신탁사': s.trustCompany||'',
-      '담당자': s.manager||'', '최근 일지 날짜': s.lastDate||'', '총회일': s.assemblyDate||'', '입찰마감일': s.bidDeadline||'', '비고': s.memo||'', '사진 링크': (s.photos||[]).join(' | ')
+      '담당자': s.manager||'', '최근 일지 날짜': s.lastDate||'', '일정': eventsSummary(s), '비고': s.memo||'', '사진 링크': (s.photos||[]).join(' | ')
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
@@ -1023,19 +1025,36 @@ const L = (function(){
   let calMonth = today0.getMonth(); // 0-based
   const calendarViewEl = document.getElementById('calendarView');
 
+  // 예전 데이터(총회일/입찰마감일 고정 필드)만 있고 아직 새 방식(events)으로 저장 안 된 현장을 위한 호환 처리
+  function legacyEventsFrom(site){
+    const out = [];
+    if(site.assemblyDate) out.push({date:site.assemblyDate, label:'총회'});
+    if(site.bidDeadline) out.push({date:site.bidDeadline, label:'입찰마감'});
+    return out;
+  }
+  function eventsOf(site){
+    return Array.isArray(site.events) ? site.events : legacyEventsFrom(site);
+  }
+  function eventsSummary(site){
+    return eventsOf(site).filter(e=>e.date && e.label).map(e=>`${e.date} ${e.label}`).join(' / ');
+  }
+  const EVENT_COLOR_PALETTE = ['#4a90d9','#d9534f','#5cb85c','#f0ad4e','#9b59b6','#16a085','#e67e22','#c0392b'];
+  function colorForEventLabel(label){
+    let h=0; for(let i=0;i<label.length;i++) h=(h*131+label.charCodeAt(i))>>>0;
+    return EVENT_COLOR_PALETTE[h % EVENT_COLOR_PALETTE.length];
+  }
   function collectEventsForMonth(year, month){
-    // key: 'YYYY-MM-DD' -> [{site, type, color}]
+    // key: 'YYYY-MM-DD' -> [{site, label, color}]
     const map = {};
     sites.forEach(s=>{
-      [['assemblyDate','총회','#4a90d9'], ['bidDeadline','입찰마감','#d9534f']].forEach(([field, label, color])=>{
-        const val = s[field];
-        if(!val) return;
-        const d = new Date(val);
+      eventsOf(s).forEach(ev=>{
+        if(!ev.date || !ev.label) return;
+        const d = new Date(ev.date);
         if(isNaN(d.getTime())) return;
         if(d.getFullYear()===year && d.getMonth()===month){
-          const key = val;
+          const key = ev.date;
           if(!map[key]) map[key] = [];
-          map[key].push({site:s, label, color});
+          map[key].push({site:s, label:ev.label, color:colorForEventLabel(ev.label)});
         }
       });
     });
@@ -1088,8 +1107,14 @@ const L = (function(){
         <button class="cal-nav cal-close" id="calClose">닫기 ✕</button>
       </div>
       <div class="cal-legend">
-        <span><span class="cal-dot" style="background:#4a90d9;"></span>총회일</span>
-        <span><span class="cal-dot" style="background:#d9534f;"></span>입찰마감일</span>
+        ${(()=>{
+          const seen = {};
+          Object.values(events).flat().forEach(ev=>{ seen[ev.label] = ev.color; });
+          const labels = Object.keys(seen);
+          return labels.length
+            ? labels.map(l=>`<span><span class="cal-dot" style="background:${seen[l]};"></span>${escapeHtml(l)}</span>`).join('')
+            : '<span style="color:var(--text-dim);">이번 달 일정 없음</span>';
+        })()}
       </div>
       <div class="cal-grid">
         ${dowNames.map(d=>`<div class="cal-dow">${d}</div>`).join('')}
@@ -1175,7 +1200,7 @@ const L = (function(){
         if(!hay.includes(searchText.toLowerCase())) return false;
       }
       return true;
-    }).sort((a,b)=> (b.lastDate||'').localeCompare(a.lastDate||''));
+    });
   }
 
   // ---------- sidebar dispatcher ----------
@@ -1240,6 +1265,43 @@ const L = (function(){
         currentView = 'detail';
         detailTab = '개요';
         editMode = false;
+        renderAll();
+      });
+    });
+    attachCardDragHandlers();
+  }
+
+  // ---------- 현장 카드 드래그로 순서 바꾸기 ----------
+  let dragSrcId = null;
+  function attachCardDragHandlers(){
+    const canDrag = !guestMode && localStorage.getItem('editUnlocked')==='1' && currentOffice!==ALL_OFFICE;
+    sidebarEl.querySelectorAll('.card').forEach(card=>{
+      card.setAttribute('draggable', canDrag ? 'true' : 'false');
+      if(!canDrag) return;
+      card.addEventListener('dragstart', (e)=>{
+        dragSrcId = card.dataset.id;
+        e.dataTransfer.effectAllowed = 'move';
+        card.classList.add('dragging');
+      });
+      card.addEventListener('dragend', ()=>{ card.classList.remove('dragging'); });
+      card.addEventListener('dragover', (e)=>{
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        card.classList.add('drag-over');
+      });
+      card.addEventListener('dragleave', ()=>{ card.classList.remove('drag-over'); });
+      card.addEventListener('drop', async (e)=>{
+        e.preventDefault();
+        card.classList.remove('drag-over');
+        const targetId = card.dataset.id;
+        if(!dragSrcId || dragSrcId===targetId) return;
+        const fromIdx = sites.findIndex(s=>s.id===dragSrcId);
+        const toIdx = sites.findIndex(s=>s.id===targetId);
+        if(fromIdx===-1 || toIdx===-1) return;
+        const [moved] = sites.splice(fromIdx, 1);
+        sites.splice(toIdx, 0, moved);
+        dragSrcId = null;
+        await saveSites();
         renderAll();
       });
     });
@@ -1922,6 +1984,27 @@ const L = (function(){
   clearDistrictBtn.addEventListener('click', ()=>{ selectedDistrict=null; regionFocusMode=false; renderAll(); renderSeoulShapes(); renderRegionPanel(); });
 
   // ---------- modal ----------
+  let modalEvents = [];
+  function renderEventRows(){
+    const el = document.getElementById('f_events_list');
+    if(!el) return;
+    el.innerHTML = modalEvents.map((ev,i)=>`
+      <div class="log-add event-row" data-idx="${i}">
+        <input type="date" class="ev-date" value="${ev.date||''}">
+        <input type="text" class="ev-label" placeholder="예: 정기총회" value="${escapeHtml(ev.label||'')}">
+        <button type="button" class="btn btn-ghost btn-sm ev-del">삭제</button>
+      </div>`).join('') || '<div class="empty" style="padding:6px 0;">등록된 일정이 없습니다.</div>';
+    el.querySelectorAll('.event-row').forEach(row=>{
+      const idx = Number(row.dataset.idx);
+      row.querySelector('.ev-date').addEventListener('change', e=>{ modalEvents[idx].date = e.target.value; });
+      row.querySelector('.ev-label').addEventListener('input', e=>{ modalEvents[idx].label = e.target.value; });
+      row.querySelector('.ev-del').addEventListener('click', ()=>{ modalEvents.splice(idx,1); renderEventRows(); });
+    });
+  }
+  document.getElementById('addEventRowBtn').addEventListener('click', ()=>{
+    modalEvents.push({date:'', label:''});
+    renderEventRows();
+  });
   function openModal(site){
     editingId = site ? site.id : null;
     document.getElementById('modalTitle').textContent = site ? '현장 수정' : '현장 추가';
@@ -1934,8 +2017,8 @@ const L = (function(){
     document.getElementById('f_status').value = site ? (site.status||'') : '';
     document.getElementById('f_area').value = site ? (site.area||'') : '';
     document.getElementById('f_date').value = site ? (site.lastDate||'') : '';
-    document.getElementById('f_assemblyDate').value = site ? (site.assemblyDate||'') : '';
-    document.getElementById('f_bidDeadline').value = site ? (site.bidDeadline||'') : '';
+    modalEvents = site ? eventsOf(site).map(e=>({date:e.date||'', label:e.label||''})) : [];
+    renderEventRows();
     document.getElementById('f_lat').value = site && site.lat ? site.lat : '';
     document.getElementById('f_lng').value = site && site.lng ? site.lng : '';
     document.getElementById('f_memo').value = site ? (site.memo||'') : '';
@@ -1994,8 +2077,9 @@ const L = (function(){
       trustCompany: document.getElementById('f_trustCo').value.trim(),
       manager: document.getElementById('f_manager').value.trim(),
       lastDate: document.getElementById('f_date').value,
-      assemblyDate: document.getElementById('f_assemblyDate').value,
-      bidDeadline: document.getElementById('f_bidDeadline').value,
+      events: modalEvents.filter(e=>e.date && e.label && e.label.trim()).map(e=>({date:e.date, label:e.label.trim()})),
+      assemblyDate: '',
+      bidDeadline: '',
       lat: parseFloat(document.getElementById('f_lat').value) || null,
       lng: parseFloat(document.getElementById('f_lng').value) || null,
       memo: document.getElementById('f_memo').value.trim(),
