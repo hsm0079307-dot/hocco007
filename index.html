@@ -2181,8 +2181,23 @@ const L = (function(){
     lastDate:['최근일자','일자','날짜','최근일지','최근 일지'],
     memo:['비고','메모','설명'],
     lat:['위도','lat','latitude'],
-    lng:['경도','lng','longitude','long']
+    lng:['경도','lng','longitude','long'],
+    manager:['담당자','담당'],
+    managementCompany:['정비업체','정비'],
+    designCompany:['설계업체','설계'],
+    trustCompany:['신탁사','신탁'],
+    events:['일정']
   };
+  // "2026-05-09 전체회의 / 2026-06-01 정기총회" 형식의 텍스트를 일정 배열로 변환
+  function parseEventsCell(text){
+    text = String(text||'').trim();
+    if(!text) return [];
+    return text.split('/').map(part=>{
+      const m = part.trim().match(/^(\d{4}-\d{1,2}-\d{1,2})\s+(.+)$/);
+      if(!m) return null;
+      return {date:m[1], label:m[2].trim()};
+    }).filter(Boolean);
+  }
   function matchHeader(h){
     h = String(h).trim();
     for(const key in HEADER_MAP){
@@ -2248,7 +2263,12 @@ const L = (function(){
         lastDate,
         lat: colMap.lat ? (parseFloat(r[colMap.lat])||null) : null,
         lng: colMap.lng ? (parseFloat(r[colMap.lng])||null) : null,
-        memo: colMap.memo ? String(r[colMap.memo]||'').trim() : ''
+        memo: colMap.memo ? String(r[colMap.memo]||'').trim() : '',
+        manager: colMap.manager ? String(r[colMap.manager]||'').trim() : '',
+        managementCompany: colMap.managementCompany ? String(r[colMap.managementCompany]||'').trim() : '',
+        designCompany: colMap.designCompany ? String(r[colMap.designCompany]||'').trim() : '',
+        trustCompany: colMap.trustCompany ? String(r[colMap.trustCompany]||'').trim() : '',
+        events: colMap.events ? parseEventsCell(r[colMap.events]) : []
       });
       added++;
     });
