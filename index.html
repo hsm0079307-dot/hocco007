@@ -66,11 +66,22 @@
   .cal-cell{min-height:78px;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:5px 6px;font-size:11px;}
   .cal-cell.other-month{opacity:.35;}
   .cal-cell.today{border-color:var(--accent);}
-  .cal-daynum{font-weight:700;color:var(--text-main);margin-bottom:3px;}
-  .cal-event{display:block;padding:2px 5px;border-radius:5px;margin-bottom:2px;font-size:10px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;}
+  .cal-daynum{font-weight:700;color:var(--text-main);margin-bottom:3px;display:flex;justify-content:space-between;align-items:center;}
+  .cal-add-btn{flex:none;width:16px;height:16px;line-height:14px;padding:0;border-radius:5px;border:1px solid var(--line);background:var(--bg-side-2);color:var(--text-dim);font-size:12px;cursor:pointer;}
+  .cal-add-btn:hover{color:var(--accent);border-color:var(--accent);}
+  .cal-event{display:flex;align-items:center;justify-content:space-between;gap:4px;padding:2px 4px 2px 5px;border-radius:5px;margin-bottom:2px;font-size:10px;color:#fff;white-space:nowrap;overflow:hidden;cursor:pointer;}
+  .cal-event>*:first-child{overflow:hidden;text-overflow:ellipsis;}
+  .cal-event-del{flex:none;opacity:.7;padding:0 1px;cursor:pointer;}
+  .cal-event-del:hover{opacity:1;color:#ffb3b3;}
+  .cal-quickadd{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:10px;padding:8px;background:var(--bg-side-2);border:1px solid var(--line);border-radius:8px;font-size:12px;}
+  .cal-quickadd select, .cal-quickadd input[type=text]{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:5px 8px;color:var(--text-main);font-size:12px;}
+  .cal-quickadd select{max-width:140px;}
+  .cal-quickadd input[type=text]{flex:1;min-width:100px;}
   .cal-agenda{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);}
   .cal-agenda h3{font-size:12px;color:var(--text-dim);margin:0 0 8px;font-weight:600;}
   .cal-agenda-item{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--text-main);padding:4px 2px;cursor:pointer;border-radius:6px;}
+  .cal-agenda-item .cal-event-del{margin-left:auto;color:var(--text-dim);}
+  .cal-agenda-item .cal-event-del:hover{color:#f87171;}
   .cal-agenda-item:hover{background:var(--bg-side-2);}
   .cal-agenda-empty{font-size:12px;color:var(--text-dim);}
   .cal-inline-agenda{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding:8px 16px;background:var(--bg-side-2);border-bottom:1px solid var(--line);font-size:12px;max-height:64px;overflow-y:auto;}
@@ -1083,6 +1094,7 @@ const L = (function(){
   const today0 = new Date();
   let calYear = today0.getFullYear();
   let calMonth = today0.getMonth(); // 0-based
+  let quickAddDate = null; // 캘린더에서 "+"로 빠른 일정추가 중인 날짜(YYYY-MM-DD) 또는 null
   const calendarViewEl = document.getElementById('calendarView');
 
   // 예전 데이터(총회일/입찰마감일 고정 필드)만 있고 아직 새 방식(events)으로 저장 안 된 현장을 위한 호환 처리
@@ -1102,6 +1114,55 @@ const L = (function(){
   function colorForEventLabel(label){
     let h=0; for(let i=0;i<label.length;i++) h=(h*131+label.charCodeAt(i))>>>0;
     return EVENT_COLOR_PALETTE[h % EVENT_COLOR_PALETTE.length];
+  }
+  // "26. 05. 09 (토) 2시 전체회의(예총아트홀)" 같이 진행단계 상세에 적힌 날짜 있는 줄들을
+  // 뽑아서 캘린더 일정 형식({date,label})으로 바꿔줌
+  function extractDatedEventsFromText(text){
+    text = String(text||'');
+    const dateRe = /^(\d{2})\s*\.\s*(\d{1,2})\s*\.\s*(\d{1,2})\s*(?:\([^)]*\))?\s*(.*)$/;
+    const found = [];
+    text.split('\n').forEach(line=>{
+      line = line.trim();
+      if(!line) return;
+      const m = line.match(dateRe);
+      if(!m) return;
+      const yy = parseInt(m[1],10), mm = parseInt(m[2],10), dd = parseInt(m[3],10);
+      let label = (m[4]||'').replace(/^[\s\-:：]+/, '').trim();
+      if(!label) return;
+      const cleanCheck = label.replace(/[\d.\(\)~\s\-:：]/g, '');
+      if(cleanCheck.length < 2) return; // "2시"처럼 날짜/기호만 있는 줄은 건너뜀
+      if(label.length > 40) label = label.slice(0,40).trim() + '…';
+      const y = 2000+yy;
+      const d = new Date(y, mm-1, dd);
+      if(d.getFullYear()!==y || d.getMonth()!==mm-1 || d.getDate()!==dd) return; // 존재하지 않는 날짜면 무시
+      const iso = `${y}-${String(mm).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;
+      found.push({date:iso, label});
+    });
+    return found;
+  }
+  // 기존 일정 + 새로 뽑아낸 일정을 합치되, 같은 날짜에 겹치는(한쪽이 다른 쪽에 포함되는) 표현은
+  // 더 긴 쪽 하나만 남김 (예: "창립총회"와 "2시 창립총회"가 같이 있으면 뒤엣것만 남김)
+  function mergeEvents(existing, extracted){
+    const byDate = {};
+    [...existing, ...extracted].forEach(e=>{
+      if(!e || !e.date || !e.label) return;
+      (byDate[e.date] = byDate[e.date] || []).push(e.label);
+    });
+    const result = [];
+    Object.keys(byDate).forEach(date=>{
+      const labels = Array.from(new Set(byDate[date])).sort((a,b)=>b.length-a.length);
+      const kept = [];
+      labels.forEach(l=>{ if(!kept.some(k=>k.includes(l))) kept.push(l); });
+      kept.forEach(l=> result.push({date, label:l}));
+    });
+    return result.sort((a,b)=> a.date.localeCompare(b.date));
+  }
+  // *텍스트* -> 굵게(강조색), **텍스트** -> 굵고 크게+빨강(매우 강조). 진행단계/비고에서 중요 표시용
+  function renderRichText(text){
+    let html = escapeHtml(text||'');
+    html = html.replace(/\*\*(.+?)\*\*/g, '<span style="color:#ff6b6b;font-weight:800;font-size:1.15em;">$1</span>');
+    html = html.replace(/\*(.+?)\*/g, '<span style="color:var(--accent);font-weight:700;">$1</span>');
+    return html.replace(/\n/g, '<br>');
   }
   function collectEventsForMonth(year, month){
     // key: 'YYYY-MM-DD' -> [{site, label, color}]
@@ -1151,9 +1212,9 @@ const L = (function(){
       }
       const isToday = dateStr === todayStr;
       const evs = (dateStr && events[dateStr]) ? events[dateStr] : [];
-      const evHtml = evs.map(ev=>`<span class="cal-event" style="background:${ev.color}" data-id="${ev.site.id}" title="${escapeHtml(ev.site.name)} · ${ev.label}">${escapeHtml(ev.site.name)}</span>`).join('');
+      const evHtml = evs.map(ev=>`<span class="cal-event" style="background:${ev.color}" data-id="${ev.site.id}" title="${escapeHtml(ev.site.name)} · ${ev.label}">${escapeHtml(ev.site.name)}<span class="cal-event-del" data-id="${ev.site.id}" data-date="${dateStr}" data-label="${escapeHtml(ev.label)}">✕</span></span>`).join('');
       return `<div class="cal-cell ${c.other?'other-month':''} ${isToday?'today':''}">
-        <div class="cal-daynum">${c.day}</div>
+        <div class="cal-daynum">${c.day}${!c.other?`<button class="cal-add-btn" data-date="${dateStr}" title="일정 추가">+</button>`:''}</div>
         ${evHtml}
       </div>`;
     }).join('');
@@ -1180,16 +1241,24 @@ const L = (function(){
         ${dowNames.map(d=>`<div class="cal-dow">${d}</div>`).join('')}
         ${cellHtml}
       </div>
+      ${quickAddDate ? `
+      <div class="cal-quickadd">
+        <b>${quickAddDate} 일정 추가</b>
+        <select id="qaSite">${sites.map(s=>`<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('')}</select>
+        <input type="text" id="qaLabel" placeholder="예: 정기총회">
+        <button class="btn btn-primary btn-sm" id="qaConfirm">추가</button>
+        <button class="btn btn-ghost btn-sm" id="qaCancel">취소</button>
+      </div>` : ''}
       <div class="cal-agenda">
         <h3>이번 달 일정</h3>
         ${(()=>{
           const items = Object.keys(events).sort().flatMap(dateKey=>{
             const d = new Date(dateKey);
             const md = `${d.getMonth()+1}.${d.getDate()}`;
-            return events[dateKey].map(ev=>({md, ev}));
+            return events[dateKey].map(ev=>({md, ev, dateKey}));
           });
           return items.length
-            ? items.map(({md,ev})=>`<div class="cal-agenda-item" data-id="${ev.site.id}"><span class="cal-dot" style="background:${ev.color}"></span>${md} ${escapeHtml(ev.site.name)}(${escapeHtml(ev.label)})</div>`).join('')
+            ? items.map(({md,ev,dateKey})=>`<div class="cal-agenda-item" data-id="${ev.site.id}"><span class="cal-dot" style="background:${ev.color}"></span>${md} ${escapeHtml(ev.site.name)}(${escapeHtml(ev.label)})<span class="cal-event-del" data-id="${ev.site.id}" data-date="${dateKey}" data-label="${escapeHtml(ev.label)}">✕</span></div>`).join('')
             : '<div class="cal-agenda-empty">이번 달 일정이 없습니다.</div>';
         })()}
       </div>
@@ -1218,6 +1287,46 @@ const L = (function(){
         renderAll();
       });
     });
+    // 일정 옆 ✕ : 그 일정만 삭제 (부모의 상세이동 클릭으로 안 번지게 stopPropagation)
+    calendarViewEl.querySelectorAll('.cal-event-del').forEach(btn=>{
+      btn.addEventListener('click', async (e)=>{
+        e.stopPropagation();
+        if(!(await ensureUnlocked())) return;
+        const site = sites.find(s=>s.id===btn.dataset.id);
+        if(!site) return;
+        if(!confirm(`"${btn.dataset.label}" 일정을 삭제할까요?`)) return;
+        site.events = eventsOf(site).filter(ev=>!(ev.date===btn.dataset.date && ev.label===btn.dataset.label));
+        await saveSites();
+        renderCalendarView();
+      });
+    });
+    // 날짜칸의 "+" : 그 날짜로 빠른 일정 추가 폼 열기
+    calendarViewEl.querySelectorAll('.cal-add-btn').forEach(btn=>{
+      btn.addEventListener('click', async (e)=>{
+        e.stopPropagation();
+        if(!(await ensureUnlocked())) return;
+        quickAddDate = btn.dataset.date;
+        renderCalendarView();
+      });
+    });
+    const qaConfirm = document.getElementById('qaConfirm');
+    if(qaConfirm){
+      qaConfirm.addEventListener('click', async ()=>{
+        const siteId = document.getElementById('qaSite').value;
+        const label = document.getElementById('qaLabel').value.trim();
+        if(!label){ alert('일정 내용을 입력해주세요.'); return; }
+        const site = sites.find(s=>s.id===siteId);
+        if(!site) return;
+        site.events = mergeEvents(eventsOf(site), [{date:quickAddDate, label}]);
+        await saveSites();
+        quickAddDate = null;
+        renderCalendarView();
+      });
+      document.getElementById('qaCancel').addEventListener('click', ()=>{
+        quickAddDate = null;
+        renderCalendarView();
+      });
+    }
   }
   function closeCalendarView(){
     calendarViewEl.style.display = 'none';
@@ -1467,6 +1576,7 @@ const L = (function(){
           <div class="edit-field"><label>조합원수</label><input id="e_union" value="${escapeHtml(site.unionMembers||'')}"></div>
           <div class="edit-field"><label>진행단계 상세</label><textarea id="e_stageDetail">${escapeHtml(site.stageDetail||'')}</textarea></div>
           <div class="edit-field"><label>비고</label><textarea id="e_memo">${escapeHtml(site.memo||'')}</textarea></div>
+          <div class="hint">날짜 적힌 줄(예: 26.05.09 전체회의)은 저장 시 캘린더 일정에 자동으로 반영돼요.<br>강조 표시: *텍스트*(굵게) · **텍스트**(굵고 빨갛게, 크게)</div>
         ` : `
           <div class="spec-box">
             <div class="spec-line">사업단계: ${escapeHtml(site.progressStage||'-')}</div>
@@ -1482,8 +1592,8 @@ const L = (function(){
           <div class="detail-notes-inline">
             <div class="spec-divider"></div>
             <div class="spec-heading">■ 진행단계</div>
-            <div class="spec-stage-detail">${escapeHtml(site.stageDetail||'-')}</div>
-            <div class="kv"><div class="k">비고</div><div class="v pre">${escapeHtml(site.memo||'-')}</div></div>
+            <div class="spec-stage-detail">${site.stageDetail ? renderRichText(site.stageDetail) : '-'}</div>
+            <div class="kv"><div class="k">비고</div><div class="v pre">${site.memo ? renderRichText(site.memo) : '-'}</div></div>
             ${site.photos && site.photos.length ? `
             <div class="kv">
               <div class="k">사진</div>
@@ -1501,6 +1611,10 @@ const L = (function(){
           site.stageDetail = document.getElementById('e_stageDetail').value;
           site.unionMembers = document.getElementById('e_union').value;
           site.memo = document.getElementById('e_memo').value;
+          const extracted = extractDatedEventsFromText(site.stageDetail);
+          if(extracted.length){
+            site.events = mergeEvents(eventsOf(site), extracted);
+          }
           await saveSites();
           editMode = false;
         }else{
