@@ -354,6 +354,10 @@
         <label>면적(m²)</label>
         <input id="f_area" placeholder="예: 232,298.6">
       </div>
+      <div class="field">
+        <label>사업단계(진행상황)</label>
+        <input id="f_progressStage" placeholder="예: 사업시행자지정고시, 창립총회">
+      </div>
     </div>
     <div class="field-row">
       <div class="field">
@@ -1058,7 +1062,7 @@ const L = (function(){
   // ---------- 엑셀 내보내기 ----------
   function exportSitesToExcel(){
     const rows = sites.map(s=>({
-      '현장명': s.name, '구': s.district, '단계': s.stage||'', '상태(사업방식)': s.status||'',
+      '현장명': s.name, '구': s.district, '단계': s.stage||'', '상태(사업방식)': s.status||'', '사업단계': s.progressStage||'',
       '면적(m²)': s.area||'', '예상발주': s.orderExpected||'', '신축세대': s.households||'',
       '연면적(m²)': s.totalFloorArea||'', '규모': s.scale||'', '조합원수': s.unionMembers||'',
       '정비업체': s.managementCompany||'', '설계업체': s.designCompany||'', '신탁사': s.trustCompany||'',
@@ -1389,6 +1393,7 @@ const L = (function(){
         <div class="badge-row">
           ${site.status? `<span class="badge"><span class="dot" style="background:${colorForStatus(site.status)}"></span>${escapeHtml(site.status)}</span>`:''}
           ${site.stage? `<span class="badge">${escapeHtml(site.stage)}</span>`:''}
+          ${site.progressStage? `<span class="badge" style="background:var(--accent);color:var(--accent-ink);border-color:var(--accent);">${escapeHtml(site.progressStage)}</span>`:''}
         </div>
         <h2 class="detail-name">${escapeHtml(site.name)}</h2>
         <div class="detail-sub">${escapeHtml(site.district)}</div>
@@ -1461,6 +1466,7 @@ const L = (function(){
           <div class="edit-field"><label>비고</label><textarea id="e_memo">${escapeHtml(site.memo||'')}</textarea></div>
         ` : `
           <div class="spec-box">
+            <div class="spec-line">사업단계: ${escapeHtml(site.progressStage||'-')}</div>
             <div class="spec-line">구역면적: ${site.area?escapeHtml(site.area)+'㎡':'-'}</div>
             <div class="spec-line">연면적: ${site.totalFloorArea?escapeHtml(site.totalFloorArea)+'㎡':'-'}</div>
             <div class="spec-line">규모: ${escapeHtml(site.scale||'-')}</div>
@@ -2075,6 +2081,7 @@ const L = (function(){
     document.getElementById('f_district').value = site ? site.district : DISTRICT_NAMES[0];
     document.getElementById('f_stage').value = site ? (site.stage||STAGES[1]) : STAGES[1];
     document.getElementById('f_status').value = site ? (site.status||'') : '';
+    document.getElementById('f_progressStage').value = site ? (site.progressStage||'') : '';
     document.getElementById('f_area').value = site ? (site.area||'') : '';
     document.getElementById('f_date').value = site ? (site.lastDate||'') : '';
     modalEvents = site ? eventsOf(site).map(e=>({date:e.date||'', label:e.label||''})) : [];
@@ -2126,6 +2133,7 @@ const L = (function(){
       district: document.getElementById('f_district').value,
       stage: document.getElementById('f_stage').value,
       status: document.getElementById('f_status').value.trim(),
+      progressStage: document.getElementById('f_progressStage').value.trim(),
       area: document.getElementById('f_area').value.trim(),
       orderExpected: document.getElementById('f_order').value.trim(),
       households: document.getElementById('f_house').value.trim(),
@@ -2186,7 +2194,8 @@ const L = (function(){
     managementCompany:['정비업체','정비'],
     designCompany:['설계업체','설계'],
     trustCompany:['신탁사','신탁'],
-    events:['일정']
+    events:['일정'],
+    progressStage:['사업단계','진행상황']
   };
   // "2026-05-09 전체회의 / 2026-06-01 정기총회" 형식의 텍스트를 일정 배열로 변환
   function parseEventsCell(text){
@@ -2268,7 +2277,8 @@ const L = (function(){
         managementCompany: colMap.managementCompany ? String(r[colMap.managementCompany]||'').trim() : '',
         designCompany: colMap.designCompany ? String(r[colMap.designCompany]||'').trim() : '',
         trustCompany: colMap.trustCompany ? String(r[colMap.trustCompany]||'').trim() : '',
-        events: colMap.events ? parseEventsCell(r[colMap.events]) : []
+        events: colMap.events ? parseEventsCell(r[colMap.events]) : [],
+        progressStage: colMap.progressStage ? String(r[colMap.progressStage]||'').trim() : ''
       });
       added++;
     });
@@ -2282,9 +2292,12 @@ const L = (function(){
   document.getElementById('templateBtn').addEventListener('click', ()=>{
     const sample = [
       {'현장명':'월계 시영(미미삼)','도시':'서울','구':'노원구','상태':'재건축','단계':'시장모니터링',
-       '면적':'232298.6','예상발주':'27년 상반기','신축세대':'6103','조합원수':'3986','최근일자':'2026-07-09','비고':'예시 데이터입니다','위도':'','경도':''},
+       '면적':'232298.6','예상발주':'27년 상반기','신축세대':'6103','연면적':'','규모':'','조합원수':'3986','최근일자':'2026-07-09',
+       '담당자':'홍길동','정비업체':'','설계업체':'','신탁사':'','사업단계':'사업시행자지정고시',
+       '일정':'2026-07-09 정기총회 / 2026-08-01 입찰마감','비고':'예시 데이터입니다','위도':'','경도':''},
       {'현장명':'해운대 예시현장','도시':'부산','구':'해운대구','상태':'재건축','단계':'사전관리',
-       '면적':'','예상발주':'','신축세대':'','조합원수':'','최근일자':'2026-07-01','비고':'부산 지역 예시','위도':'','경도':''}
+       '면적':'','예상발주':'','신축세대':'','연면적':'','규모':'','조합원수':'','최근일자':'2026-07-01',
+       '담당자':'','정비업체':'','설계업체':'','신탁사':'','사업단계':'','일정':'','비고':'부산 지역 예시','위도':'','경도':''}
     ];
     const ws = XLSX.utils.json_to_sheet(sample);
     const wb = XLSX.utils.book_new();
