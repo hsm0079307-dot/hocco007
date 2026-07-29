@@ -30,6 +30,11 @@
   /* top bar */
   .topbar{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap;}
   .brand{font-weight:600;font-size:20px;letter-spacing:1px;margin-right:6px;white-space:nowrap;text-transform:uppercase;color:var(--text-main);text-decoration:underline;text-underline-offset:4px;}
+  .sync-status{display:flex;gap:6px;align-items:center;margin-right:10px;}
+  .sync-pill{font-size:10px;font-weight:600;padding:3px 10px;border-radius:20px;white-space:nowrap;letter-spacing:.2px;border:1px solid var(--line);background:var(--bg-side-2);color:var(--text-dim);display:inline-flex;align-items:center;gap:5px;}
+  .sync-pill.ok{color:#7ee787;border-color:rgba(126,231,135,.35);}
+  .sync-pill.warn{color:#f0ad4e;border-color:rgba(240,173,78,.4);}
+  .sync-pill.bad{color:#ff8a80;border-color:rgba(255,138,128,.4);}
   .search-box{flex:0 1 320px;min-width:160px;display:flex;align-items:center;background:var(--bg-side-2);border:1px solid var(--line);border-radius:999px;padding:6px 10px;}
   .search-box input{background:transparent;border:none;outline:none;color:var(--text-main);font-size:11px;width:100%;}
   .search-box input::placeholder{color:var(--text-dim);}
@@ -284,6 +289,7 @@
 
   <div class="topbar blueprint-grid">
     <div class="brand">강서사업소 스크린</div>
+    <div class="sync-status" id="syncStatus"></div>
     <div class="search-box">
       <input id="searchInput" placeholder="현장명 · 구 · 비고 검색">
     </div>
@@ -700,6 +706,7 @@ const L = (function(){
     return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
   }
   let guestMode = false;
+  let syncState = 'unknown'; // 'ok' | 'bad' | 'unknown' - 클라우드(JSONBin) 저장 성공 여부
 
   async function ensureUnlocked(){
     if(guestMode){
@@ -981,12 +988,30 @@ const L = (function(){
         });
         if(!res.ok) throw new Error('jsonbin save status '+res.status);
       }
+      syncState = 'ok';
     }catch(e){
       console.error('클라우드 저장 실패(오프라인일 수 있음), 로컬에는 저장되었습니다', e);
       try{ localStorage.setItem(STORAGE_KEY, json); }
       catch(e2){ console.error('로컬 저장도 실패', e2); }
+      syncState = 'bad';
     }
+    renderSyncStatus();
     renderSeoulShapes(); // 현장이 추가/삭제/변경됐을 때만 구 색칠을 다시 그림
+  }
+  // JSONBin 무료 플랜 기준 bin 하나당 최대 용량(약 1MB)에 비해 지금 저장 중인 데이터가 얼마나 되는지 표시
+  const SYNC_CAPACITY_BYTES = 1000000;
+  function renderSyncStatus(){
+    const el = document.getElementById('syncStatus');
+    if(!el) return;
+    const bytes = new Blob([JSON.stringify(allOfficesData)]).size;
+    const pct = Math.min(999, Math.round((bytes/SYNC_CAPACITY_BYTES)*100));
+    const capClass = pct>=90 ? 'bad' : pct>=70 ? 'warn' : 'ok';
+    const syncClass = syncState==='ok' ? 'ok' : syncState==='bad' ? 'bad' : '';
+    const syncLabel = syncState==='ok' ? '☁ 동기화됨' : syncState==='bad' ? '⚠ 동기화 실패(오프라인)' : '☁ 동기화 대기중';
+    el.innerHTML = `
+      <span class="sync-pill ${syncClass}">${syncLabel}</span>
+      <span class="sync-pill ${capClass}" title="${bytes.toLocaleString()} bytes / ${SYNC_CAPACITY_BYTES.toLocaleString()} bytes">▲ 동기화 용량 ${pct}% 사용중</span>
+    `;
   }
 
   // ---------- init form selects ----------
@@ -2575,6 +2600,8 @@ const L = (function(){
     await loadDistrictLabelOverrides();
     const brandEl = document.querySelector('.brand');
     if(brandEl) brandEl.textContent = currentOffice + ' 스크린';
+    syncState = 'ok';
+    renderSyncStatus();
     renderOfficeSwitcher();
     renderAll();
     renderSeoulShapes();
