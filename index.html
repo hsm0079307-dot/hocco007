@@ -112,11 +112,12 @@
   .event-row input[type=text]{flex:1;}
   .list .card{margin-bottom:0;}
   .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px;margin-bottom:10px;cursor:pointer;position:relative;}
-  .card-compact{padding:6px 8px;margin-bottom:0;}
-  .card-compact .card-name{font-size:12.5px;}
-  .card-compact .card-date{margin-top:2px;font-size:10.5px;}
+  .card-compact{padding:6px 8px;margin-bottom:0;height:66px;overflow:hidden;}
+  .card-compact .card-name{font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .card-compact .card-date{margin-top:2px;font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .card-compact .card-actions button{padding:1px 4px;font-size:9px;}
-  .card-compact .card-row{gap:3px;}
+  .card-compact .card-row{gap:3px;height:100%;}
+  .card-compact .card-main{min-width:0;}
 
   .card:hover{background:var(--card-hover);border-color:var(--accent);}
   .card.selected{border-color:var(--accent);}
@@ -1923,8 +1924,8 @@ const L = (function(){
       const shape = shapeFor(sidoName, guName);
       if(shape){
         L.polygon(shape, {
-          color:'#8b7cc9', weight:1.2, opacity:.7,
-          fillColor:'#fef3c7', fillOpacity:.5,
+          color:'#8a6239', weight:1.2, opacity:.7,
+          fillColor:'#d3a45f', fillOpacity:.32,
           interactive:false
         }).addTo(seoulShapeLayer);
       }
@@ -2467,7 +2468,7 @@ const L = (function(){
       if(shape){
         L.polygon(shape, {
           color:'#dba13a', weight:1.5, opacity:.8,
-          fillColor:'#fef3c7', fillOpacity:.35,
+          fillColor:'#d3a45f', fillOpacity:.3,
           interactive:false
         }).addTo(seoulShapeLayer);
       }
@@ -2477,9 +2478,9 @@ const L = (function(){
     Object.keys(SEOUL_DISTRICT_SHAPES).forEach(name=>{
       const isActive = activeGu.has(name);
       L.polygon(SEOUL_DISTRICT_SHAPES[name], {
-        color:'#8b7cc9', weight:1.2, opacity:.7,
-        fillColor: isActive ? '#fef3c7' : '#a78bfa',
-        fillOpacity: isActive ? .5 : .42,
+        color: isActive ? '#8a6239' : '#3d6b4d', weight:1.2, opacity:.7,
+        fillColor: isActive ? '#d3a45f' : '#2f5039',
+        fillOpacity: isActive ? .42 : .38,
         interactive:false
       }).addTo(seoulShapeLayer);
     });
