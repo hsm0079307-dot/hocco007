@@ -83,7 +83,7 @@
     @page{ size: A4 portrait; margin: 12mm; }
     body{background:#fff !important;}
     #app{max-width:100% !important; padding:0 !important;}
-    .file-label, #aiBtn, #dateFilter, #printBtn, #copyBtn, #downloadBtn{display:none !important;}
+    .file-label, #aiBtn, #dateFilter, #savedDateSelect, #printBtn, #copyBtn, #downloadBtn{display:none !important;}
     .title-input{font-size:19px !important;}
     /* 좁은 인쇄 미리보기 폭에서도 반응형(모바일용) 배치로 안 바뀌게 강제 고정 */
     .stat-row{grid-template-columns:repeat(4,1fr) !important;}
@@ -102,6 +102,7 @@
   <div class="topbar">
     <input id="titleInput" class="title-input" value="단톡방 일일 보고">
     <span id="titleDate" class="title-date"></span>
+    <select id="savedDateSelect" class="btn btn-ghost" style="display:none;" title="저장된 날짜 바로 보기 (업로드 불필요)"></select>
     <label class="file-label btn btn-ghost">
       카톡 txt 업로드
       <input id="fileInput" type="file" accept=".txt">
@@ -405,6 +406,20 @@
     ]
   };
 
+  // 날짜별로 미리 계산해둔 "통계" (총 메시지 수, 시간대별 대화량, 발언 순위, 링크 등).
+  // 카톡 txt를 채팅으로 보내주시면 이 형식으로 계산해서 채워드려요.
+  // 채워두면, 사이트를 열었을 때 업로드 없이도 그 날짜의 통계까지 바로 보여요.
+  const DAILY_STATS = {
+    // '2026년 7월 30일 목요일': {
+    //   total: 123, participantCount: 40,
+    //   hourCounts: [0,0,...] (24개), peakHour: 21,
+    //   hourTopSpeakers: [null,...,{names:['홍길동'],count:3},...] (24개),
+    //   ranking: [{name:'홍길동', count:12}, ...],
+    //   links: [{url:'https://...', name:'홍길동'}, ...],
+    //   mediaCount: 5, deletedCount: 1
+    // }
+  };
+
   function findDailyAnalysis(dates){
     if(!dates || dates.length===0) return null;
     if(dates.length===1) return DAILY_ANALYSIS[dates[0]] || null;
@@ -641,6 +656,36 @@
   }
   window.renderSpeakerSearchResult = renderSpeakerSearchResult;
 
+  // 단어(키워드)로 지금 업로드된 파일의 실제 메시지 전체를 검색
+  function renderKeywordSearchResult(keyword){
+    const box = document.getElementById('keywordSearchResult');
+    if(!box) return;
+    keyword = keyword.trim();
+    if(!keyword){ box.innerHTML=''; return; }
+    if(!parsed || !parsed.length){
+      box.innerHTML = '<div class="placeholder-text">먼저 카톡 txt 파일을 업로드해주세요.</div>';
+      return;
+    }
+    const matches = parsed.filter(m=> m.text.includes(keyword) && !isSystemLine(m.text) && !isSystemNotice(m.text));
+    if(matches.length===0){
+      box.innerHTML = `<div class="placeholder-text">"${escapeHtml(keyword)}"가 포함된 메시지가 없어요.</div>`;
+      return;
+    }
+    const esc = s => escapeHtml(s);
+    const highlight = (text)=>{
+      const idx = text.indexOf(keyword);
+      if(idx<0) return esc(text);
+      return esc(text.slice(0,idx)) + `<mark style="background:#fef08a; padding:0 2px;">${esc(text.slice(idx,idx+keyword.length))}</mark>` + esc(text.slice(idx+keyword.length));
+    };
+    box.innerHTML = `<div style="font-size:12px; color:var(--text-dim); margin-bottom:6px;">${matches.length}건 찾음</div>` +
+      matches.map(m=>`
+        <div class="stance-item" style="background:#f4f4f5;">
+          <div class="stance-speaker">${esc(m.name)} <span style="color:#8a92a3;font-weight:500;">· ${esc(m.date||'')} ${String(m.hour).padStart(2,'0')}시</span></div>
+          <div class="stance-quote">${highlight(m.text)}</div>
+        </div>`).join('');
+  }
+  window.renderKeywordSearchResult = renderKeywordSearchResult;
+
   // 최근 절반 vs 이전 절반 날짜를 비교해서 여론 흐름을 한 줄 코멘트로 요약
   function computeTrendComment(){
     const dateKeys = Object.keys(DAILY_ANALYSIS).sort();
@@ -744,6 +789,12 @@
         <input id="speakerSearchInput" placeholder="예: 손한준" oninput="renderSpeakerSearchResult(this.value)"
           style="width:100%; padding:8px 10px; font-size:12.5px; border-radius:8px; border:1px solid var(--line); background:#fff; box-sizing:border-box; margin-bottom:8px;">
         <div id="speakerSearchResult"></div>
+      </div>
+      <div style="margin-top:16px;">
+        <div style="font-size:12px; font-weight:700; color:var(--text-dim); margin-bottom:6px;">키워드 검색 (단어 입력, 지금 업로드된 파일 기준)</div>
+        <input id="keywordSearchInput" placeholder="예: 임대, 분담금, 이주비" oninput="renderKeywordSearchResult(this.value)"
+          style="width:100%; padding:8px 10px; font-size:12.5px; border-radius:8px; border:1px solid var(--line); background:#fff; box-sizing:border-box; margin-bottom:8px;">
+        <div id="keywordSearchResult"></div>
       </div>`;
   }
 
@@ -888,58 +939,60 @@
   }
   window.showHourMessages = showHourMessages;
 
-  function render(){
-    if(!parsed) return;
-    const dateFilter = document.getElementById('dateFilter');
-    const selected = dateFilter.value;
-    const filtered = (selected && selected!=='__all__') ? parsed.filter(m=>m.date===selected) : parsed;
-    const a = analyze(filtered);
-    const daily = findDailyAnalysis(a.dates);
-    window.__currentDaily = daily;
-    window.__currentTitle = document.getElementById('titleInput').value;
-    window.__currentTitleDate = document.getElementById('titleDate').textContent;
+  // a(통계, analyze()와 같은 모양) + daily(정성 분석)를 받아서 보고서 HTML을 만듦.
+  // a가 null이면 "아직 통계 없음" 안내만 보여주고, 정성 분석(daily)은 있으면 그대로 보여줌.
+  function buildReportHtml(a, daily){
+    let statsBlock, rankLinkBlock;
 
-    // 지금 보여주는 날짜에 맞춰 제목 옆 텍스트를 "(7월 09일 내용)" 식으로 갱신
-    const titleDateEl = document.getElementById('titleDate');
-    if(a.dates.length===1){
-      const dm = a.dates[0].match(/(\d{1,2})월\s*(\d{1,2})일/);
-      if(dm){
-        const mo = dm[1].padStart(2,'0');
-        const da = dm[2].padStart(2,'0');
-        titleDateEl.textContent = `(${mo}월 ${da}일 내용)`;
-      }
-    }else if(a.dates.length>1){
-      titleDateEl.textContent = `(${a.dates.length}일치 전체)`;
+    if(a){
+      const maxHour = Math.max(...a.hourCounts,1);
+      const hourBars = a.hourCounts.map((c,h)=>`
+        <div class="hourbar-col" title="${h}시: ${c}건">
+          <div class="hourbar-count" style="color:${c>0?'var(--accent)':'transparent'}">${c>0?c:''}</div>
+          <div class="hourbar ${h===a.peakHour?'peak':''}" style="height:${Math.max(2,(c/maxHour)*100)}%"></div>
+        </div>`).join('');
+      const hourLabels = a.hourCounts.map((c,h)=> h%3===0 ? `<span>${h}시</span>` : `<span></span>`).join('');
+      const linkRows = a.links.slice(0,30).map(l=>`<a class="link-item" href="${escapeHtml(l.url)}" target="_blank" rel="noopener"><span class="link-meta">${escapeHtml(l.name)}</span>${escapeHtml(l.url)}</a>`).join('') || '<div class="placeholder-text">공유된 링크가 없어요.</div>';
+
+      statsBlock = `
+        <div class="stat-row">
+          <div class="stat-card"><div class="stat-label">총 메시지</div><div class="stat-value">${a.total.toLocaleString()}</div><div class="stat-sub">${(a.dates||[]).join(', ')||'-'}</div></div>
+          <div class="stat-card"><div class="stat-label">참여자</div><div class="stat-value">${a.participantCount}</div><div class="stat-sub">명</div></div>
+          <div class="stat-card"><div class="stat-label">가장 활발한 시간</div><div class="stat-value">${a.peakHour}시</div><div class="stat-sub">${a.hourCounts[a.peakHour]}건</div></div>
+          <div class="stat-card"><div class="stat-label">공유 링크 · 사진</div><div class="stat-value">${a.links.length} · ${a.mediaCount}</div><div class="stat-sub">삭제된 메시지 ${a.deletedCount}건</div></div>
+        </div>
+
+        <div class="section">
+          <h3>시간대별 대화량</h3>
+          <div class="hourchart">${hourBars}</div>
+          <div class="hourlabels">${hourLabels}</div>
+        </div>
+
+        <div class="section">
+          <h3>시간대별 발언자</h3>
+          ${renderHourlySpeakers(a.hourTopSpeakers)}
+        </div>`;
+
+      rankLinkBlock = `
+        <div class="section">
+          <h3>발언 순위 Top ${Math.min(a.ranking.length,20)}</h3>
+          ${renderRankingCols(a.ranking.slice(0,20))}
+        </div>
+
+        <div class="section">
+          <h3>공유된 링크</h3>
+          <div>${linkRows}</div>
+        </div>`;
+    }else{
+      statsBlock = `
+        <div class="section">
+          <div class="placeholder-text">이 날짜는 대화량 통계(총 메시지 수·시간대별 대화량·발언 순위 등)가 아직 준비되지 않았어요.<br>카톡 txt를 업로드하시면 바로 계산해서 보여드리고, 다롱님께 보내주시면 다음부터는 업로드 없이도 볼 수 있게 만들어드려요.</div>
+        </div>`;
+      rankLinkBlock = '';
     }
 
-    const maxHour = Math.max(...a.hourCounts,1);
-    const hourBars = a.hourCounts.map((c,h)=>`
-      <div class="hourbar-col" title="${h}시: ${c}건">
-        <div class="hourbar-count" style="color:${c>0?'var(--accent)':'transparent'}">${c>0?c:''}</div>
-        <div class="hourbar ${h===a.peakHour?'peak':''}" style="height:${Math.max(2,(c/maxHour)*100)}%"></div>
-      </div>`).join('');
-    const hourLabels = a.hourCounts.map((c,h)=> h%3===0 ? `<span>${h}시</span>` : `<span></span>`).join('');
-
-    const linkRows = a.links.slice(0,30).map(l=>`<a class="link-item" href="${escapeHtml(l.url)}" target="_blank" rel="noopener"><span class="link-meta">${escapeHtml(l.name)}</span>${escapeHtml(l.url)}</a>`).join('') || '<div class="placeholder-text">공유된 링크가 없어요.</div>';
-
-    content.innerHTML = `
-      <div class="stat-row">
-        <div class="stat-card"><div class="stat-label">총 메시지</div><div class="stat-value">${a.total.toLocaleString()}</div><div class="stat-sub">${a.dates.join(', ')||'-'}</div></div>
-        <div class="stat-card"><div class="stat-label">참여자</div><div class="stat-value">${a.participantCount}</div><div class="stat-sub">명</div></div>
-        <div class="stat-card"><div class="stat-label">가장 활발한 시간</div><div class="stat-value">${a.peakHour}시</div><div class="stat-sub">${a.hourCounts[a.peakHour]}건</div></div>
-        <div class="stat-card"><div class="stat-label">공유 링크 · 사진</div><div class="stat-value">${a.links.length} · ${a.mediaCount}</div><div class="stat-sub">삭제된 메시지 ${a.deletedCount}건</div></div>
-      </div>
-
-      <div class="section">
-        <h3>시간대별 대화량</h3>
-        <div class="hourchart">${hourBars}</div>
-        <div class="hourlabels">${hourLabels}</div>
-      </div>
-
-      <div class="section">
-        <h3>시간대별 발언자</h3>
-        ${renderHourlySpeakers(a.hourTopSpeakers)}
-      </div>
+    return `
+      ${statsBlock}
 
       <div class="section">
         <h3>중점 내용</h3>
@@ -974,17 +1027,98 @@
         <div id="cumulativeSummaryWrap">${renderCumulativeSummary()}</div>
       </div>
 
-      <div class="section">
-        <h3>발언 순위 Top ${Math.min(a.ranking.length,20)}</h3>
-        ${renderRankingCols(a.ranking.slice(0,20))}
-      </div>
-
-      <div class="section">
-        <h3>공유된 링크</h3>
-        <div>${linkRows}</div>
-      </div>
+      ${rankLinkBlock}
     `;
   }
+
+  function render(){
+    if(!parsed) return;
+    const dateFilter = document.getElementById('dateFilter');
+    const selected = dateFilter.value;
+    const filtered = (selected && selected!=='__all__') ? parsed.filter(m=>m.date===selected) : parsed;
+    const a = analyze(filtered);
+    const daily = findDailyAnalysis(a.dates);
+    window.__currentDaily = daily;
+    window.__currentTitle = document.getElementById('titleInput').value;
+    window.__currentTitleDate = document.getElementById('titleDate').textContent;
+
+    // 지금 보여주는 날짜에 맞춰 제목 옆 텍스트를 "(7월 09일 내용)" 식으로 갱신
+    const titleDateEl = document.getElementById('titleDate');
+    if(a.dates.length===1){
+      const dm = a.dates[0].match(/(\d{1,2})월\s*(\d{1,2})일/);
+      if(dm){
+        const mo = dm[1].padStart(2,'0');
+        const da = dm[2].padStart(2,'0');
+        titleDateEl.textContent = `(${mo}월 ${da}일 내용)`;
+      }
+    }else if(a.dates.length>1){
+      titleDateEl.textContent = `(${a.dates.length}일치 전체)`;
+    }
+    window.__currentTitleDate = titleDateEl.textContent;
+
+    content.innerHTML = buildReportHtml(a, daily);
+  }
+
+  // 업로드 없이, 미리 분석/저장해둔 날짜를 바로 보여줌 (DAILY_ANALYSIS/DAILY_STATS 기반)
+  function sortDateKeys(keys){
+    return keys.map(d=>{
+      const m = d.match(/(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일/);
+      return {key:d, sortKey: m ? `${m[1]}${m[2].padStart(2,'0')}${m[3].padStart(2,'0')}` : d};
+    }).sort((a,b)=> a.sortKey.localeCompare(b.sortKey)).map(o=>o.key);
+  }
+
+  function getKnownDates(){
+    const set = new Set([...Object.keys(DAILY_ANALYSIS), ...Object.keys(DAILY_STATS)]);
+    return sortDateKeys(Array.from(set));
+  }
+
+  function renderSavedDate(dateKey){
+    if(!dateKey) return;
+    parsed = null;
+    fileInput.value = '';
+    aiBtn.disabled = true;
+    const dateFilterEl = document.getElementById('dateFilter');
+    dateFilterEl.style.display = 'none';
+    dateFilterEl.innerHTML = '';
+
+    const stats = DAILY_STATS[dateKey] || null;
+    const daily = DAILY_ANALYSIS[dateKey] || null;
+    const a = stats ? {
+      total: stats.total,
+      participantCount: stats.participantCount,
+      dates: [dateKey],
+      hourCounts: stats.hourCounts,
+      hourTopSpeakers: stats.hourTopSpeakers,
+      peakHour: stats.peakHour,
+      ranking: stats.ranking,
+      links: stats.links || [],
+      mediaCount: stats.mediaCount || 0,
+      deletedCount: stats.deletedCount || 0
+    } : null;
+
+    window.__currentDaily = daily;
+    window.__currentTitle = document.getElementById('titleInput').value;
+    const dm = dateKey.match(/(\d{1,2})월\s*(\d{1,2})일/);
+    const titleDateEl = document.getElementById('titleDate');
+    titleDateEl.textContent = dm ? `(${dm[0]} 내용)` : `(${dateKey})`;
+    window.__currentTitleDate = titleDateEl.textContent;
+
+    content.innerHTML = buildReportHtml(a, daily);
+  }
+  window.renderSavedDate = renderSavedDate;
+
+  const savedDateSelect = document.getElementById('savedDateSelect');
+  function populateSavedDateSelect(){
+    const known = getKnownDates();
+    if(known.length===0){ savedDateSelect.style.display='none'; return; }
+    savedDateSelect.innerHTML = known.slice().reverse().map(d=>{
+      const dm = d.match(/(\d{1,2})월\s*(\d{1,2})일/);
+      const label = dm ? dm[0] : d;
+      return `<option value="${escapeHtml(d)}">${escapeHtml(label)}${DAILY_STATS[d] ? ' 📊' : ''}</option>`;
+    }).join('');
+    savedDateSelect.style.display = 'inline-block';
+  }
+  savedDateSelect.addEventListener('change', ()=> renderSavedDate(savedDateSelect.value));
 
   fileInput.addEventListener('change', (e)=>{
     const file = e.target.files[0];
@@ -1077,6 +1211,17 @@
   aiBtn.addEventListener('click', ()=>{
     alert('실시간 AI 재분석은 이 환경에서 불안정해서 지금은 지원되지 않아요. 기본으로 표시된 분석 결과를 참고해주세요.');
   });
+
+  // 페이지를 열자마자, 업로드 없이 지금까지 분석해둔 가장 최근 날짜를 바로 보여줌
+  (function initSavedView(){
+    populateSavedDateSelect();
+    const known = getKnownDates();
+    if(known.length){
+      const latest = known[known.length-1];
+      savedDateSelect.value = latest;
+      renderSavedDate(latest);
+    }
+  })();
 })();
 </script>
 </body>
