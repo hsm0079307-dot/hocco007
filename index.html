@@ -2723,6 +2723,7 @@ const L = (function(){
   });
 
   // ---------- 담당자(게스트) 계정 관리 ----------
+  let guestAdminFilter = {}; // {게스트key: '전체'|'강서사업소'|'강남사업소'|'강북사업소'}
   function allSitesFlat(){
     return OFFICES.flatMap(o => (allOfficesData[o]||[]).map(s=>Object.assign({}, s, {office:o})));
   }
@@ -2734,7 +2735,11 @@ const L = (function(){
       return na-nb;
     }).map(key=>{
       const g = guestAccounts[key];
-      const checks = flat.map(s=>`
+      const filterVal = guestAdminFilter[key] || '전체';
+      const officeTabs = ['전체', ...OFFICES].map(o=>`
+        <button type="button" class="btn ${filterVal===o?'btn-primary':'btn-ghost'} btn-sm" data-act="officeFilter" data-guest="${key}" data-office="${o}" style="padding:3px 8px;font-size:11px;">${o}</button>`).join('');
+      const filteredFlat = filterVal==='전체' ? flat : flat.filter(s=>s.office===filterVal);
+      const checks = filteredFlat.map(s=>`
         <label style="display:flex;align-items:center;gap:6px;font-size:11.5px;padding:2px 0;">
           <input type="checkbox" data-guest="${key}" data-site="${s.id}" ${ (g.siteIds||[]).includes(s.id) ? 'checked':'' }>
           <span>${escapeHtml(s.name)} <span style="color:var(--text-dim);">(${escapeHtml(s.office)})</span></span>
@@ -2746,8 +2751,9 @@ const L = (function(){
             <input data-field="password" data-guest="${key}" value="${escapeHtml(g.password||'')}" placeholder="비밀번호" style="flex:1;padding:6px 8px;font-size:12px;border-radius:6px;border:1px solid var(--line);background:var(--bg-side-2);color:var(--text-main);box-sizing:border-box;">
             <button class="btn btn-ghost btn-sm" data-act="reset" data-guest="${key}" style="white-space:nowrap;">초기화</button>
           </div>
+          <div style="display:flex;gap:4px;margin-bottom:6px;flex-wrap:wrap;">${officeTabs}</div>
           <div style="max-height:120px;overflow-y:auto;border-top:1px dashed var(--line);padding-top:6px;">
-            ${checks || '<span style="color:var(--text-dim);font-size:11.5px;">등록된 현장이 없습니다.</span>'}
+            ${checks || '<span style="color:var(--text-dim);font-size:11.5px;">해당 사업소에 등록된 현장이 없습니다.</span>'}
           </div>
         </div>`;
     }).join('');
@@ -2757,6 +2763,12 @@ const L = (function(){
         guestAccounts[key].password = '';
         guestAccounts[key].siteIds = [];
         await saveSites();
+        renderGuestAdminModal();
+      });
+    });
+    body.querySelectorAll('button[data-act="officeFilter"]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        guestAdminFilter[btn.dataset.guest] = btn.dataset.office;
         renderGuestAdminModal();
       });
     });
