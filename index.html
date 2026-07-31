@@ -1030,22 +1030,51 @@ const L = (function(){
       try{ localStorage.setItem(DISTRICT_LABEL_KEY, json); }catch(e2){}
     }
   }
+  let saveOfficeContext = true; // false일 때는 현재 사업소(sites)를 로컬 내용으로 덮어쓰지 않음 (담당자 계정 관리 등, 현장 내용과 무관한 저장)
   async function saveSites(){
-    if(currentOffice!==ALL_OFFICE) allOfficesData[currentOffice] = sites;
+    // 담당자(게스트)의 sites는 여러 사업소에서 배정된 현장만 걸러낸 부분집합이라,
+    // 그대로 allOfficesData[currentOffice]에 덮어쓰면 나머지 현장이 삭제되므로 admin일 때만, 그것도 실제 현장을 수정 중일 때만 반영한다.
+    if(!guestMode && saveOfficeContext && currentOffice!==ALL_OFFICE) allOfficesData[currentOffice] = sites;
+    let editedSiteId = null, editedSiteSnapshot = null;
     if(guestMode && currentGuest){
       const detailSite = currentView==='detail' ? sites.find(s=>s.id===currentDetailId) : null;
       const modalSite = editingId ? sites.find(s=>s.id===editingId) : null;
-      const siteName = (detailSite && detailSite.name) || (modalSite && modalSite.name) || '현장 정보';
+      const targetSite = detailSite || modalSite;
+      if(targetSite){ editedSiteId = targetSite.id; editedSiteSnapshot = JSON.parse(JSON.stringify(targetSite)); }
+      const siteName = (targetSite && targetSite.name) || '현장 정보';
       changeLog.unshift({at: new Date().toISOString(), who: currentGuest.name, site: siteName, note:'수정'});
       if(changeLog.length>300) changeLog.length = 300;
     }
-    const json = JSON.stringify(allOfficesData);
     try{
       if(window.storage){
-        await window.storage.set(STORAGE_KEY, json, false);
+        await window.storage.set(STORAGE_KEY, JSON.stringify(allOfficesData), false);
         await window.storage.set(GUEST_KEY, JSON.stringify(guestAccounts), false);
         await window.storage.set(CHANGELOG_KEY, JSON.stringify(changeLog), false);
       }else{
+        // 저장 직전, 클라우드의 최신 내용을 먼저 받아와서 다른 기기/오래된 탭이 그 사이 바꾼 다른 사업소 데이터를 보존하고
+        // 지금 이 화면에서 실제로 바뀐 부분만 그 위에 얹어서 저장한다 (오래된 탭이 통째로 덮어써버리는 사고 방지)
+        let fresh = {};
+        try{
+          const fr = await fetch(JSONBIN_URL+'/latest', {headers:{'X-Master-Key':JSONBIN_KEY, 'X-Bin-Meta':'false'}});
+          if(fr.ok) fresh = await fr.json();
+        }catch(fe){ console.error('최신 데이터 선조회 실패, 로컬 데이터로 진행', fe); }
+        const mergedOffices = Object.assign({}, (fresh && fresh.offices && typeof fresh.offices==='object') ? fresh.offices : allOfficesData);
+        if(guestMode && currentGuest){
+          if(editedSiteId){
+            for(const off of OFFICES){
+              const arr = mergedOffices[off];
+              if(Array.isArray(arr)){
+                const idx = arr.findIndex(s=>s.id===editedSiteId);
+                if(idx>-1){ arr[idx] = editedSiteSnapshot; break; }
+              }
+            }
+          }
+        }else if(saveOfficeContext){
+          if(currentOffice!==ALL_OFFICE) mergedOffices[currentOffice] = allOfficesData[currentOffice];
+          else Object.assign(mergedOffices, allOfficesData);
+        }
+        allOfficesData = mergedOffices;
+        const json = JSON.stringify(allOfficesData);
         localStorage.setItem(STORAGE_KEY, json); // 오프라인이어도 즉시 로컬에 백업
         localStorage.setItem(GUEST_KEY, JSON.stringify(guestAccounts));
         localStorage.setItem(CHANGELOG_KEY, JSON.stringify(changeLog));
@@ -1059,7 +1088,7 @@ const L = (function(){
       syncState = 'ok';
     }catch(e){
       console.error('클라우드 저장 실패(오프라인일 수 있음), 로컬에는 저장되었습니다', e);
-      try{ localStorage.setItem(STORAGE_KEY, json); }
+      try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(allOfficesData)); }
       catch(e2){ console.error('로컬 저장도 실패', e2); }
       syncState = 'bad';
     }
@@ -2796,7 +2825,9 @@ const L = (function(){
     }
   });
   document.getElementById('guestAdminSaveBtn').addEventListener('click', async ()=>{
+    saveOfficeContext = false;
     await saveSites();
+    saveOfficeContext = true;
     alert('담당자 계정 정보가 저장되었습니다.');
   });
   document.getElementById('guestManageBtn').addEventListener('click', async ()=>{
