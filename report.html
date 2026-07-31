@@ -759,8 +759,9 @@
           const parts = [];
           if(r.fav) parts.push(`<span style="color:#16a34a;">우호 ${r.fav}회</span>`);
           if(r.crit) parts.push(`<span style="color:#dc2626;">비방 ${r.crit}회</span>`);
-          return `<div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--line); font-size:12.5px;">
-            <span style="font-weight:700;">${escapeHtml(r.name)}</span>
+          const nameEsc = r.name.replace(/'/g,"\\'");
+          return `<div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--line); font-size:12.5px; cursor:pointer;" onclick="selectRepeatSpeaker('${nameEsc}')" title="클릭하면 이 발언자의 내용을 아래에서 볼 수 있어요">
+            <span style="font-weight:700; text-decoration:underline; text-underline-offset:3px;">${escapeHtml(r.name)}</span>
             <span>${parts.join(' · ')}</span>
           </div>`;
         }).join('')
@@ -768,10 +769,20 @@
 
     const periodBtn = (val,label)=> `<button onclick="setCumPeriod('${val}')" style="border:1px solid var(--line); background:${currentCumPeriod===val?'var(--accent)':'#fff'}; color:${currentCumPeriod===val?'#fff':'inherit'}; border-radius:999px; padding:4px 12px; font-size:11.5px; font-weight:700; cursor:pointer; margin-right:6px;">${label}</button>`;
 
+    const dateOptions = getKnownDates().slice().reverse().map(d=>{
+      const dm = d.match(/(\d{1,2})월\s*(\d{1,2})일/);
+      return `<option value="${escapeHtml(d)}">${escapeHtml(dm?dm[0]:d)}</option>`;
+    }).join('');
+
     return `
-      <div style="margin-bottom:10px;">
+      <div style="margin-bottom:10px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
         ${periodBtn('all','전체 기간')}${periodBtn(7,'최근 7일')}${periodBtn(3,'최근 3일')}
+        <select id="cumDateSelect" onchange="renderCumDateDetail(this.value)" style="border:1px solid var(--line); border-radius:999px; padding:4px 12px; font-size:11.5px; font-weight:700; background:#fff; color:inherit; cursor:pointer;">
+          <option value="">특정 날짜 발언자 보기...</option>
+          ${dateOptions}
+        </select>
       </div>
+      <div id="cumDateDetailBox" style="display:none; margin-bottom:14px;"></div>
       ${trendComment ? `<div style="background:var(--bg-side-2); border-radius:8px; padding:10px 12px; margin-bottom:12px; font-size:12.5px; font-weight:600;">${escapeHtml(trendComment)}</div>` : ''}
       <div class="stat-row">
         <div class="stat-card"><div class="stat-label">분석된 날짜</div><div class="stat-value">${s.dayCount}일</div></div>
@@ -836,6 +847,47 @@
 
   // onclick="..." 인라인 핸들러에서 호출할 수 있도록 전역에 노출
   window.toggleCumDetail = toggleCumDetail;
+
+  // 반복 발언자 이름을 클릭하면, 발언자 검색창에 이름을 채우고 그 사람의 내용을 바로 보여줌
+  function selectRepeatSpeaker(name){
+    const input = document.getElementById('speakerSearchInput');
+    if(input) input.value = name;
+    renderSpeakerSearchResult(name);
+    const box = document.getElementById('speakerSearchResult');
+    if(box && box.scrollIntoView) box.scrollIntoView({behavior:'smooth', block:'nearest'});
+  }
+  window.selectRepeatSpeaker = selectRepeatSpeaker;
+
+  // 전체 누적 요약 안에서 특정 날짜를 고르면, 그 날짜의 발언자(우호/비방/그외)를 모두 보여줌
+  function renderCumDateDetail(dateKey){
+    const box = document.getElementById('cumDateDetailBox');
+    if(!box) return;
+    if(!dateKey){ box.innerHTML = ''; box.style.display = 'none'; return; }
+    const day = DAILY_ANALYSIS[dateKey];
+    const dm = dateKey.match(/(\d{1,2})월\s*(\d{1,2})일/);
+    const shortDate = dm ? dm[0] : dateKey;
+    if(!day){
+      box.innerHTML = `<div class="placeholder-text">${escapeHtml(shortDate)}은 아직 분석해둔 내용이 없어요.</div>`;
+      box.style.display = 'block';
+      return;
+    }
+    const bgMap = {favorable:'#f0fdf4', critical:'#fef2f2', other:'#f9fafb'};
+    const labelMap = {favorable:'✅ 우호', critical:'🚫 비방', other:'💬 그외'};
+    let rows = '';
+    ['favorable','critical','other'].forEach(type=>{
+      (day[type]||[]).forEach(it=>{
+        rows += `<div class="stance-item" style="background:${bgMap[type]}">
+          <div class="stance-speaker">${escapeHtml(it.speaker||'')} <span style="color:#8a92a3;font-weight:500;">· ${labelMap[type]}</span></div>
+          <div class="stance-quote">${escapeHtml(it.quote||'')}</div>
+        </div>`;
+      });
+    });
+    const total = (day.favorable||[]).length + (day.critical||[]).length + (day.other||[]).length;
+    box.innerHTML = `<div style="font-size:13px; font-weight:800; margin-bottom:8px;">${escapeHtml(shortDate)} 발언자 (${total}건)</div>` +
+      (rows || '<div class="placeholder-text">이 날짜엔 분류된 발언이 없어요.</div>');
+    box.style.display = 'block';
+  }
+  window.renderCumDateDetail = renderCumDateDetail;
 
   function renderTrendChart(){
     const dateKeys = Object.keys(DAILY_ANALYSIS);
