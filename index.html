@@ -333,7 +333,8 @@
         <div class="modal" style="max-width:190px;text-align:center;padding:10px;">
           <div id="modeChoiceRow">
             <button class="btn btn-primary" id="adminModeBtn" style="width:100%;margin-bottom:6px;padding:6px;font-size:11px;">관리자</button>
-            <button class="btn btn-ghost" id="guestModeBtn" style="width:100%;padding:6px;font-size:11px;">담당자 로그인</button>
+            <button class="btn btn-ghost" id="guestModeBtn" style="width:100%;margin-bottom:6px;padding:6px;font-size:11px;">담당자 로그인</button>
+            <button class="btn btn-ghost" id="viewOnlyGuestBtn" style="width:100%;padding:6px;font-size:11px;">게스트 🔍</button>
           </div>
           <div id="pwRow" style="display:none;">
             <input id="pwInput" type="password" placeholder="비밀번호" style="width:100%;padding:6px 8px;font-size:12px;border-radius:8px;border:1px solid var(--line);background:var(--bg-side-2);color:var(--text-main);margin-bottom:6px;box-sizing:border-box;">
@@ -360,6 +361,7 @@
     <div style="font-size:11.5px;color:var(--text-dim);margin-bottom:10px;">게스트마다 이름·비밀번호를 정하고, 담당할 현장에 체크하세요. 체크된 현장만 해당 게스트에게 보이고, 잠금 없이 바로 수정할 수 있어요.</div>
     <div id="guestAdminBody"></div>
     <div class="modal-actions">
+      <button class="btn btn-primary" id="guestAdminSaveBtn">저장</button>
       <button class="btn btn-ghost" id="guestAdminCloseBtn">닫기</button>
     </div>
   </div>
@@ -2643,6 +2645,12 @@ const L = (function(){
     guestPwInput.focus();
   });
 
+  document.getElementById('viewOnlyGuestBtn').addEventListener('click', ()=>{
+    guestMode = true;
+    currentGuest = null; // 특정 담당자로 지정되지 않은, 전체를 보기만 하는 게스트
+    modeOverlay.classList.remove('show');
+  });
+
   async function tryGuestPasswordSubmit(){
     const key = guestSelect.value;
     const pw = guestPwInput.value;
@@ -2758,11 +2766,10 @@ const L = (function(){
         </div>`;
     }).join('');
     body.querySelectorAll('button[data-act="reset"]').forEach(btn=>{
-      btn.addEventListener('click', async ()=>{
+      btn.addEventListener('click', ()=>{
         const key = btn.dataset.guest;
         guestAccounts[key].password = '';
         guestAccounts[key].siteIds = [];
-        await saveSites();
         renderGuestAdminModal();
       });
     });
@@ -2773,7 +2780,7 @@ const L = (function(){
       });
     });
   }
-  document.getElementById('guestAdminBody').addEventListener('change', async (e)=>{
+  document.getElementById('guestAdminBody').addEventListener('change', (e)=>{
     const t = e.target;
     const key = t.dataset.guest;
     if(!key) return;
@@ -2787,7 +2794,10 @@ const L = (function(){
     }else if(t.dataset.field==='password'){
       guestAccounts[key].password = t.value;
     }
+  });
+  document.getElementById('guestAdminSaveBtn').addEventListener('click', async ()=>{
     await saveSites();
+    alert('담당자 계정 정보가 저장되었습니다.');
   });
   document.getElementById('guestManageBtn').addEventListener('click', async ()=>{
     if(!(await ensureUnlocked())) return;
