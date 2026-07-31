@@ -750,6 +750,7 @@
   }
 
   let currentCumPeriod = 'all';
+  let selectedCumDates = new Set(); // 클릭으로 여러 날짜를 골라서 그 날짜들만 모아보는 용도
 
   function renderCumulativeSummary(){
     const s = computeCumulativeStats(currentCumPeriod);
@@ -769,20 +770,60 @@
 
     const periodBtn = (val,label)=> `<button onclick="setCumPeriod('${val}')" style="border:1px solid var(--line); background:${currentCumPeriod===val?'var(--accent)':'#fff'}; color:${currentCumPeriod===val?'#fff':'inherit'}; border-radius:999px; padding:4px 12px; font-size:11.5px; font-weight:700; cursor:pointer; margin-right:6px;">${label}</button>`;
 
-    const dateOptions = getKnownDates().slice().reverse().map(d=>{
+    const dateChips = getKnownDates().slice().reverse().map(d=>{
       const dm = d.match(/(\d{1,2})월\s*(\d{1,2})일/);
-      return `<option value="${escapeHtml(d)}">${escapeHtml(dm?dm[0]:d)}</option>`;
+      const label = dm ? dm[0] : d;
+      const active = selectedCumDates.has(d);
+      const esc = d.replace(/'/g,"\\'");
+      return `<button onclick="toggleCumDateChip('${esc}')" style="border:1px solid var(--line); background:${active?'var(--accent)':'#fff'}; color:${active?'#fff':'inherit'}; border-radius:999px; padding:3px 10px; font-size:11px; font-weight:700; cursor:pointer;">${escapeHtml(label)}</button>`;
     }).join('');
+
+    let cumDateDetailHtml = '';
+    if(selectedCumDates.size){
+      const sortedSelected = sortDateKeys(Array.from(selectedCumDates));
+      const bgMap = {favorable:'#f0fdf4', critical:'#fef2f2', other:'#f9fafb'};
+      const labelMap = {favorable:'✅ 우호', critical:'🚫 비방', other:'💬 그외'};
+      let rows = '';
+      let total = 0;
+      const shortLabels = [];
+      sortedSelected.forEach(d=>{
+        const dm = d.match(/(\d{1,2})월\s*(\d{1,2})일/);
+        const shortDate = dm ? dm[0] : d;
+        shortLabels.push(shortDate);
+        const day = DAILY_ANALYSIS[d];
+        if(!day){
+          rows += `<div class="placeholder-text">${escapeHtml(shortDate)}은 아직 분석해둔 내용이 없어요.</div>`;
+          return;
+        }
+        ['favorable','critical','other'].forEach(type=>{
+          (day[type]||[]).forEach(it=>{
+            total++;
+            rows += `<div class="stance-item" style="background:${bgMap[type]}">
+              <div class="stance-speaker">${escapeHtml(it.speaker||'')} <span style="color:#8a92a3;font-weight:500;">· ${labelMap[type]} · ${escapeHtml(shortDate)}</span></div>
+              <div class="stance-quote">${escapeHtml(it.quote||'')}</div>
+            </div>`;
+          });
+        });
+      });
+      cumDateDetailHtml = `
+        <div style="margin-bottom:14px;">
+          <div style="font-size:13px; font-weight:800; margin-bottom:8px;">선택한 날짜 발언자 (${shortLabels.join(', ')}) · ${total}건</div>
+          ${rows || '<div class="placeholder-text">선택한 날짜에 분류된 발언이 없어요.</div>'}
+        </div>`;
+    }
 
     return `
       <div style="margin-bottom:10px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
         ${periodBtn('all','전체 기간')}${periodBtn(7,'최근 7일')}${periodBtn(3,'최근 3일')}
-        <select id="cumDateSelect" onchange="renderCumDateDetail(this.value)" style="border:1px solid var(--line); border-radius:999px; padding:4px 12px; font-size:11.5px; font-weight:700; background:#fff; color:inherit; cursor:pointer;">
-          <option value="">특정 날짜 발언자 보기...</option>
-          ${dateOptions}
-        </select>
       </div>
-      <div id="cumDateDetailBox" style="display:none; margin-bottom:14px;"></div>
+      <div style="margin-bottom:10px;">
+        <div style="font-size:12px; color:var(--text-dim); margin-bottom:6px;">날짜별 발언자 보기 (여러 날짜 클릭 가능)</div>
+        <div style="display:flex; flex-wrap:wrap; gap:6px;">
+          ${dateChips}
+          ${selectedCumDates.size ? `<button onclick="clearCumDateChips()" style="border:1px dashed var(--line); background:#fff; color:var(--text-dim); border-radius:999px; padding:3px 10px; font-size:11px; font-weight:700; cursor:pointer;">선택 해제</button>` : ''}
+        </div>
+      </div>
+      ${cumDateDetailHtml}
       ${trendComment ? `<div style="background:var(--bg-side-2); border-radius:8px; padding:10px 12px; margin-bottom:12px; font-size:12.5px; font-weight:600;">${escapeHtml(trendComment)}</div>` : ''}
       <div class="stat-row">
         <div class="stat-card"><div class="stat-label">분석된 날짜</div><div class="stat-value">${s.dayCount}일</div></div>
@@ -858,36 +899,21 @@
   }
   window.selectRepeatSpeaker = selectRepeatSpeaker;
 
-  // 전체 누적 요약 안에서 특정 날짜를 고르면, 그 날짜의 발언자(우호/비방/그외)를 모두 보여줌
-  function renderCumDateDetail(dateKey){
-    const box = document.getElementById('cumDateDetailBox');
-    if(!box) return;
-    if(!dateKey){ box.innerHTML = ''; box.style.display = 'none'; return; }
-    const day = DAILY_ANALYSIS[dateKey];
-    const dm = dateKey.match(/(\d{1,2})월\s*(\d{1,2})일/);
-    const shortDate = dm ? dm[0] : dateKey;
-    if(!day){
-      box.innerHTML = `<div class="placeholder-text">${escapeHtml(shortDate)}은 아직 분석해둔 내용이 없어요.</div>`;
-      box.style.display = 'block';
-      return;
-    }
-    const bgMap = {favorable:'#f0fdf4', critical:'#fef2f2', other:'#f9fafb'};
-    const labelMap = {favorable:'✅ 우호', critical:'🚫 비방', other:'💬 그외'};
-    let rows = '';
-    ['favorable','critical','other'].forEach(type=>{
-      (day[type]||[]).forEach(it=>{
-        rows += `<div class="stance-item" style="background:${bgMap[type]}">
-          <div class="stance-speaker">${escapeHtml(it.speaker||'')} <span style="color:#8a92a3;font-weight:500;">· ${labelMap[type]}</span></div>
-          <div class="stance-quote">${escapeHtml(it.quote||'')}</div>
-        </div>`;
-      });
-    });
-    const total = (day.favorable||[]).length + (day.critical||[]).length + (day.other||[]).length;
-    box.innerHTML = `<div style="font-size:13px; font-weight:800; margin-bottom:8px;">${escapeHtml(shortDate)} 발언자 (${total}건)</div>` +
-      (rows || '<div class="placeholder-text">이 날짜엔 분류된 발언이 없어요.</div>');
-    box.style.display = 'block';
+  // 전체 누적 요약의 날짜 칩(버튼)을 클릭하면 선택/해제 토글하고, 선택된 날짜들을 모아서 다시 그림
+  function toggleCumDateChip(dateKey){
+    if(selectedCumDates.has(dateKey)) selectedCumDates.delete(dateKey);
+    else selectedCumDates.add(dateKey);
+    const wrap = document.getElementById('cumulativeSummaryWrap');
+    if(wrap) wrap.innerHTML = renderCumulativeSummary();
   }
-  window.renderCumDateDetail = renderCumDateDetail;
+  window.toggleCumDateChip = toggleCumDateChip;
+
+  function clearCumDateChips(){
+    selectedCumDates.clear();
+    const wrap = document.getElementById('cumulativeSummaryWrap');
+    if(wrap) wrap.innerHTML = renderCumulativeSummary();
+  }
+  window.clearCumDateChips = clearCumDateChips;
 
   function renderTrendChart(){
     const dateKeys = Object.keys(DAILY_ANALYSIS);
