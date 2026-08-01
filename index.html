@@ -938,7 +938,7 @@ const L = (function(){
   // Claude 아티팩트 안에서는 window.storage를 쓰고,
   // 일반 웹(넷리파이 등)에 배포된 경우엔 window.storage가 없으므로 브라우저 localStorage로 자동 대체
   // 클라우드 동기화용 JSONBin.io 저장소 (여러 PC에서 같은 데이터를 보기 위함)
-  const JSONBIN_ID = '6a55aa61f5f4af5e298b9713';
+  const JSONBIN_ID = '6a6d8a26da38895dfeab6d78';
   const JSONBIN_KEY = '$2a$10$ZaeTDYGl54uqM9J2V9F1tuVcI3FUDIw6KM98btPRGUWLHgiA8bdFe';
   const JSONBIN_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_ID}`;
 
@@ -2171,14 +2171,37 @@ const L = (function(){
       });
     }
   }
+  async function saveLabelPosOnly(){
+    // 라벨 위치는 자주, 빠르게 저장이 필요해서 "클라우드 최신본 선조회" 없이 가볍게 바로 저장한다
+    if(currentOffice!==ALL_OFFICE) allOfficesData[currentOffice] = sites;
+    const json = JSON.stringify(allOfficesData);
+    try{
+      if(window.storage){
+        await window.storage.set(STORAGE_KEY, json, false);
+      }else{
+        localStorage.setItem(STORAGE_KEY, json);
+        const res = await fetch(JSONBIN_URL, {
+          method:'PUT',
+          headers:{'Content-Type':'application/json', 'X-Master-Key':JSONBIN_KEY},
+          body: JSON.stringify({offices: allOfficesData, guests: guestAccounts, changeLog: changeLog})
+        });
+        if(!res.ok) throw new Error('jsonbin save status '+res.status);
+      }
+      syncState = 'ok';
+    }catch(e){
+      console.error('라벨 위치 저장 실패(오프라인일 수 있음)', e);
+      syncState = 'bad';
+    }
+    renderSyncStatus();
+  }
   function enableLabelDrag(labelMarker, site, currentPos){
     enableDrag(labelMarker, currentPos, (newPos)=>{
       site.labelPos = newPos;
-      saveSites();
+      saveLabelPosOnly();
       renderMap();
     }, ()=>{
       delete site.labelPos;
-      saveSites();
+      saveLabelPosOnly();
       renderMap();
     });
   }
