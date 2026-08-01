@@ -307,6 +307,7 @@
     </div>
     <button class="btn btn-ghost" id="guestManageBtn">담당자 계정 관리</button>
     <button class="btn btn-ghost" id="changeLogBtn">수정이력</button>
+    <button class="btn btn-ghost" id="missingCoordsBtn">📍좌표없음</button>
     <button class="btn btn-primary" id="addBtn">+ 현장 추가</button>
   </div>
 
@@ -373,6 +374,17 @@
     <div id="changeLogBody" style="max-height:60vh;overflow-y:auto;font-size:12.5px;"></div>
     <div class="modal-actions">
       <button class="btn btn-ghost" id="changeLogCloseBtn">닫기</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="missingCoordsOverlay">
+  <div class="modal" style="max-width:480px;">
+    <h3>좌표 없는 현장</h3>
+    <div style="font-size:11.5px;color:var(--text-dim);margin-bottom:10px;">위도/경도가 입력되지 않은 현장 목록이에요. 이름을 누르면 바로 그 현장으로 이동해요.</div>
+    <div id="missingCoordsBody" style="max-height:60vh;overflow-y:auto;font-size:12.5px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="missingCoordsCloseBtn">닫기</button>
     </div>
   </div>
 </div>
@@ -1043,6 +1055,14 @@ const L = (function(){
       if(targetSite){ editedSiteId = targetSite.id; editedSiteSnapshot = JSON.parse(JSON.stringify(targetSite)); }
       const siteName = (targetSite && targetSite.name) || '현장 정보';
       changeLog.unshift({at: new Date().toISOString(), who: currentGuest.name, site: siteName, note:'수정'});
+      if(changeLog.length>300) changeLog.length = 300;
+    }else if(!guestMode && saveOfficeContext){
+      // 관리자 본인이 현장 내용을 수정한 경우에도 이력 남김
+      const detailSite = currentView==='detail' ? sites.find(s=>s.id===currentDetailId) : null;
+      const modalSite = editingId ? sites.find(s=>s.id===editingId) : null;
+      const targetSite = detailSite || modalSite;
+      const siteName = (targetSite && targetSite.name) || '현장 정보';
+      changeLog.unshift({at: new Date().toISOString(), who: '관리자', site: siteName, note:'수정'});
       if(changeLog.length>300) changeLog.length = 300;
     }
     try{
@@ -2707,7 +2727,7 @@ const L = (function(){
   });
 
   function applyGuestRestrictions(){
-    const hideIds = ['templateBtn','exportBtn','addBtn','guestManageBtn','changeLogBtn','managerFilterWrap','clearDistrictBtn','labelEditBtn'];
+    const hideIds = ['templateBtn','exportBtn','addBtn','guestManageBtn','changeLogBtn','missingCoordsBtn','managerFilterWrap','clearDistrictBtn','labelEditBtn'];
     hideIds.forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display='none'; });
     const excelLabel = document.querySelector('.file-label'); if(excelLabel) excelLabel.style.display='none';
     const officeSwitcherEl = document.getElementById('officeSwitcher'); if(officeSwitcherEl) officeSwitcherEl.style.display='none';
@@ -2724,12 +2744,35 @@ const L = (function(){
     }
   }
 
+  function maybeAutoBackup(){
+    try{
+      const today = new Date().toISOString().slice(0,10); // YYYY-MM-DD
+      const lastBackup = localStorage.getItem('lastAutoBackupDate');
+      if(lastBackup === today) return; // 오늘 이미 백업함
+      const snapshot = {
+        backedUpAt: new Date().toISOString(),
+        offices: allOfficesData,
+        guests: guestAccounts,
+        changeLog: changeLog
+      };
+      const blob = new Blob([JSON.stringify(snapshot, null, 2)], {type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `시장모니터링-백업-${today}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      localStorage.setItem('lastAutoBackupDate', today);
+    }catch(e){ console.error('자동 백업 실패', e); }
+  }
+
   async function tryPasswordSubmit(){
     const pw = pwInput.value;
     const hash = await sha256Hex(pw);
     if(hash===EDIT_PASSWORD_HASH){
       try{ localStorage.setItem('editUnlocked','1'); }catch(e){}
       modeOverlay.classList.remove('show');
+      maybeAutoBackup(); // 관리자로 들어올 때마다 하루 한 번, 자동으로 백업 파일 다운로드
     }else{
       pwError.style.display = 'block';
       pwInput.value = '';
@@ -2855,6 +2898,41 @@ const L = (function(){
   });
   document.getElementById('changeLogCloseBtn').addEventListener('click', ()=>{
     document.getElementById('changeLogOverlay').classList.remove('show');
+  });
+
+  // ---------- 좌표 없는 현장 목록 ----------
+  function renderMissingCoordsModal(){
+    const body = document.getElementById('missingCoordsBody');
+    const flat = OFFICES.flatMap(o => (allOfficesData[o]||[]).map(s=>Object.assign({}, s, {office:o})));
+    const missing = flat.filter(s => !s.lat || !s.lng);
+    if(!missing.length){ body.innerHTML = '<div style="color:var(--text-dim);">모든 현장에 좌표가 입력되어 있어요 🎉</div>'; return; }
+    const byOffice = {};
+    missing.forEach(s=>{ (byOffice[s.office] = byOffice[s.office]||[]).push(s); });
+    body.innerHTML = Object.keys(byOffice).map(office => `
+      <div style="margin-bottom:10px;">
+        <div style="font-weight:600;color:var(--accent);margin-bottom:4px;">${escapeHtml(office)} (${byOffice[office].length})</div>
+        ${byOffice[office].map(s=>`<div class="missing-coord-item" data-id="${s.id}" data-office="${escapeHtml(office)}" style="padding:5px 8px;border-radius:6px;cursor:pointer;color:var(--text-main);" onmouseover="this.style.background='var(--card-hover)'" onmouseout="this.style.background='transparent'">${escapeHtml(s.name)}</div>`).join('')}
+      </div>`).join('');
+    body.querySelectorAll('.missing-coord-item').forEach(el=>{
+      el.addEventListener('click', async ()=>{
+        const id = el.dataset.id, office = el.dataset.office;
+        document.getElementById('missingCoordsOverlay').classList.remove('show');
+        if(office !== currentOffice) await switchOffice(office);
+        currentDetailId = id;
+        currentView = 'detail';
+        detailTab = '개요';
+        editMode = false;
+        renderAll();
+      });
+    });
+  }
+  document.getElementById('missingCoordsBtn').addEventListener('click', async ()=>{
+    if(!(await ensureUnlocked())) return;
+    renderMissingCoordsModal();
+    document.getElementById('missingCoordsOverlay').classList.add('show');
+  });
+  document.getElementById('missingCoordsCloseBtn').addEventListener('click', ()=>{
+    document.getElementById('missingCoordsOverlay').classList.remove('show');
   });
 
   // ---------- boot ----------
