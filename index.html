@@ -312,6 +312,7 @@
     <button class="btn btn-ghost" id="changeAdminPwBtn">🔑 비번변경</button>
     <button class="btn btn-ghost" id="refreshDataBtn" title="클라우드에서 최신 데이터 다시 불러오기">🔄 새로고침</button>
     <button class="btn btn-ghost" id="manualSaveBtn" title="지금 화면 내용을 클라우드에 바로 저장">💾 저장</button>
+    <button class="btn btn-ghost" id="adminLogoutBtn" title="로그아웃하고 처음 화면으로">🚪 로그아웃</button>
     <button class="btn btn-ghost" id="changeLogBtn">수정이력</button>
     <button class="btn btn-ghost" id="missingCoordsBtn">📍좌표없음</button>
     <button class="btn btn-primary" id="addBtn">+ 현장 추가</button>
@@ -1072,6 +1073,7 @@ const L = (function(){
   let saveOfficeContext = true; // false일 때는 현재 사업소(sites)를 로컬 내용으로 덮어쓰지 않음 (담당자 계정 관리 등, 현장 내용과 무관한 저장)
   let saveBulkMode = false; // true일 때만(엑셀 업로드, 신규 추가, 삭제) 사업소 전체를 로컬 내용으로 덮어씀. 그 외 일반 수정은 항상 "그 현장 하나만" 최신 클라우드 데이터에 patch해서, 폰/PC 어디서 고치든 순서 상관없이 안전하게 만든다.
   let lastEditedSiteId = null; // 상세화면이 아닌 곳(캘린더 등)에서 현장을 수정할 때 명시적으로 지정
+  let editingGuestDraftKey = null; // 관리자가 특정 담당자의 사본을 직접 고치는 중일 때만 그 게스트 key를 담아둠
   async function saveSites(){
     if(!guestMode && saveOfficeContext && currentOffice!==ALL_OFFICE) allOfficesData[currentOffice] = sites;
     let editedSiteId = null, editedSiteSnapshot = null;
@@ -1116,12 +1118,25 @@ const L = (function(){
               if(idx>-1){
                 if(guestMode && currentGuest){
                   // 담당자 수정은 원본을 바꾸지 않고 담당자별 독립된 사본(guestDrafts[게스트key])에만 남긴다.
+                  // baseSnapshot: 이 시점의 "관리자 원본" 값을 같이 저장해둬서, 나중에 관리자가 원본을 바꾸면 담당자가 알 수 있게 한다.
                   const draftSnapshot = Object.assign({}, editedSiteSnapshot);
                   delete draftSnapshot.guestDrafts;
+                  const baseSnapshot = {};
+                  DRAFT_FIELDS_KEYS.forEach(k=>{ baseSnapshot[k] = arr[idx][k] || ''; });
                   arr[idx].guestDrafts = arr[idx].guestDrafts || {};
-                  arr[idx].guestDrafts[currentGuest.key] = { snapshot: draftSnapshot, updatedBy: currentGuest.name, updatedAt: new Date().toISOString() };
+                  arr[idx].guestDrafts[currentGuest.key] = { snapshot: draftSnapshot, baseSnapshot, updatedBy: currentGuest.name, updatedAt: new Date().toISOString() };
                 }else{
+                  // 관리자 수정: 최신 클라우드에 있던 담당자 사본들(guestDrafts)은 무조건 보존한다.
+                  // 관리자가 지금 특정 담당자 사본을 직접 고치는 중(editingGuestDraftKey)이면 그 키만 로컬 값으로 반영하고,
+                  // 그 외 일반 현장 수정은 담당자 사본들에 아예 손대지 않는다.
+                  const freshGuestDrafts = Object.assign({}, arr[idx].guestDrafts || {});
                   arr[idx] = editedSiteSnapshot;
+                  arr[idx].guestDrafts = freshGuestDrafts;
+                  if(editingGuestDraftKey){
+                    const localDraft = editedSiteSnapshot.guestDrafts && editedSiteSnapshot.guestDrafts[editingGuestDraftKey];
+                    if(localDraft) arr[idx].guestDrafts[editingGuestDraftKey] = localDraft;
+                    else delete arr[idx].guestDrafts[editingGuestDraftKey];
+                  }
                 }
                 patched = true; break;
               }
@@ -1158,6 +1173,7 @@ const L = (function(){
     }
     renderSyncStatus();
     renderSeoulShapes(); // 현장이 추가/삭제/변경됐을 때만 구 색칠을 다시 그림
+    editingGuestDraftKey = null; // 한 번 쓰면 초기화
   }
   // JSONBin 무료 플랜 기준 bin 하나당 최대 용량(약 1MB)에 비해 지금 저장 중인 데이터가 얼마나 되는지 표시
   const SYNC_CAPACITY_BYTES = 1000000;
@@ -1599,7 +1615,7 @@ const L = (function(){
       <div class="card card-compact ${stale?'stale':''}" data-id="${s.id}">
         <div class="card-row">
           <div class="card-main">
-            <div class="card-name">${escapeHtml(s.name)}</div>
+            <div class="card-name">${escapeHtml(s.name)} ${s.__officialChanged ? '<span style="color:#ffb703;font-size:11px;" title="관리자가 원본을 수정했어요">🔔 관리자 변경있음</span>' : ''}</div>
             <div class="card-date">담당: ${escapeHtml(s.manager||'-')}</div>
           </div>
           <div class="card-actions">
@@ -1697,6 +1713,7 @@ const L = (function(){
         </div>
         <h2 class="detail-name">${escapeHtml(site.name)}</h2>
         <div class="detail-sub">${escapeHtml(site.district)}</div>
+        ${site.__officialChanged ? `<div style="background:rgba(255,183,3,.12);border:1px solid #ffb703;border-radius:8px;padding:8px 10px;margin:8px 0;font-size:12px;color:#ffb703;">🔔 관리자가 원본에서 <b>${site.__officialChanged.map(k=>({status:'상태',stage:'단계',manager:'담당자',stageDetail:'진행단계 상세',memo:'비고'}[k]||k)).join(', ')}</b>을(를) 수정했어요. 내 사본과 달라졌으니 확인해보세요.</div>` : ''}
 
         <div class="stepper">${steps}</div>
 
@@ -2773,7 +2790,7 @@ const L = (function(){
   });
 
   function applyGuestRestrictions(){
-    const hideIds = ['templateBtn','exportBtn','addBtn','guestManageBtn','changeAdminPwBtn','changeLogBtn','missingCoordsBtn','managerFilterWrap','clearDistrictBtn','labelEditBtn'];
+    const hideIds = ['templateBtn','exportBtn','addBtn','guestManageBtn','changeAdminPwBtn','changeLogBtn','missingCoordsBtn','managerFilterWrap','clearDistrictBtn','labelEditBtn','adminLogoutBtn'];
     hideIds.forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display='none'; });
     const excelLabel = document.querySelector('.file-label'); if(excelLabel) excelLabel.style.display='none';
     const officeSwitcherEl = document.getElementById('officeSwitcher'); if(officeSwitcherEl) officeSwitcherEl.style.display='none';
@@ -2857,7 +2874,13 @@ const L = (function(){
       .filter(s=>(currentGuest.siteIds||[]).includes(s.id))
       .map(s=>{
         const myDraft = s.guestDrafts && s.guestDrafts[currentGuest.key];
-        return myDraft ? Object.assign({}, s, myDraft.snapshot, {id:s.id, guestDrafts:s.guestDrafts}) : Object.assign({}, s);
+        if(!myDraft) return Object.assign({}, s);
+        const shadow = Object.assign({}, s, myDraft.snapshot, {id:s.id, guestDrafts:s.guestDrafts});
+        if(myDraft.baseSnapshot){
+          const changedFields = DRAFT_FIELDS_KEYS.filter(k=>(s[k]||'') !== (myDraft.baseSnapshot[k]||''));
+          if(changedFields.length){ shadow.__officialChanged = changedFields; }
+        }
+        return shadow;
       });
   }
   function allSitesFlat(){
@@ -2957,6 +2980,7 @@ const L = (function(){
     {key:'stageDetail', label:'진행단계 상세', multiline:true},
     {key:'memo', label:'비고', multiline:true},
   ];
+  const DRAFT_FIELDS_KEYS = DRAFT_FIELDS.map(f=>f.key);
 
   function openGuestDraftModal(siteId, guestKey){
     const site = findRealSiteById(siteId);
@@ -2966,15 +2990,22 @@ const L = (function(){
     document.getElementById('guestDraftTitle').textContent = site.name + ' — ' + guestName + '의 사본';
     const body = document.getElementById('guestDraftBody');
     body.innerHTML = `
-      <div style="font-size:11px;color:var(--text-dim);margin-bottom:10px;">${escapeHtml(draft.updatedBy||'')} · ${draft.updatedAt ? new Date(draft.updatedAt).toLocaleString('ko-KR') : ''} 수정</div>
-      ${DRAFT_FIELDS.map(f=>`
+      <div style="font-size:11px;color:var(--text-dim);margin-bottom:10px;">${escapeHtml(draft.updatedBy||'')} · ${draft.updatedAt ? new Date(draft.updatedAt).toLocaleString('ko-KR') : ''} 수정 · <span style="color:var(--accent);">주황 테두리 = 관리자 원본과 다른 항목</span></div>
+      ${DRAFT_FIELDS.map(f=>{
+        const draftVal = draft.snapshot[f.key]||'';
+        const origVal = site[f.key]||'';
+        const changed = draftVal !== origVal;
+        const borderStyle = changed ? 'border:1.5px solid #ffb703;' : 'border:1px solid var(--line);';
+        return `
         <div class="field" style="margin-bottom:8px;">
-          <label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:3px;">${f.label}</label>
+          <label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:3px;">${f.label} ${changed?'<span style="color:#ffb703;">● 변경됨</span>':''}</label>
+          ${changed ? `<div style="font-size:10.5px;color:var(--text-dim);margin-bottom:2px;">원본: ${escapeHtml(origVal || '(비어있음)')}</div>` : ''}
           ${f.multiline
-            ? `<textarea data-draft-field="${f.key}" style="width:100%;min-height:70px;padding:6px 8px;font-size:12.5px;border-radius:6px;border:1px solid var(--line);background:var(--bg-side-2);color:var(--text-main);box-sizing:border-box;">${escapeHtml(draft.snapshot[f.key]||'')}</textarea>`
-            : `<input data-draft-field="${f.key}" value="${escapeHtml(draft.snapshot[f.key]||'')}" style="width:100%;padding:6px 8px;font-size:12.5px;border-radius:6px;border:1px solid var(--line);background:var(--bg-side-2);color:var(--text-main);box-sizing:border-box;">`
+            ? `<textarea data-draft-field="${f.key}" style="width:100%;min-height:70px;padding:6px 8px;font-size:12.5px;border-radius:6px;${borderStyle}background:var(--bg-side-2);color:var(--text-main);box-sizing:border-box;">${escapeHtml(draftVal)}</textarea>`
+            : `<input data-draft-field="${f.key}" value="${escapeHtml(draftVal)}" style="width:100%;padding:6px 8px;font-size:12.5px;border-radius:6px;${borderStyle}background:var(--bg-side-2);color:var(--text-main);box-sizing:border-box;">`
           }
-        </div>`).join('')}
+        </div>`;
+      }).join('')}
     `;
     document.getElementById('guestDraftOverlay').dataset.siteId = siteId;
     document.getElementById('guestDraftOverlay').dataset.guestKey = guestKey;
@@ -2991,6 +3022,7 @@ const L = (function(){
       draft.snapshot[el.dataset.draftField] = el.value;
     });
     lastEditedSiteId = siteId;
+    editingGuestDraftKey = guestKey;
     await saveSites();
     ov.classList.remove('show');
     renderGuestAdminModal();
@@ -3004,6 +3036,7 @@ const L = (function(){
     if(!confirm('이 담당자의 사본을 삭제할까요? (관리자 원본이나 다른 담당자 사본에는 영향 없어요)')) return;
     delete site.guestDrafts[guestKey];
     lastEditedSiteId = siteId;
+    editingGuestDraftKey = guestKey;
     await saveSites();
     ov.classList.remove('show');
     renderGuestAdminModal();
@@ -3122,6 +3155,12 @@ const L = (function(){
     btn.textContent = '💾 저장';
     if(syncState==='ok') alert('저장되었습니다.');
     else alert('저장에 실패했어요. 인터넷 연결을 확인하고 다시 시도해주세요.');
+  });
+
+  document.getElementById('adminLogoutBtn').addEventListener('click', ()=>{
+    if(!confirm('로그아웃할까요?')) return;
+    try{ localStorage.removeItem('editUnlocked'); }catch(e){}
+    location.reload();
   });
 
   // ---------- boot ----------
