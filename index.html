@@ -2186,37 +2186,14 @@ const L = (function(){
       });
     }
   }
-  async function saveLabelPosOnly(){
-    // 라벨 위치는 자주, 빠르게 저장이 필요해서 "클라우드 최신본 선조회" 없이 가볍게 바로 저장한다
-    if(currentOffice!==ALL_OFFICE) allOfficesData[currentOffice] = sites;
-    const json = JSON.stringify(allOfficesData);
-    try{
-      if(window.storage){
-        await window.storage.set(STORAGE_KEY, json, false);
-      }else{
-        localStorage.setItem(STORAGE_KEY, json);
-        const res = await fetch(JSONBIN_URL, {
-          method:'PUT',
-          headers:{'Content-Type':'application/json', 'X-Master-Key':JSONBIN_KEY},
-          body: JSON.stringify({offices: allOfficesData, guests: guestAccounts, changeLog: changeLog, adminPasswordHash: adminPasswordHash})
-        });
-        if(!res.ok) throw new Error('jsonbin save status '+res.status);
-      }
-      syncState = 'ok';
-    }catch(e){
-      console.error('라벨 위치 저장 실패(오프라인일 수 있음)', e);
-      syncState = 'bad';
-    }
-    renderSyncStatus();
-  }
   function enableLabelDrag(labelMarker, site, currentPos){
     enableDrag(labelMarker, currentPos, (newPos)=>{
       site.labelPos = newPos;
-      saveLabelPosOnly();
+      saveSites();
       renderMap();
     }, ()=>{
       delete site.labelPos;
-      saveLabelPosOnly();
+      saveSites();
       renderMap();
     });
   }
