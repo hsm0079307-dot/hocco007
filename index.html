@@ -306,6 +306,8 @@
       <div class="manager-filter-panel" id="managerFilterPanel" style="display:none;"></div>
     </div>
     <button class="btn btn-ghost" id="guestManageBtn">담당자 계정 관리</button>
+    <button class="btn btn-ghost" id="changeAdminPwBtn">🔑 비번변경</button>
+    <button class="btn btn-ghost" id="refreshDataBtn" title="클라우드에서 최신 데이터 다시 불러오기">🔄 새로고침</button>
     <button class="btn btn-ghost" id="changeLogBtn">수정이력</button>
     <button class="btn btn-ghost" id="missingCoordsBtn">📍좌표없음</button>
     <button class="btn btn-primary" id="addBtn">+ 현장 추가</button>
@@ -324,6 +326,7 @@
       <button class="btn btn-ghost clear-filter" id="clearDistrictBtn" style="display:none;">구 필터 해제 ✕</button>
       <button class="btn btn-ghost clear-filter no-print" id="labelEditBtn" style="top:auto; bottom:12px;">🔓 라벨 위치 편집</button>
       <div id="map"></div>
+      <div class="no-print" style="position:absolute;bottom:4px;right:10px;font-size:10.5px;color:rgba(255,255,255,.35);pointer-events:none;z-index:400;">hocco</div>
       <svg id="mapPrintOverlay" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;display:none;"></svg>
       <div class="region-panel" id="regionPanel">
         <div class="region-crumb" id="regionCrumb"></div>
@@ -745,7 +748,8 @@ const L = (function(){
   }
 
   // ---------- 수정 잠금(간단한 클라이언트 측 잠금, 완전한 보안은 아님) ----------
-  const EDIT_PASSWORD_HASH = '4654d793972c3b6a1d48fb0ab58d9cb0de46c3d33d605f9222c283dfaa12d420';
+  const DEFAULT_ADMIN_PASSWORD_HASH = '4654d793972c3b6a1d48fb0ab58d9cb0de46c3d33d605f9222c283dfaa12d420';
+  let adminPasswordHash = DEFAULT_ADMIN_PASSWORD_HASH; // 관리자가 직접 변경 가능, 클라우드에 저장됨
   async function sha256Hex(str){
     const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
     return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
@@ -756,6 +760,7 @@ const L = (function(){
   let changeLog = [];      // [{at, who, site, note}, ...] 담당자 수정 이력
   const GUEST_KEY = 'realestate-guest-accounts-v1';
   const CHANGELOG_KEY = 'realestate-guest-changelog-v1';
+  const ADMIN_PW_KEY = 'realestate-admin-pw-hash-v1';
   function defaultGuestAccounts(){
     const obj = {};
     for(let i=1;i<=10;i++){ obj['guest'+i] = { name: '게스트'+i, password: '', siteIds: [] }; }
@@ -777,7 +782,7 @@ const L = (function(){
     const pw = prompt('수정 · 추가 · 삭제하려면 비밀번호를 입력하세요:');
     if(pw===null) return false;
     const hash = await sha256Hex(pw);
-    if(hash===EDIT_PASSWORD_HASH){
+    if(hash===adminPasswordHash){
       try{ localStorage.setItem('editUnlocked','1'); }catch(e){}
       return true;
     }
@@ -948,6 +953,7 @@ const L = (function(){
         const res = await window.storage.get(STORAGE_KEY, false);
         if(res && res.value) allOfficesData = JSON.parse(res.value);
         try{ const gres = await window.storage.get(GUEST_KEY, false); if(gres && gres.value) guestAccounts = JSON.parse(gres.value); }catch(ge){}
+        try{ const ares = await window.storage.get(ADMIN_PW_KEY, false); if(ares && ares.value) adminPasswordHash = ares.value; }catch(ae){}
         try{ const lres = await window.storage.get(CHANGELOG_KEY, false); if(lres && lres.value) changeLog = JSON.parse(lres.value); }catch(le){}
       }else{
         // 일반 웹(넷리파이 등)에 배포된 경우엔 JSONBin 클라우드에서 불러와서 PC마다 같은 데이터가 보이게 함
@@ -966,6 +972,7 @@ const L = (function(){
         }
         if(data && data.guests && typeof data.guests==='object') guestAccounts = data.guests;
         if(data && Array.isArray(data.changeLog)) changeLog = data.changeLog;
+        if(data && typeof data.adminPasswordHash === 'string' && data.adminPasswordHash) adminPasswordHash = data.adminPasswordHash;
         const hasAny = allOfficesData && Object.values(allOfficesData).some(arr=>Array.isArray(arr) && arr.length>0);
         if(!hasAny){
           // 클라우드가 아직 비어있으면, 이 PC에 이미 저장돼있던 데이터가 있는지 먼저 확인해서
@@ -981,6 +988,8 @@ const L = (function(){
         localStorage.setItem(STORAGE_KEY, JSON.stringify(allOfficesData));
         localStorage.setItem(GUEST_KEY, JSON.stringify(guestAccounts));
         localStorage.setItem(CHANGELOG_KEY, JSON.stringify(changeLog));
+        localStorage.setItem(ADMIN_PW_KEY, adminPasswordHash);
+        localStorage.setItem(ADMIN_PW_KEY, adminPasswordHash);
       }
     }catch(e){
       console.error('클라우드 데이터 불러오기 실패, 로컬 캐시로 대체합니다', e);
@@ -993,6 +1002,7 @@ const L = (function(){
       }catch(e2){ allOfficesData = {}; }
       try{ const graw = localStorage.getItem(GUEST_KEY); if(graw) guestAccounts = JSON.parse(graw); }catch(ge2){}
       try{ const lraw = localStorage.getItem(CHANGELOG_KEY); if(lraw) changeLog = JSON.parse(lraw); }catch(le2){}
+      try{ const araw = localStorage.getItem(ADMIN_PW_KEY); if(araw) adminPasswordHash = araw; }catch(ae2){}
     }
     if(!guestAccounts || typeof guestAccounts!=='object') guestAccounts = {};
     { const defaults = defaultGuestAccounts(); Object.keys(defaults).forEach(k=>{ if(!guestAccounts[k]) guestAccounts[k] = defaults[k]; }); }
@@ -1070,6 +1080,7 @@ const L = (function(){
         await window.storage.set(STORAGE_KEY, JSON.stringify(allOfficesData), false);
         await window.storage.set(GUEST_KEY, JSON.stringify(guestAccounts), false);
         await window.storage.set(CHANGELOG_KEY, JSON.stringify(changeLog), false);
+        await window.storage.set(ADMIN_PW_KEY, adminPasswordHash, false);
       }else{
         // 저장 직전, 클라우드의 최신 내용을 먼저 받아와서 다른 기기/오래된 탭이 그 사이 바꾼 다른 사업소 데이터를 보존하고
         // 지금 이 화면에서 실제로 바뀐 부분만 그 위에 얹어서 저장한다 (오래된 탭이 통째로 덮어써버리는 사고 방지)
@@ -1098,10 +1109,11 @@ const L = (function(){
         localStorage.setItem(STORAGE_KEY, json); // 오프라인이어도 즉시 로컬에 백업
         localStorage.setItem(GUEST_KEY, JSON.stringify(guestAccounts));
         localStorage.setItem(CHANGELOG_KEY, JSON.stringify(changeLog));
+        localStorage.setItem(ADMIN_PW_KEY, adminPasswordHash);
         const res = await fetch(JSONBIN_URL, {
           method:'PUT',
           headers:{'Content-Type':'application/json', 'X-Master-Key':JSONBIN_KEY},
-          body: JSON.stringify({offices: allOfficesData, guests: guestAccounts, changeLog: changeLog})
+          body: JSON.stringify({offices: allOfficesData, guests: guestAccounts, changeLog: changeLog, adminPasswordHash: adminPasswordHash})
         });
         if(!res.ok) throw new Error('jsonbin save status '+res.status);
       }
@@ -2183,7 +2195,7 @@ const L = (function(){
         const res = await fetch(JSONBIN_URL, {
           method:'PUT',
           headers:{'Content-Type':'application/json', 'X-Master-Key':JSONBIN_KEY},
-          body: JSON.stringify({offices: allOfficesData, guests: guestAccounts, changeLog: changeLog})
+          body: JSON.stringify({offices: allOfficesData, guests: guestAccounts, changeLog: changeLog, adminPasswordHash: adminPasswordHash})
         });
         if(!res.ok) throw new Error('jsonbin save status '+res.status);
       }
@@ -2750,7 +2762,7 @@ const L = (function(){
   });
 
   function applyGuestRestrictions(){
-    const hideIds = ['templateBtn','exportBtn','addBtn','guestManageBtn','changeLogBtn','missingCoordsBtn','managerFilterWrap','clearDistrictBtn','labelEditBtn'];
+    const hideIds = ['templateBtn','exportBtn','addBtn','guestManageBtn','changeAdminPwBtn','changeLogBtn','missingCoordsBtn','managerFilterWrap','clearDistrictBtn','labelEditBtn'];
     hideIds.forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display='none'; });
     const excelLabel = document.querySelector('.file-label'); if(excelLabel) excelLabel.style.display='none';
     const officeSwitcherEl = document.getElementById('officeSwitcher'); if(officeSwitcherEl) officeSwitcherEl.style.display='none';
@@ -2792,7 +2804,7 @@ const L = (function(){
   async function tryPasswordSubmit(){
     const pw = pwInput.value;
     const hash = await sha256Hex(pw);
-    if(hash===EDIT_PASSWORD_HASH){
+    if(hash===adminPasswordHash){
       try{ localStorage.setItem('editUnlocked','1'); }catch(e){}
       modeOverlay.classList.remove('show');
       maybeAutoBackup(); // 관리자로 들어올 때마다 하루 한 번, 자동으로 백업 파일 다운로드
@@ -2905,6 +2917,25 @@ const L = (function(){
     document.getElementById('guestAdminOverlay').classList.remove('show');
   });
 
+  document.getElementById('changeAdminPwBtn').addEventListener('click', async ()=>{
+    if(!(await ensureUnlocked())) return;
+    const cur = prompt('현재 관리자 비밀번호를 입력하세요:');
+    if(cur===null) return;
+    const curHash = await sha256Hex(cur);
+    if(curHash !== adminPasswordHash){
+      alert('현재 비밀번호가 틀렸습니다.');
+      return;
+    }
+    const next = prompt('새 비밀번호를 입력하세요:');
+    if(next===null || !next.trim()){ if(next!==null) alert('비밀번호를 입력해주세요.'); return; }
+    const next2 = prompt('새 비밀번호를 한 번 더 입력하세요:');
+    if(next2===null) return;
+    if(next !== next2){ alert('두 번 입력한 비밀번호가 서로 달라요. 다시 시도해주세요.'); return; }
+    adminPasswordHash = await sha256Hex(next);
+    await saveSites();
+    alert('관리자 비밀번호가 변경되었습니다. 다음 로그인부터 새 비밀번호를 사용하세요.');
+  });
+
   function renderChangeLogModal(){
     const body = document.getElementById('changeLogBody');
     if(!changeLog.length){ body.innerHTML = '<div style="color:var(--text-dim);">아직 수정 이력이 없습니다.</div>'; return; }
@@ -2956,6 +2987,23 @@ const L = (function(){
   });
   document.getElementById('missingCoordsCloseBtn').addEventListener('click', ()=>{
     document.getElementById('missingCoordsOverlay').classList.remove('show');
+  });
+
+  document.getElementById('refreshDataBtn').addEventListener('click', async ()=>{
+    const btn = document.getElementById('refreshDataBtn');
+    btn.disabled = true;
+    btn.textContent = '🔄 불러오는 중...';
+    await loadSites();
+    if(guestMode && currentGuest){
+      sites = OFFICES.flatMap(o=>allOfficesData[o]||[]).filter(s=>(currentGuest.siteIds||[]).includes(s.id));
+    }else{
+      sites = currentOffice===ALL_OFFICE ? OFFICES.flatMap(o=>allOfficesData[o]||[]) : (allOfficesData[currentOffice]||[]);
+    }
+    renderAll();
+    renderSeoulShapes();
+    renderRegionPanel();
+    btn.disabled = false;
+    btn.textContent = '🔄 새로고침';
   });
 
   // ---------- boot ----------
