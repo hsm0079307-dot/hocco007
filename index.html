@@ -785,6 +785,7 @@ const L = (function(){
     return obj;
   }
   let syncState = 'unknown'; // 'ok' | 'bad' | 'unknown' - 클라우드(JSONBin) 저장 성공 여부
+  let lastSaveBlockedByVersion = false; // 버전 충돌로 저장이 막혔을 때 true. 이땐 전용 경고를 이미 띄웠으니 다른 곳에서 중복 알림 안 띄우게 한다.
   let localDataVersion = null; // 이 탭이 마지막으로 확인한 클라우드 데이터 버전. 저장 직전 클라우드 최신 버전과 다르면 "다른 곳에서 바뀜"으로 판단해 경고한다.
   let guestDataVersions = {}; // {게스트key: 버전} - 담당자별로 독립적으로 버전을 관리해서, 담당자1과 담당자2가 서로 막지 않으면서도 각자 폰/PC 충돌은 잡아낸다.
   let localGuestDataVersion = null; // 지금 로그인한 담당자가 마지막으로 확인한 자기 버전
@@ -1080,6 +1081,7 @@ const L = (function(){
   let lastEditedSiteId = null; // 상세화면이 아닌 곳(캘린더 등)에서 현장을 수정할 때 명시적으로 지정
   let editingGuestDraftKey = null; // 관리자가 특정 담당자의 사본을 직접 고치는 중일 때만 그 게스트 key를 담아둠
   async function saveSites(){
+    lastSaveBlockedByVersion = false;
     if(!guestMode && saveOfficeContext && currentOffice!==ALL_OFFICE) allOfficesData[currentOffice] = sites;
     let editedSiteId = null, editedSiteSnapshot = null;
     const detailSite = currentView==='detail' ? sites.find(s=>s.id===currentDetailId) : null;
@@ -1119,6 +1121,7 @@ const L = (function(){
         if(!guestMode && localDataVersion && fresh && fresh.dataVersion && fresh.dataVersion !== localDataVersion){
           alert('그 사이 다른 곳(다른 기기 또는 담당자)에서 데이터가 바뀌었어요. 지금 저장하면 그 변경 내용을 덮어쓸 수 있어서 저장을 멈췄어요.\n\n"🔄 새로고침" 버튼을 눌러 최신 내용을 받아온 다음, 다시 수정해주세요.');
           syncState = 'bad';
+          lastSaveBlockedByVersion = true;
           renderSyncStatus();
           return;
         }
@@ -1129,6 +1132,7 @@ const L = (function(){
           if(localGuestDataVersion && freshGuestVer && freshGuestVer !== localGuestDataVersion){
             alert('그 사이 다른 기기에서 내 사본을 수정했어요. 지금 저장하면 그 변경 내용을 덮어쓸 수 있어서 저장을 멈췄어요.\n\n"🔄 새로고침" 버튼을 눌러 최신 내용을 받아온 다음, 다시 수정해주세요.');
             syncState = 'bad';
+            lastSaveBlockedByVersion = true;
             renderSyncStatus();
             return;
           }
@@ -3197,7 +3201,7 @@ const L = (function(){
     btn.disabled = false;
     btn.textContent = '💾 저장';
     if(syncState==='ok') alert('저장되었습니다.');
-    else alert('저장에 실패했어요. 인터넷 연결을 확인하고 다시 시도해주세요.');
+    else if(!lastSaveBlockedByVersion) alert('저장에 실패했어요. 인터넷 연결을 확인하고 다시 시도해주세요.');
   });
 
   document.getElementById('adminLogoutBtn').addEventListener('click', ()=>{
