@@ -933,6 +933,7 @@ const L = (function(){
   let map, districtLayer, siteLayer, focusLayer, seoulShapeLayer;
   let currentView = 'list';     // 'list' | 'detail'
   let currentDetailId = null;
+  let savedListScroll = 0;      // 상세보기 진입 전 목록 스크롤 위치 (뒤로가기/ESC 시 복원)
   let detailTab = '개요';
   let editMode = false;
   let labelEditMode = false; // 현장 이름표(라벨) 위치를 드래그로 옮길 수 있는 편집 모드
@@ -1632,6 +1633,11 @@ const L = (function(){
 
   // ---------- sidebar dispatcher ----------
   function renderSidebar(){
+    // 목록이 화면에 떠 있는 상태에서 다시 그려지기 직전이면(상세보기 진입 포함)
+    // 현재 스크롤 위치를 기억해뒀다가 목록으로 돌아왔을 때 그대로 복원한다.
+    const prevListEl = document.getElementById('list');
+    if(prevListEl) savedListScroll = prevListEl.scrollTop;
+
     if(currentView==='detail'){
       const site = sites.find(s=>s.id===currentDetailId);
       if(!site){ currentView='list'; renderListView(); return; }
@@ -1670,6 +1676,9 @@ const L = (function(){
     sidebarEl.innerHTML = `
       <div class="sidebar-head"><h2>현장 목록</h2><span>${fs.length} 개</span></div>
       <div class="list" id="list">${cards}</div>`;
+
+    const listEl = document.getElementById('list');
+    if(listEl) listEl.scrollTop = savedListScroll;
 
     sidebarEl.querySelectorAll('.card-actions button').forEach(btn=>{
       btn.addEventListener('click', async (e)=>{
