@@ -810,6 +810,7 @@ const L = (function(){
   let searchText = '';
   let map, districtLayer, siteLayer, focusLayer, seoulShapeLayer;
   let currentView = 'list';     // 'list' | 'detail'
+  let savedListScroll = 0;      // 상세보기 진입 전 목록 스크롤 위치 (뒤로가기/ESC 시 복원)
   let currentDetailId = null;
   let detailTab = '개요';
   let editMode = false;
@@ -1067,6 +1068,9 @@ const L = (function(){
 
   // ---------- sidebar dispatcher ----------
   function renderSidebar(){
+    const prevListEl = document.getElementById('list');
+    if(prevListEl) savedListScroll = prevListEl.scrollTop;
+
     if(currentView==='detail'){
       const site = sites.find(s=>s.id===currentDetailId);
       if(!site){ currentView='list'; renderListView(); return; }
@@ -1105,6 +1109,9 @@ const L = (function(){
     sidebarEl.innerHTML = `
       <div class="sidebar-head"><h2>현장 목록</h2><span>${fs.length} 개</span></div>
       <div class="list" id="list">${cards}</div>`;
+
+    const listEl = document.getElementById('list');
+    if(listEl) listEl.scrollTop = savedListScroll;
 
     sidebarEl.querySelectorAll('.card-actions button').forEach(btn=>{
       btn.addEventListener('click', async (e)=>{
