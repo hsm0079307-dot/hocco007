@@ -786,7 +786,7 @@ const L = (function(){
   }
   let syncState = 'unknown'; // 'ok' | 'bad' | 'unknown' - 클라우드(JSONBin) 저장 성공 여부
   let lastSaveBlockedByVersion = false; // 버전 충돌로 저장이 막혔을 때 true. 이땐 전용 경고를 이미 띄웠으니 다른 곳에서 중복 알림 안 띄우게 한다.
-  let localDataVersion = null; // 이 탭이 마지막으로 확인한 클라우드 데이터 버전. 저장 직전 클라우드 최신 버전과 다르면 "다른 곳에서 바뀜"으로 판단해 경고한다.
+  let lastKnownSha = null; // GitHub data.json 파일의 마지막으로 확인한 sha(버전). 저장 직전 최신 sha와 다르면 "다른 곳에서 바뀜"으로 판단해 경고한다.
   let guestDataVersions = {}; // {게스트key: 버전} - 담당자별로 독립적으로 버전을 관리해서, 담당자1과 담당자2가 서로 막지 않으면서도 각자 폰/PC 충돌은 잡아낸다.
   let localGuestDataVersion = null; // 지금 로그인한 담당자가 마지막으로 확인한 자기 버전
 
@@ -965,9 +965,25 @@ const L = (function(){
   // Claude 아티팩트 안에서는 window.storage를 쓰고,
   // 일반 웹(넷리파이 등)에 배포된 경우엔 window.storage가 없으므로 브라우저 localStorage로 자동 대체
   // 클라우드 동기화용 JSONBin.io 저장소 (여러 PC에서 같은 데이터를 보기 위함)
-  const JSONBIN_ID = '6a6fe235f5f4af5e29e2d997';
-  const JSONBIN_KEY = '$2a$10$ZaeTDYGl54uqM9J2V9F1tuVcI3FUDIw6KM98btPRGUWLHgiA8bdFe';
-  const JSONBIN_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_ID}`;
+  const GITHUB_OWNER = 'hsm0079307-dot';
+  const GITHUB_REPO = 'hocco007';
+  const GITHUB_DATA_PATH = 'data.json';
+  const GITHUB_TOKEN = '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';
+  const GITHUB_API_URL = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${GITHUB_DATA_PATH}`;
+  function utf8ToBase64(str){
+    const bytes = new TextEncoder().encode(str);
+    let binary = '';
+    const chunkSize = 0x8000;
+    for(let i=0; i<bytes.length; i+=chunkSize){
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i+chunkSize));
+    }
+    return btoa(binary);
+  }
+  function base64ToUtf8(b64){
+    const binary = atob(b64.replace(/\n/g,''));
+    const bytes = Uint8Array.from(binary, c=>c.charCodeAt(0));
+    return new TextDecoder().decode(bytes);
+  }
 
   async function loadSites(){
     try{
@@ -978,12 +994,14 @@ const L = (function(){
         try{ const ares = await window.storage.get(ADMIN_PW_KEY, false); if(ares && ares.value) adminPasswordHash = ares.value; }catch(ae){}
         try{ const lres = await window.storage.get(CHANGELOG_KEY, false); if(lres && lres.value) changeLog = JSON.parse(lres.value); }catch(le){}
       }else{
-        // 일반 웹(넷리파이 등)에 배포된 경우엔 JSONBin 클라우드에서 불러와서 PC마다 같은 데이터가 보이게 함
-        const res = await fetch(JSONBIN_URL+'/latest', {
-          headers:{'X-Master-Key':JSONBIN_KEY, 'X-Bin-Meta':'false'}
+        // 일반 웹(GitHub Pages)에 배포된 경우엔 같은 저장소의 data.json 파일에서 불러와서 PC마다 같은 데이터가 보이게 함
+        const res = await fetch(GITHUB_API_URL, {
+          headers:{'Authorization':'Bearer '+GITHUB_TOKEN, 'Accept':'application/vnd.github+json'}
         });
-        if(!res.ok) throw new Error('jsonbin status '+res.status);
-        const data = await res.json();
+        if(!res.ok) throw new Error('github status '+res.status);
+        const fileData = await res.json();
+        lastKnownSha = fileData.sha;
+        const data = JSON.parse(base64ToUtf8(fileData.content));
         if(data && data.offices && typeof data.offices==='object'){
           allOfficesData = data.offices;
         }else if(data && Array.isArray(data.sites)){
@@ -995,7 +1013,6 @@ const L = (function(){
         if(data && data.guests && typeof data.guests==='object') guestAccounts = data.guests;
         if(data && Array.isArray(data.changeLog)) changeLog = data.changeLog;
         if(data && typeof data.adminPasswordHash === 'string' && data.adminPasswordHash) adminPasswordHash = data.adminPasswordHash;
-        localDataVersion = (data && data.dataVersion) || null;
         if(data && data.guestDataVersions && typeof data.guestDataVersions === 'object') guestDataVersions = data.guestDataVersions;
         const hasAny = allOfficesData && Object.values(allOfficesData).some(arr=>Array.isArray(arr) && arr.length>0);
         if(!hasAny){
@@ -1012,7 +1029,6 @@ const L = (function(){
         localStorage.setItem(STORAGE_KEY, JSON.stringify(allOfficesData));
         localStorage.setItem(GUEST_KEY, JSON.stringify(guestAccounts));
         localStorage.setItem(CHANGELOG_KEY, JSON.stringify(changeLog));
-        localStorage.setItem(ADMIN_PW_KEY, adminPasswordHash);
         localStorage.setItem(ADMIN_PW_KEY, adminPasswordHash);
       }
     }catch(e){
@@ -1109,16 +1125,23 @@ const L = (function(){
       }else{
         // 저장 직전, 클라우드의 최신 내용을 먼저 받아와서 다른 기기/오래된 탭이 그 사이 바꾼 다른 현장 데이터를 보존하고
         // "지금 실제로 수정한 그 현장 하나만" 그 위에 patch해서 저장한다 (폰/PC 어디서 고치든, 순서 상관없이 서로 안 덮어씀)
+        // 저장 직전, 클라우드(GitHub data.json)의 최신 내용을 먼저 받아와서 다른 기기/오래된 탭이 그 사이 바꾼 다른 현장 데이터를 보존하고
+        // "지금 실제로 수정한 그 현장 하나만" 그 위에 patch해서 저장한다 (폰/PC 어디서 고치든, 순서 상관없이 서로 안 덮어씀)
         let fresh = {};
+        let freshSha = null;
         try{
-          const fr = await fetch(JSONBIN_URL+'/latest', {headers:{'X-Master-Key':JSONBIN_KEY, 'X-Bin-Meta':'false'}});
-          if(fr.ok) fresh = await fr.json();
+          const fr = await fetch(GITHUB_API_URL, {headers:{'Authorization':'Bearer '+GITHUB_TOKEN, 'Accept':'application/vnd.github+json'}});
+          if(fr.ok){
+            const fileData = await fr.json();
+            freshSha = fileData.sha;
+            fresh = JSON.parse(base64ToUtf8(fileData.content));
+          }
         }catch(fe){ console.error('최신 데이터 선조회 실패, 로컬 데이터로 진행', fe); }
 
-        // 관리자가 저장할 때는 항상 "내가 마지막으로 본 버전"과 "클라우드 최신 버전"이 같은지 확인한다.
+        // 관리자가 저장할 때는 항상 "내가 마지막으로 본 파일 버전(sha)"과 "클라우드 최신 sha"가 같은지 확인한다.
         // (같은 현장을 폰/PC에서 동시에 고쳐도, 다른 현장을 고쳐도 전부 해당) 다르면 그 사이 다른 곳에서 뭔가 바뀐 것이므로,
         // 오래된 내용으로 덮어쓰지 않고 저장을 멈추고 새로고침을 안내한다.
-        if(!guestMode && localDataVersion && fresh && fresh.dataVersion && fresh.dataVersion !== localDataVersion){
+        if(!guestMode && lastKnownSha && freshSha && freshSha !== lastKnownSha){
           alert('그 사이 다른 곳(다른 기기 또는 담당자)에서 데이터가 바뀌었어요. 지금 저장하면 그 변경 내용을 덮어쓸 수 있어서 저장을 멈췄어요.\n\n"🔄 새로고침" 버튼을 눌러 최신 내용을 받아온 다음, 다시 수정해주세요.');
           syncState = 'bad';
           lastSaveBlockedByVersion = true;
@@ -1188,9 +1211,8 @@ const L = (function(){
         localStorage.setItem(GUEST_KEY, JSON.stringify(guestAccounts));
         localStorage.setItem(CHANGELOG_KEY, JSON.stringify(changeLog));
         localStorage.setItem(ADMIN_PW_KEY, adminPasswordHash);
-        // 담당자(게스트) 저장은 관리자가 보는 원본을 안 건드리니, 전체 버전은 새로 안 올려서 관리자 저장이 불필요하게 막히지 않게 한다.
-        // 대신 담당자 개인 버전(guestDataVersions[내 key])만 올려서, 그 담당자 자신의 폰/PC 충돌은 잡아낸다.
-        const newDataVersion = guestMode ? (fresh && fresh.dataVersion) : (Date.now() + '-' + Math.random().toString(36).slice(2,8));
+        // 담당자(게스트) 저장은 관리자가 보는 원본을 안 건드리니, 전체 sha 충돌 체크는 위에서 이미 건너뛰었다.
+        // 담당자 개인 버전(guestDataVersions[내 key])만 올려서, 그 담당자 자신의 폰/PC 충돌은 잡아낸다.
         let newGuestVersion = null;
         if(guestMode && currentGuest){
           guestDataVersions = Object.assign({}, (fresh && fresh.guestDataVersions) || guestDataVersions);
@@ -1200,13 +1222,28 @@ const L = (function(){
           // 관리자 저장 시에도, 그 사이 담당자들이 새로 쌓은 버전 정보를 오래된 로컬 값으로 되돌리지 않도록 최신값을 유지한다.
           guestDataVersions = Object.assign({}, (fresh && fresh.guestDataVersions) || guestDataVersions);
         }
-        const res = await fetch(JSONBIN_URL, {
+        const payload = JSON.stringify({offices: allOfficesData, guests: guestAccounts, changeLog: changeLog, adminPasswordHash: adminPasswordHash, guestDataVersions: guestDataVersions});
+        const res = await fetch(GITHUB_API_URL, {
           method:'PUT',
-          headers:{'Content-Type':'application/json', 'X-Master-Key':JSONBIN_KEY},
-          body: JSON.stringify({offices: allOfficesData, guests: guestAccounts, changeLog: changeLog, adminPasswordHash: adminPasswordHash, dataVersion: newDataVersion, guestDataVersions: guestDataVersions})
+          headers:{'Authorization':'Bearer '+GITHUB_TOKEN, 'Accept':'application/vnd.github+json', 'Content-Type':'application/json'},
+          body: JSON.stringify({
+            message: '시장모니터링 데이터 업데이트 ' + new Date().toISOString(),
+            content: utf8ToBase64(payload),
+            sha: freshSha || lastKnownSha || undefined
+          })
         });
-        if(!res.ok) throw new Error('jsonbin save status '+res.status);
-        if(!guestMode) localDataVersion = newDataVersion; // 관리자 저장만 이 탭의 기준 버전을 갱신
+        if(res.status===409){
+          // GitHub 자체적으로도 "그 사이 파일이 바뀌었다"고 감지한 경우 (이중 안전장치)
+          alert('그 사이 다른 곳에서 데이터가 바뀌었어요. "🔄 새로고침" 후 다시 시도해주세요.');
+          syncState = 'bad';
+          lastSaveBlockedByVersion = true;
+          renderSyncStatus();
+          return;
+        }
+        if(!res.ok) throw new Error('github save status '+res.status);
+        const saveResult = await res.json();
+        if(!guestMode) lastKnownSha = saveResult.content.sha; // 관리자 저장만 이 탭의 기준 버전을 갱신
+        else lastKnownSha = saveResult.content.sha; // 게스트 저장도 파일은 갱신되므로 다음 admin 체크가 정확하도록 최신 sha 반영
         if(guestMode && currentGuest && newGuestVersion) localGuestDataVersion = newGuestVersion;
       }
       syncState = 'ok';
