@@ -1194,7 +1194,7 @@ const L = (function(){
 
 
         <div class="detail-tabs">
-          ${['개요','영업','추진경과','일지','공고'].map(t=>`
+          ${['개요','비고','타사활동','일지','공고'].map(t=>`
             <div class="dtab ${t===detailTab?'active':''}" data-tab="${t}">${t}${t==='일지'?` <span class="dtab-count">${visitCount(site)}</span>`:''}</div>
           `).join('')}
         </div>
@@ -1331,13 +1331,29 @@ const L = (function(){
       });
 
     }else{
-      const fieldMap = {'영업':'salesNote','추진경과':'progressNote','공고':'announcementNote'};
+      const fieldMap = {'비고':'salesNote','타사활동':'progressNote','공고':'announcementNote'};
       const key = fieldMap[detailTab];
+      const isAnnouncement = detailTab === '공고';
+      const photos = (isAnnouncement && Array.isArray(site.announcementPhotos)) ? site.announcementPhotos : [];
       body.innerHTML = `
         <div class="section-head"><span>${detailTab}</span><button id="editToggle" class="btn btn-ghost btn-sm">${editMode?'저장':'수정'}</button></div>
         ${editMode
           ? `<div class="edit-field"><textarea id="e_note" style="min-height:160px;">${escapeHtml(site[key]||'')}</textarea></div>`
           : `<div class="kv"><div class="v pre">${escapeHtml(site[key]||'등록된 내용이 없습니다.')}</div></div>`}
+        ${isAnnouncement ? `
+          <div class="section-head" style="margin-top:14px;"><span>공고문 등 사진</span></div>
+          <div class="photo-links" id="announcementPhotoList">
+            ${photos.map((p,i)=>`
+              <div class="photo-link" data-idx="${i}" style="position:relative;cursor:pointer;">
+                <img src="${p.dataUrl||p}" alt="공고 사진 ${i+1}">
+                <button class="ann-photo-del" data-idx="${i}" title="삭제" style="position:absolute;top:2px;right:2px;width:16px;height:16px;line-height:14px;padding:0;border-radius:50%;border:none;background:rgba(0,0,0,.55);color:#fff;font-size:11px;cursor:pointer;">✕</button>
+              </div>`).join('')}
+            <label class="photo-link" style="cursor:pointer;flex-direction:column;gap:2px;font-size:20px;">
+              +
+              <input type="file" id="ann_photo_input" accept="image/*" multiple style="display:none;">
+            </label>
+          </div>
+        ` : ''}
       `;
       const editBtn = document.getElementById('editToggle');
       editBtn.addEventListener('click', async ()=>{
@@ -1351,6 +1367,61 @@ const L = (function(){
         }
         renderAll();
       });
+      if(isAnnouncement){
+        const compressImage = (file) => new Promise((resolve, reject)=>{
+          const reader = new FileReader();
+          reader.onerror = reject;
+          reader.onload = () => {
+            const img = new Image();
+            img.onerror = reject;
+            img.onload = () => {
+              const maxW = 1200;
+              const scale = Math.min(1, maxW / img.width);
+              const canvas = document.createElement('canvas');
+              canvas.width = Math.round(img.width * scale);
+              canvas.height = Math.round(img.height * scale);
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              resolve(canvas.toDataURL('image/jpeg', 0.72));
+            };
+            img.src = reader.result;
+          };
+          reader.readAsDataURL(file);
+        });
+        const photoInput = document.getElementById('ann_photo_input');
+        if(photoInput){
+          photoInput.addEventListener('change', async (e)=>{
+            if(!(await ensureUnlocked())) return;
+            const files = Array.from(e.target.files||[]);
+            if(!files.length) return;
+            site.announcementPhotos = site.announcementPhotos || [];
+            for(const f of files){
+              try{
+                const dataUrl = await compressImage(f);
+                site.announcementPhotos.push({name:f.name, dataUrl});
+              }catch(err){ console.error('사진 처리 실패', err); }
+            }
+            await saveSites();
+            renderAll();
+          });
+        }
+        document.querySelectorAll('.ann-photo-del').forEach(btn=>{
+          btn.addEventListener('click', async (e)=>{
+            e.stopPropagation();
+            if(!(await ensureUnlocked())) return;
+            const idx = parseInt(btn.dataset.idx,10);
+            site.announcementPhotos.splice(idx,1);
+            await saveSites();
+            renderAll();
+          });
+        });
+        document.querySelectorAll('#announcementPhotoList .photo-link[data-idx] img').forEach(img=>{
+          img.addEventListener('click', ()=>{
+            const w = window.open('');
+            if(w) w.document.write(`<img src="${img.src}" style="max-width:100%;">`);
+          });
+        });
+      }
     }
   }
 
