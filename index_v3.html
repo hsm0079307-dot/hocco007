@@ -291,6 +291,16 @@
   </div>
 </div>
 
+<div class="overlay" id="photoOverlay">
+  <div class="modal" style="max-width:min(90vw,700px);text-align:center;">
+    <img id="photoOverlayImg" style="max-width:100%;max-height:72vh;border-radius:6px;display:block;margin:0 auto;">
+    <div style="margin-top:12px;display:flex;gap:8px;justify-content:center;">
+      <a id="photoOverlayDownload" class="btn btn-primary" download style="text-decoration:none;">⬇ 다운로드</a>
+      <button class="btn btn-ghost" id="photoOverlayCloseBtn">닫기</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="overlay">
   <div class="modal">
     <h3 id="modalTitle">현장 추가</h3>
@@ -1415,10 +1425,10 @@ const L = (function(){
             renderAll();
           });
         });
-        document.querySelectorAll('#announcementPhotoList .photo-link[data-idx] img').forEach(img=>{
+        document.querySelectorAll('#announcementPhotoList .photo-link[data-idx] img').forEach((img,i)=>{
           img.addEventListener('click', ()=>{
-            const w = window.open('');
-            if(w) w.document.write(`<img src="${img.src}" style="max-width:100%;">`);
+            const p = photos[i];
+            openPhotoOverlay(img.src, (p && p.name) || `공고사진${i+1}.jpg`);
           });
         });
       }
@@ -2062,6 +2072,19 @@ const L = (function(){
   }
   function closeModal(){ overlay.classList.remove('show'); editingId=null; }
 
+  // ---------- 사진 미리보기(라이트박스) ----------
+  const photoOverlay = document.getElementById('photoOverlay');
+  function openPhotoOverlay(dataUrl, filename){
+    document.getElementById('photoOverlayImg').src = dataUrl;
+    const dl = document.getElementById('photoOverlayDownload');
+    dl.href = dataUrl;
+    dl.download = filename || '공고사진.jpg';
+    photoOverlay.classList.add('show');
+  }
+  function closePhotoOverlay(){ photoOverlay.classList.remove('show'); }
+  document.getElementById('photoOverlayCloseBtn').addEventListener('click', closePhotoOverlay);
+  photoOverlay.addEventListener('click', (e)=>{ if(e.target===photoOverlay) closePhotoOverlay(); });
+
   document.getElementById('addBtn').addEventListener('click', async ()=>{
     if(!(await ensureUnlocked())) return;
     openModal(null);
@@ -2283,6 +2306,7 @@ const L = (function(){
   // ---------- ESC로 상세보기 → 전체화면(목록) 복귀 ----------
   document.addEventListener('keydown', (e)=>{
     if(e.key !== 'Escape') return;
+    if(photoOverlay.classList.contains('show')){ closePhotoOverlay(); return; }
     if(overlay.classList.contains('show')) return;
     if(modeOverlay.classList.contains('show')) return;
     if(currentView !== 'detail') return;
