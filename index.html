@@ -263,22 +263,33 @@
   .sheet-head .sheet-count{font-size:11.5px;color:var(--text-dim);background:var(--bg-side-2);border:1px solid var(--line);padding:5px 12px;border-radius:999px;}
   .sheet-close{margin-left:auto;}
   .sheet-table-wrap{overflow:auto;border:1px solid var(--line);border-radius:14px;max-height:calc(100vh - 150px);box-shadow:0 10px 28px rgba(0,0,0,.3);}
-  table.sheet-table{border-collapse:separate;border-spacing:0;width:100%;font-size:11.5px;color:var(--text-main);white-space:pre-line;line-height:1.55;}
-  table.sheet-table th, table.sheet-table td{border-bottom:1px solid var(--line);border-right:1px solid var(--line);padding:8px 10px;vertical-align:top;text-align:left;}
+  table.sheet-table{table-layout:fixed;border-collapse:separate;border-spacing:0;width:100%;min-width:1208px;font-size:11.5px;color:var(--text-main);white-space:pre-line;line-height:1.5;}
+  table.sheet-table th, table.sheet-table td{border-bottom:1px solid var(--line);border-right:1px solid var(--line);padding:7px 9px;vertical-align:top;text-align:left;overflow:hidden;}
   table.sheet-table th:last-child, table.sheet-table td:last-child{border-right:none;}
-  table.sheet-table thead th{position:sticky;top:0;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:11px;z-index:2;white-space:nowrap;letter-spacing:.2px;border-bottom:none;border-right-color:rgba(28,50,38,.25);}
+  table.sheet-table thead th{position:sticky;top:0;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:11px;z-index:3;white-space:nowrap;letter-spacing:.2px;border-bottom:none;border-right-color:rgba(28,50,38,.25);}
   table.sheet-table thead th:first-child{border-top-left-radius:13px;}
   table.sheet-table thead th:last-child{border-top-right-radius:13px;}
+  table.sheet-table thead tr.sheet-filter-row th{position:sticky;top:29px;background:var(--bg-side-2);padding:5px 6px;z-index:2;border-bottom:1px solid var(--line);}
+  .sheet-filter-input{width:100%;box-sizing:border-box;background:var(--bg-side);border:1px solid var(--line);border-radius:6px;padding:4px 6px;font-size:10.5px;color:var(--text-main);outline:none;}
+  .sheet-filter-input:focus{border-color:var(--accent);}
+  select.sheet-filter-input{cursor:pointer;}
+  .sheet-filter-clearbar{display:flex;align-items:center;gap:8px;}
+  .sheet-filter-clear{font-size:11px;color:var(--text-dim);background:none;border:1px solid var(--line);border-radius:999px;padding:5px 12px;cursor:pointer;white-space:nowrap;}
+  .sheet-filter-clear:hover{color:var(--text-main);border-color:var(--accent);}
   table.sheet-table tbody tr:last-child td{border-bottom:none;}
   table.sheet-table tbody tr:nth-child(even){background:rgba(255,255,255,.025);}
   table.sheet-table tbody tr:hover{background:var(--card-hover);}
-  table.sheet-table td.sheet-no{color:var(--text-dim);text-align:center;width:30px;font-size:11px;}
-  table.sheet-table td.sheet-name{font-weight:700;color:var(--accent);cursor:pointer;min-width:120px;}
+  table.sheet-table td.sheet-no{color:var(--text-dim);text-align:center;font-size:11px;height:64px;}
+  table.sheet-table td.sheet-district{color:var(--text-dim);font-size:11px;white-space:nowrap;text-overflow:ellipsis;}
+  table.sheet-table td.sheet-name{font-weight:700;color:var(--accent);cursor:pointer;white-space:nowrap;text-overflow:ellipsis;text-align:center;}
+  table.sheet-table thead th .col-resizer{position:absolute;top:0;right:0;width:6px;height:100%;cursor:col-resize;z-index:4;}
+  table.sheet-table thead th .col-resizer:hover{background:rgba(255,255,255,.3);}
   table.sheet-table td.sheet-name:hover{text-decoration:underline;}
   table.sheet-table td.sheet-dim{color:var(--text-dim);font-size:11px;}
   table.sheet-table td.sheet-week{background:rgba(211,164,95,.1);}
-  table.sheet-table .sheet-district-row td{background:linear-gradient(90deg,rgba(211,164,95,.2),transparent);font-weight:700;color:var(--accent);padding:6px 10px;border-right:none;font-size:12px;letter-spacing:.3px;}
+  table.sheet-table .sheet-district-row td{background:linear-gradient(90deg,rgba(211,164,95,.2),transparent);font-weight:700;color:var(--accent);padding:6px 10px;border-right:none;font-size:12px;letter-spacing:.3px;white-space:nowrap;}
   .sheet-stage-badge{display:inline-block;font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--bg-side-2);border:1px solid var(--line);color:var(--text-main);white-space:nowrap;}
+  .cell-clamp{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;max-height:66px;}
 
   @media (max-width:820px){
     html,body{height:auto;min-height:100%;}
@@ -1013,6 +1024,7 @@ const L = (function(){
   let selectedManagers = new Set();
   let selectedDistrict = null;
   let searchText = '';
+  let sheetColumnFilters = {}; // 전체사업지 표 컬럼별 필터값
   let map, districtLayer, siteLayer, focusLayer, seoulShapeLayer;
   let currentView = 'list';     // 'list' | 'detail'
   let currentDetailId = null;
@@ -1766,13 +1778,72 @@ const L = (function(){
     ].filter(Boolean);
     return rows.join('\n') || '-';
   }
-  function renderSheetView(){
-    const el = document.getElementById('sheetView');
-    if(!el) return;
-    const fs = filteredSites();
-    const thisWeek = weekRangeStr(0);
-    const nextWeek = weekRangeStr(1);
-    // 구(district)별로 묶어서 PDF/엑셀 표와 비슷하게 보이도록 구간 표시줄을 끼워넣는다
+  // 전체사업지 표 컬럼 정의: 필터/렌더링을 컬럼 하나에서 관리 (no~타사활동 전체 필터 대응, 구 컬럼 포함)
+  function buildSheetColumns(ctx){
+    const fmtEv = evs => evs.length ? evs.map(e=>`${formatDateKrNoYear(e.date)} ${e.label}`).join('\n') : '-';
+    return [
+      { key:'no', label:'no', width:34, type:'text',
+        getValue: s => String(ctx.stableNoMap.get(s.id) || ''),
+        render: s => `<td class="sheet-no">${ctx.stableNoMap.get(s.id) || ''}</td>` },
+      { key:'district', label:'구', width:58, type:'select',
+        getValue: s => s.district || '-',
+        render: s => `<td class="sheet-dim sheet-district">${escapeHtml(s.district||'-')}</td>` },
+      { key:'name', label:'구역명', width:112, type:'text',
+        getValue: s => s.name || '',
+        render: s => `<td class="sheet-name" data-id="${s.id}" title="${escapeHtml(s.name||'')}">${escapeHtml(s.name)}</td>` },
+      { key:'manager', label:'담당', width:64, type:'text',
+        getValue: s => s.manager || '',
+        render: s => `<td class="sheet-dim">${escapeHtml(s.manager||'-')}</td>` },
+      { key:'memo', label:'집행부', width:126, type:'text',
+        getValue: s => s.memo || '',
+        render: s => `<td title="${escapeHtml(s.memo||'')}"><div class="cell-clamp">${renderRichText(s.memo||'-')}</div></td>` },
+      { key:'spec', label:'규모', width:126, type:'text',
+        getValue: s => sheetSpecBlock(s),
+        render: s => `<td class="sheet-dim" title="${escapeHtml(sheetSpecBlock(s))}"><div class="cell-clamp">${renderRichText(sheetSpecBlock(s))}</div></td>` },
+      { key:'stage', label:'진행단계', width:78, type:'select',
+        getValue: s => s.progressStage || '',
+        render: s => `<td>${s.progressStage ? `<span class="sheet-stage-badge">${escapeHtml(s.progressStage)}</span>` : '-'}</td>` },
+      { key:'orderExpected', label:'시공사선정시기', width:86, type:'text',
+        getValue: s => s.orderExpected || '',
+        render: s => `<td class="sheet-dim">${escapeHtml(s.orderExpected||'-')}</td>` },
+      { key:'stageDetail', label:'일정', width:100, type:'text',
+        getValue: s => s.stageDetail || '',
+        render: s => `<td class="sheet-dim" title="${escapeHtml(s.stageDetail||'')}"><div class="cell-clamp">${s.stageDetail ? renderRichText(s.stageDetail) : '-'}</div></td>` },
+      { key:'thisWeek', label:`금주계획(${ctx.thisWeek.label})`, width:112, type:'text',
+        getValue: s => fmtEv(eventsInRange(s, ctx.thisWeek.start, ctx.thisWeek.end)),
+        render: s => { const t = fmtEv(eventsInRange(s, ctx.thisWeek.start, ctx.thisWeek.end)); return `<td class="sheet-week" title="${escapeHtml(t)}"><div class="cell-clamp">${renderRichText(t)}</div></td>`; } },
+      { key:'nextWeek', label:`차주계획(${ctx.nextWeek.label})`, width:112, type:'text',
+        getValue: s => fmtEv(eventsInRange(s, ctx.nextWeek.start, ctx.nextWeek.end)),
+        render: s => { const t = fmtEv(eventsInRange(s, ctx.nextWeek.start, ctx.nextWeek.end)); return `<td class="sheet-week" title="${escapeHtml(t)}"><div class="cell-clamp">${renderRichText(t)}</div></td>`; } },
+      { key:'salesNote', label:'특이사항', width:100, type:'text',
+        getValue: s => s.salesNote || '',
+        render: s => `<td title="${escapeHtml(s.salesNote||'')}"><div class="cell-clamp">${s.salesNote ? renderRichText(s.salesNote) : '-'}</div></td>` },
+      { key:'progressNote', label:'타사활동', width:100, type:'text',
+        getValue: s => s.progressNote || '',
+        render: s => `<td class="sheet-dim" title="${escapeHtml(s.progressNote||'')}"><div class="cell-clamp">${s.progressNote ? renderRichText(s.progressNote) : '-'}</div></td>` },
+    ];
+  }
+  function sheetFilterOptions(fs, col){
+    const set = new Set();
+    fs.forEach(s=>{ const v = col.getValue(s); if(v && v!=='-') set.add(v); });
+    return Array.from(set).sort((a,b)=>a.localeCompare(b,'ko'));
+  }
+  function applySheetFilters(fs, columns){
+    const active = columns.filter(c=> sheetColumnFilters[c.key]);
+    if(!active.length) return fs;
+    return fs.filter(s=>{
+      return active.every(c=>{
+        const val = sheetColumnFilters[c.key];
+        const cellVal = col_getValueSafe(c, s);
+        if(c.type==='select') return cellVal === val;
+        return cellVal.toLowerCase().includes(val.toLowerCase());
+      });
+    });
+  }
+  function col_getValueSafe(c, s){
+    try{ return String(c.getValue(s) || ''); }catch(e){ return ''; }
+  }
+  function groupByDistrict(fs){
     const groups = [];
     fs.forEach(s=>{
       const key = s.district || '-';
@@ -1780,53 +1851,25 @@ const L = (function(){
       if(!g){ g = {key, items:[]}; groups.push(g); }
       g.items.push(s);
     });
-    let no = 0;
+    return groups;
+  }
+  function renderSheetRows(allFs, columns){
+    const tbody = document.getElementById('sheetTbody');
+    if(!tbody) return;
+    const fs = applySheetFilters(allFs, columns);
+    const groups = groupByDistrict(fs);
     const rowsHtml = groups.map(g=>{
-      const groupRow = `<tr class="sheet-district-row"><td colspan="12">${escapeHtml(g.key)} (${g.items.length})</td></tr>`;
+      const groupRow = `<tr class="sheet-district-row"><td colspan="${columns.length}">${escapeHtml(g.key)} (${g.items.length})</td></tr>`;
       const itemRows = g.items.map(s=>{
-        no++;
-        const memo = s.memo || '-';
-        const thisWeekEvents = eventsInRange(s, thisWeek.start, thisWeek.end);
-        const nextWeekEvents = eventsInRange(s, nextWeek.start, nextWeek.end);
-        const fmtEv = evs => evs.length ? evs.map(e=>`${formatDateKrNoYear(e.date)} ${e.label}`).join('\n') : '-';
-        return `<tr>
-          <td class="sheet-no">${no}</td>
-          <td class="sheet-name" data-id="${s.id}">${escapeHtml(s.name)}</td>
-          <td class="sheet-dim">${escapeHtml(s.manager||'-')}</td>
-          <td>${renderRichText(memo)}</td>
-          <td class="sheet-dim">${renderRichText(sheetSpecBlock(s))}</td>
-          <td>${s.progressStage ? `<span class="sheet-stage-badge">${escapeHtml(s.progressStage)}</span>` : '-'}</td>
-          <td class="sheet-dim">${escapeHtml(s.orderExpected||'-')}</td>
-          <td class="sheet-dim">${s.stageDetail ? renderRichText(s.stageDetail) : '-'}</td>
-          <td class="sheet-week">${renderRichText(fmtEv(thisWeekEvents))}</td>
-          <td class="sheet-week">${renderRichText(fmtEv(nextWeekEvents))}</td>
-          <td>${s.salesNote ? renderRichText(s.salesNote) : '-'}</td>
-          <td class="sheet-dim">${s.progressNote ? renderRichText(s.progressNote) : '-'}</td>
-        </tr>`;
+        const cells = columns.map(c=>c.render(s)).join('');
+        return `<tr>${cells}</tr>`;
       }).join('');
       return groupRow + itemRows;
     }).join('');
-
-    el.innerHTML = `
-      <div class="sheet-head">
-        <h2>📊 ${currentOffice===ALL_OFFICE?'전체':currentOffice} 전체사업지</h2>
-        <span class="sheet-count">${fs.length}개 현장 · 금주 ${thisWeek.label} · 차주 ${nextWeek.label}</span>
-        <button class="btn btn-ghost sheet-close" id="sheetCloseBtn">✕ 닫기</button>
-      </div>
-      <div class="sheet-table-wrap">
-        <table class="sheet-table">
-          <thead><tr>
-            <th>no</th><th>구역명</th><th>담당</th><th>집행부</th><th>규모</th>
-            <th>진행단계</th><th>시공사선정시기</th><th>일정</th>
-            <th>금주계획(${thisWeek.label})</th><th>차주계획(${nextWeek.label})</th>
-            <th>특이사항</th><th>타사활동</th>
-          </tr></thead>
-          <tbody>${rowsHtml || `<tr><td colspan="12" style="text-align:center;color:var(--text-dim);padding:20px;">표시할 현장이 없습니다.</td></tr>`}</tbody>
-        </table>
-      </div>
-    `;
-    document.getElementById('sheetCloseBtn').addEventListener('click', closeSheetView);
-    el.querySelectorAll('.sheet-name').forEach(td=>{
+    tbody.innerHTML = rowsHtml || `<tr><td colspan="${columns.length}" style="text-align:center;color:var(--text-dim);padding:20px;">표시할 현장이 없습니다.</td></tr>`;
+    const countEl = document.getElementById('sheetCount');
+    if(countEl) countEl.textContent = `${fs.length}개 현장`;
+    tbody.querySelectorAll('.sheet-name').forEach(td=>{
       td.addEventListener('click', ()=>{
         currentDetailId = td.dataset.id;
         currentView = 'detail';
@@ -1836,6 +1879,95 @@ const L = (function(){
         renderAll();
       });
     });
+  }
+  // 마우스로 컬럼 폭을 직접 드래그해서 조절할 수 있게 처리
+  function setupColumnResizers(el){
+    const table = el.querySelector('table.sheet-table');
+    if(!table) return;
+    const cols = table.querySelectorAll('colgroup col');
+    let dragging = null, startX = 0, startWidth = 0;
+    function onMouseMove(e){
+      if(!dragging) return;
+      const newWidth = Math.max(30, startWidth + (e.clientX - startX));
+      dragging.style.width = newWidth + 'px';
+    }
+    function onMouseUp(){
+      dragging = null;
+      document.body.style.userSelect = '';
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    }
+    el.querySelectorAll('.col-resizer').forEach(handle=>{
+      handle.addEventListener('mousedown', (e)=>{
+        e.preventDefault();
+        const idx = parseInt(handle.dataset.idx, 10);
+        dragging = cols[idx];
+        if(!dragging) return;
+        startX = e.clientX;
+        startWidth = handle.closest('th').offsetWidth;
+        document.body.style.userSelect = 'none';
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+      });
+    });
+  }
+  function renderSheetView(){
+    const el = document.getElementById('sheetView');
+    if(!el) return;
+    const fs = filteredSites();
+    const thisWeek = weekRangeStr(0);
+    const nextWeek = weekRangeStr(1);
+    // 필터와 무관하게 항상 같은 no 값을 유지 (구별 그룹핑 순서 기준으로 고정 번호 부여)
+    const stableNoMap = new Map();
+    let noCounter = 0;
+    groupByDistrict(fs).forEach(g=> g.items.forEach(s=>{ noCounter++; stableNoMap.set(s.id, noCounter); }));
+    const columns = buildSheetColumns({thisWeek, nextWeek, stableNoMap});
+    const colgroupHtml = `<colgroup>${columns.map(c=>`<col style="width:${c.width}px;">`).join('')}</colgroup>`;
+    const headHtml = `<tr>${columns.map((c,i)=>`<th style="position:relative;">${c.label}<span class="col-resizer" data-idx="${i}"></span></th>`).join('')}</tr>`;
+    const filterHtml = `<tr class="sheet-filter-row">${columns.map(c=>{
+      if(c.type==='select'){
+        const opts = sheetFilterOptions(fs, c);
+        const cur = sheetColumnFilters[c.key] || '';
+        return `<th><select class="sheet-filter-input" data-key="${c.key}"><option value="">전체</option>${opts.map(o=>`<option value="${escapeHtml(o)}" ${o===cur?'selected':''}>${escapeHtml(o)}</option>`).join('')}</select></th>`;
+      }
+      const cur = sheetColumnFilters[c.key] || '';
+      return `<th><input class="sheet-filter-input" data-key="${c.key}" type="text" placeholder="검색" value="${escapeHtml(cur)}"></th>`;
+    }).join('')}</tr>`;
+
+    el.innerHTML = `
+      <div class="sheet-head">
+        <h2>📊 ${currentOffice===ALL_OFFICE?'전체':currentOffice} 전체사업지</h2>
+        <span class="sheet-count" id="sheetCount">${fs.length}개 현장</span>
+        <span class="sheet-count">금주 ${thisWeek.label} · 차주 ${nextWeek.label}</span>
+        <div class="sheet-filter-clearbar">
+          <button class="sheet-filter-clear" id="sheetFilterClear">필터 초기화</button>
+          <button class="btn btn-ghost sheet-close" id="sheetCloseBtn">✕ 닫기</button>
+        </div>
+      </div>
+      <div class="sheet-table-wrap">
+        <table class="sheet-table">
+          ${colgroupHtml}
+          <thead>${headHtml}${filterHtml}</thead>
+          <tbody id="sheetTbody"></tbody>
+        </table>
+      </div>
+    `;
+    document.getElementById('sheetCloseBtn').addEventListener('click', closeSheetView);
+    document.getElementById('sheetFilterClear').addEventListener('click', ()=>{
+      sheetColumnFilters = {};
+      renderSheetView();
+    });
+    el.querySelectorAll('.sheet-filter-input').forEach(inputEl=>{
+      const evt = inputEl.tagName==='SELECT' ? 'change' : 'input';
+      inputEl.addEventListener(evt, ()=>{
+        const key = inputEl.dataset.key;
+        const val = inputEl.value.trim();
+        if(val) sheetColumnFilters[key] = val; else delete sheetColumnFilters[key];
+        renderSheetRows(fs, columns);
+      });
+    });
+    setupColumnResizers(el);
+    renderSheetRows(fs, columns);
   }
   function closeSheetView(){
     document.getElementById('sheetView').style.display = 'none';
