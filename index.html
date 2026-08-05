@@ -270,9 +270,10 @@
   table.sheet-table thead th:first-child{border-top-left-radius:13px;}
   table.sheet-table thead th:last-child{border-top-right-radius:13px;}
   table.sheet-table thead tr.sheet-filter-row th{position:sticky;top:29px;background:var(--bg-side-2);padding:5px 6px;z-index:2;border-bottom:1px solid var(--line);}
-  .sheet-filter-input{width:100%;box-sizing:border-box;background:var(--bg-side);border:1px solid var(--line);border-radius:6px;padding:4px 6px;font-size:10.5px;color:var(--text-main);outline:none;}
-  .sheet-filter-input:focus{border-color:var(--accent);}
-  select.sheet-filter-input{cursor:pointer;}
+  .sheet-colfilter-btn{width:100%;box-sizing:border-box;text-align:left;background:var(--bg-side);border:1px solid var(--line);border-radius:6px;padding:4px 6px;font-size:10.5px;color:var(--text-main);cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .sheet-colfilter-btn:hover{border-color:var(--accent);}
+  .sheet-colfilter-btn.active{border-color:var(--accent);color:var(--accent);}
+  .sheet-colfilter-panel{z-index:900;}
   .sheet-filter-clearbar{display:flex;align-items:center;gap:8px;}
   .sheet-filter-clear{font-size:11px;color:var(--text-dim);background:none;border:1px solid var(--line);border-radius:999px;padding:5px 12px;cursor:pointer;white-space:nowrap;}
   .sheet-filter-clear:hover{color:var(--text-main);border-color:var(--accent);}
@@ -1024,7 +1025,11 @@ const L = (function(){
   let selectedManagers = new Set();
   let selectedDistrict = null;
   let searchText = '';
-  let sheetColumnFilters = {}; // 전체사업지 표 컬럼별 필터값
+  let sheetColumnFilters = {}; // 전체사업지 표 컬럼별 필터값: key -> Set<string> (담당자 필터와 동일한 검색+체크박스 방식)
+  let sheetColumnSearchText = {}; // key -> 드롭다운 안의 검색어
+  let sheetColFilterActiveKey = null;
+  let sheetActiveColumns = [];
+  let sheetActiveBaseFs = [];
   let map, districtLayer, siteLayer, focusLayer, seoulShapeLayer;
   let currentView = 'list';     // 'list' | 'detail'
   let currentDetailId = null;
@@ -1828,20 +1833,128 @@ const L = (function(){
     fs.forEach(s=>{ const v = col.getValue(s); if(v && v!=='-') set.add(v); });
     return Array.from(set).sort((a,b)=>a.localeCompare(b,'ko'));
   }
+  function sheetFilterSet(key){
+    if(!sheetColumnFilters[key]) sheetColumnFilters[key] = new Set();
+    return sheetColumnFilters[key];
+  }
   function applySheetFilters(fs, columns){
-    const active = columns.filter(c=> sheetColumnFilters[c.key]);
+    const active = columns.filter(c=> sheetColumnFilters[c.key] && sheetColumnFilters[c.key].size>0);
     if(!active.length) return fs;
-    return fs.filter(s=>{
-      return active.every(c=>{
-        const val = sheetColumnFilters[c.key];
-        const cellVal = col_getValueSafe(c, s);
-        if(c.type==='select') return cellVal === val;
-        return cellVal.toLowerCase().includes(val.toLowerCase());
-      });
-    });
+    return fs.filter(s=> active.every(c=> sheetColumnFilters[c.key].has(col_getValueSafe(c, s))) );
   }
   function col_getValueSafe(c, s){
     try{ return String(c.getValue(s) || ''); }catch(e){ return ''; }
+  }
+  // ---------- 전체사업지 표 컬럼 필터 드롭다운 (담당자 필터와 동일한 검색+체크박스 UI) ----------
+  function getSheetColFilterPanel(){
+    let panel = document.getElementById('sheetColFilterPanel');
+    if(!panel){
+      panel = document.createElement('div');
+      panel.id = 'sheetColFilterPanel';
+      panel.className = 'manager-filter-panel sheet-colfilter-panel';
+      panel.style.display = 'none';
+      panel.style.position = 'fixed';
+      panel.style.right = 'auto';
+      panel.style.marginTop = '0';
+      document.body.appendChild(panel);
+      panel.addEventListener('click', e=>e.stopPropagation());
+    }
+    return panel;
+  }
+  function closeSheetColFilterPanel(){
+    const panel = document.getElementById('sheetColFilterPanel');
+    if(panel) panel.style.display = 'none';
+    if(sheetColFilterActiveKey){
+      const prevBtn = document.querySelector(`.sheet-colfilter-btn[data-key="${cssEscapeKey(sheetColFilterActiveKey)}"]`);
+      if(prevBtn) prevBtn.classList.remove('active');
+    }
+    sheetColFilterActiveKey = null;
+  }
+  function cssEscapeKey(key){
+    return window.CSS && CSS.escape ? CSS.escape(key) : key;
+  }
+  function openSheetColFilterPanel(key, btnEl){
+    const col = sheetActiveColumns.find(c=>c.key===key);
+    if(!col) return;
+    closeSheetColFilterPanel();
+    sheetColFilterActiveKey = key;
+    btnEl.classList.add('active');
+    const panel = getSheetColFilterPanel();
+    const rect = btnEl.getBoundingClientRect();
+    const panelWidth = 210;
+    let left = rect.left;
+    if(left + panelWidth > window.innerWidth - 8) left = window.innerWidth - panelWidth - 8;
+    if(left < 8) left = 8;
+    let top = rect.bottom + 4;
+    panel.style.left = left + 'px';
+    panel.style.top = top + 'px';
+    panel.style.width = panelWidth + 'px';
+    panel.style.display = 'block';
+    renderSheetColFilterShell(col);
+    // 화면 아래로 넘치면 버튼 위쪽에 띄운다
+    requestAnimationFrame(()=>{
+      const ph = panel.getBoundingClientRect().height;
+      if(rect.bottom + 4 + ph > window.innerHeight - 8){
+        panel.style.top = Math.max(8, rect.top - ph - 4) + 'px';
+      }
+    });
+  }
+  function renderSheetColFilterShell(col){
+    const panel = document.getElementById('sheetColFilterPanel');
+    if(!panel) return;
+    const selSet = sheetFilterSet(col.key);
+    panel.innerHTML = `
+      <div class="manager-filter-search"><input type="text" class="sheetColSearchInput" placeholder="🔍 ${escapeHtml(col.label)} 검색" autocomplete="off" value="${escapeHtml(sheetColumnSearchText[col.key]||'')}"></div>
+      <div class="manager-filter-item manager-filter-all" data-all="1">
+        <span class="chk ${selSet.size===0?'checked':''}">${selSet.size===0?'✓':''}</span>전체
+      </div>
+      <div class="sheetColFilterList" id="sheetColFilterList"></div>
+    `;
+    panel.querySelector('.manager-filter-all').addEventListener('click', ()=>{
+      selSet.clear();
+      updateSheetColFilterButtonLabel(col.key);
+      renderSheetColFilterShell(col);
+      renderSheetRows(sheetActiveBaseFs, sheetActiveColumns);
+    });
+    const searchInput = panel.querySelector('.sheetColSearchInput');
+    searchInput.focus();
+    searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length);
+    searchInput.addEventListener('input', (e)=>{
+      sheetColumnSearchText[col.key] = e.target.value;
+      renderSheetColFilterList(col);
+    });
+    renderSheetColFilterList(col);
+  }
+  function renderSheetColFilterList(col){
+    const listEl = document.getElementById('sheetColFilterList');
+    if(!listEl) return;
+    const selSet = sheetFilterSet(col.key);
+    const options = sheetFilterOptions(sheetActiveBaseFs, col);
+    const q = (sheetColumnSearchText[col.key]||'').trim().toLowerCase();
+    const filteredOpts = q ? options.filter(o=>o.toLowerCase().includes(q)) : options;
+    listEl.innerHTML = filteredOpts.length ? filteredOpts.map(o=>`
+        <div class="manager-filter-item" data-val="${escapeHtml(o)}">
+          <span class="chk ${selSet.has(o)?'checked':''}">${selSet.has(o)?'✓':''}</span>${escapeHtml(o)}
+        </div>`).join('') : `<div class="manager-filter-empty">검색 결과가 없습니다.</div>`;
+    listEl.querySelectorAll('.manager-filter-item').forEach(item=>{
+      item.addEventListener('click', ()=>{
+        const v = item.dataset.val;
+        if(selSet.has(v)) selSet.delete(v); else selSet.add(v);
+        updateSheetColFilterButtonLabel(col.key);
+        renderSheetColFilterList(col);
+        const allChk = document.querySelector('#sheetColFilterPanel .manager-filter-all .chk');
+        if(allChk){ allChk.className = 'chk' + (selSet.size===0?' checked':''); allChk.textContent = selSet.size===0?'✓':''; }
+        renderSheetRows(sheetActiveBaseFs, sheetActiveColumns);
+      });
+    });
+  }
+  function updateSheetColFilterButtonLabel(key){
+    const btn = document.querySelector(`.sheet-colfilter-btn[data-key="${cssEscapeKey(key)}"]`);
+    if(!btn) return;
+    const selSet = sheetFilterSet(key);
+    const label = selSet.size===0 ? '전체' : (selSet.size===1 ? Array.from(selSet)[0] : `${selSet.size}개`);
+    btn.textContent = label + ' ▾';
+    btn.title = label;
   }
   function groupByDistrict(fs){
     const groups = [];
@@ -1922,16 +2035,21 @@ const L = (function(){
     let noCounter = 0;
     groupByDistrict(fs).forEach(g=> g.items.forEach(s=>{ noCounter++; stableNoMap.set(s.id, noCounter); }));
     const columns = buildSheetColumns({thisWeek, nextWeek, stableNoMap});
+    sheetActiveColumns = columns;
+    sheetActiveBaseFs = fs;
+    // 사업소 전환 등으로 옵션 목록이 바뀌면, 더 이상 존재하지 않는 선택값은 정리
+    columns.forEach(c=>{
+      if(sheetColumnFilters[c.key] && sheetColumnFilters[c.key].size){
+        const validSet = new Set(sheetFilterOptions(fs, c));
+        sheetColumnFilters[c.key] = new Set(Array.from(sheetColumnFilters[c.key]).filter(v=>validSet.has(v)));
+      }
+    });
     const colgroupHtml = `<colgroup>${columns.map(c=>`<col style="width:${c.width}px;">`).join('')}</colgroup>`;
     const headHtml = `<tr>${columns.map((c,i)=>`<th style="position:relative;">${c.label}<span class="col-resizer" data-idx="${i}"></span></th>`).join('')}</tr>`;
     const filterHtml = `<tr class="sheet-filter-row">${columns.map(c=>{
-      if(c.type==='select'){
-        const opts = sheetFilterOptions(fs, c);
-        const cur = sheetColumnFilters[c.key] || '';
-        return `<th><select class="sheet-filter-input" data-key="${c.key}"><option value="">전체</option>${opts.map(o=>`<option value="${escapeHtml(o)}" ${o===cur?'selected':''}>${escapeHtml(o)}</option>`).join('')}</select></th>`;
-      }
-      const cur = sheetColumnFilters[c.key] || '';
-      return `<th><input class="sheet-filter-input" data-key="${c.key}" type="text" placeholder="검색" value="${escapeHtml(cur)}"></th>`;
+      const selSet = sheetFilterSet(c.key);
+      const label = selSet.size===0 ? '전체' : (selSet.size===1 ? Array.from(selSet)[0] : `${selSet.size}개`);
+      return `<th><button type="button" class="sheet-colfilter-btn" data-key="${c.key}" title="${escapeHtml(label)}">${escapeHtml(label)} ▾</button></th>`;
     }).join('')}</tr>`;
 
     el.innerHTML = `
@@ -1955,22 +2073,37 @@ const L = (function(){
     document.getElementById('sheetCloseBtn').addEventListener('click', closeSheetView);
     document.getElementById('sheetFilterClear').addEventListener('click', ()=>{
       sheetColumnFilters = {};
+      sheetColumnSearchText = {};
+      closeSheetColFilterPanel();
       renderSheetView();
     });
-    el.querySelectorAll('.sheet-filter-input').forEach(inputEl=>{
-      const evt = inputEl.tagName==='SELECT' ? 'change' : 'input';
-      inputEl.addEventListener(evt, ()=>{
-        const key = inputEl.dataset.key;
-        const val = inputEl.value.trim();
-        if(val) sheetColumnFilters[key] = val; else delete sheetColumnFilters[key];
-        renderSheetRows(fs, columns);
+    el.querySelectorAll('.sheet-colfilter-btn').forEach(btn=>{
+      btn.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        const key = btn.dataset.key;
+        if(sheetColFilterActiveKey === key){
+          closeSheetColFilterPanel();
+        }else{
+          openSheetColFilterPanel(key, btn);
+        }
       });
     });
+    if(!window.__sheetColFilterGlobalHandlerAdded){
+      document.addEventListener('click', (e)=>{
+        const panel = document.getElementById('sheetColFilterPanel');
+        if(panel && panel.style.display!=='none' && !panel.contains(e.target) && !e.target.closest('.sheet-colfilter-btn')){
+          closeSheetColFilterPanel();
+        }
+      });
+      document.addEventListener('scroll', ()=>{ closeSheetColFilterPanel(); }, true);
+      window.__sheetColFilterGlobalHandlerAdded = true;
+    }
     setupColumnResizers(el);
     renderSheetRows(fs, columns);
   }
   function closeSheetView(){
     document.getElementById('sheetView').style.display = 'none';
+    closeSheetColFilterPanel();
   }
   document.getElementById('sheetViewBtn').addEventListener('click', ()=>{
     document.getElementById('sheetView').style.display = 'block';
