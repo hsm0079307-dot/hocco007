@@ -171,6 +171,10 @@
   .manager-filter-item .chk{width:15px;height:15px;flex:none;border:1px solid var(--line);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;line-height:1;color:var(--accent-ink);background:var(--bg-side-2);}
   .manager-filter-item .chk.checked{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700;}
   .manager-filter-all{border-bottom:1px dashed var(--line);margin-bottom:4px;padding-bottom:8px;}
+  .manager-filter-search{margin-bottom:6px;}
+  .manager-filter-search input{width:100%;box-sizing:border-box;background:var(--bg-side-2);border:1px solid var(--line);border-radius:8px;padding:6px 8px;color:var(--text-main);font-size:12px;outline:none;}
+  .manager-filter-search input::placeholder{color:var(--text-dim);}
+  .manager-filter-empty{padding:8px;font-size:12px;color:var(--text-dim);}
 
   /* modal */
   .overlay{position:fixed;inset:0;background:rgba(3,12,22,.7);display:none;align-items:center;justify-content:center;z-index:1000;padding:16px;}
@@ -249,9 +253,30 @@
   .map-tooltip{border-radius:10px;padding:5px 10px;font-size:12px;font-weight:600;box-shadow:0 2px 10px rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.5);}
 
   @media (max-width:820px){
-    .main{flex-direction:column;}
-    .sidebar{width:100%;height:44vh;border-right:none;border-bottom:1px solid var(--line);}
-    .map-wrap{height:56vh;}
+    html,body{height:auto;min-height:100%;}
+    #app{height:100vh;height:100dvh;padding:6px;border-radius:10px;}
+    .topbar{padding:8px 10px;gap:6px;}
+    .brand{font-size:15px;margin-right:2px;}
+    .topbar .btn, .topbar .file-label{padding:6px 9px;font-size:11px;}
+    .search-box{order:5;flex:1 1 100%;min-width:0;}
+    .manager-filter-wrap{order:4;}
+    .tabs{padding:6px 10px;}
+    .tab{padding:5px 11px;font-size:11px;}
+    .stats-bar{padding:8px 10px;gap:10px;}
+    .stat-chip{min-width:52px;}
+    .stat-chip .num{font-size:14px;}
+    .main{flex-direction:column;min-height:0;}
+    .sidebar{width:100%;flex:1 1 52%;min-height:0;border-right:none;border-bottom:1px solid var(--line);}
+    .map-wrap{flex:1 1 48%;min-height:0;}
+    .list{grid-template-columns:1fr;padding:6px 8px 16px;}
+    .card-compact{height:auto;min-height:56px;}
+    .region-panel{max-width:78vw;}
+  }
+  @media (max-width:480px){
+    .stats-bar{overflow-x:auto;}
+    .stat-bars{display:none;}
+    .sidebar{flex-basis:56%;}
+    .map-wrap{flex-basis:44%;}
   }
 
   @media print{
@@ -289,6 +314,15 @@
 </style>
 </head>
 <body>
+<div id="entryGate" style="position:fixed;inset:0;background:rgba(3,12,22,.94);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;">
+  <div class="modal" style="max-width:280px;text-align:center;">
+    <h3 style="margin-top:0;">시장모니터링 대시보드</h3>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">입장 비밀번호를 입력하세요.</div>
+    <input id="entryGatePwInput" type="password" placeholder="비밀번호" style="width:100%;padding:8px 10px;font-size:13px;border-radius:8px;border:1px solid var(--line);background:var(--bg-side-2);color:var(--text-main);margin-bottom:8px;box-sizing:border-box;">
+    <button class="btn btn-primary" id="entryGateConfirmBtn" style="width:100%;margin-bottom:6px;padding:8px;" disabled>불러오는 중...</button>
+    <div id="entryGateError" style="color:#f87171;font-size:11px;margin-top:4px;display:none;">비밀번호가 틀렸습니다.</div>
+  </div>
+</div>
 <div id="app">
 
   <div class="topbar blueprint-grid">
@@ -310,6 +344,7 @@
     </div>
     <button class="btn btn-ghost" id="guestManageBtn">담당자 계정 관리</button>
     <button class="btn btn-ghost" id="changeAdminPwBtn">🔑 비번변경</button>
+    <button class="btn btn-ghost" id="changeEntryPwBtn" title="첫 화면 입장 비밀번호(자료보호용) 변경">🚪🔑 입장암호변경</button>
     <button class="btn btn-ghost" id="refreshDataBtn" title="클라우드에서 최신 데이터 다시 불러오기">🔄 새로고침</button>
     <button class="btn btn-ghost" id="manualSaveBtn" title="지금 화면 내용을 클라우드에 바로 저장">💾 저장</button>
     <button class="btn btn-ghost" id="adminLogoutBtn" title="로그아웃하고 처음 화면으로">🚪 로그아웃</button>
@@ -778,6 +813,10 @@ const L = (function(){
   // ---------- 수정 잠금(간단한 클라이언트 측 잠금, 완전한 보안은 아님) ----------
   const DEFAULT_ADMIN_PASSWORD_HASH = '4654d793972c3b6a1d48fb0ab58d9cb0de46c3d33d605f9222c283dfaa12d420';
   let adminPasswordHash = DEFAULT_ADMIN_PASSWORD_HASH; // 관리자가 직접 변경 가능, 클라우드에 저장됨
+  // 사이트 전체 입장 비밀번호 (자료보호용, 기본값: hocco2026 / 관리자가 변경 가능)
+  const DEFAULT_ENTRY_PASSWORD_HASH = '6e0da14bfd1946a461979795a26325a177de1f0fb3e05bd438b57a016a8bcc8e';
+  let entryPasswordHash = DEFAULT_ENTRY_PASSWORD_HASH;
+  const ENTRY_UNLOCKED_KEY = 'realestate-entry-unlocked-v1';
   async function sha256Hex(str){
     const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
     return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
@@ -1003,6 +1042,7 @@ const L = (function(){
         if(data && data.guests && typeof data.guests==='object') guestAccounts = data.guests;
         if(data && Array.isArray(data.changeLog)) changeLog = data.changeLog;
         if(data && typeof data.adminPasswordHash === 'string' && data.adminPasswordHash) adminPasswordHash = data.adminPasswordHash;
+        if(data && typeof data.entryPasswordHash === 'string' && data.entryPasswordHash) entryPasswordHash = data.entryPasswordHash;
         if(data && data.guestDataVersions && typeof data.guestDataVersions === 'object') guestDataVersions = data.guestDataVersions;
         localDataVersion = (data && data.dataVersion) || null;
         const hasAny = allOfficesData && Object.values(allOfficesData).some(arr=>Array.isArray(arr) && arr.length>0);
@@ -1210,7 +1250,7 @@ const L = (function(){
         const res = await fetch(FIREBASE_DATA_URL, {
           method:'PUT',
           headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({offices: allOfficesData, guests: guestAccounts, changeLog: changeLog, adminPasswordHash: adminPasswordHash, dataVersion: newDataVersion, guestDataVersions: guestDataVersions})
+          body: JSON.stringify({offices: allOfficesData, guests: guestAccounts, changeLog: changeLog, adminPasswordHash: adminPasswordHash, entryPasswordHash: entryPasswordHash, dataVersion: newDataVersion, guestDataVersions: guestDataVersions})
         });
         if(!res.ok) throw new Error('firebase save status '+res.status);
         if(!guestMode) localDataVersion = newDataVersion; // 관리자 저장만 이 탭의 기준 버전을 갱신
@@ -1283,6 +1323,7 @@ const L = (function(){
   }
 
   // ---------- 담당자 필터 (다중 선택) ----------
+  let managerSearchText = '';
   function renderManagerFilter(){
     const btn = document.getElementById('managerFilterBtn');
     const panel = document.getElementById('managerFilterPanel');
@@ -1292,24 +1333,44 @@ const L = (function(){
     selectedManagers = new Set(Array.from(selectedManagers).filter(m=>managers.includes(m)));
     btn.textContent = (selectedManagers.size===0 ? '담당자 전체' : selectedManagers.size===1 ? Array.from(selectedManagers)[0] : `담당자 ${selectedManagers.size}명`) + ' ▾';
     panel.innerHTML = `
+      <div class="manager-filter-search"><input type="text" id="managerSearchInput" placeholder="🔍 담당자 검색" autocomplete="off"></div>
       <div class="manager-filter-item manager-filter-all" data-all="1">
         <span class="chk ${selectedManagers.size===0?'checked':''}">${selectedManagers.size===0?'✓':''}</span>담당자 전체
       </div>
-      ${managers.map(m=>`
+      <div id="managerFilterList"></div>
+    `;
+    panel.querySelector('.manager-filter-all').addEventListener('click', (e)=>{
+      e.stopPropagation();
+      selectedManagers.clear();
+      renderManagerFilter();
+      panel.style.display = 'block';
+      renderAll();
+    });
+    const searchInput = document.getElementById('managerSearchInput');
+    searchInput.value = managerSearchText;
+    searchInput.addEventListener('click', e=>e.stopPropagation());
+    searchInput.addEventListener('input', (e)=>{
+      managerSearchText = e.target.value;
+      renderManagerFilterList(managers);
+    });
+    renderManagerFilterList(managers);
+  }
+  function renderManagerFilterList(managers){
+    const listEl = document.getElementById('managerFilterList');
+    if(!listEl) return;
+    const q = managerSearchText.trim().toLowerCase();
+    const filtered = q ? managers.filter(m=>m.toLowerCase().includes(q)) : managers;
+    listEl.innerHTML = filtered.length ? filtered.map(m=>`
         <div class="manager-filter-item" data-manager="${escapeHtml(m)}">
           <span class="chk ${selectedManagers.has(m)?'checked':''}">${selectedManagers.has(m)?'✓':''}</span>${escapeHtml(m)}
-        </div>`).join('')}
-    `;
-    panel.querySelectorAll('.manager-filter-item').forEach(item=>{
+        </div>`).join('') : `<div class="manager-filter-empty">검색 결과가 없습니다.</div>`;
+    listEl.querySelectorAll('.manager-filter-item').forEach(item=>{
       item.addEventListener('click', (e)=>{
         e.stopPropagation();
-        if(item.dataset.all){
-          selectedManagers.clear();
-        }else{
-          const m = item.dataset.manager;
-          if(selectedManagers.has(m)) selectedManagers.delete(m); else selectedManagers.add(m);
-        }
+        const m = item.dataset.manager;
+        if(selectedManagers.has(m)) selectedManagers.delete(m); else selectedManagers.add(m);
         renderManagerFilter();
+        const panel = document.getElementById('managerFilterPanel');
         panel.style.display = 'block'; // 목록 갱신 후에도 계속 열어둬서 여러 개 연속으로 체크 가능
         renderAll();
       });
@@ -2933,7 +2994,7 @@ const L = (function(){
   });
 
   function applyGuestRestrictions(){
-    const hideIds = ['templateBtn','exportBtn','addBtn','guestManageBtn','changeAdminPwBtn','changeLogBtn','missingCoordsBtn','managerFilterWrap','clearDistrictBtn','labelEditBtn','adminLogoutBtn'];
+    const hideIds = ['templateBtn','exportBtn','addBtn','guestManageBtn','changeAdminPwBtn','changeEntryPwBtn','changeLogBtn','missingCoordsBtn','managerFilterWrap','clearDistrictBtn','labelEditBtn','adminLogoutBtn'];
     hideIds.forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display='none'; });
     const excelLabel = document.querySelector('.file-label'); if(excelLabel) excelLabel.style.display='none';
     const officeSwitcherEl = document.getElementById('officeSwitcher'); if(officeSwitcherEl) officeSwitcherEl.style.display='none';
@@ -3199,6 +3260,28 @@ const L = (function(){
     document.getElementById('guestAdminOverlay').classList.remove('show');
   });
 
+  document.getElementById('changeEntryPwBtn').addEventListener('click', async ()=>{
+    if(!(await ensureUnlocked())) return;
+    const cur = prompt('현재 입장 비밀번호를 입력하세요:');
+    if(cur===null) return;
+    const curHash = await sha256Hex(cur);
+    if(curHash !== entryPasswordHash){
+      alert('현재 입장 비밀번호가 틀렸습니다.');
+      return;
+    }
+    const next = prompt('새 입장 비밀번호를 입력하세요:');
+    if(next===null || !next.trim()){ if(next!==null) alert('비밀번호를 입력해주세요.'); return; }
+    const next2 = prompt('새 입장 비밀번호를 한 번 더 입력하세요:');
+    if(next2===null) return;
+    if(next !== next2){ alert('두 번 입력한 비밀번호가 서로 달라요. 다시 시도해주세요.'); return; }
+    entryPasswordHash = await sha256Hex(next);
+    saveOfficeContext = false;
+    await saveSites();
+    saveOfficeContext = true;
+    try{ localStorage.removeItem(ENTRY_UNLOCKED_KEY); }catch(e){}
+    alert('입장 비밀번호가 변경되었습니다. 이 기기를 포함해 모든 사람이 다음 접속부터 새 비밀번호를 입력해야 해요.');
+  });
+
   document.getElementById('changeAdminPwBtn').addEventListener('click', async ()=>{
     if(!(await ensureUnlocked())) return;
     const cur = prompt('현재 관리자 비밀번호를 입력하세요:');
@@ -3309,6 +3392,29 @@ const L = (function(){
     location.reload();
   });
 
+  // ---------- 입장 비밀번호 게이트(자료보호) ----------
+  const entryGate = document.getElementById('entryGate');
+  const entryGateBtn = document.getElementById('entryGateConfirmBtn');
+  const entryGateInput = document.getElementById('entryGatePwInput');
+  const entryGateError = document.getElementById('entryGateError');
+  let entryGateAlreadyUnlocked = false;
+  try{ entryGateAlreadyUnlocked = localStorage.getItem(ENTRY_UNLOCKED_KEY) === '1'; }catch(e){}
+  if(entryGateAlreadyUnlocked){ entryGate.style.display = 'none'; }
+  async function tryEntryGateSubmit(){
+    const val = entryGateInput.value;
+    const hash = await sha256Hex(val);
+    if(hash === entryPasswordHash){
+      try{ localStorage.setItem(ENTRY_UNLOCKED_KEY, '1'); }catch(e){}
+      entryGate.style.display = 'none';
+    }else{
+      entryGateError.style.display = 'block';
+      entryGateInput.value = '';
+      entryGateInput.focus();
+    }
+  }
+  entryGateBtn.addEventListener('click', tryEntryGateSubmit);
+  entryGateInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') tryEntryGateSubmit(); });
+
   // ---------- boot ----------
   (async function(){
     initFormSelects();
@@ -3323,6 +3429,10 @@ const L = (function(){
     renderAll();
     renderSeoulShapes();
     renderRegionPanel();
+    // 클라우드에서 최신 입장 비밀번호를 받아온 뒤에야 검증 가능하므로, 여기서 버튼을 활성화한다.
+    entryGateBtn.disabled = false;
+    entryGateBtn.textContent = '입장';
+    if(!entryGateAlreadyUnlocked){ entryGateInput.focus(); }
   })();
 })();
 </script>
