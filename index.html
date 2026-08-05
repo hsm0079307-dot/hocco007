@@ -280,7 +280,7 @@
   table.sheet-table tbody tr:last-child td{border-bottom:none;}
   table.sheet-table tbody tr:nth-child(even){background:rgba(255,255,255,.025);}
   table.sheet-table tbody tr:hover{background:var(--card-hover);}
-  table.sheet-table td.sheet-no{color:var(--text-dim);text-align:center;font-size:11px;height:64px;}
+  table.sheet-table td.sheet-no{color:var(--text-dim);text-align:center;font-size:11px;height:64px;position:relative;}
   table.sheet-table td.sheet-district{color:var(--text-dim);font-size:11px;white-space:nowrap;text-overflow:ellipsis;}
   table.sheet-table td.sheet-name{font-weight:700;color:var(--accent);cursor:pointer;white-space:nowrap;text-overflow:ellipsis;text-align:center;}
   table.sheet-table thead th .col-resizer{position:absolute;top:0;right:0;width:6px;height:100%;cursor:col-resize;z-index:4;}
@@ -289,6 +289,16 @@
   table.sheet-table td.sheet-dim{color:var(--text-dim);font-size:11px;}
   table.sheet-table td.sheet-week{background:rgba(211,164,95,.1);}
   table.sheet-table .sheet-district-row td{background:linear-gradient(90deg,rgba(211,164,95,.2),transparent);font-weight:700;color:var(--accent);padding:6px 10px;border-right:none;font-size:12px;letter-spacing:.3px;white-space:nowrap;}
+  /* no/구/구역명 컬럼 좌측 고정 (가로 스크롤해도 계속 보이게) */
+  table.sheet-table .sheet-frozen{position:sticky;}
+  table.sheet-table td.sheet-frozen{background:var(--bg-side);z-index:1;}
+  table.sheet-table tbody tr:nth-child(even) td.sheet-frozen{background:#22372b;}
+  table.sheet-table tbody tr:hover td.sheet-frozen{background:var(--card-hover);}
+  table.sheet-table thead th.sheet-frozen{z-index:6;}
+  table.sheet-table thead tr.sheet-filter-row th.sheet-frozen{z-index:5;}
+  table.sheet-table [data-frozen-idx="2"]{box-shadow:4px 0 6px -4px rgba(0,0,0,.5);}
+  .row-resizer{position:absolute;left:0;right:0;bottom:-1px;height:6px;cursor:row-resize;z-index:5;}
+  .row-resizer:hover{background:rgba(255,255,255,.3);}
   .sheet-stage-badge{display:inline-block;font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--bg-side-2);border:1px solid var(--line);color:var(--text-main);white-space:nowrap;}
   .cell-clamp{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;max-height:66px;}
 
@@ -1789,13 +1799,13 @@ const L = (function(){
     return [
       { key:'no', label:'no', width:34, type:'text',
         getValue: s => String(ctx.stableNoMap.get(s.id) || ''),
-        render: s => `<td class="sheet-no">${ctx.stableNoMap.get(s.id) || ''}</td>` },
+        render: s => `<td class="sheet-no sheet-frozen" data-frozen-idx="0">${ctx.stableNoMap.get(s.id) || ''}<span class="row-resizer" title="행 높이 조절"></span></td>` },
       { key:'district', label:'구', width:58, type:'select',
         getValue: s => s.district || '-',
-        render: s => `<td class="sheet-dim sheet-district">${escapeHtml(s.district||'-')}</td>` },
+        render: s => `<td class="sheet-dim sheet-district sheet-frozen" data-frozen-idx="1">${escapeHtml(s.district||'-')}</td>` },
       { key:'name', label:'구역명', width:112, type:'text',
         getValue: s => s.name || '',
-        render: s => `<td class="sheet-name" data-id="${s.id}" title="${escapeHtml(s.name||'')}">${escapeHtml(s.name)}</td>` },
+        render: s => `<td class="sheet-name sheet-frozen" data-frozen-idx="2" data-id="${s.id}" title="${escapeHtml(s.name||'')}">${escapeHtml(s.name)}</td>` },
       { key:'manager', label:'담당', width:64, type:'text',
         getValue: s => s.manager || '',
         render: s => `<td class="sheet-dim">${escapeHtml(s.manager||'-')}</td>` },
@@ -1992,6 +2002,8 @@ const L = (function(){
         renderAll();
       });
     });
+    setupRowResizers(tbody);
+    updateFrozenOffsets();
   }
   // 마우스로 컬럼 폭을 직접 드래그해서 조절할 수 있게 처리
   function setupColumnResizers(el){
@@ -2003,6 +2015,7 @@ const L = (function(){
       if(!dragging) return;
       const newWidth = Math.max(30, startWidth + (e.clientX - startX));
       dragging.style.width = newWidth + 'px';
+      updateFrozenOffsets();
     }
     function onMouseUp(){
       dragging = null;
@@ -2018,6 +2031,57 @@ const L = (function(){
         if(!dragging) return;
         startX = e.clientX;
         startWidth = handle.closest('th').offsetWidth;
+        document.body.style.userSelect = 'none';
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+      });
+    });
+  }
+  // no/구/구역명 3개 컬럼을 좌측에 고정: 실제 렌더된 폭을 읽어서 sticky left 값을 계산
+  function updateFrozenOffsets(){
+    const table = document.querySelector('#sheetView table.sheet-table');
+    if(!table) return;
+    const headerRow = table.querySelector('thead tr:first-child');
+    if(!headerRow) return;
+    const ths = headerRow.querySelectorAll('th');
+    if(ths.length < 3) return;
+    const w0 = ths[0].offsetWidth;
+    const w1 = ths[1].offsetWidth;
+    const offsets = [0, w0, w0 + w1];
+    for(let i=0;i<3;i++){
+      document.querySelectorAll(`#sheetView [data-frozen-idx="${i}"]`).forEach(elx=>{ elx.style.left = offsets[i] + 'px'; });
+    }
+  }
+  // 마우스로 행 높이를 직접 드래그해서 조절 (셀 안의 잘린 내용을 더 보이게)
+  function setRowHeight(tr, height){
+    tr.style.height = height + 'px';
+    tr.querySelectorAll('.cell-clamp').forEach(div=>{
+      div.style.maxHeight = Math.max(20, height - 16) + 'px';
+      div.style.webkitLineClamp = 999;
+    });
+  }
+  function setupRowResizers(tbody){
+    let dragging = null, startY = 0, startHeight = 0;
+    function onMouseMove(e){
+      if(!dragging) return;
+      const newHeight = Math.max(28, startHeight + (e.clientY - startY));
+      setRowHeight(dragging, newHeight);
+    }
+    function onMouseUp(){
+      dragging = null;
+      document.body.style.userSelect = '';
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    }
+    tbody.querySelectorAll('.row-resizer').forEach(handle=>{
+      handle.addEventListener('mousedown', (e)=>{
+        e.preventDefault();
+        e.stopPropagation();
+        const tr = handle.closest('tr');
+        if(!tr) return;
+        dragging = tr;
+        startY = e.clientY;
+        startHeight = tr.offsetHeight;
         document.body.style.userSelect = 'none';
         document.addEventListener('mousemove', onMouseMove);
         document.addEventListener('mouseup', onMouseUp);
@@ -2045,11 +2109,17 @@ const L = (function(){
       }
     });
     const colgroupHtml = `<colgroup>${columns.map(c=>`<col style="width:${c.width}px;">`).join('')}</colgroup>`;
-    const headHtml = `<tr>${columns.map((c,i)=>`<th style="position:relative;">${c.label}<span class="col-resizer" data-idx="${i}"></span></th>`).join('')}</tr>`;
-    const filterHtml = `<tr class="sheet-filter-row">${columns.map(c=>{
+    const headHtml = `<tr>${columns.map((c,i)=>{
+      const frozenCls = i<3 ? ' sheet-frozen' : '';
+      const frozenAttr = i<3 ? ` data-frozen-idx="${i}"` : '';
+      return `<th class="${frozenCls.trim()}"${frozenAttr}>${c.label}<span class="col-resizer" data-idx="${i}"></span></th>`;
+    }).join('')}</tr>`;
+    const filterHtml = `<tr class="sheet-filter-row">${columns.map((c,i)=>{
       const selSet = sheetFilterSet(c.key);
       const label = selSet.size===0 ? '전체' : (selSet.size===1 ? Array.from(selSet)[0] : `${selSet.size}개`);
-      return `<th><button type="button" class="sheet-colfilter-btn" data-key="${c.key}" title="${escapeHtml(label)}">${escapeHtml(label)} ▾</button></th>`;
+      const frozenCls = i<3 ? ' sheet-frozen' : '';
+      const frozenAttr = i<3 ? ` data-frozen-idx="${i}"` : '';
+      return `<th class="${frozenCls.trim()}"${frozenAttr}><button type="button" class="sheet-colfilter-btn" data-key="${c.key}" title="${escapeHtml(label)}">${escapeHtml(label)} ▾</button></th>`;
     }).join('')}</tr>`;
 
     el.innerHTML = `
