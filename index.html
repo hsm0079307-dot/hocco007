@@ -3542,14 +3542,12 @@ const L = (function(){
   const entryGateBtn = document.getElementById('entryGateConfirmBtn');
   const entryGateInput = document.getElementById('entryGatePwInput');
   const entryGateError = document.getElementById('entryGateError');
-  let entryGateAlreadyUnlocked = false;
-  try{ entryGateAlreadyUnlocked = localStorage.getItem(ENTRY_UNLOCKED_KEY) === '1'; }catch(e){}
-  if(entryGateAlreadyUnlocked){ entryGate.style.display = 'none'; }
+  // 매번 물어보도록: 기기에 "통과" 상태를 저장하지 않음 (재방문/새로고침마다 비밀번호 입력 필요)
+  try{ localStorage.removeItem(ENTRY_UNLOCKED_KEY); }catch(e){}
   async function tryEntryGateSubmit(){
     const val = entryGateInput.value;
     const hash = await sha256Hex(val);
     if(hash === entryPasswordHash){
-      try{ localStorage.setItem(ENTRY_UNLOCKED_KEY, '1'); }catch(e){}
       entryGate.style.display = 'none';
     }else{
       entryGateError.style.display = 'block';
@@ -3577,7 +3575,7 @@ const L = (function(){
     // 클라우드에서 최신 입장 비밀번호를 받아온 뒤에야 검증 가능하므로, 여기서 버튼을 활성화한다.
     entryGateBtn.disabled = false;
     entryGateBtn.textContent = '입장';
-    if(!entryGateAlreadyUnlocked){ entryGateInput.focus(); }
+    entryGateInput.focus();
   })();
 })();
 </script>
