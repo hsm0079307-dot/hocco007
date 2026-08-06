@@ -2,6 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>통합 일정표 &amp; 날짜별 체크리스트</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -42,6 +43,12 @@
   .legend span{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--line);padding:4px 10px;border-radius:20px;}
   .legend span.toggle{cursor:pointer;user-select:none;}
   .legend span.toggle:hover{border-color:var(--sub);}
+  .cat-label-edit{outline:none;border-bottom:1px dashed transparent;cursor:text;}
+  .cat-label-edit:hover{border-bottom-color:var(--line);}
+  .cat-label-edit:focus{border-bottom-color:var(--sub);}
+  #siteSubtitle[contenteditable]{outline:none;cursor:text;border-bottom:1px dashed transparent;}
+  #siteSubtitle[contenteditable]:hover{border-bottom-color:rgba(255,255,255,.4);}
+  #siteSubtitle[contenteditable]:focus{border-bottom-color:rgba(255,255,255,.6);}
   .dot{width:8px;height:8px;border-radius:50%;display:inline-block;background:#fff;border:1.5px solid var(--line);}
   .dot.gallery.lit{background:var(--gallery);border-color:var(--gallery);}
   .dot.tour.lit{background:var(--tour);border-color:var(--tour);}
@@ -333,7 +340,7 @@
   <header>
     <div>
       <h1 id="siteTitle" contenteditable="true">(현장명)일정표</h1>
-      <p>갤러리 &amp; 신반포21차 투어</p>
+      <p id="siteSubtitle" contenteditable="true">갤러리 &amp; 신반포21차 투어</p>
     </div>
   </header>
 
@@ -351,8 +358,8 @@
   </div>
 
   <div class="legend">
-    <span class="toggle" id="toggleGallery" onclick="toggleCategory('gallery')"><i class="dot gallery lit" id="dotGallery"></i>갤러리</span>
-    <span class="toggle" id="toggleTour" onclick="toggleCategory('tour')"><i class="dot tour lit" id="dotTour"></i>21차투어</span>
+    <span class="toggle" id="toggleGallery" onclick="toggleCategory('gallery')"><i class="dot gallery lit" id="dotGallery"></i><span class="cat-label-edit" id="labelGallery" contenteditable="true" onclick="event.stopPropagation()">갤러리</span></span>
+    <span class="toggle" id="toggleTour" onclick="toggleCategory('tour')"><i class="dot tour lit" id="dotTour"></i><span class="cat-label-edit" id="labelTour" contenteditable="true" onclick="event.stopPropagation()">21차투어</span></span>
     <span class="toggle" id="toggleClosed" onclick="toggleClosedFilter()"><i class="dot closed lit" id="dotClosed"></i>휴관/불가</span>
   </div>
 
@@ -477,6 +484,15 @@ document.getElementById("pwInput").addEventListener("keydown", (e)=>{
 });
 
 const STORAGE_CHECK = "calendar_checkmarks_v1";
+
+// ---- 카테고리 명칭(갤러리/21차투어) 편집 가능 ----
+const CAT_LABEL_KEY = "category_labels_v1";
+let CAT_LABEL = {gallery:"갤러리", tour:"21차투어"};
+try{
+  const savedCat = JSON.parse(localStorage.getItem(CAT_LABEL_KEY));
+  if(savedCat) CAT_LABEL = {...CAT_LABEL, ...savedCat};
+}catch(e){}
+function persistCatLabel(){ localStorage.setItem(CAT_LABEL_KEY, JSON.stringify(CAT_LABEL)); }
 
 // ---- 날짜 목록 (요일 포함) ----
 const ALL_DATES = [
@@ -1065,7 +1081,7 @@ function renderStatusTable(kind, key, status, managerFilter){
   });
   if(idxList.length===0) return "";
   const tagClass = kind==="gallery" ? "gallery" : "tour";
-  const tagLabel = kind==="gallery" ? "갤러리" : "21차투어";
+  const tagLabel = kind==="gallery" ? CAT_LABEL.gallery : CAT_LABEL.tour;
   let html = "<div class='sub-title'><span class='tag "+tagClass+"'>"+tagLabel+"</span></div>";
   html += "<div class='table-scroll'><table><thead><tr>"+
     ["시간","단지명","동호수","성함","동반","담당","픽업<br>자가","확인"].map(h=>"<th>"+h+"</th>").join("")+
@@ -1352,7 +1368,7 @@ function exportExcel(){
   });
 
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(galleryData), "갤러리");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(galleryData), CAT_LABEL.gallery.slice(0,31));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(tourData), "신반포21차");
   const suffix = (selectedManagers.size>0 || selectedDanji.size>0) ? "_필터적용" : "";
   XLSX.writeFile(wb, "통합일정표_체크결과"+suffix+".xlsx");
@@ -1372,10 +1388,10 @@ function printAllDates(){
 
     let block = "<div class='print-date-block'><div class='print-date-title'>"+label+"</div>";
     if(GALLERY_CLOSED[key] && activeCategories.gallery){
-      block += "<div class='closed-banner'>갤러리 : "+GALLERY_CLOSED[key]+"</div>";
+      block += "<div class='closed-banner'>"+CAT_LABEL.gallery+" : "+GALLERY_CLOSED[key]+"</div>";
     }
-    if(activeCategories.gallery) block += renderTable("gallery", key, GALLERY_ROWS[key], "gallery", "갤러리");
-    if(activeCategories.tour) block += renderTable("tour", key, TOUR_ROWS[key], "tour", "21차투어");
+    if(activeCategories.gallery) block += renderTable("gallery", key, GALLERY_ROWS[key], "gallery", CAT_LABEL.gallery);
+    if(activeCategories.tour) block += renderTable("tour", key, TOUR_ROWS[key], "tour", CAT_LABEL.tour);
     block += "</div>";
     html += block;
   });
@@ -1412,7 +1428,7 @@ function openPreview(key){
   if(GALLERY_CLOSED[key]){
     html += "<div class='block'><span class='note' style='color:#c94f4f;font-weight:700;'>갤러리: "+GALLERY_CLOSED[key]+"</span></div>";
   } else if(GALLERY_ROWS[key]){
-    html += "<div class='block'><span class='tag gallery'>갤러리 "+GALLERY_ROWS[key].length+"팀</span>";
+    html += "<div class='block'><span class='tag gallery'>"+CAT_LABEL.gallery+" "+GALLERY_ROWS[key].length+"팀</span>";
     GALLERY_ROWS[key].forEach((r,idx)=>{
       const [time, spot, name, plus, manager] = r;
       html += "<div class='row-line'><span>"+time+" · "+name+(plus!=="-"?" "+plus:"")+" ("+manager+") "+spot+"</span>"+
@@ -1422,7 +1438,7 @@ function openPreview(key){
   }
 
   if(TOUR_ROWS[key]){
-    html += "<div class='block'><span class='tag tour'>21차투어</span>";
+    html += "<div class='block'><span class='tag tour'>"+CAT_LABEL.tour+"</span>";
     TOUR_ROWS[key].forEach((r,idx)=>{
       const [time, danji, ho, name, plus, manager] = r;
       const spot = (ho && ho !== "-") ? (danji+" "+ho) : danji;
@@ -1443,8 +1459,8 @@ function openPreview(key){
     (headcountForKey>0 ? " · 현재 "+headcountForKey+"명" : "")+
     " <span class='mini-action' onclick=\"openDateCapacitySettings()\">• 이 날짜만 설정</span></div>";
   html += "<div class='preview-actions'>"+
-    "<button onclick=\"addEntryFlow('gallery')\">+갤러리</button>"+
-    "<button onclick=\"addEntryFlow('tour')\">+21차</button>"+
+    "<button onclick=\"addEntryFlow('gallery')\">+"+CAT_LABEL.gallery+"</button>"+
+    "<button onclick=\"addEntryFlow('tour')\">+"+CAT_LABEL.tour+"</button>"+
     "<button class='"+(isClosed?"on":"")+"' onclick=\"toggleClosedDay()\">"+(isClosed?"휴관해제":"휴관지정")+"</button>"+
     "<button class='primary' onclick=\"openInChecklist()\">체크리스트</button>"+
     "</div>";
@@ -1552,7 +1568,7 @@ function addEntryFlow(kind){
   const key = previewKey;
   if(!key) return;
   if(kind==="gallery"){
-    openForm("갤러리 일정 추가", [
+    openForm(CAT_LABEL.gallery+" 일정 추가", [
       {id:"time", label:"시간", placeholder:"예: 10:30"},
       {id:"name", label:"성함", placeholder:"이름"},
       {id:"plus", label:"동반", placeholder:"예: 외1명, 없으면 -", value:"-"},
@@ -1565,7 +1581,7 @@ function addEntryFlow(kind){
       openPreview(key);
     });
   } else {
-    openForm("21차투어 일정 추가", [
+    openForm(CAT_LABEL.tour+" 일정 추가", [
       {id:"time", label:"시간", placeholder:"예: 1:30"},
       {id:"danji", label:"단지명", placeholder:"예: 14단지"},
       {id:"ho", label:"동호수", placeholder:"없으면 -", value:"-"},
@@ -1622,11 +1638,11 @@ function selectDate(key, scroll){
   let html = "";
 
   if(GALLERY_CLOSED[key] && activeCategories.gallery && showClosedToggle){
-    html += "<div class='closed-banner'>갤러리 : "+GALLERY_CLOSED[key]+"</div>";
+    html += "<div class='closed-banner'>"+CAT_LABEL.gallery+" : "+GALLERY_CLOSED[key]+"</div>";
   }
 
-  const galleryHtml = activeCategories.gallery ? renderTable("gallery", key, GALLERY_ROWS[key], "gallery", "갤러리") : "";
-  const tourHtml = activeCategories.tour ? renderTable("tour", key, TOUR_ROWS[key], "tour", "21차투어") : "";
+  const galleryHtml = activeCategories.gallery ? renderTable("gallery", key, GALLERY_ROWS[key], "gallery", CAT_LABEL.gallery) : "";
+  const tourHtml = activeCategories.tour ? renderTable("tour", key, TOUR_ROWS[key], "tour", CAT_LABEL.tour) : "";
 
   if(!galleryHtml && !tourHtml && !(GALLERY_CLOSED[key] && activeCategories.gallery)){
     html += "<div class='empty-day'>표시할 일정이 없습니다.</div>";
@@ -1746,6 +1762,46 @@ function initSiteTitle(){
   document.title = el.textContent;
 }
 initSiteTitle();
+
+// ---- 부제목(갤러리 & 21차투어) 편집 가능 ----
+const SITE_SUBTITLE_KEY = "site_subtitle_v1";
+function initSiteSubtitle(){
+  const el = document.getElementById("siteSubtitle");
+  const saved = localStorage.getItem(SITE_SUBTITLE_KEY);
+  if(saved !== null) el.textContent = saved;
+  el.addEventListener("blur", ()=>{
+    localStorage.setItem(SITE_SUBTITLE_KEY, el.textContent);
+  });
+}
+initSiteSubtitle();
+
+// ---- 카테고리 명칭(갤러리/21차투어) 편집 → 전체 반영 ----
+function initCatLabels(){
+  const gEl = document.getElementById("labelGallery");
+  const tEl = document.getElementById("labelTour");
+  gEl.textContent = CAT_LABEL.gallery;
+  tEl.textContent = CAT_LABEL.tour;
+  gEl.addEventListener("blur", ()=>{
+    CAT_LABEL.gallery = gEl.textContent.trim() || "갤러리";
+    gEl.textContent = CAT_LABEL.gallery;
+    persistCatLabel();
+    refreshAllViews();
+  });
+  tEl.addEventListener("blur", ()=>{
+    CAT_LABEL.tour = tEl.textContent.trim() || "21차투어";
+    tEl.textContent = CAT_LABEL.tour;
+    persistCatLabel();
+    refreshAllViews();
+  });
+}
+function refreshAllViews(){
+  buildCalendarArea();
+  selectDate(currentDateKey, false);
+  updateSummary();
+  updateManagerTable();
+  updateStatsChart();
+}
+initCatLabels();
 
 // ---- 일일 정원(마감 기준) 설정 - 평일/주말 구분 ----
 function getCapacityRaw(){
