@@ -1,0 +1,1869 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>통합 일정표 &amp; 날짜별 체크리스트</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --ink:#1c2430;--sub:#5b6470;--line:#e2e6ea;--bg:#f6f7f9;
+    --gallery:#2f6f6b;--gallery-bg:#eaf4f2;
+    --tour:#a8562f;--tour-bg:#faece3;
+    --closed:#c94f4f;--closed-bg:#fbeceb;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic",sans-serif;background:var(--bg);color:var(--ink);padding:20px 16px 60px;}
+  .wrap{max-width:960px;margin:0 auto;}
+  header{background:var(--ink);color:#fff;border-radius:12px;padding:16px 20px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;}
+  header h1{margin:0 0 4px;font-size:19px;}
+  header h1[contenteditable]{outline:none;cursor:text;border-bottom:1px dashed transparent;padding-bottom:2px;}
+  header h1[contenteditable]:hover{border-color:rgba(255,255,255,.4);}
+  header h1[contenteditable]:focus{border-color:rgba(255,255,255,.6);}
+  header p{margin:0;font-size:12.5px;color:#c7cdd6;}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;}
+  .toolbar button{border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;background:#fff;color:var(--ink);}
+  .bottom-toolbar{
+    margin-top:16px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;
+  }
+  .bottom-toolbar button{border:1px solid var(--line);}
+
+  .rangebar{
+    display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+    background:#fff;border:1px solid var(--line);border-radius:10px;
+    padding:10px 14px;margin-bottom:16px;font-size:12.5px;
+  }
+  .rangebar label{color:var(--sub);font-weight:600;}
+  .rangebar input[type=date]{border:1px solid var(--line);border-radius:6px;padding:5px 8px;font-size:12.5px;font-family:inherit;}
+  .rangebar button{border:none;background:var(--ink);color:#fff;border-radius:6px;padding:6px 12px;font-size:12.5px;font-weight:700;cursor:pointer;}
+  .rangebar .quick{background:var(--bg);color:var(--ink);border:1px solid var(--line);}
+
+  .catbar{display:none;}
+  .legend{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0 8px;font-size:12.5px;}
+  .legend span{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--line);padding:4px 10px;border-radius:20px;}
+  .legend span.toggle{cursor:pointer;user-select:none;}
+  .legend span.toggle:hover{border-color:var(--sub);}
+  .cat-label-edit{outline:none;border-bottom:1px dashed transparent;cursor:text;}
+  .cat-label-edit:hover{border-bottom-color:var(--line);}
+  .cat-label-edit:focus{border-bottom-color:var(--sub);}
+  #siteSubtitle[contenteditable]{outline:none;cursor:text;border-bottom:1px dashed transparent;}
+  #siteSubtitle[contenteditable]:hover{border-bottom-color:rgba(255,255,255,.4);}
+  #siteSubtitle[contenteditable]:focus{border-bottom-color:rgba(255,255,255,.6);}
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block;background:#fff;border:1.5px solid var(--line);}
+  .dot.gallery.lit{background:var(--gallery);border-color:var(--gallery);}
+  .dot.tour.lit{background:var(--tour);border-color:var(--tour);}
+  .dot.closed.lit{background:var(--closed);border-color:var(--closed);}
+
+  .danjiToggleBar{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 16px;font-size:12.5px;}
+  .danjiToggleBar span{
+    display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--line);
+    padding:4px 10px;border-radius:20px;cursor:pointer;user-select:none;
+  }
+  .danjiToggleBar span:hover{border-color:var(--sub);}
+  .danjiToggleBar .dot.danji{background:#fff;border:1.5px solid var(--line);}
+  .danjiToggleBar .dot.danji.lit{background:#3b6fd6;border-color:#3b6fd6;}
+
+  .month-label{font-size:13.5px;font-weight:700;margin:16px 0 6px 2px;}
+  .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;}
+  .dow{text-align:center;font-size:11px;font-weight:700;color:var(--sub);padding:2px 0;}
+  .dow.sun{color:var(--closed);}
+  .cell{background:#fff;border:1px solid var(--line);border-radius:6px;height:44px;padding:3px 5px;position:relative;cursor:pointer;transition:box-shadow .15s;}
+  .cell.cap-full{background:#fff7ec;border:2px solid #e08a2b;}
+  .cap-ribbon{
+    position:absolute;top:2px;right:2px;background:#e08a2b;color:#fff;
+    font-size:8px;font-weight:800;padding:1px 5px;border-radius:4px;letter-spacing:.5px;
+  }
+  .cap-status{position:absolute;left:5px;bottom:3px;font-size:7.5px;font-weight:700;color:#c94f4f;}
+  .cap-status.full{color:#c9821f;}
+  .cell:hover{box-shadow:0 2px 8px rgba(0,0,0,.08);}
+  .cell.empty{background:transparent;border:none;cursor:default;}
+  .cell.gclosed{background:repeating-linear-gradient(135deg,#fff,#fff 8px,#fbeceb 8px,#fbeceb 16px);}
+  .cell.active{outline:2px solid var(--ink);}
+  .cell.today{border:2px solid #3b6fd6;background:#f3f7ff;}
+  .cell.today .date{color:#3b6fd6;}
+  .cell.today .date::after{content:" (오늘)";font-size:9px;font-weight:700;color:#3b6fd6;}
+  .date{font-size:11px;font-weight:700;}
+  .sun .date{color:var(--closed);}
+  .badges{position:absolute;right:4px;bottom:3px;display:flex;gap:2px;}
+  .b{width:13px;height:13px;border-radius:4px;font-size:7.5px;font-weight:800;display:flex;align-items:center;justify-content:center;color:#fff;}
+  .b.gallery{background:var(--gallery);}
+  .b.tour{background:var(--tour);}
+  .b.closed{background:var(--closed);font-size:8px;}
+
+  /* 체크리스트 섹션 */
+  .checklist-section{margin-top:28px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px 20px;}
+  .checklist-section h2{margin:0 0 10px;font-size:16px;}
+  .filterbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+  .filterbar select{
+    border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:13px;font-family:inherit;
+    background:#fff;color:var(--ink);min-width:180px;
+  }
+  .filterbar button{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:7px 12px;font-size:12.5px;cursor:pointer;color:var(--ink);}
+  .closed-banner{background:var(--closed-bg);color:var(--closed);font-weight:700;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:12px;}
+  .empty-day{color:var(--sub);font-size:13px;padding:10px 0;}
+
+  .sub-title{display:flex;align-items:center;gap:8px;margin:16px 0 8px;font-size:13.5px;font-weight:700;}
+  .sub-title .tag{font-size:10.5px;padding:2px 8px;border-radius:6px;font-weight:700;}
+  .tag.gallery{background:var(--gallery-bg);color:var(--gallery);}
+  .tag.tour{background:var(--tour-bg);color:var(--tour);}
+
+  table{width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:6px;}
+  #checklistBody table{table-layout:fixed;}
+  #checklistBody th:nth-child(1),#checklistBody td:nth-child(1){width:10%;} /* 시간 */
+  #checklistBody th:nth-child(2),#checklistBody td:nth-child(2){width:13%;} /* 단지명 */
+  #checklistBody th:nth-child(3),#checklistBody td:nth-child(3){width:12%;} /* 동호수 */
+  #checklistBody th:nth-child(4),#checklistBody td:nth-child(4){width:20%;} /* 성함 */
+  #checklistBody th:nth-child(5),#checklistBody td:nth-child(5){width:11%;} /* 동반 */
+  #checklistBody th:nth-child(6),#checklistBody td:nth-child(6){width:11%;} /* 담당 */
+  #checklistBody th:nth-child(7),#checklistBody td:nth-child(7){width:11%;} /* 픽업/자가 */
+  #checklistBody th:nth-child(8),#checklistBody td:nth-child(8){width:5%;padding-left:2px;padding-right:2px;}  /* 확인 */
+  th,td{border:1px solid var(--line);padding:6px 8px;text-align:center;}
+  th{background:var(--bg);color:var(--sub);font-weight:700;font-size:11.5px;}
+  td.name{font-weight:600;}
+  .memo-name{cursor:pointer;border-bottom:1px dashed var(--sub);}
+  .memo-name:hover{color:var(--gallery);}
+  .memo-name.has-memo{border-bottom-color:var(--gallery);}
+  .memo-dot{color:var(--gallery);font-size:7px;vertical-align:middle;}
+  input[type=checkbox]{width:15px;height:15px;cursor:pointer;}
+  tr.checked td{background:#f4fbf9;}
+  tr.attended td{background:#eaf6f0;}
+  tr.noshow td{background:#fdecea;}
+  tr.scheduled td{background:#fff;}
+  .status-pill{display:inline-block;font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;}
+  .status-pill.attended{background:#2f6f6b;color:#fff;}
+  .status-pill.noshow{background:#c94f4f;color:#fff;}
+  .status-pill.scheduled{background:#8a93a0;color:#fff;}
+
+  .summary-bar{
+    display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;max-width:360px;
+  }
+  .summary-card{
+    flex:1;min-width:70px;background:var(--bg);border:1px solid var(--line);border-radius:8px;
+    padding:6px 8px;text-align:center;cursor:pointer;transition:box-shadow .15s;
+  }
+  .summary-card:hover{box-shadow:0 2px 8px rgba(0,0,0,.08);}
+  .summary-card .num{font-size:15px;font-weight:800;}
+  .summary-card .label{font-size:10px;color:var(--sub);margin-top:1px;}
+  .summary-card.attended .num{color:#2f6f6b;}
+  .summary-card.noshow .num{color:#c94f4f;}
+  .summary-card.scheduled .num{color:#5b6470;}
+
+  #statusBody{max-height:60vh;overflow-y:auto;}
+  #statusBody .row-line{cursor:pointer;padding:8px 2px;}
+  #statusBody .row-line:hover{background:var(--bg);border-radius:6px;}
+
+  .manager-table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:4px;table-layout:fixed;}
+  .manager-table th,.manager-table td{border:1px solid var(--line);padding:6px 8px;text-align:center;}
+  .manager-table th{background:var(--bg);color:var(--sub);font-weight:700;font-size:11.5px;}
+  .manager-table th:nth-child(1),.manager-table td:nth-child(1){width:34px;}
+  .manager-table th:nth-child(2),.manager-table td:nth-child(2),
+  .manager-table th:nth-child(3),.manager-table td:nth-child(3){width:90px;}
+  .manager-table td.mname{font-weight:700;text-align:center;}
+  .manager-table td.mdanji{text-align:center;}
+  .manager-table td.m-attended{color:#2f6f6b;font-weight:700;}
+  .manager-table td.m-noshow{color:#c94f4f;font-weight:700;}
+  .manager-table td.m-scheduled{color:#5b6470;font-weight:700;}
+  .manager-table td.clickable-count{cursor:pointer;text-decoration:underline;text-decoration-style:dotted;}
+  .manager-table td.clickable-count:hover{background:var(--bg);}
+
+  .chartWeekBar{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:4px;}
+  .chartWeekBar button{border:1px solid var(--line);background:#fff;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;color:var(--ink);}
+  .chartWeekBar span{font-size:12px;font-weight:700;color:var(--ink);min-width:44px;text-align:center;}
+
+  .chart-bars{display:flex;align-items:flex-end;gap:6px;height:56px;padding:4px 4px 0;border-bottom:1px solid var(--line);max-width:320px;}
+  .chart-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;cursor:pointer;border-radius:4px;}
+  .chart-col:hover{background:var(--bg);}
+  .chart-bar-wrap{flex:1;display:flex;align-items:flex-end;}
+  .chart-bar{width:55%;min-width:10px;background:linear-gradient(180deg,var(--gallery),#4a938e);border-radius:3px 3px 0 0;}
+  .chart-label{font-size:9.5px;color:var(--sub);margin-top:2px;font-weight:700;}
+  .chart-count{font-size:9px;color:var(--ink);font-weight:700;}
+
+  .managerFilterBar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
+  .colFilter{position:relative;}
+  .colFilterBtn{
+    border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 12px;
+    font-size:12.5px;font-weight:700;cursor:pointer;color:var(--ink);
+  }
+  .colFilterBtn.active{background:var(--ink);color:#fff;border-color:var(--ink);}
+  .colFilterDropdown{
+    display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:20;
+    background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 10px;
+    min-width:160px;max-height:220px;overflow-y:auto;box-shadow:0 4px 14px rgba(0,0,0,.1);
+  }
+  .colFilterDropdown.open{display:block;}
+  .colFilterDropdown label{display:flex;align-items:center;gap:6px;font-size:12.5px;padding:4px 2px;cursor:pointer;white-space:nowrap;}
+  .colFilterDropdown input[type=checkbox]{width:14px;height:14px;}
+  .colFilterDropdown .df-actions{display:flex;gap:6px;margin-top:6px;padding-top:6px;border-top:1px solid var(--line);}
+  .colFilterDropdown .df-actions button{
+    flex:1;border:none;background:var(--bg);border-radius:6px;padding:4px 0;font-size:11px;cursor:pointer;color:var(--ink);
+  }
+  .managerFilterBar .resetBtn{
+    border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;color:var(--sub);
+  }
+
+  @media print{
+    header, .toolbar, .rangebar, .catbar, .danjiToggleBar, .legend, .month-label, .grid, .filterbar, #addStaffBtn, .modal-actions, .overlay{display:none !important;}
+    body{background:#fff;padding:0;}
+    .checklist-section, .car{border:none;box-shadow:none;padding:0;margin-top:10px;}
+    .summary-bar{margin-bottom:10px;}
+    body.printing-all #checklistBody{display:none !important;}
+    body.printing-all #printAllContainer{display:block !important;}
+  }
+  #printAllContainer{display:none;}
+  .print-date-block{margin-bottom:18px;}
+  @media print{
+    .print-date-block{page-break-after:always;}
+    .print-date-block:last-child{page-break-after:auto;}
+  }
+  .print-date-title{font-size:14px;font-weight:800;margin-bottom:8px;padding-bottom:4px;border-bottom:2px solid var(--ink);}
+
+  .table-scroll{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+
+  @media (max-width:480px){
+    body{padding:12px 8px 40px;}
+    header{flex-direction:column;align-items:flex-start;padding:14px 16px;}
+    header h1{font-size:16px;}
+    .toolbar{width:100%;}
+    .toolbar button{flex:1;font-size:11px;padding:7px 6px;}
+    .rangebar{padding:8px 10px;gap:6px;}
+    .rangebar input[type=date]{font-size:11.5px;padding:5px 6px;}
+    .rangebar button{font-size:11.5px;padding:6px 8px;}
+    .checklist-section, .car{padding:12px 10px;}
+    .summary-card .num{font-size:13px;}
+    .filterbar{gap:6px;}
+    .filterbar select{min-width:0;flex:1;font-size:12px;}
+    table{font-size:11px;}
+    th,td{padding:4px 5px;}
+    .colFilterDropdown{min-width:130px;}
+    .grid{gap:3px;}
+    .cell{height:38px;padding:3px;}
+    .date{font-size:10px;}
+    .b{width:11px;height:11px;font-size:7px;}
+  }
+
+  .car{margin-top:20px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 18px;}
+  .car h3{margin:0 0 8px;font-size:13.5px;}
+  .car table{width:100%;border-collapse:collapse;}
+  .car th{text-align:left;font-size:11px;color:var(--sub);font-weight:700;padding:4px 8px;border-bottom:1px solid var(--line);}
+  .car td{border:none;border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;font-size:12.5px;}
+  .car td[contenteditable]{outline:none;cursor:text;min-width:40px;}
+  .car td[contenteditable]:focus{background:var(--bg);border-radius:4px;}
+  .car td.name{color:var(--ink);font-weight:600;}
+  .car td.del{text-align:center;width:28px;}
+  .car td.del button{border:none;background:none;color:var(--closed);cursor:pointer;font-size:14px;}
+  #addStaffBtn{
+    margin-top:10px;border:1px dashed var(--line);background:var(--bg);color:var(--ink);
+    border-radius:8px;padding:6px 14px;font-size:12.5px;cursor:pointer;
+  }
+  .foot-note{font-size:11.5px;color:var(--sub);margin-top:8px;}
+  .foot-note[contenteditable]{outline:none;cursor:text;border:1px dashed transparent;padding:4px 6px;border-radius:6px;}
+  .foot-note[contenteditable]:hover{border-color:var(--line);}
+  .foot-note[contenteditable]:focus{border-color:var(--line);background:var(--bg);}
+
+  /* 미리보기 모달 */
+  .overlay{display:none;position:fixed;inset:0;background:rgba(20,24,30,.45);align-items:center;justify-content:center;z-index:10;padding:16px;}
+  .overlay.on{display:flex;}
+  .modal{background:#fff;border-radius:14px;max-width:440px;width:100%;max-height:80vh;overflow-y:auto;padding:20px 22px;}
+  .modal h2{margin:0 0 12px;font-size:16px;display:inline-block;}
+  .modal .close{float:right;border:none;background:var(--line);border-radius:50%;width:26px;height:26px;font-size:14px;cursor:pointer;color:var(--sub);}
+  .modal .block{margin-bottom:12px;font-size:12.5px;line-height:1.6;}
+  .modal .block:last-child{margin-bottom:0;}
+  .modal .tag{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:6px;margin-bottom:5px;}
+  .modal .tag.gallery{background:var(--gallery-bg);color:var(--gallery);}
+  .modal .tag.tour{background:var(--tour-bg);color:var(--tour);}
+  .modal .row-line{padding:2px 0;border-bottom:1px dashed var(--line);display:flex;align-items:center;justify-content:space-between;gap:8px;}
+  .modal .row-line:last-child{border-bottom:none;}
+  .modal .row-line span{flex:1;}
+  .modal .row-del{
+    border:none;background:#fdecea;color:var(--closed);border-radius:6px;
+    padding:2px 8px;font-size:10.5px;font-weight:700;cursor:pointer;flex-shrink:0;
+  }
+  .modal .empty-msg{color:var(--sub);font-size:13px;}
+  .preview-actions{margin-top:14px;display:flex;gap:6px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:10px;}
+  .preview-actions button{
+    flex:1;min-width:0;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:7px;
+    padding:7px 2px;font-size:10.5px;font-weight:700;cursor:pointer;white-space:nowrap;
+  }
+  .preview-actions button.on{background:var(--closed);color:#fff;border-color:var(--closed);}
+  .preview-actions button.primary{background:var(--ink);color:#fff;border-color:var(--ink);}
+
+  .memo-actions-inline{display:flex;justify-content:flex-end;gap:10px;margin-top:12px;}
+  .mini-action{font-size:10.5px;font-weight:700;color:var(--sub);cursor:pointer;user-select:none;}
+  .cap-info-line{font-size:11px;color:var(--sub);margin-top:12px;padding-top:10px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;}
+  .mini-action:hover{color:var(--ink);}
+  .mini-action.danger{color:var(--closed);}
+  #memoBody{font-size:15px;line-height:1.7;color:var(--ink);min-height:60px;}
+  #memoBody .empty-msg{font-size:13.5px;}
+  .modal-actions{margin-top:16px;}
+  .modal-actions button{width:100%;border:none;border-radius:8px;padding:10px 0;font-size:13px;font-weight:700;cursor:pointer;background:var(--ink);color:#fff;}
+
+  #formFields .field-label{font-size:11.5px;font-weight:700;color:var(--sub);margin:12px 0 4px;}
+  #formFields .field-label:first-child{margin-top:0;}
+  #formFields input[type=text]{
+    width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;
+    font-size:13px;font-family:inherit;
+  }
+  #formFields textarea{
+    width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;
+    font-size:13px;font-family:inherit;resize:vertical;line-height:1.5;
+  }
+
+  #lockScreen{
+    position:fixed;inset:0;background:var(--ink);color:#fff;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:14px;z-index:999;padding:20px;
+  }
+  #lockScreen h2{margin:0;font-size:17px;}
+  #lockScreen p{margin:0;font-size:12.5px;color:#c7cdd6;}
+  #lockScreen input{
+    border:none;border-radius:8px;padding:10px 14px;font-size:16px;letter-spacing:4px;
+    text-align:center;width:140px;
+  }
+  #lockScreen button{
+    border:none;background:#fff;color:var(--ink);border-radius:8px;padding:9px 20px;
+    font-size:13px;font-weight:700;cursor:pointer;
+  }
+  #lockScreen .err{color:#ff9c9c;font-size:12px;height:16px;}
+  #appRoot{display:none;}
+</style>
+</head>
+<body>
+<div id="lockScreen">
+  <h2>🔒 비밀번호 입력</h2>
+  <p>통합 일정표 열람을 위해 비밀번호가 필요합니다</p>
+  <input type="password" id="pwInput" maxlength="10" inputmode="numeric" placeholder="••••">
+  <button onclick="checkPassword()">열기</button>
+  <div class="err" id="pwErr"></div>
+</div>
+<div id="appRoot">
+<div class="wrap">
+  <header>
+    <div>
+      <h1 id="siteTitle" contenteditable="true">(현장명)일정표</h1>
+      <p id="siteSubtitle" contenteditable="true">갤러리 &amp; 신반포21차 투어</p>
+    </div>
+  </header>
+
+  <div id="printAllContainer"></div>
+
+  <div class="rangebar">
+    <label>시작일</label>
+    <input type="date" id="rangeStart">
+    <label>종료일</label>
+    <input type="date" id="rangeEnd">
+    <button onclick="applyRange()">적용</button>
+    <button class="quick" onclick="setThisMonth()">이번 달</button>
+    <button class="quick" onclick="setNextMonth()">다음 달</button>
+    <span id="rangeErr" style="color:#c94f4f;font-size:12px;"></span>
+  </div>
+
+  <div class="legend">
+    <span class="toggle" id="toggleGallery" onclick="toggleCategory('gallery')"><i class="dot gallery lit" id="dotGallery"></i><span class="cat-label-edit" id="labelGallery" contenteditable="true" onclick="event.stopPropagation()">갤러리</span></span>
+    <span class="toggle" id="toggleTour" onclick="toggleCategory('tour')"><i class="dot tour lit" id="dotTour"></i><span class="cat-label-edit" id="labelTour" contenteditable="true" onclick="event.stopPropagation()">21차투어</span></span>
+    <span class="toggle" id="toggleClosed" onclick="toggleClosedFilter()"><i class="dot closed lit" id="dotClosed"></i>휴관/불가</span>
+  </div>
+
+  <div class="danjiToggleBar" id="danjiToggleBar"></div>
+
+  <div id="calendarArea"></div>
+
+  <div class="checklist-section">
+    <h2>전체 집계</h2>
+    <div class="summary-bar" id="summaryBar"></div>
+
+    <h3 style="font-size:13px;margin:14px 0 6px;">담당자별 집계</h3>
+    <div class="managerFilterBar">
+      <div class="colFilter">
+        <button class="colFilterBtn" id="danjiFilterBtn" onclick="toggleColFilter('danji')">단지명 ▾</button>
+        <div class="colFilterDropdown" id="danjiDropdown"></div>
+      </div>
+      <div class="colFilter">
+        <button class="colFilterBtn" id="managerFilterBtn2" onclick="toggleColFilter('manager')">담당자 ▾</button>
+        <div class="colFilterDropdown" id="managerDropdown2"></div>
+      </div>
+      <button class="resetBtn" onclick="clearManagerColFilters()">필터 초기화</button>
+    </div>
+    <div id="managerTable"></div>
+
+    <h3 style="font-size:12.5px;margin:16px 0 4px;">요일별 인원 현황</h3>
+    <div class="chartWeekBar">
+      <button onclick="prevChartWeek()">◀</button>
+      <span id="chartWeekLabel">1주차</span>
+      <button onclick="nextChartWeek()">▶</button>
+    </div>
+    <div id="statsChart"></div>
+
+    <h2 style="margin-top:20px;">날짜별 체크리스트</h2>
+    <div class="filterbar">
+      <select id="dateFilter"></select>
+      <button onclick="prevDate()">◀ 이전</button>
+      <button onclick="nextDate()">다음 ▶</button>
+      <select id="managerFilter"><option value="">담당자 전체</option></select>
+    </div>
+    <div id="checklistBody"></div>
+  </div>
+
+  <div class="car">
+    <h3>홍보직원 연락처 &amp; 차량</h3>
+    <table id="staffTable">
+      <thead>
+        <tr><th>성함</th><th>연락처</th><th>차량번호</th><th></th></tr>
+      </thead>
+      <tbody id="staffBody"></tbody>
+    </table>
+    <button id="addStaffBtn" onclick="addStaffRow()">+ 인원 추가</button>
+    <div class="foot-note" id="footNote" contenteditable="true">※ 8/8~9, 8/15~16은 갤러리 10:30 / 1:30 2타임 운영</div>
+  </div>
+
+  <div class="toolbar bottom-toolbar">
+    <button onclick="exportExcel()">엑셀</button>
+    <button onclick="window.print()">인쇄</button>
+    <button onclick="openCapacitySettings()">정원</button>
+    <button onclick="printAllDates()">전체인쇄</button>
+    <button onclick="backupScheduleData()">백업</button>
+    <button onclick="restoreScheduleDataPrompt()">불러오기</button>
+    <button onclick="changePassword()">비번변경</button>
+    <button onclick="showHomeScreenGuide()">홈화면추가</button>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <button class="close" onclick="closeModal()">✕</button>
+    <h2 id="modalTitle"></h2>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<div class="overlay" id="formOverlay">
+  <div class="modal">
+    <button class="close" onclick="closeFormOverlay()">✕</button>
+    <h2 id="formTitle"></h2>
+    <div id="formFields"></div>
+    <div class="modal-actions">
+      <button onclick="submitForm()">저장</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="statusOverlay">
+  <div class="modal">
+    <button class="close" onclick="closeStatusOverlay()">✕</button>
+    <h2 id="statusTitle"></h2>
+    <div id="statusBody"></div>
+  </div>
+</div>
+
+<div class="overlay" id="memoOverlay">
+  <div class="modal">
+    <button class="close" onclick="closeMemoOverlay()">✕</button>
+    <h2 id="memoTitle"></h2>
+    <div id="memoBody"></div>
+    <div class="memo-actions-inline" id="memoActions"></div>
+  </div>
+</div>
+</div>
+
+<script>
+const DEFAULT_PASSWORD = "0134";
+const PW_STORAGE_KEY = "calendar_password_v1";
+function getPassword(){
+  return localStorage.getItem(PW_STORAGE_KEY) || DEFAULT_PASSWORD;
+}
+function checkPassword(){
+  const val = document.getElementById("pwInput").value;
+  if(val === getPassword()){
+    document.getElementById("lockScreen").style.display = "none";
+    document.getElementById("appRoot").style.display = "block";
+  } else {
+    document.getElementById("pwErr").textContent = "비밀번호가 올바르지 않습니다";
+  }
+}
+document.getElementById("pwInput").addEventListener("keydown", (e)=>{
+  if(e.key === "Enter") checkPassword();
+});
+
+const STORAGE_CHECK = "calendar_checkmarks_v1";
+
+// ---- 카테고리 명칭(갤러리/21차투어) 편집 가능 ----
+const CAT_LABEL_KEY = "category_labels_v1";
+let CAT_LABEL = {gallery:"갤러리", tour:"21차투어"};
+try{
+  const savedCat = JSON.parse(localStorage.getItem(CAT_LABEL_KEY));
+  if(savedCat) CAT_LABEL = {...CAT_LABEL, ...savedCat};
+}catch(e){}
+function persistCatLabel(){ localStorage.setItem(CAT_LABEL_KEY, JSON.stringify(CAT_LABEL)); }
+
+// ---- 날짜 목록 (요일 포함) ----
+const ALL_DATES = [
+  ["7-20","7월 20일(월)"],["7-21","7월 21일(화)"],["7-22","7월 22일(수)"],["7-23","7월 23일(목)"],
+  ["7-24","7월 24일(금)"],["7-25","7월 25일(토)"],["7-26","7월 26일(일)"],
+  ["7-27","7월 27일(월)"],["7-28","7월 28일(화)"],["7-29","7월 29일(수)"],["7-30","7월 30일(목)"],
+  ["7-31","7월 31일(금)"],["8-1","8월 1일(토)"],["8-2","8월 2일(일)"],["8-3","8월 3일(월)"],
+  ["8-4","8월 4일(화)"],["8-5","8월 5일(수)"],["8-6","8월 6일(목)"],["8-7","8월 7일(금)"],
+  ["8-8","8월 8일(토)"],["8-9","8월 9일(일)"],["8-10","8월 10일(월)"],["8-11","8월 11일(화)"],
+  ["8-12","8월 12일(수)"],["8-13","8월 13일(목)"],["8-14","8월 14일(금)"],["8-15","8월 15일(토)"],
+  ["8-16","8월 16일(일)"]
+];
+const CAPACITY_WEEKDAY_KEY = "capacity_weekday_v1"; // 평일 정원 키
+const CAPACITY_WEEKEND_KEY = "capacity_weekend_v1"; // 주말 정원 키
+const CAPACITY_DATE_KEY = "capacity_date_override_v1"; // 날짜별 정원 개별 지정 키
+let dateCapacityOverrides = {};
+try{ dateCapacityOverrides = JSON.parse(localStorage.getItem(CAPACITY_DATE_KEY)) || {}; }catch(e){ dateCapacityOverrides = {}; }
+function persistDateCapacity(){ localStorage.setItem(CAPACITY_DATE_KEY, JSON.stringify(dateCapacityOverrides)); }
+const WEEKS = [];
+for(let i=0;i<ALL_DATES.length;i+=7){ WEEKS.push(ALL_DATES.slice(i,i+7)); }
+let currentChartWeek = 0;
+
+// ---- 갤러리 참석자 상세 (기본값) ----
+const GALLERY_ROWS_DEFAULT = {
+"7-20":[
+  ["10:30","39우5880","이범수","외2명","임윤경"],
+  ["3시","171호8907","손장수(조)","-","성윤희"],
+  ["3시","126구3842","길정만(이)","외1명","성윤희"],
+  ["3시","171호8907","이달재(이)","-","성윤희"],
+  ["3시","171호8907","연규진(감)","-","장연수"],
+],
+"7-21":[["10:30","339루5560","황성혜","외1명","임윤경"]],
+"7-22":[
+  ["10:30","픽업","이유직","외1명","성윤희"],
+  ["10:30","106누5812","박경곤","외1명","장연수"],
+  ["10:30","53버3624","안상환","외1명","성윤희"],
+  ["3시","381다3295","고진선","외1명","임윤경"],
+],
+"7-24":[
+  ["10:30","39우2361","김형석","외1명","성윤희"],
+  ["1:30","픽업","김수근","외1명","김민주"],
+  ["1:30","281우4514","김진모","외1명","김민주"],
+],
+"7-27":[
+  ["10:30","171호8907","손장수(조)","외2명","성윤희"],
+  ["10:30","171호8907","김옥성","-","김민주"],
+  ["10:30","171호8907","장주홍(대)","-","성윤희"],
+  ["10:30","182노7691","최창섭(이)","외1명","성윤희"],
+],
+"7-28":[["10:30","22구3292","김현성","외3명","김민주"]],
+"7-31":[["10:30","픽업","양혜정","외1명","장연수"]],
+"8-8":[
+  ["1:30","픽업","이기한","외2명","임윤경"],
+  ["1:30","미정","변재현","외3명","장연수"],
+],
+"8-9":[
+  ["1:30","100수2403","권남(대)","외2명","김민주"],
+  ["1:30","미정","최성화","외1명","장연수"],
+  ["1:30","자가","고유리","외3명","김민주"],
+],
+"8-15":[
+  ["10:30","픽업","전홍식(대)","외1명","장연수"],
+  ["10:30","230허2209","박병권","외1명","성윤희"],
+],
+};
+const GALLERY_CLOSED_DEFAULT = {"7-29":"오후 갤러리 불가","8-3":"여름휴관","8-4":"여름휴관","8-5":"여름휴관","8-6":"여름휴관"};
+
+// ---- 신반포21차 투어 상세 (기본값) ----
+const TOUR_ROWS_DEFAULT = {
+"7-20":[["1:30","14단지","-","랜드부동산","오영순+1","김진숙·오지현"]],
+"7-22":[
+  ["1:30","14단지","-","선일부동산","백정순,성은희","오지현"],
+  ["1:30","14단지","-","한양부동산","임보라","오지현"],
+  ["1:30","14단지","-","이경문+최지숙","(부부)","김진숙"],
+],
+"7-23":[["2시","14단지","-","새한부동산","박영남,이채은","김진숙"]],
+"7-27":[
+  ["1시","14단지","-","신탁·홍익부동산","한지희,이경희,이경애","김진숙"],
+  ["1:30","14단지","-","건양부동산","강경희","오지현"],
+],
+"7-29":[
+  ["11시","14단지","-","문주성","김영숙(부인)","오지현"],
+  ["1:30","14단지","31-601","백정순","-","오지현"],
+  ["1:30","14단지","1-603","최원석","권금향(부인)","오지현"],
+  ["1:30","14단지","22-606","하영호","이미숙(부인)","오지현"],
+  ["1:30","14단지","30-1504","이상희","-","오지현"],
+],
+"7-30":[
+  ["11시","14단지","-","국제부동산","이영희,김보령","오지현"],
+  ["1:30","11단지","3-1004","김정분","-","전이수"],
+  ["1:30","11단지","10-1301","정인순","-","전이수"],
+],
+"8-6":[["1:30","14단지","-","유정해","-","오지현"]],
+"8-13":[
+  ["1시","14단지","3-1102","권은어","-","김진숙"],
+  ["1시","14단지","30-403","유해란","-","김진숙"],
+  ["1시","14단지","19-804","곽윤정","-","김진숙"],
+],
+};
+
+// ---- 실제 사용 데이터 (수정 가능, localStorage에 저장됨) ----
+const SCHEDULE_DATA_KEY = "manual_schedule_data_v1";
+let GALLERY_ROWS, TOUR_ROWS, GALLERY_CLOSED;
+function loadScheduleData(){
+  try{
+    const raw = localStorage.getItem(SCHEDULE_DATA_KEY);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      GALLERY_ROWS = parsed.GALLERY_ROWS || {};
+      TOUR_ROWS = parsed.TOUR_ROWS || {};
+      GALLERY_CLOSED = parsed.GALLERY_CLOSED || {};
+      return;
+    }
+  }catch(e){}
+  GALLERY_ROWS = JSON.parse(JSON.stringify(GALLERY_ROWS_DEFAULT));
+  TOUR_ROWS = JSON.parse(JSON.stringify(TOUR_ROWS_DEFAULT));
+  GALLERY_CLOSED = JSON.parse(JSON.stringify(GALLERY_CLOSED_DEFAULT));
+}
+function persistScheduleData(){
+  localStorage.setItem(SCHEDULE_DATA_KEY, JSON.stringify({GALLERY_ROWS, TOUR_ROWS, GALLERY_CLOSED}));
+}
+loadScheduleData();
+
+const DATA = {}; // 캘린더 배지 표시용
+function rebuildDATA(){
+  Object.keys(DATA).forEach(k=>delete DATA[k]);
+  ALL_DATES.forEach(([k])=>{
+    const g = GALLERY_ROWS[k] || GALLERY_CLOSED[k];
+    const t = TOUR_ROWS[k];
+    if(g || t){
+      DATA[k] = {gallery: !!g, tour: !!t, closed: !!GALLERY_CLOSED[k]};
+    }
+  });
+  // ALL_DATES에 없는(범위 밖) 날짜도 배지 계산에 포함
+  new Set([...Object.keys(GALLERY_ROWS), ...Object.keys(TOUR_ROWS), ...Object.keys(GALLERY_CLOSED)]).forEach(k=>{
+    const g = GALLERY_ROWS[k] || GALLERY_CLOSED[k];
+    const t = TOUR_ROWS[k];
+    if(g || t){
+      DATA[k] = {gallery: !!g, tour: !!t, closed: !!GALLERY_CLOSED[k]};
+    }
+  });
+}
+rebuildDATA();
+
+function onScheduleDataChanged(){
+  persistScheduleData();
+  rebuildDATA();
+  buildCalendarArea();
+  selectDate(currentDateKey, false);
+  updateSummary();
+  updateManagerTable();
+  updateStatsChart();
+  populateManagerFilter();
+  populateDanjiToggleBar();
+}
+
+// ---- 일정 데이터 백업/불러오기 (JSON 파일) ----
+function backupScheduleData(){
+  const blob = new Blob([JSON.stringify({GALLERY_ROWS, TOUR_ROWS, GALLERY_CLOSED}, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "통합일정표_일정백업.json";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+function restoreScheduleDataPrompt(){
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "application/json";
+  input.onchange = (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev)=>{
+      try{
+        const parsed = JSON.parse(ev.target.result);
+        GALLERY_ROWS = parsed.GALLERY_ROWS || {};
+        TOUR_ROWS = parsed.TOUR_ROWS || {};
+        GALLERY_CLOSED = parsed.GALLERY_CLOSED || {};
+        onScheduleDataChanged();
+      }catch(err){
+        alert("파일을 읽을 수 없습니다. 올바른 백업 JSON 파일인지 확인해주세요.");
+        console.error("restoreScheduleDataPrompt: invalid JSON file");
+      }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+let checkState = {};
+try{ checkState = JSON.parse(localStorage.getItem(STORAGE_CHECK)) || {}; }catch(e){ checkState = {}; }
+function persistCheck(){ localStorage.setItem(STORAGE_CHECK, JSON.stringify(checkState)); }
+
+// ---- 참석자 메모 ----
+const MEMO_KEY = "person_memos_v1";
+let personMemos = {};
+try{ personMemos = JSON.parse(localStorage.getItem(MEMO_KEY)) || {}; }catch(e){ personMemos = {}; }
+function persistMemos(){ localStorage.setItem(MEMO_KEY, JSON.stringify(personMemos)); }
+let memoContext = null; // {rowKey, displayName, refresh}
+
+function openMemoForm(rowKey, displayName){
+  openMemoPreview(rowKey, displayName, ()=>selectDate(currentDateKey, false));
+}
+function openMemoFormFromStatus(rowKey, displayName, status, managerFilter){
+  openMemoPreview(rowKey, displayName, ()=>openStatusPreview(status, managerFilter||null));
+}
+
+function escText(s){
+  return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+function openMemoPreview(rowKey, displayName, refresh){
+  memoContext = {rowKey, displayName, refresh};
+  document.getElementById("memoTitle").textContent = displayName;
+  const memo = personMemos[rowKey];
+  document.getElementById("memoBody").innerHTML = memo
+    ? "<div class='block'>"+escText(memo).replace(/\n/g,"<br>")+"</div>"
+    : "<div class='empty-msg'>등록된 메모가 없습니다.</div>";
+  document.getElementById("memoActions").innerHTML =
+    "<span class='mini-action' onclick=\"editMemo()\">• 수정</span>"+
+    (memo ? "<span class='mini-action danger' onclick=\"deleteMemo(this)\">• 삭제</span>" : "");
+  document.getElementById("memoOverlay").classList.add("on");
+}
+function closeMemoOverlay(){
+  document.getElementById("memoOverlay").classList.remove("on");
+}
+document.getElementById("memoOverlay").addEventListener("click",(e)=>{
+  if(e.target.id==="memoOverlay") closeMemoOverlay();
+});
+function editMemo(){
+  const {rowKey, displayName, refresh} = memoContext;
+  closeMemoOverlay();
+  openForm("메모 — "+displayName, [
+    {id:"memo", label:"메모 내용", placeholder:"예: 연락처, 특이사항 등", value: personMemos[rowKey]||"", multiline:true}
+  ], (v)=>{
+    if(v.memo) personMemos[rowKey] = v.memo;
+    else delete personMemos[rowKey];
+    persistMemos();
+    if(refresh) refresh();
+  });
+}
+function deleteMemo(btn){
+  if(btn.dataset.confirm !== "1"){
+    btn.dataset.confirm = "1";
+    btn.textContent = "정말 삭제?";
+    setTimeout(()=>{ if(btn){ btn.dataset.confirm=""; btn.textContent="삭제"; } }, 3000);
+    return;
+  }
+  const {rowKey, refresh} = memoContext;
+  delete personMemos[rowKey];
+  persistMemos();
+  closeMemoOverlay();
+  if(refresh) refresh();
+}
+
+function pad(n){return n<10 ? "0"+n : ""+n;}
+function toISO(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());}
+function mondayIndex(jsDay){return (jsDay+6)%7;}
+
+const RANGE_KEY = "calendar_range_v1";
+const defaultRange = {start:"2026-07-20", end:"2026-08-16"};
+function loadRange(){
+  try{
+    const raw = localStorage.getItem(RANGE_KEY);
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  return {...defaultRange};
+}
+function persistRange(){ localStorage.setItem(RANGE_KEY, JSON.stringify(range)); }
+let range = loadRange();
+
+function buildCalendarArea(){
+  const area = document.getElementById("calendarArea");
+  area.innerHTML = "";
+  const start = new Date(range.start+"T00:00:00");
+  const end = new Date(range.end+"T00:00:00");
+  if(isNaN(start) || isNaN(end) || start>end){
+    area.innerHTML = "<div class='empty-day'>날짜 범위를 올바르게 지정해주세요.</div>";
+    return;
+  }
+  let cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+  const lastMonth = new Date(end.getFullYear(), end.getMonth(), 1);
+  const dowNames = ["월","화","수","목","금","토","일"];
+
+  while(cursor <= lastMonth){
+    const y = cursor.getFullYear();
+    const m = cursor.getMonth()+1;
+    const daysInMonth = new Date(y, m, 0).getDate();
+    const monthStartD = (y===start.getFullYear() && m===(start.getMonth()+1)) ? start.getDate() : 1;
+    const monthEndD = (y===end.getFullYear() && m===(end.getMonth()+1)) ? end.getDate() : daysInMonth;
+
+    const label = document.createElement("div");
+    label.className = "month-label";
+    label.textContent = y+"년 "+m+"월";
+    area.appendChild(label);
+
+    const grid = document.createElement("div");
+    grid.className = "grid";
+    area.appendChild(grid);
+
+    dowNames.forEach((d,i)=>{
+      const el = document.createElement("div");
+      el.className = "dow" + (i===6?" sun":"");
+      el.textContent = d;
+      grid.appendChild(el);
+    });
+
+    const firstJsDay = new Date(y, m-1, monthStartD).getDay();
+    const leadBlanks = mondayIndex(firstJsDay);
+    for(let i=0;i<leadBlanks;i++){
+      const el = document.createElement("div");
+      el.className = "cell empty";
+      grid.appendChild(el);
+    }
+
+    const today = new Date(); today.setHours(0,0,0,0);
+    for(let d=monthStartD; d<=monthEndD; d++){
+      const key = m+"-"+d;
+      const dowIndex = mondayIndex(new Date(y, m-1, d).getDay());
+      const el = document.createElement("div");
+      el.className = "cell" + (dowIndex===6?" sun":"");
+      el.id = "cal-"+key;
+      const info = DATA[key];
+      const isClosedDay = info && info.closed;
+      const hasGalleryRows = !!GALLERY_ROWS[key];
+      const showClosed = isClosedDay && activeCategories.gallery && galleryMatchesDanjiFilter() && showClosedToggle;
+      if(showClosed) el.className += " gclosed";
+      const cellDate = new Date(y, m-1, d);
+      if(cellDate.getTime()===today.getTime()) el.className += " today";
+      el.innerHTML = "<div class='date'>"+d+"</div>";
+      const badges = document.createElement("div");
+      badges.className = "badges";
+      if(info){
+        if(showClosed) badges.innerHTML += "<div class='b closed'>휴</div>";
+        if(hasGalleryRows && activeCategories.gallery && galleryMatchesDanjiFilter()) badges.innerHTML += "<div class='b gallery'>갤</div>";
+        if(info.tour && activeCategories.tour && tourMatchesDanjiFilter(key)) badges.innerHTML += "<div class='b tour'>투</div>";
+      }
+      el.appendChild(badges);
+
+      const capacity = getCapacityForKey(key);
+      if(capacity>0 && info && !showClosed){
+        const headcount = computeDateHeadcount(key);
+        if(headcount>0){
+          const capEl = document.createElement("div");
+          if(headcount>=capacity){
+            capEl.className = "cap-status full";
+            capEl.textContent = "마감";
+            const ribbon = document.createElement("div");
+            ribbon.className = "cap-ribbon";
+            ribbon.textContent = "마감";
+            el.appendChild(ribbon);
+            el.className += " cap-full";
+          } else {
+            capEl.className = "cap-status";
+            capEl.textContent = (capacity-headcount)+"명 남음";
+          }
+          el.appendChild(capEl);
+        }
+      }
+
+      el.onclick = ()=>openPreview(key);
+      grid.appendChild(el);
+    }
+    cursor = new Date(y, m, 1);
+  }
+}
+
+function applyRange(){
+  const s = document.getElementById("rangeStart").value;
+  const e = document.getElementById("rangeEnd").value;
+  const errEl = document.getElementById("rangeErr");
+  if(!s || !e){ errEl.textContent = "시작일과 종료일을 모두 선택해주세요."; return; }
+  if(s > e){ errEl.textContent = "종료일이 시작일보다 빠릅니다."; return; }
+  errEl.textContent = "";
+  range = {start:s, end:e};
+  persistRange();
+  buildCalendarArea();
+}
+function setThisMonth(){
+  const now = new Date();
+  const s = new Date(now.getFullYear(), now.getMonth(), 1);
+  const e = new Date(now.getFullYear(), now.getMonth()+1, 0);
+  document.getElementById("rangeStart").value = toISO(s);
+  document.getElementById("rangeEnd").value = toISO(e);
+  applyRange();
+}
+function setNextMonth(){
+  const now = new Date();
+  const s = new Date(now.getFullYear(), now.getMonth()+1, 1);
+  const e = new Date(now.getFullYear(), now.getMonth()+2, 0);
+  document.getElementById("rangeStart").value = toISO(s);
+  document.getElementById("rangeEnd").value = toISO(e);
+  applyRange();
+}
+
+function populateFilter(){
+  const sel = document.getElementById("dateFilter");
+  sel.innerHTML = "";
+  ALL_DATES.forEach(([k,label])=>{
+    const opt = document.createElement("option");
+    opt.value = k;
+    opt.textContent = label + ((GALLERY_ROWS[k]||TOUR_ROWS[k]||GALLERY_CLOSED[k]) ? "" : "  (일정없음)");
+    sel.appendChild(opt);
+  });
+  sel.onchange = ()=>selectDate(sel.value, false);
+}
+
+// 원본 데이터 배열을 [시간, 단지명, 동호수, 성함, 동반, 담당, 픽업/자가] 순서로 재정렬
+const GALLERY_DANJI = "화랑아파트";
+function reorderRow(kind, r){
+  if(kind==="gallery"){
+    // r = [시간, 자가/픽업, 성함, 동반, 담당]
+    const [time, spot, name, plus, manager] = r;
+    return [time, GALLERY_DANJI, "-", name, plus, manager, spot];
+  } else {
+    // r = [시간, 단지, 동호수, 성함/업체, 동반, 담당]
+    const [time, danji, ho, name, plus, manager] = r;
+    return [time, danji, ho, name, plus, manager, "-"];
+  }
+}
+
+// 오늘 날짜 기준으로 해당 날짜가 지났는지 판단 (연도는 2026 가정)
+function parseKeyDate(key){
+  const [m,d] = key.split("-").map(Number);
+  return new Date(2026, m-1, d);
+}
+function isPast(key){
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  return parseKeyDate(key) < today;
+}
+
+function rowStatus(kind, key, idx){
+  const rowKey = kind+"_"+key+"_"+idx;
+  if(!isPast(key)) return "scheduled";
+  return checkState[rowKey] ? "attended" : "noshow";
+}
+
+let activeCategories = {gallery:true, tour:true};
+function toggleCategory(kind){
+  activeCategories[kind] = !activeCategories[kind];
+  const dotId = kind==="gallery" ? "dotGallery" : "dotTour";
+  document.getElementById(dotId).classList.toggle("lit", activeCategories[kind]);
+  buildCalendarArea();
+  selectDate(currentDateKey, false);
+}
+
+let showClosedToggle = true;
+function toggleClosedFilter(){
+  showClosedToggle = !showClosedToggle;
+  document.getElementById("dotClosed").classList.toggle("lit", showClosedToggle);
+  buildCalendarArea();
+  selectDate(currentDateKey, false);
+}
+
+// ---------- 단지별 토글 필터 (예: 화랑아파트, 14단지, 11단지) ----------
+let activeDanjiFilter = new Set(); // 비어있으면 전체 표시
+function galleryMatchesDanjiFilter(){
+  return activeDanjiFilter.size===0 || activeDanjiFilter.has(GALLERY_DANJI);
+}
+function tourMatchesDanjiFilter(key){
+  if(activeDanjiFilter.size===0) return true;
+  const rows = TOUR_ROWS[key];
+  if(!rows) return false;
+  return rows.some(r=>activeDanjiFilter.has(r[1]));
+}
+function populateDanjiToggleBar(){
+  const danjiSet = new Set([GALLERY_DANJI]);
+  Object.values(TOUR_ROWS).forEach(rows=>rows.forEach(r=>danjiSet.add(r[1])));
+  const names = [...danjiSet].sort();
+  const bar = document.getElementById("danjiToggleBar");
+  bar.innerHTML = names.map(name=>
+    "<span class='toggle' id='danjiTog-"+name+"' onclick=\"toggleDanjiFilter('"+name+"')\"><i class='dot danji' id='danjiDot-"+name+"'></i>"+name+"</span>"
+  ).join("");
+}
+function toggleDanjiFilter(name){
+  if(activeDanjiFilter.has(name)) activeDanjiFilter.delete(name);
+  else activeDanjiFilter.add(name);
+  document.getElementById("danjiDot-"+name).classList.toggle("lit", activeDanjiFilter.has(name));
+  buildCalendarArea();
+  selectDate(currentDateKey, false);
+}
+
+let managerFilterValue = "";
+
+function populateManagerFilter(){
+  const managers = new Set();
+  Object.values(GALLERY_ROWS).forEach(rows=>rows.forEach(r=>managers.add(r[4])));
+  Object.values(TOUR_ROWS).forEach(rows=>rows.forEach(r=>managers.add(r[5])));
+  const sel = document.getElementById("managerFilter");
+  [...managers].sort().forEach(name=>{
+    const opt = document.createElement("option");
+    opt.value = name;
+    opt.textContent = name;
+    sel.appendChild(opt);
+  });
+  sel.onchange = ()=>{
+    managerFilterValue = sel.value;
+    selectDate(currentDateKey, false);
+  };
+}
+
+function renderTable(kind, key, rows, colorClass, tagLabel){
+  if(!rows || rows.length===0) return "";
+  const managerIdx = kind==="gallery" ? 4 : 5;
+  const danjiOf = (raw)=> kind==="gallery" ? GALLERY_DANJI : raw[1];
+  const visibleIdx = [];
+  rows.forEach((raw, idx)=>{
+    const managerOk = !managerFilterValue || raw[managerIdx]===managerFilterValue;
+    const danjiOk = activeDanjiFilter.size===0 || activeDanjiFilter.has(danjiOf(raw));
+    if(managerOk && danjiOk) visibleIdx.push(idx);
+  });
+  if(visibleIdx.length===0) return "";
+  let html = "<div class='sub-title'><span class='tag "+colorClass+"'>"+tagLabel+"</span></div>";
+  html += "<div class='table-scroll'>";
+  const headers = ["시간","단지명","동호수","성함","동반","담당","픽업<br>자가","확인"];
+  html += "<table><thead><tr>" + headers.map(h=>"<th>"+h+"</th>").join("") + "</tr></thead><tbody>";
+  visibleIdx.forEach(idx=>{
+    const raw = rows[idx];
+    const r = reorderRow(kind, raw);
+    const rowKey = kind+"_"+key+"_"+idx;
+    const isChecked = !!checkState[rowKey];
+    const status = rowStatus(kind, key, idx);
+    const hasMemo = !!personMemos[rowKey];
+    html += "<tr class='"+status+"' data-rowkey='"+rowKey+"'>";
+    r.forEach((v,ci)=>{
+      if(ci===3){
+        html += "<td class='name'><span class='memo-name"+(hasMemo?" has-memo":"")+"' onclick=\"openMemoForm('"+rowKey+"','"+v.replace(/'/g,"&#39;")+"')\">"+v+(hasMemo?" <span class='memo-dot'>●</span>":"")+"</span></td>";
+      } else {
+        html += "<td class='name'>"+v+"</td>";
+      }
+    });
+    html += "<td><input type='checkbox' "+(isChecked?"checked":"")+" onchange=\"toggleCheck('"+kind+"','"+key+"',"+idx+", this)\"></td>";
+    html += "</tr>";
+  });
+  html += "</tbody></table></div>";
+  return html;
+}
+
+function toggleCheck(kind, key, idx, el){
+  const rowKey = kind+"_"+key+"_"+idx;
+  checkState[rowKey] = el.checked;
+  persistCheck();
+  const tr = el.closest("tr");
+  tr.className = rowStatus(kind, key, idx);
+  updateSummary();
+  updateManagerTable();
+  updateStatsChart();
+}
+
+function updateSummary(){
+  let attended=0, noshow=0, scheduled=0;
+  Object.keys(GALLERY_ROWS).forEach(key=>{
+    GALLERY_ROWS[key].forEach((_,idx)=>{
+      const s = rowStatus("gallery", key, idx);
+      if(s==="attended") attended++; else if(s==="noshow") noshow++; else scheduled++;
+    });
+  });
+  Object.keys(TOUR_ROWS).forEach(key=>{
+    TOUR_ROWS[key].forEach((_,idx)=>{
+      const s = rowStatus("tour", key, idx);
+      if(s==="attended") attended++; else if(s==="noshow") noshow++; else scheduled++;
+    });
+  });
+  const bar = document.getElementById("summaryBar");
+  bar.innerHTML =
+    "<div class='summary-card attended' onclick=\"openStatusPreview('attended')\"><div class='num'>"+attended+"</div><div class='label'>참석</div></div>"+
+    "<div class='summary-card noshow' onclick=\"openStatusPreview('noshow')\"><div class='num'>"+noshow+"</div><div class='label'>불참</div></div>"+
+    "<div class='summary-card scheduled' onclick=\"openStatusPreview('scheduled')\"><div class='num'>"+scheduled+"</div><div class='label'>예정</div></div>";
+}
+
+// ---------- 참석/불참/예정 클릭 시 인원 미리보기 ----------
+const STATUS_LABELS = {attended:"참석", noshow:"불참", scheduled:"예정"};
+function renderStatusTable(kind, key, status, managerFilter){
+  const store = kind==="gallery" ? GALLERY_ROWS : TOUR_ROWS;
+  const rows = store[key];
+  if(!rows) return "";
+  const managerIdx = kind==="gallery" ? 4 : 5;
+  const idxList = [];
+  rows.forEach((r,idx)=>{
+    if(rowStatus(kind,key,idx)!==status) return;
+    if(managerFilter && r[managerIdx]!==managerFilter) return;
+    idxList.push(idx);
+  });
+  if(idxList.length===0) return "";
+  const tagClass = kind==="gallery" ? "gallery" : "tour";
+  const tagLabel = kind==="gallery" ? CAT_LABEL.gallery : CAT_LABEL.tour;
+  let html = "<div class='sub-title'><span class='tag "+tagClass+"'>"+tagLabel+"</span></div>";
+  html += "<div class='table-scroll'><table><thead><tr>"+
+    ["시간","단지명","동호수","성함","동반","담당","픽업<br>자가","확인"].map(h=>"<th>"+h+"</th>").join("")+
+    "</tr></thead><tbody>";
+  idxList.forEach(idx=>{
+    const raw = rows[idx];
+    const r = reorderRow(kind, raw);
+    const rowKey = kind+"_"+key+"_"+idx;
+    const isChecked = !!checkState[rowKey];
+    const hasMemo = !!personMemos[rowKey];
+    html += "<tr class='"+status+"'>";
+    r.forEach((v,ci)=>{
+      if(ci===3){
+        html += "<td class='name'><span class='memo-name"+(hasMemo?" has-memo":"")+"' onclick=\"openMemoFormFromStatus('"+rowKey+"','"+v.replace(/'/g,"&#39;")+"','"+status+"','"+(managerFilter?managerFilter.replace(/'/g,"&#39;"):"")+"')\">"+v+(hasMemo?" <span class='memo-dot'>●</span>":"")+"</span></td>";
+      } else {
+        html += "<td class='name'>"+v+"</td>";
+      }
+    });
+    html += "<td><input type='checkbox' "+(isChecked?"checked":"")+
+      " onchange=\"toggleCheckFromStatus('"+kind+"','"+key+"',"+idx+",this,'"+status+"','"+(managerFilter?managerFilter.replace(/'/g,"&#39;"):"")+"')\"></td>";
+    html += "</tr>";
+  });
+  html += "</tbody></table></div>";
+  return html;
+}
+
+function toggleCheckFromStatus(kind, key, idx, el, status, managerFilter){
+  toggleCheck(kind, key, idx, el);
+  openStatusPreview(status, managerFilter || null);
+}
+
+function openStatusPreview(status, managerFilter){
+  managerFilter = managerFilter || null;
+  const dateKeys = new Set();
+  Object.keys(GALLERY_ROWS).forEach(key=>{
+    GALLERY_ROWS[key].forEach((r,idx)=>{
+      if(rowStatus("gallery",key,idx)!==status) return;
+      if(managerFilter && r[4]!==managerFilter) return;
+      dateKeys.add(key);
+    });
+  });
+  Object.keys(TOUR_ROWS).forEach(key=>{
+    TOUR_ROWS[key].forEach((r,idx)=>{
+      if(rowStatus("tour",key,idx)!==status) return;
+      if(managerFilter && r[5]!==managerFilter) return;
+      dateKeys.add(key);
+    });
+  });
+  const sortedKeys = [...dateKeys].sort((a,b)=>parseKeyDate(a)-parseKeyDate(b));
+
+  let totalCount = 0;
+  let html = "";
+  sortedKeys.forEach(key=>{
+    const gHtml = renderStatusTable("gallery", key, status, managerFilter);
+    const tHtml = renderStatusTable("tour", key, status, managerFilter);
+    if(!gHtml && !tHtml) return;
+    const gCount = (GALLERY_ROWS[key]||[]).filter((r,idx)=>rowStatus("gallery",key,idx)===status && (!managerFilter || r[4]===managerFilter)).length;
+    const tCount = (TOUR_ROWS[key]||[]).filter((r,idx)=>rowStatus("tour",key,idx)===status && (!managerFilter || r[5]===managerFilter)).length;
+    totalCount += gCount + tCount;
+    html += "<div class='print-date-block'><div class='print-date-title'>"+labelFor(key)+"</div>"+gHtml+tHtml+"</div>";
+  });
+
+  const titlePrefix = managerFilter ? (managerFilter+" · ") : "";
+  document.getElementById("statusTitle").textContent = titlePrefix+STATUS_LABELS[status]+" 인원 ("+totalCount+"명)";
+  document.getElementById("statusBody").innerHTML = html || "<div class='empty-msg'>해당 인원이 없습니다.</div>";
+  document.getElementById("statusOverlay").classList.add("on");
+}
+function closeStatusOverlay(){
+  document.getElementById("statusOverlay").classList.remove("on");
+}
+document.getElementById("statusOverlay").addEventListener("click",(e)=>{
+  if(e.target.id==="statusOverlay") closeStatusOverlay();
+});
+function jumpToDateFromStatus(key){
+  closeStatusOverlay();
+  selectDate(key, true);
+}
+
+// ---------- 담당자별 집계 ----------
+let selectedDanji = new Set();   // 비어있으면 전체 표시
+let selectedManagers = new Set();
+
+function computeManagerTally(){
+  const tally = {};
+  function bump(manager, status, danji){
+    if(!manager) return;
+    if(!tally[manager]) tally[manager] = {attended:0, noshow:0, scheduled:0, danji:new Set()};
+    tally[manager][status]++;
+    if(danji) tally[manager].danji.add(danji);
+  }
+  Object.keys(GALLERY_ROWS).forEach(key=>{
+    GALLERY_ROWS[key].forEach((r, idx)=>{
+      const manager = r[4];
+      const status = rowStatus("gallery", key, idx);
+      bump(manager, status, GALLERY_DANJI);
+    });
+  });
+  Object.keys(TOUR_ROWS).forEach(key=>{
+    TOUR_ROWS[key].forEach((r, idx)=>{
+      const manager = r[5];
+      const danji = r[1];
+      const status = rowStatus("tour", key, idx);
+      bump(manager, status, danji);
+    });
+  });
+  return tally;
+}
+
+function populateManagerColDropdowns(){
+  const tally = computeManagerTally();
+  const allDanji = new Set();
+  const allManagers = Object.keys(tally).sort();
+  allManagers.forEach(name=>{ tally[name].danji.forEach(d=>allDanji.add(d)); });
+
+  const danjiWrap = document.getElementById("danjiDropdown");
+  danjiWrap.innerHTML = [...allDanji].sort().map(d=>
+    "<label><input type='checkbox' class='danji-chk' value='"+d+"' onchange=\"onColFilterChange('danji')\">"+d+"</label>"
+  ).join("") + "<div class='df-actions'><button onclick=\"selectAllCol('danji')\">전체</button><button onclick=\"clearCol('danji')\">해제</button></div>";
+
+  const managerWrap = document.getElementById("managerDropdown2");
+  managerWrap.innerHTML = allManagers.map(m=>
+    "<label><input type='checkbox' class='manager-chk' value='"+m+"' onchange=\"onColFilterChange('manager')\">"+m+"</label>"
+  ).join("") + "<div class='df-actions'><button onclick=\"selectAllCol('manager')\">전체</button><button onclick=\"clearCol('manager')\">해제</button></div>";
+}
+
+function onColFilterChange(kind){
+  const cls = kind==="danji" ? ".danji-chk" : ".manager-chk";
+  const set = kind==="danji" ? selectedDanji : selectedManagers;
+  set.clear();
+  document.querySelectorAll(cls+":checked").forEach(cb=>set.add(cb.value));
+  updateManagerTable();
+  updateColFilterBtnState();
+}
+function selectAllCol(kind){
+  const cls = kind==="danji" ? ".danji-chk" : ".manager-chk";
+  document.querySelectorAll(cls).forEach(cb=>cb.checked=true);
+  onColFilterChange(kind);
+}
+function clearCol(kind){
+  const cls = kind==="danji" ? ".danji-chk" : ".manager-chk";
+  document.querySelectorAll(cls).forEach(cb=>cb.checked=false);
+  onColFilterChange(kind);
+}
+function updateColFilterBtnState(){
+  document.getElementById("danjiFilterBtn").classList.toggle("active", selectedDanji.size>0);
+  document.getElementById("managerFilterBtn2").classList.toggle("active", selectedManagers.size>0);
+}
+function toggleColFilter(kind){
+  const id = kind==="danji" ? "danjiDropdown" : "managerDropdown2";
+  const dd = document.getElementById(id);
+  const isOpen = dd.classList.contains("open");
+  document.querySelectorAll(".colFilterDropdown").forEach(d=>d.classList.remove("open"));
+  if(!isOpen) dd.classList.add("open");
+}
+document.addEventListener("click", (e)=>{
+  if(!e.target.closest(".colFilter")){
+    document.querySelectorAll(".colFilterDropdown").forEach(d=>d.classList.remove("open"));
+  }
+});
+function clearManagerColFilters(){
+  selectedDanji.clear();
+  selectedManagers.clear();
+  document.querySelectorAll(".danji-chk, .manager-chk").forEach(cb=>cb.checked=false);
+  updateColFilterBtnState();
+  updateManagerTable();
+}
+
+function danjiSortKey(danjiLabel){
+  // 화랑아파트가 항상 먼저, 그 다음 단지 숫자 오름차순
+  const first = (danjiLabel||"").split("/")[0];
+  if(first.includes("화랑")) return -1;
+  const m = first.match(/(\d+)/);
+  return m ? parseInt(m[1],10) : 999;
+}
+
+// "김진숙·오지현" 같은 공동담당은 마지막 이름 기준으로 정렬 (해당 개인 담당자 바로 아래에 위치)
+function managerSortName(name){
+  const parts = name.split(/[·,]/).map(s=>s.trim()).filter(Boolean);
+  return parts.length ? parts[parts.length-1] : name;
+}
+
+function updateManagerTable(){
+  const tally = computeManagerTally();
+  const names = Object.keys(tally).sort((a,b)=>{
+    const da = [...tally[a].danji].join("/");
+    const db = [...tally[b].danji].join("/");
+    const ka = danjiSortKey(da), kb = danjiSortKey(db);
+    if(ka!==kb) return ka-kb;
+    const sa = managerSortName(a), sb = managerSortName(b);
+    if(sa!==sb) return sa.localeCompare(sb, "ko");
+    const aCombined = a !== sa;
+    const bCombined = b !== sb;
+    if(aCombined !== bCombined) return aCombined ? 1 : -1; // 공동담당은 개인 담당자 다음
+    return a.localeCompare(b, "ko");
+  });
+
+  let html = "<table class='manager-table'><thead><tr><th>No</th><th>단지명</th><th>담당자</th><th>참석</th><th>예정</th><th>불참</th><th>합계</th></tr></thead><tbody>";
+  let rowNum = 0;
+  names.forEach(name=>{
+    const t = tally[name];
+    const danjiLabel = [...t.danji].join("/");
+    if(selectedManagers.size>0 && !selectedManagers.has(name)) return;
+    if(selectedDanji.size>0 && ![...t.danji].some(d=>selectedDanji.has(d))) return;
+    rowNum++;
+    const total = t.attended + t.noshow + t.scheduled;
+    const nameEsc = name.replace(/'/g,"&#39;");
+    html += "<tr><td>"+rowNum+"</td><td class='mdanji'>"+danjiLabel+"</td><td class='mname'>"+name+"</td>"+
+      "<td class='m-attended clickable-count' onclick=\"openStatusPreview('attended','"+nameEsc+"')\">"+t.attended+"</td>"+
+      "<td class='m-scheduled clickable-count' onclick=\"openStatusPreview('scheduled','"+nameEsc+"')\">"+t.scheduled+"</td>"+
+      "<td class='m-noshow clickable-count' onclick=\"openStatusPreview('noshow','"+nameEsc+"')\">"+t.noshow+"</td>"+
+      "<td>"+total+"</td></tr>";
+  });
+  if(rowNum===0){
+    html += "<tr><td colspan='7' style='color:var(--sub);padding:12px;'>조건에 맞는 담당자가 없습니다.</td></tr>";
+  }
+  html += "</tbody></table>";
+  document.getElementById("managerTable").innerHTML = html;
+}
+
+// ---------- 요일별 참석 현황 차트 ----------
+function updateStatsChart(){
+  const week = WEEKS[currentChartWeek] || [];
+  const labelEl = document.getElementById("chartWeekLabel");
+  if(labelEl) labelEl.textContent = (currentChartWeek+1)+"주차";
+
+  const counts = week.map(([key])=>computeDateHeadcount(key));
+  const maxCount = Math.max(1, ...counts);
+  let html = "<div class='chart-bars'>";
+  week.forEach(([key,label],i)=>{
+    const count = counts[i];
+    const barHeight = count>0 ? Math.max(6, Math.round((count/maxCount)*40)) : 2;
+    const m = label.match(/\(([^)]+)\)/);
+    const dowLabel = m ? m[1] : "";
+    html += "<div class='chart-col' onclick=\"openPreview('"+key+"')\" title='"+label+" · "+count+"명'>"+
+      "<div class='chart-count'>"+(count>0?count:"")+"</div>"+
+      "<div class='chart-bar-wrap'><div class='chart-bar' style='height:"+barHeight+"px;'></div></div>"+
+      "<div class='chart-label'>"+dowLabel+"</div>"+
+      "</div>";
+  });
+  html += "</div>";
+  document.getElementById("statsChart").innerHTML = html;
+}
+function prevChartWeek(){
+  if(currentChartWeek>0){ currentChartWeek--; updateStatsChart(); }
+}
+function nextChartWeek(){
+  if(currentChartWeek<WEEKS.length-1){ currentChartWeek++; updateStatsChart(); }
+}
+
+// ---------- 엑셀 내보내기 ----------
+function statusLabel(s){
+  return s==="attended" ? "참석" : (s==="noshow" ? "불참" : "예정");
+}
+function exportExcel(){
+  const managerIdxG = 4, managerIdxT = 5;
+  const passesManagerFilter = (raw, idxKind)=>{
+    if(selectedManagers.size===0) return true;
+    const m = idxKind==="gallery" ? raw[managerIdxG] : raw[managerIdxT];
+    return selectedManagers.has(m);
+  };
+  const passesDanjiFilter = (raw, idxKind)=>{
+    if(selectedDanji.size===0) return true;
+    const d = idxKind==="gallery" ? GALLERY_DANJI : raw[1];
+    return selectedDanji.has(d);
+  };
+
+  const galleryData = [["날짜","시간","단지명","동호수","성함","동반","담당","픽업/자가","상태"]];
+  Object.keys(GALLERY_ROWS).forEach(key=>{
+    GALLERY_ROWS[key].forEach((raw, idx)=>{
+      if(!passesManagerFilter(raw,"gallery") || !passesDanjiFilter(raw,"gallery")) return;
+      const r = reorderRow("gallery", raw);
+      const status = statusLabel(rowStatus("gallery", key, idx));
+      galleryData.push([labelFor(key), ...r, status]);
+    });
+  });
+  const tourData = [["날짜","시간","단지명","동호수","성함/업체","동반","담당","픽업/자가","상태"]];
+  Object.keys(TOUR_ROWS).forEach(key=>{
+    TOUR_ROWS[key].forEach((raw, idx)=>{
+      if(!passesManagerFilter(raw,"tour") || !passesDanjiFilter(raw,"tour")) return;
+      const r = reorderRow("tour", raw);
+      const status = statusLabel(rowStatus("tour", key, idx));
+      tourData.push([labelFor(key), ...r, status]);
+    });
+  });
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(galleryData), CAT_LABEL.gallery.slice(0,31));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(tourData), "신반포21차");
+  const suffix = (selectedManagers.size>0 || selectedDanji.size>0) ? "_필터적용" : "";
+  XLSX.writeFile(wb, "통합일정표_체크결과"+suffix+".xlsx");
+}
+
+// ---------- 날짜별로 나눠 전체 인쇄 ----------
+function printAllDates(){
+  const savedManagerFilter = managerFilterValue;
+  managerFilterValue = ""; // 인쇄 시엔 담당자 필터 무시하고 전체 표시
+
+  const container = document.getElementById("printAllContainer");
+  let html = "";
+  ALL_DATES.forEach(([key,label])=>{
+    const hasGallery = activeCategories.gallery && (GALLERY_ROWS[key] || GALLERY_CLOSED[key]);
+    const hasTour = activeCategories.tour && TOUR_ROWS[key];
+    if(!hasGallery && !hasTour) return;
+
+    let block = "<div class='print-date-block'><div class='print-date-title'>"+label+"</div>";
+    if(GALLERY_CLOSED[key] && activeCategories.gallery){
+      block += "<div class='closed-banner'>"+CAT_LABEL.gallery+" : "+GALLERY_CLOSED[key]+"</div>";
+    }
+    if(activeCategories.gallery) block += renderTable("gallery", key, GALLERY_ROWS[key], "gallery", CAT_LABEL.gallery);
+    if(activeCategories.tour) block += renderTable("tour", key, TOUR_ROWS[key], "tour", CAT_LABEL.tour);
+    block += "</div>";
+    html += block;
+  });
+
+  if(!html){
+    html = "<div class='empty-day'>인쇄할 일정이 없습니다.</div>";
+  }
+  container.innerHTML = html;
+  managerFilterValue = savedManagerFilter;
+
+  document.body.classList.add("printing-all");
+  window.print();
+}
+window.addEventListener("afterprint", ()=>{
+  document.body.classList.remove("printing-all");
+});
+
+
+let currentDateKey = ALL_DATES[0][0];
+let previewKey = null;
+
+function labelFor(key){
+  const found = ALL_DATES.find(([k])=>k===key);
+  return found ? found[1] : key;
+}
+
+// 달력 클릭 시 빠른 미리보기 모달
+function openPreview(key){
+  previewKey = key;
+  document.getElementById("modalTitle").textContent = labelFor(key);
+  const body = document.getElementById("modalBody");
+  let html = "";
+
+  if(GALLERY_CLOSED[key]){
+    html += "<div class='block'><span class='note' style='color:#c94f4f;font-weight:700;'>갤러리: "+GALLERY_CLOSED[key]+"</span></div>";
+  } else if(GALLERY_ROWS[key]){
+    html += "<div class='block'><span class='tag gallery'>"+CAT_LABEL.gallery+" "+GALLERY_ROWS[key].length+"팀</span>";
+    GALLERY_ROWS[key].forEach((r,idx)=>{
+      const [time, spot, name, plus, manager] = r;
+      html += "<div class='row-line'><span>"+time+" · "+name+(plus!=="-"?" "+plus:"")+" ("+manager+") "+spot+"</span>"+
+        "<button class='row-del' onclick=\"deleteEntry('gallery','"+key+"',"+idx+",this)\">삭제</button></div>";
+    });
+    html += "</div>";
+  }
+
+  if(TOUR_ROWS[key]){
+    html += "<div class='block'><span class='tag tour'>"+CAT_LABEL.tour+"</span>";
+    TOUR_ROWS[key].forEach((r,idx)=>{
+      const [time, danji, ho, name, plus, manager] = r;
+      const spot = (ho && ho !== "-") ? (danji+" "+ho) : danji;
+      html += "<div class='row-line'><span>"+time+" · "+spot+" "+name+(plus!=="-"?" "+plus:"")+" ("+manager+")</span>"+
+        "<button class='row-del' onclick=\"deleteEntry('tour','"+key+"',"+idx+",this)\">삭제</button></div>";
+    });
+    html += "</div>";
+  }
+
+  if(!html){
+    html = "<div class='empty-msg'>등록된 일정이 없습니다.</div>";
+  }
+
+  const isClosed = !!GALLERY_CLOSED[key];
+  const capForKey = getCapacityForKey(key);
+  const headcountForKey = computeDateHeadcount(key);
+  html += "<div class='cap-info-line'>정원 "+(capForKey>0 ? capForKey+"명" : "미설정")+
+    (headcountForKey>0 ? " · 현재 "+headcountForKey+"명" : "")+
+    " <span class='mini-action' onclick=\"openDateCapacitySettings()\">• 이 날짜만 설정</span></div>";
+  html += "<div class='preview-actions'>"+
+    "<button onclick=\"addEntryFlow('gallery')\">+"+CAT_LABEL.gallery+"</button>"+
+    "<button onclick=\"addEntryFlow('tour')\">+"+CAT_LABEL.tour+"</button>"+
+    "<button class='"+(isClosed?"on":"")+"' onclick=\"toggleClosedDay()\">"+(isClosed?"휴관해제":"휴관지정")+"</button>"+
+    "<button class='primary' onclick=\"openInChecklist()\">체크리스트</button>"+
+    "</div>";
+
+  body.innerHTML = html;
+  document.getElementById("overlay").classList.add("on");
+}
+
+// ---- 공용 입력 폼 (prompt/confirm 대신 페이지 내 폼 사용) ----
+let formCallback = null;
+function openForm(title, fields, callback){
+  document.getElementById("formTitle").textContent = title;
+  const fieldsEl = document.getElementById("formFields");
+  fieldsEl.innerHTML = fields.map(f=>{
+    const val = (f.value||"").replace(/'/g,"&#39;");
+    if(f.multiline){
+      return "<div class='field-label'>"+f.label+"</div>"+
+        "<textarea id='ff-"+f.id+"' placeholder='"+(f.placeholder||"")+"' rows='4'>"+escText(f.value||"")+"</textarea>";
+    }
+    return "<div class='field-label'>"+f.label+"</div>"+
+      "<input type='text' id='ff-"+f.id+"' placeholder='"+(f.placeholder||"")+"' value='"+val+"'>";
+  }).join("");
+  formCallback = callback;
+  document.getElementById("overlay").classList.remove("on");
+  document.getElementById("formOverlay").classList.add("on");
+  const firstInput = fieldsEl.querySelector("input, textarea");
+  if(firstInput) setTimeout(()=>firstInput.focus(), 50);
+}
+function closeFormOverlay(){
+  document.getElementById("formOverlay").classList.remove("on");
+  formCallback = null;
+}
+document.getElementById("formOverlay").addEventListener("click",(e)=>{
+  if(e.target.id==="formOverlay") closeFormOverlay();
+});
+function submitForm(){
+  if(!formCallback) return;
+  const inputs = document.querySelectorAll("#formFields input, #formFields textarea");
+  const values = {};
+  inputs.forEach(inp=>{ values[inp.id.replace("ff-","")] = inp.value.trim(); });
+  const cb = formCallback;
+  document.getElementById("formOverlay").classList.remove("on");
+  formCallback = null;
+  cb(values);
+}
+
+// ---- 비밀번호 변경 (폼 방식) ----
+function changePassword(errorMsg){
+  openForm((errorMsg?("⚠ "+errorMsg+" — "):"")+"비밀번호 변경", [
+    {id:"current", label:"현재 비밀번호", placeholder:"현재 비밀번호"},
+    {id:"next", label:"새 비밀번호", placeholder:"새 비밀번호 (4자리 이상 권장)"},
+  ], (v)=>{
+    if(v.current !== getPassword()){
+      changePassword("현재 비밀번호가 일치하지 않습니다");
+      return;
+    }
+    if(!v.next){
+      changePassword("새 비밀번호를 입력해주세요");
+      return;
+    }
+    localStorage.setItem(PW_STORAGE_KEY, v.next);
+    openForm("✔ 비밀번호가 변경되었습니다", [], ()=>{});
+    document.getElementById("formFields").innerHTML = "<div style='color:var(--gallery);font-size:13px;padding:8px 0;'>다음 접속부터 새 비밀번호로 로그인해주세요.</div>";
+  });
+}
+
+// ---- 홈화면 추가 안내 ----
+function showHomeScreenGuide(){
+  document.getElementById("statusTitle").textContent = "홈화면에 추가하는 방법";
+  document.getElementById("statusBody").innerHTML =
+    "<div class='block'>"+
+    "<span class='tag gallery'>iPhone (Safari)</span>"+
+    "<div class='row-line' style='cursor:default;'>① 하단 공유 버튼(⬆︎) 탭</div>"+
+    "<div class='row-line' style='cursor:default;'>② \"홈 화면에 추가\" 선택</div>"+
+    "<div class='row-line' style='cursor:default;'>③ \"추가\" 눌러 완료 — 앱처럼 아이콘이 생겨요</div>"+
+    "</div>"+
+    "<div class='block'>"+
+    "<span class='tag tour'>Android (Chrome)</span>"+
+    "<div class='row-line' style='cursor:default;'>① 우측 상단 점 3개 메뉴(⋮) 탭</div>"+
+    "<div class='row-line' style='cursor:default;'>② \"홈 화면에 추가\" 선택</div>"+
+    "<div class='row-line' style='cursor:default;'>③ \"추가\" 눌러 완료</div>"+
+    "</div>"+
+    "<div class='empty-msg'>※ GitHub Pages 등 인터넷 주소로 올린 뒤 해당 페이지에서 진행하시면 더 편해요.</div>";
+  document.getElementById("statusOverlay").classList.add("on");
+}
+
+// ---- 항목 삭제 (두 번 클릭으로 확인) ----
+function deleteEntry(kind, key, idx, btn){
+  if(btn && btn.dataset.confirm !== "1"){
+    btn.dataset.confirm = "1";
+    btn.textContent = "정말 삭제?";
+    setTimeout(()=>{ if(btn){ btn.dataset.confirm=""; btn.textContent="삭제"; } }, 3000);
+    return;
+  }
+  const store = kind==="gallery" ? GALLERY_ROWS : TOUR_ROWS;
+  if(!store[key]) return;
+  store[key].splice(idx,1);
+  if(store[key].length===0) delete store[key];
+  onScheduleDataChanged();
+  openPreview(key);
+}
+
+// ---- 항목 추가 ----
+function addEntryFlow(kind){
+  const key = previewKey;
+  if(!key) return;
+  if(kind==="gallery"){
+    openForm(CAT_LABEL.gallery+" 일정 추가", [
+      {id:"time", label:"시간", placeholder:"예: 10:30"},
+      {id:"name", label:"성함", placeholder:"이름"},
+      {id:"plus", label:"동반", placeholder:"예: 외1명, 없으면 -", value:"-"},
+      {id:"manager", label:"담당", placeholder:"담당자 이름"},
+      {id:"spot", label:"픽업/자가", placeholder:"예: 픽업, 자가:12가3456", value:"-"},
+    ], (v)=>{
+      if(!GALLERY_ROWS[key]) GALLERY_ROWS[key] = [];
+      GALLERY_ROWS[key].push([v.time||"-", v.spot||"-", v.name||"-", v.plus||"-", v.manager||"-"]);
+      onScheduleDataChanged();
+      openPreview(key);
+    });
+  } else {
+    openForm(CAT_LABEL.tour+" 일정 추가", [
+      {id:"time", label:"시간", placeholder:"예: 1:30"},
+      {id:"danji", label:"단지명", placeholder:"예: 14단지"},
+      {id:"ho", label:"동호수", placeholder:"없으면 -", value:"-"},
+      {id:"name", label:"성함/업체", placeholder:"이름 또는 업체명"},
+      {id:"plus", label:"동반", placeholder:"없으면 -", value:"-"},
+      {id:"manager", label:"담당", placeholder:"담당자 이름"},
+    ], (v)=>{
+      if(!TOUR_ROWS[key]) TOUR_ROWS[key] = [];
+      TOUR_ROWS[key].push([v.time||"-", v.danji||"-", v.ho||"-", v.name||"-", v.plus||"-", v.manager||"-"]);
+      onScheduleDataChanged();
+      openPreview(key);
+    });
+  }
+}
+
+// ---- 휴관/불가 지정·해제 ----
+function toggleClosedDay(){
+  const key = previewKey;
+  if(!key) return;
+  if(GALLERY_CLOSED[key]){
+    delete GALLERY_CLOSED[key];
+    onScheduleDataChanged();
+    openPreview(key);
+  } else {
+    openForm("휴관/불가 지정", [
+      {id:"reason", label:"사유", placeholder:"예: 휴관, 오후 갤러리 불가", value:"휴관"}
+    ], (v)=>{
+      GALLERY_CLOSED[key] = v.reason || "휴관";
+      onScheduleDataChanged();
+      openPreview(key);
+    });
+  }
+}
+
+function closeModal(){
+  document.getElementById("overlay").classList.remove("on");
+}
+document.getElementById("overlay").addEventListener("click",(e)=>{
+  if(e.target.id==="overlay") closeModal();
+});
+function openInChecklist(){
+  closeModal();
+  if(previewKey) selectDate(previewKey, true);
+}
+
+function selectDate(key, scroll){
+  currentDateKey = key;
+  document.getElementById("dateFilter").value = key;
+  document.querySelectorAll(".cell.active").forEach(c=>c.classList.remove("active"));
+  const calCell = document.getElementById("cal-"+key);
+  if(calCell) calCell.classList.add("active");
+
+  const body = document.getElementById("checklistBody");
+  let html = "";
+
+  if(GALLERY_CLOSED[key] && activeCategories.gallery && showClosedToggle){
+    html += "<div class='closed-banner'>"+CAT_LABEL.gallery+" : "+GALLERY_CLOSED[key]+"</div>";
+  }
+
+  const galleryHtml = activeCategories.gallery ? renderTable("gallery", key, GALLERY_ROWS[key], "gallery", CAT_LABEL.gallery) : "";
+  const tourHtml = activeCategories.tour ? renderTable("tour", key, TOUR_ROWS[key], "tour", CAT_LABEL.tour) : "";
+
+  if(!galleryHtml && !tourHtml && !(GALLERY_CLOSED[key] && activeCategories.gallery)){
+    html += "<div class='empty-day'>표시할 일정이 없습니다.</div>";
+  } else {
+    html += galleryHtml + tourHtml;
+  }
+
+  body.innerHTML = html;
+
+  if(scroll){
+    document.querySelector(".checklist-section").scrollIntoView({behavior:"smooth", block:"start"});
+  }
+}
+
+function prevDate(){
+  const idx = ALL_DATES.findIndex(([k])=>k===currentDateKey);
+  if(idx>0) selectDate(ALL_DATES[idx-1][0], false);
+}
+function nextDate(){
+  const idx = ALL_DATES.findIndex(([k])=>k===currentDateKey);
+  if(idx<ALL_DATES.length-1) selectDate(ALL_DATES[idx+1][0], false);
+}
+
+document.getElementById("rangeStart").value = range.start;
+document.getElementById("rangeEnd").value = range.end;
+populateDanjiToggleBar();
+buildCalendarArea();
+populateFilter();
+populateManagerFilter();
+selectDate("7-20", false);
+updateSummary();
+populateManagerColDropdowns();
+updateManagerTable();
+updateStatsChart();
+
+// ---------- 홍보직원 연락처/차량 관리 ----------
+const STAFF_KEY = "staff_contacts_v1";
+const defaultStaff = [
+  {name:"성윤희", phone:"", car:"12라 2092"},
+  {name:"임윤경", phone:"", car:"03너 7397"},
+  {name:"장연수", phone:"", car:"02가 4809"},
+  {name:"김민주", phone:"", car:"30도 1235"},
+];
+function loadStaff(){
+  try{
+    const raw = localStorage.getItem(STAFF_KEY);
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  return JSON.parse(JSON.stringify(defaultStaff));
+}
+function persistStaff(){
+  localStorage.setItem(STAFF_KEY, JSON.stringify(staffList));
+}
+let staffList = loadStaff();
+initStaffTable();
+
+function renderStaffTable(){
+  const body = document.getElementById("staffBody");
+  body.innerHTML = "";
+  staffList.forEach((s, idx)=>{
+    const tr = document.createElement("tr");
+    tr.innerHTML =
+      "<td class='name' contenteditable='true' data-field='name' data-idx='"+idx+"'>"+(s.name||"")+"</td>"+
+      "<td contenteditable='true' data-field='phone' data-idx='"+idx+"'>"+(s.phone||"")+"</td>"+
+      "<td contenteditable='true' data-field='car' data-idx='"+idx+"'>"+(s.car||"")+"</td>"+
+      "<td class='del'><button onclick='removeStaffRow("+idx+")'>✕</button></td>";
+    body.appendChild(tr);
+  });
+  body.querySelectorAll("td[contenteditable]").forEach(td=>{
+    td.addEventListener("blur", ()=>{
+      const idx = +td.dataset.idx;
+      const field = td.dataset.field;
+      staffList[idx][field] = td.textContent.trim();
+      persistStaff();
+    });
+  });
+}
+function addStaffRow(){
+  staffList.push({name:"", phone:"", car:""});
+  persistStaff();
+  renderStaffTable();
+  const rows = document.querySelectorAll("#staffBody tr");
+  const lastNameCell = rows[rows.length-1].querySelector("td.name");
+  if(lastNameCell) lastNameCell.focus();
+}
+function removeStaffRow(idx){
+  staffList.splice(idx,1);
+  persistStaff();
+  renderStaffTable();
+}
+function initStaffTable(){
+  renderStaffTable();
+}
+
+// ---------- 하단 코멘트(운영 안내) 편집 가능 ----------
+const FOOTNOTE_KEY = "footnote_comment_v1";
+function initFootnote(){
+  const el = document.getElementById("footNote");
+  const saved = localStorage.getItem(FOOTNOTE_KEY);
+  if(saved !== null) el.textContent = saved;
+  el.addEventListener("blur", ()=>{
+    localStorage.setItem(FOOTNOTE_KEY, el.textContent);
+  });
+}
+initFootnote();
+
+// ---- 현장명 제목 편집 가능 ----
+const SITE_TITLE_KEY = "site_title_v1";
+function initSiteTitle(){
+  const el = document.getElementById("siteTitle");
+  const saved = localStorage.getItem(SITE_TITLE_KEY);
+  if(saved !== null) el.textContent = saved;
+  el.addEventListener("blur", ()=>{
+    localStorage.setItem(SITE_TITLE_KEY, el.textContent);
+    document.title = el.textContent;
+  });
+  document.title = el.textContent;
+}
+initSiteTitle();
+
+// ---- 부제목(갤러리 & 21차투어) 편집 가능 ----
+const SITE_SUBTITLE_KEY = "site_subtitle_v1";
+function initSiteSubtitle(){
+  const el = document.getElementById("siteSubtitle");
+  const saved = localStorage.getItem(SITE_SUBTITLE_KEY);
+  if(saved !== null) el.textContent = saved;
+  el.addEventListener("blur", ()=>{
+    localStorage.setItem(SITE_SUBTITLE_KEY, el.textContent);
+  });
+}
+initSiteSubtitle();
+
+// ---- 카테고리 명칭(갤러리/21차투어) 편집 → 전체 반영 ----
+function initCatLabels(){
+  const gEl = document.getElementById("labelGallery");
+  const tEl = document.getElementById("labelTour");
+  gEl.textContent = CAT_LABEL.gallery;
+  tEl.textContent = CAT_LABEL.tour;
+  gEl.addEventListener("blur", ()=>{
+    CAT_LABEL.gallery = gEl.textContent.trim() || "갤러리";
+    gEl.textContent = CAT_LABEL.gallery;
+    persistCatLabel();
+    refreshAllViews();
+  });
+  tEl.addEventListener("blur", ()=>{
+    CAT_LABEL.tour = tEl.textContent.trim() || "21차투어";
+    tEl.textContent = CAT_LABEL.tour;
+    persistCatLabel();
+    refreshAllViews();
+  });
+}
+function refreshAllViews(){
+  buildCalendarArea();
+  selectDate(currentDateKey, false);
+  updateSummary();
+  updateManagerTable();
+  updateStatsChart();
+}
+initCatLabels();
+
+// ---- 일일 정원(마감 기준) 설정 - 평일/주말 구분 ----
+function getCapacityRaw(){
+  const wd = localStorage.getItem(CAPACITY_WEEKDAY_KEY);
+  const we = localStorage.getItem(CAPACITY_WEEKEND_KEY);
+  return {
+    weekday: wd ? parseInt(wd,10) : 0,
+    weekend: we ? parseInt(we,10) : 0
+  };
+}
+function getCapacityForKey(key){
+  if(dateCapacityOverrides[key]) return dateCapacityOverrides[key];
+  const dow = mondayIndex(parseKeyDate(key).getDay()); // 0=월 ... 5=토, 6=일
+  const cap = getCapacityRaw();
+  return (dow>=5) ? cap.weekend : cap.weekday;
+}
+function openDateCapacitySettings(){
+  const key = previewKey;
+  if(!key) return;
+  const current = dateCapacityOverrides[key];
+  openForm(labelFor(key)+" 정원 설정 (비우면 평일/주말 기본값 사용)", [
+    {id:"cap", label:"이 날짜 정원(명)", placeholder:"예: 15 (기본값 사용시 비워두세요)", value: current ? String(current) : ""}
+  ], (v)=>{
+    const num = parseInt(v.cap,10);
+    if(isNaN(num) || num<=0) delete dateCapacityOverrides[key];
+    else dateCapacityOverrides[key] = num;
+    persistDateCapacity();
+    buildCalendarArea();
+    openPreview(key);
+  });
+}
+function openCapacitySettings(){
+  const cap = getCapacityRaw();
+  openForm("일일 정원 설정 (동반 포함 인원, 0이면 사용 안 함)", [
+    {id:"weekday", label:"평일 정원(월~금)", placeholder:"예: 15", value: cap.weekday ? String(cap.weekday) : ""},
+    {id:"weekend", label:"주말 정원(토·일)", placeholder:"예: 20", value: cap.weekend ? String(cap.weekend) : ""}
+  ], (v)=>{
+    const wd = parseInt(v.weekday,10);
+    const we = parseInt(v.weekend,10);
+    if(isNaN(wd) || wd<=0) localStorage.removeItem(CAPACITY_WEEKDAY_KEY);
+    else localStorage.setItem(CAPACITY_WEEKDAY_KEY, String(wd));
+    if(isNaN(we) || we<=0) localStorage.removeItem(CAPACITY_WEEKEND_KEY);
+    else localStorage.setItem(CAPACITY_WEEKEND_KEY, String(we));
+    buildCalendarArea();
+  });
+}
+
+// 동반 표기에서 인원 수 추출: "외2명"→2, "오영순+1"→1, 그 외/-→0
+function parseCompanionCount(str){
+  if(!str) return 0;
+  let m = str.match(/외\s*(\d+)\s*명/);
+  if(m) return parseInt(m[1],10);
+  m = str.match(/\+\s*(\d+)/);
+  if(m) return parseInt(m[1],10);
+  return 0;
+}
+function computeDateHeadcount(key){
+  let total = 0;
+  (GALLERY_ROWS[key]||[]).forEach(r=>{ total += 1 + parseCompanionCount(r[3]); }); // r=[time,spot,name,plus,manager]
+  (TOUR_ROWS[key]||[]).forEach(r=>{ total += 1 + parseCompanionCount(r[4]); }); // r=[time,danji,ho,name,plus,manager]
+  return total;
+}
+</script>
+</body>
+</html>
