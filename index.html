@@ -3021,6 +3021,18 @@ const L = (function(){
     // 양옆 여백이 남지 않도록 한 단계 더 확대함
     map.on('zoomend', ()=>{ if(currentView!=='detail') renderMap(); });
 
+    // 의제처리구역(회색) 클릭 판정: 폴리곤 개별 클릭 리스너 대신 지도 전체 클릭을 받아서
+    // 클릭 좌표가 어느 회색 구역 안에 있는지 직접 계산 (자세한 이유는 findAgendaZoneAt 근처 주석 참고)
+    map.on('click', (me)=>{
+      try{
+        if(!me || !me.latLng || currentView==='detail') return;
+        const lat = me.latLng.getLat(), lng = me.latLng.getLng();
+        const z = findAgendaZoneAt(lat, lng);
+        if(z) openAgendaZonePopup(me.latLng, z.n, z.g);
+        else closeAgendaZonePopup();
+      }catch(e){ console.error('의제처리구역 클릭 처리 실패', e); }
+    });
+
     // 인쇄로 전환되며 헤더/탭이 사라져 지도 영역 크기가 바뀌므로,
     // Leaflet이 그 시점의 실제 크기에 맞춰 다시 배치하도록 함
     window.addEventListener('beforeprint', ()=>{
@@ -3306,6 +3318,28 @@ const L = (function(){
     return false;
   }
 
+  // 폴리곤 186개 각각에 클릭 리스너를 개별로 다는 방식이 실제 카카오맵에서는 잘 안 잡히는 경우가 있어서
+  // (겹치거나 인접한 폴리곤이 많을 때 카카오맵 쪽 히트테스트가 불안정한 것으로 보임),
+  // 지도 전체에 클릭 리스너 하나만 걸고 클릭 좌표가 어느 회색 구역 안에 들어가는지 직접 계산하는 방식으로 변경.
+  // 이 방식은 폴리곤 개수와 무관하게 항상 동일하게 동작해서 훨씬 안정적임.
+  function pointInPolygon(pt, poly){
+    let inside = false;
+    for(let i=0, j=poly.length-1; i<poly.length; j=i++){
+      const xi=poly[i][1], yi=poly[i][0], xj=poly[j][1], yj=poly[j][0];
+      const x=pt[1], y=pt[0];
+      const intersect = ((yi>y)!==(yj>y)) && (x < (xj-xi)*(y-yi)/(yj-yi)+xi);
+      if(intersect) inside = !inside;
+    }
+    return inside;
+  }
+  let agendaZonesKept = [];
+  function findAgendaZoneAt(lat, lng){
+    for(const z of agendaZonesKept){
+      if(pointInPolygon([lat,lng], z.p)) return z;
+    }
+    return null;
+  }
+
   function buildAgendaZonesOnce(){
     if(agendaZonesBuilt || !agendaZoneLayer || !map) return;
     if(typeof AGENDA_ZONES==='undefined') return;
@@ -3316,16 +3350,12 @@ const L = (function(){
       try{
         if(!z.p || z.p.length<3) return;
         if(agendaZoneMatchesTrackedSite(z)) return; // 이미 관리중인 사업지와 겹치면 생략
-        const w = L.polygon(z.p, {
+        L.polygon(z.p, {
           color:'#9a9a9a', weight:1, opacity:.55,
           fillColor:'#9a9a9a', fillOpacity:.16,
           interactive:true
         }).addTo(agendaZoneLayer);
-        w.on('click', (me)=>{
-          if(!me || !me.latLng) return;
-          if(agendaZonePopup && agendaZonePopupName===z.n) closeAgendaZonePopup();
-          else openAgendaZonePopup(me.latLng, z.n, z.g);
-        });
+        agendaZonesKept.push(z);
       }catch(e){ console.error('의제처리구역 개별 생성 실패:', z && z.n, e); }
     });
     agendaZonesBuilt = true;
