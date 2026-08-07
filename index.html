@@ -3332,6 +3332,7 @@ const L = (function(){
     }
     return inside;
   }
+  // 클릭 판정용으로, "지금 화면에 실제로 보이는(=중복 아닌) 회색 구역" 목록만 매번 다시 계산해서 담아둔다
   let agendaZonesKept = [];
   function findAgendaZoneAt(lat, lng){
     for(const z of agendaZonesKept){
@@ -3340,6 +3341,9 @@ const L = (function(){
     return null;
   }
 
+  // zone 데이터(z) + 그 폴리곤의 카카오 객체(w)를 함께 들고 있어서, 겹침 여부가 바뀌면(=sites가 바뀌면)
+  // 폴리곤을 다시 만들지 않고 표시/숨김만 다시 계산할 수 있게 한다
+  let agendaZoneItems = [];
   function buildAgendaZonesOnce(){
     if(agendaZonesBuilt || !agendaZoneLayer || !map) return;
     if(typeof AGENDA_ZONES==='undefined') return;
@@ -3349,22 +3353,32 @@ const L = (function(){
     AGENDA_ZONES.forEach(z=>{
       try{
         if(!z.p || z.p.length<3) return;
-        if(agendaZoneMatchesTrackedSite(z)) return; // 이미 관리중인 사업지와 겹치면 생략
-        L.polygon(z.p, {
+        const w = L.polygon(z.p, {
           color:'#9a9a9a', weight:1, opacity:.55,
           fillColor:'#9a9a9a', fillOpacity:.16,
           interactive:true
         }).addTo(agendaZoneLayer);
-        agendaZonesKept.push(z);
+        agendaZoneItems.push({z, w});
       }catch(e){ console.error('의제처리구역 개별 생성 실패:', z && z.n, e); }
     });
     agendaZonesBuilt = true;
   }
+  // 겹침(중복) 여부를 빌드 시점에 한 번만 판단하면, 그 뒤에 sites가 갱신돼도(사업소 전환/새로고침 등)
+  // 반영이 안 되는 문제가 있었음 → 보여줄 때마다 현재 sites 기준으로 다시 판단해서 표시/숨김만 토글
   function showAgendaZones(){
     try{
       if(!map || !agendaZoneLayer) return;
       buildAgendaZonesOnce();
-      agendaZoneLayer.items.forEach(it=>{ if(it._kobj) it._kobj.setMap(map.kmap); });
+      agendaZonesKept = [];
+      agendaZoneItems.forEach(({z,w})=>{
+        if(!w._kobj) return;
+        if(agendaZoneMatchesTrackedSite(z)){
+          w._kobj.setMap(null); // 이미 관리중인 사업지와 겹치면 숨김
+        }else{
+          w._kobj.setMap(map.kmap);
+          agendaZonesKept.push(z);
+        }
+      });
     }catch(e){ console.error('의제처리구역 표시 실패', e); }
   }
   function hideAgendaZones(){
