@@ -48,6 +48,7 @@
   }
   .bottom-toolbar button{border:1px solid var(--line);}
   #saveBtn:disabled{background:var(--gallery);color:#fff;border-color:var(--gallery);}
+  .danger-btn{color:var(--closed)!important;border-color:var(--closed)!important;}
 
   .dash-panel{display:flex;align-items:stretch;gap:6px;flex-wrap:wrap;margin-bottom:16px;}
   .dashboard-grid{display:flex;gap:6px;flex:0 0 auto;}
@@ -387,6 +388,7 @@
     width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;
     font-size:13px;font-family:inherit;
   }
+  #formFields input[type=text][readonly]{background:var(--bg);color:var(--sub);}
   #formFields textarea{
     width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;
     font-size:13px;font-family:inherit;resize:vertical;line-height:1.5;
@@ -525,6 +527,7 @@
     <button onclick="openChangeLog()">변경이력</button>
     <button onclick="changePassword()">비번변경</button>
     <button onclick="showHomeScreenGuide()">홈화면추가</button>
+    <button onclick="openResetAllForm()" class="danger-btn">전체 초기화</button>
   </div>
 </div>
 
@@ -785,6 +788,44 @@ function manualSave(){
     btn.disabled = true;
     setTimeout(()=>{ btn.textContent = original; btn.disabled = false; }, 1500);
   }
+}
+
+// ---- 현장 종료 시 전체 초기화 ----
+function openResetAllForm(){
+  openForm("⚠ 전체 초기화 — 새 현장 시작", [
+    {id:"confirm", label:"정말 초기화하려면 '초기화'라고 입력하세요", placeholder:"초기화"}
+  ], (v)=>{
+    if(v.confirm !== "초기화"){
+      openForm("⚠ 입력값이 일치하지 않아 취소되었습니다", [], ()=>{});
+      document.getElementById("formFields").innerHTML = "<div style='color:var(--sub);font-size:13px;padding:8px 0;'>다시 시도하시려면 '전체 초기화' 버튼을 눌러주세요.</div>";
+      return;
+    }
+    GALLERY_ROWS = {};
+    TOUR_ROWS = {};
+    GALLERY_CLOSED = {};
+    TOUR_CLOSED = {};
+    checkState = {};
+    personMemos = {};
+    dateCapacityOverrides = {};
+    persistScheduleData();
+    persistCheck();
+    persistMemos();
+    persistDateCapacity();
+    changeLog = [];
+    localStorage.setItem(CHANGE_LOG_KEY, JSON.stringify(changeLog));
+    logChange("전체 초기화 — 새 현장 시작");
+    rebuildDATA();
+    buildCalendarArea();
+    selectDate(currentDateKey, false);
+    updateSummary();
+    updateManagerTable();
+    updateStatsChart();
+    populateManagerFilter();
+    populateDanjiToggleBar();
+    buildDashboard();
+    openForm("✔ 초기화 완료", [], ()=>{});
+    document.getElementById("formFields").innerHTML = "<div style='color:var(--gallery);font-size:13px;padding:8px 0;'>모든 일정·체크·메모가 삭제되었습니다. 새 현장 일정을 등록해주세요.</div>";
+  });
 }
 
 // ---- 다크모드 ----
@@ -1299,9 +1340,9 @@ function reorderRow(kind, r){
     const [time, spot, name, plus, manager] = r;
     return [time, GALLERY_DANJI, "-", name, plus, manager, spot];
   } else {
-    // r = [시간, 단지, 동호수, 성함/업체, 동반, 담당]
-    const [time, danji, ho, name, plus, manager] = r;
-    return [time, danji, ho, name, plus, manager, "-"];
+    // r = [시간, 단지, 동호수, 성함/업체, 동반, 담당, 픽업/자가?]
+    const [time, danji, ho, name, plus, manager, spot] = r;
+    return [time, danji, ho, name, plus, manager, spot || "-"];
   }
 }
 
@@ -1944,7 +1985,7 @@ function openForm(title, fields, callback){
         "<textarea id='ff-"+f.id+"' placeholder='"+(f.placeholder||"")+"' rows='4'>"+escText(f.value||"")+"</textarea>";
     }
     return "<div class='field-label'>"+f.label+"</div>"+
-      "<input type='text' id='ff-"+f.id+"' placeholder='"+(f.placeholder||"")+"' value='"+val+"'>";
+      "<input type='text' id='ff-"+f.id+"'"+(f.readonly?" readonly":"")+" placeholder='"+(f.placeholder||"")+"' value='"+val+"'>";
   }).join("");
   formCallback = callback;
   document.getElementById("overlay").classList.remove("on");
@@ -2036,6 +2077,8 @@ function addEntryFlow(kind){
   if(kind==="gallery"){
     openForm(CAT_LABEL.gallery+" 일정 추가", [
       {id:"time", label:"시간", placeholder:"예: 10:30"},
+      {id:"danji", label:"단지명", value: GALLERY_DANJI, readonly:true},
+      {id:"ho", label:"동호수", value:"-", readonly:true},
       {id:"name", label:"성함", placeholder:"이름"},
       {id:"plus", label:"동반", placeholder:"예: 외1명, 없으면 -", value:"-"},
       {id:"manager", label:"담당", placeholder:"담당자 이름"},
@@ -2055,9 +2098,10 @@ function addEntryFlow(kind){
       {id:"name", label:"성함/업체", placeholder:"이름 또는 업체명"},
       {id:"plus", label:"동반", placeholder:"없으면 -", value:"-"},
       {id:"manager", label:"담당", placeholder:"담당자 이름"},
+      {id:"spot", label:"픽업/자가", placeholder:"없으면 -", value:"-"},
     ], (v)=>{
       if(!TOUR_ROWS[key]) TOUR_ROWS[key] = [];
-      TOUR_ROWS[key].push([v.time||"-", v.danji||"-", v.ho||"-", v.name||"-", v.plus||"-", v.manager||"-"]);
+      TOUR_ROWS[key].push([v.time||"-", v.danji||"-", v.ho||"-", v.name||"-", v.plus||"-", v.manager||"-", v.spot||"-"]);
       logChange(labelFor(key)+" · "+CAT_LABEL.tour+" '"+(v.name||"-")+"' 추가");
       onScheduleDataChanged();
       openPreview(key);
