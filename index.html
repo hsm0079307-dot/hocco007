@@ -77,7 +77,7 @@
   .cal-daynum{font-weight:700;color:var(--text-main);margin-bottom:3px;display:flex;justify-content:space-between;align-items:center;}
   .cal-add-btn{flex:none;width:16px;height:16px;line-height:14px;padding:0;border-radius:5px;border:1px solid var(--line);background:var(--bg-side-2);color:var(--text-dim);font-size:12px;cursor:pointer;}
   .cal-add-btn:hover{color:var(--accent);border-color:var(--accent);}
-  .cal-event{display:flex;align-items:center;justify-content:space-between;gap:4px;padding:2px 4px 2px 5px;border-radius:5px;margin-bottom:2px;font-size:10px;color:#fff;white-space:nowrap;overflow:hidden;cursor:pointer;}
+  .cal-event{display:inline-flex;max-width:100%;width:fit-content;align-items:center;justify-content:space-between;gap:4px;padding:2px 4px 2px 5px;border-radius:5px;margin-bottom:2px;font-size:10px;color:#fff;white-space:nowrap;overflow:hidden;cursor:pointer;}
   .cal-event>*:first-child{overflow:hidden;text-overflow:ellipsis;}
   .cal-event-del{flex:none;opacity:.7;padding:0 1px;cursor:pointer;}
   .cal-event-del:hover{opacity:1;color:#ffb3b3;}
@@ -86,6 +86,11 @@
   .cal-quickadd select{max-width:140px;}
   .cal-quickadd input[type=text]{flex:1;min-width:100px;}
   .cal-agenda{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);}
+  .cal-top-row{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap;}
+  .cal-top-row .cal-header{margin-bottom:0;}
+  .cal-agenda-inline{flex:1 1 280px;max-width:560px;margin-top:0;padding-top:0;border-top:none;max-height:96px;overflow-y:auto;}
+  .cal-agenda-inline h3{font-size:10.5px;margin:0 0 4px;}
+  .cal-agenda-inline .cal-agenda-item{font-size:11.5px;padding:2px 2px;}
   .cal-agenda h3{font-size:12px;color:var(--text-dim);margin:0 0 8px;font-weight:600;}
   .cal-agenda-item{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--text-main);padding:4px 2px;cursor:pointer;border-radius:6px;}
   .cal-agenda-item .cal-event-del{margin-left:auto;color:var(--text-dim);}
@@ -243,8 +248,8 @@
   .detail-head-actions{display:flex;align-items:center;gap:6px;flex:none;}
   .detail-head-divider{width:1px;height:14px;background:var(--line);}
   .detail-manager{font-size:11.5px;color:var(--text-dim);}
-  .detail-head-row{margin-bottom:8px;}
-  .detail-head-line1{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
+  .detail-head-row{margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px 18px;}
+  .detail-head-line1{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:0;flex:1 1 auto;min-width:0;}
   .detail-head-line1 .stepper{flex:0 1 auto;margin-bottom:0;min-width:0;}
   @media (max-width:640px){
     .detail-head-line1 .stepper{width:100%;flex:0 0 100%;margin-top:6px;}
@@ -261,7 +266,7 @@
 
 
 
-  .detail-tabs{display:flex;gap:12px;border-bottom:1px solid var(--line);margin-bottom:14px;}
+  .detail-tabs{display:flex;gap:12px;border-bottom:1px solid var(--line);margin-bottom:14px;flex:0 0 auto;}
   .dtab{font-size:11px;color:var(--text-dim);padding:6px 0;cursor:pointer;border-bottom:2px solid transparent;letter-spacing:normal;}
   .dtab.active{color:var(--accent);border-color:var(--accent);font-weight:600;}
   .dtab-count{background:var(--accent);color:var(--accent-ink);font-size:10px;border-radius:8px;padding:1px 5px;margin-left:2px;font-weight:600;}
@@ -269,7 +274,7 @@
   .detail-body{flex:1;}
   .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px;}
   .spec-box{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:14px;}
-  .spec-line{font-size:11px;line-height:1.7;font-family:inherit;position:relative;padding-left:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .spec-line{font-size:11px;line-height:1.7;font-family:inherit;position:relative;padding-left:14px;white-space:normal;overflow-wrap:break-word;word-break:break-word;}
   .spec-line::before{content:'';position:absolute;left:0;top:7px;width:6px;height:6px;border-radius:2px;background:var(--accent);}
   .spec-divider{border-top:1px dashed var(--line);margin:10px 0;}
   .spec-heading{font-size:12px;font-weight:600;margin-bottom:6px;color:var(--accent);display:flex;align-items:center;gap:6px;}
@@ -289,18 +294,23 @@
   .edit-field{margin-bottom:12px;}
   .edit-field label{display:block;font-size:12px;color:var(--text-dim);margin-bottom:4px;letter-spacing:normal;}
   .edit-field textarea, .edit-field input{width:100%;background:var(--bg-side-2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;color:var(--text-main);font-size:13px;font-family:inherit;}
-  .spec-lines-2col{display:grid;grid-template-columns:1fr 1fr;gap:0 18px;}
+  .spec-lines-2col{display:grid;grid-template-columns:1fr;gap:0;}
   .quad-edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px 10px;}
   .quad-edit-field{display:flex;flex-direction:column;gap:2px;min-width:0;}
   .quad-edit-field label{font-size:9px;color:var(--text-dim);letter-spacing:normal;}
   .quad-edit-field input{font-size:11px;padding:4px 6px;border-radius:6px;border:1px solid var(--line);background:var(--bg-side-2);color:var(--text-main);width:100%;box-sizing:border-box;font-family:inherit;}
   /* 개요 탭 4칸(사업현황/비고/진행단계/타사활동)을 완전히 같은 크기로 고정. 내용이 넘치면 그 칸 안에서만 스크롤. */
   .detail-quad-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
-  .detail-quad-box{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;height:230px;overflow-y:auto;display:flex;flex-direction:column;box-sizing:border-box;}
-  .detail-quad-box .spec-heading{margin-bottom:8px;flex:none;}
+  .detail-quad-box{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;height:auto;overflow:visible;display:flex;flex-direction:column;box-sizing:border-box;}
+  .detail-quad-box .spec-heading{margin-bottom:8px;flex:none;display:flex;align-items:center;gap:6px;}
+  .quad-edit-btn{background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:12px;padding:2px 4px;border-radius:5px;line-height:1;}
+  .quad-edit-btn:hover{color:var(--accent);background:var(--bg-side-2);}
   .detail-quad-box textarea{flex:1;min-height:0;width:100%;box-sizing:border-box;background:var(--bg-side-2);border:1px solid var(--line);border-radius:8px;color:var(--text-main);font-family:inherit;font-size:11px;line-height:1.6;padding:8px 10px;resize:none;}
   .detail-quad-box textarea:focus{outline:none;border-color:var(--accent);}
   @media (max-width:640px){ .detail-quad-grid{grid-template-columns:1fr;} .spec-lines-2col{grid-template-columns:1fr;} }
+  .rte-toolbar{display:flex;gap:5px;margin-bottom:6px;flex:none;}
+  .rte-btn{background:var(--bg-side-2);border:1px solid var(--line);border-radius:6px;color:var(--text-main);font-size:11px;padding:3px 8px;cursor:pointer;font-family:inherit;}
+  .rte-btn:hover{border-color:var(--accent);color:var(--accent);}
   .edit-field textarea{min-height:70px;resize:vertical;}
 
   .log-add{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
@@ -341,7 +351,7 @@
   table.sheet-table tbody tr:nth-child(even){background:rgba(255,255,255,.025);}
   table.sheet-table tbody tr:hover{background:var(--card-hover);}
   table.sheet-table td.sheet-no{color:var(--text-dim);text-align:center;font-size:11px;height:64px;position:relative;}
-  table.sheet-table td.sheet-district{color:var(--text-dim);font-size:11px;white-space:nowrap;text-overflow:ellipsis;}
+  table.sheet-table td.sheet-district{color:var(--text-dim);font-size:11px;white-space:nowrap;text-overflow:ellipsis;position:relative;overflow:visible;}
   table.sheet-table td.sheet-name{font-weight:700;color:var(--accent);cursor:pointer;white-space:nowrap;text-overflow:ellipsis;text-align:center;}
   table.sheet-table thead th .col-resizer{position:absolute;top:0;right:0;width:6px;height:100%;cursor:col-resize;z-index:4;}
   table.sheet-table thead th .col-resizer:hover{background:rgba(255,255,255,.3);}
@@ -357,8 +367,11 @@
   table.sheet-table thead th.sheet-frozen{z-index:6;}
   table.sheet-table thead tr.sheet-filter-row th.sheet-frozen{z-index:5;}
   table.sheet-table [data-frozen-idx="2"]{box-shadow:4px 0 6px -4px rgba(0,0,0,.5);}
-  .row-resizer{position:absolute;left:0;right:0;bottom:-1px;height:6px;cursor:row-resize;z-index:5;}
-  .row-resizer:hover{background:rgba(255,255,255,.3);}
+  table.sheet-table td.sheet-no{overflow:visible;}
+  .row-resizer{position:absolute;left:0;right:0;bottom:-4px;height:9px;cursor:row-resize;z-index:6;}
+  .row-resizer::after{content:'';position:absolute;left:20%;right:20%;top:3px;height:3px;border-radius:2px;background:var(--line);}
+  .row-resizer:hover::after{background:var(--accent);}
+  .row-resizer:hover{background:rgba(255,255,255,.12);}
   .sheet-stage-badge{display:inline-block;font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--bg-side-2);border:1px solid var(--line);color:var(--text-main);white-space:nowrap;}
   .cell-clamp{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;max-height:66px;}
   table.sheet-table td[data-editable="1"]{cursor:text;}
@@ -1739,12 +1752,27 @@ const L = (function(){
     }).join('');
 
     calendarViewEl.innerHTML = `
-      <div class="cal-header">
-        <button class="cal-nav" id="calPrev">◀</button>
-        <h2>${calYear}년 ${calMonth+1}월</h2>
-        <button class="cal-nav" id="calNext">▶</button>
-        <button class="cal-nav" id="calToday">오늘</button>
-        <button class="cal-nav cal-close" id="calClose">닫기 ✕</button>
+      <div class="cal-top-row">
+        <div class="cal-header">
+          <button class="cal-nav" id="calPrev">◀</button>
+          <h2>${calYear}년 ${calMonth+1}월</h2>
+          <button class="cal-nav" id="calNext">▶</button>
+          <button class="cal-nav" id="calToday">오늘</button>
+          <button class="cal-nav cal-close" id="calClose">닫기 ✕</button>
+        </div>
+        <div class="cal-agenda cal-agenda-inline">
+          <h3>이번 달 일정</h3>
+          ${(()=>{
+            const items = Object.keys(events).sort().flatMap(dateKey=>{
+              const d = new Date(dateKey);
+              const md = `${d.getMonth()+1}.${d.getDate()}`;
+              return events[dateKey].map(ev=>({md, ev, dateKey}));
+            });
+            return items.length
+              ? items.map(({md,ev,dateKey})=>`<div class="cal-agenda-item" data-id="${ev.site.id}"><span class="cal-dot" style="background:${ev.color}"></span>${md} ${escapeHtml(ev.site.name)}(${escapeHtml(ev.label)})<span class="cal-event-del" data-id="${ev.site.id}" data-date="${dateKey}" data-label="${escapeHtml(ev.label)}">✕</span></div>`).join('')
+              : '<div class="cal-agenda-empty">이번 달 일정이 없습니다.</div>';
+          })()}
+        </div>
       </div>
       <div class="cal-legend">
         ${(()=>{
@@ -1768,19 +1796,6 @@ const L = (function(){
         <button class="btn btn-primary btn-sm" id="qaConfirm">추가</button>
         <button class="btn btn-ghost btn-sm" id="qaCancel">취소</button>
       </div>` : ''}
-      <div class="cal-agenda">
-        <h3>이번 달 일정</h3>
-        ${(()=>{
-          const items = Object.keys(events).sort().flatMap(dateKey=>{
-            const d = new Date(dateKey);
-            const md = `${d.getMonth()+1}.${d.getDate()}`;
-            return events[dateKey].map(ev=>({md, ev, dateKey}));
-          });
-          return items.length
-            ? items.map(({md,ev,dateKey})=>`<div class="cal-agenda-item" data-id="${ev.site.id}"><span class="cal-dot" style="background:${ev.color}"></span>${md} ${escapeHtml(ev.site.name)}(${escapeHtml(ev.label)})<span class="cal-event-del" data-id="${ev.site.id}" data-date="${dateKey}" data-label="${escapeHtml(ev.label)}">✕</span></div>`).join('')
-            : '<div class="cal-agenda-empty">이번 달 일정이 없습니다.</div>';
-        })()}
-      </div>
     `;
     document.getElementById('calPrev').addEventListener('click', ()=>{
       calMonth--; if(calMonth<0){ calMonth=11; calYear--; }
@@ -1946,7 +1961,7 @@ const L = (function(){
         render: s => `<td class="sheet-no sheet-frozen" data-frozen-idx="0">${ctx.stableNoMap.get(s.id) || ''}<span class="row-resizer" title="행 높이 조절"></span></td>` },
       { key:'district', label:'구', width:58, type:'select',
         getValue: s => s.district || '-',
-        render: s => `<td class="sheet-dim sheet-district sheet-frozen" data-frozen-idx="1">${escapeHtml(s.district||'-')}</td>` },
+        render: s => `<td class="sheet-dim sheet-district sheet-frozen" data-frozen-idx="1">${escapeHtml(s.district||'-')}<span class="row-resizer" title="행 높이 조절"></span></td>` },
       { key:'name', label:'구역명', width:112, type:'text',
         getValue: s => s.name || '',
         render: s => `<td class="sheet-name sheet-frozen" data-frozen-idx="2" data-id="${s.id}" title="${escapeHtml(s.name||'')}">${escapeHtml(s.name)}</td>` },
@@ -2599,7 +2614,7 @@ const L = (function(){
             <div class="detail-sub">${escapeHtml(site.district)}</div>
           </div>
           <div class="detail-head-actions">
-            ${(detailTab==='개요' || detailTab==='공고') ? `<button class="btn btn-primary no-print" id="tabEditToggle" style="padding:3px 10px;font-size:10px;">${editMode?'저장':'내용수정'}</button>` : ''}
+            ${(editMode && (detailTab==='개요' || detailTab==='공고')) ? `<button class="btn btn-primary no-print" id="tabEditToggle" style="padding:3px 10px;font-size:10px;">저장</button>` : ''}
             <span class="detail-head-divider no-print"></span>
             <button class="btn btn-ghost no-print" id="editInfoBtn" style="padding:3px 8px;font-size:10px;">정보수정</button>
             ${guestMode ? '' : `<button class="btn btn-ghost no-print" id="deleteSiteBtn" style="padding:3px 8px;font-size:10px;">삭제</button>`}
@@ -2733,29 +2748,30 @@ const L = (function(){
         </div>
       ` : `
         <div class="detail-quad-box">
-          <div class="spec-heading">■ 사업현황</div>
+          <div class="spec-heading">■ 사업현황 <button class="quad-edit-btn no-print" data-quad-edit="1" title="수정">✏</button></div>
           <div class="spec-lines-2col">
             <div class="spec-line">사업단계: ${escapeHtml(site.progressStage||'-')}</div>
-            <div class="spec-line">구역면적: ${site.area?escapeHtml(site.area)+'㎡':'-'}</div>
             <div class="spec-line">연면적: ${site.totalFloorArea?escapeHtml(site.totalFloorArea)+'㎡':'-'}</div>
-            <div class="spec-line">규모: ${escapeHtml(site.scale||'-')}</div>
             <div class="spec-line">조합원: ${escapeHtml(site.unionMembers||'-')}</div>
-            <div class="spec-line">신축세대: ${escapeHtml(site.households||'-')}</div>
             <div class="spec-line">정비업체: ${escapeHtml(site.managementCompany||'-')}</div>
-            <div class="spec-line">설계업체: ${escapeHtml(site.designCompany||'-')}</div>
             <div class="spec-line">신탁사: ${escapeHtml(site.trustCompany||'-')}</div>
+            <div class="spec-line">구역면적: ${site.area?escapeHtml(site.area)+'㎡':'-'}</div>
+            <div class="spec-line">규모: ${escapeHtml(site.scale||'-')}</div>
+            <div class="spec-line">신축세대: ${escapeHtml(site.households||'-')}</div>
+            <div class="spec-line">설계업체: ${escapeHtml(site.designCompany||'-')}</div>
           </div>
         </div>
       `;
       // 비고/진행단계/타사활동: 보기·수정 모드가 같은 자리에서 바뀌게 구성. 4칸 모두 크기를 동일하게 맞춘다(.detail-quad-box 높이 고정).
       const noteBox = (heading, editId, value) => editMode ? `
         <div class="detail-quad-box">
-          <div class="spec-heading">■ ${heading} <span class="spec-heading-hint">(* 굵게 · ** 빨간색)</span></div>
+          <div class="spec-heading">■ ${heading}</div>
+          ${richToolbar(editId)}
           <textarea id="${editId}">${escapeHtml(value||'')}</textarea>
         </div>
       ` : `
         <div class="detail-quad-box">
-          <div class="spec-heading">■ ${heading}</div>
+          <div class="spec-heading">■ ${heading} <button class="quad-edit-btn no-print" data-quad-edit="1" title="수정">✏</button></div>
           <div class="spec-stage-detail">${value ? renderRichText(value) : '-'}</div>
         </div>
       `;
@@ -2775,6 +2791,22 @@ const L = (function(){
           </div>
         </div>` : ''}
       `;
+      if(editMode) wireRichToolbars(body);
+      if(!editMode){
+        const enterEdit = async ()=>{
+          if(!(await ensureUnlocked())) return;
+          editMode = true;
+          renderAll();
+        };
+        body.querySelectorAll('.detail-quad-box').forEach(box=>{
+          box.style.cursor = 'text';
+          box.title = '더블클릭하면 수정할 수 있어요';
+          box.addEventListener('dblclick', enterEdit);
+        });
+        body.querySelectorAll('.quad-edit-btn').forEach(btn=>{
+          btn.addEventListener('click', (e)=>{ e.stopPropagation(); enterEdit(); });
+        });
+      }
 
     }else if(detailTab==='일지'){
       const logs = (site.logs||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
