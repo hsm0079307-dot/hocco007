@@ -379,7 +379,9 @@
   .sheet-cell-edit{width:100%;box-sizing:border-box;background:var(--bg-side-2);border:1px solid var(--accent);border-radius:4px;color:var(--text-main);font-size:11px;font-family:inherit;padding:3px 4px;}
   textarea.sheet-cell-edit{min-height:56px;resize:vertical;}
 
+  #guestViewBtn{display:none;}
   @media (max-width:820px){
+    #guestViewBtn{display:block;}
     html,body{height:auto;min-height:100%;}
     #app{height:100vh;height:100dvh;padding:6px;border-radius:10px;}
     .topbar{padding:8px 10px;gap:6px;}
@@ -528,7 +530,8 @@
         <div class="modal" style="max-width:128px;text-align:center;padding:6px;">
           <div id="modeChoiceRow">
             <button class="btn btn-primary" id="adminModeBtn" style="width:100%;margin-bottom:4px;padding:4px;font-size:10px;">관리자</button>
-            <button class="btn btn-ghost" id="guestModeBtn" style="width:100%;padding:4px;font-size:10px;">담당자 로그인</button>
+            <button class="btn btn-ghost" id="guestModeBtn" style="width:100%;margin-bottom:4px;padding:4px;font-size:10px;">담당자 로그인</button>
+            <button class="btn btn-ghost" id="guestViewBtn" style="width:100%;padding:4px;font-size:10px;">게스트로 보기</button>
           </div>
           <div id="pwRow" style="display:none;">
             <input id="pwInput" type="password" placeholder="비밀번호" style="width:100%;padding:4px 6px;font-size:10.5px;border-radius:7px;border:1px solid var(--line);background:var(--bg-side-2);color:var(--text-main);margin-bottom:4px;box-sizing:border-box;">
@@ -3942,6 +3945,13 @@ const L = (function(){
     pwError.style.display = 'none';
     pwInput.value = '';
     pwInput.focus();
+  });
+
+  document.getElementById('guestViewBtn').addEventListener('click', ()=>{
+    guestMode = true;
+    currentGuest = null;
+    applyGuestRestrictions();
+    modeOverlay.classList.remove('show');
   });
 
   const guestPwRow = document.getElementById('guestPwRow');
