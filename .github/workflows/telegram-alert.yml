@@ -1,0 +1,25 @@
+name: 일정 임박 텔레그램 알림
+
+on:
+  schedule:
+    # 매일 한국시간(KST, UTC+9) 오전 8시에 실행 = UTC 전날 23시
+    - cron: '0 23 * * *'
+  workflow_dispatch: {}  # 저장소 Actions 탭에서 수동으로도 즉시 실행 가능
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 저장소 코드 가져오기
+        uses: actions/checkout@v4
+
+      - name: Python 설치
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 텔레그램 알림 스크립트 실행
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python scripts/telegram_alert.py
