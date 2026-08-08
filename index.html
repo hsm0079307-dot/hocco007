@@ -60,7 +60,7 @@
 
   /* stage tabs */
   .tabs{display:flex;gap:6px;padding:8px 14px;border-bottom:1px solid var(--line);overflow-x:auto;}
-  .stats-bar{display:flex;gap:14px;padding:10px 14px;border-bottom:1px solid var(--line);overflow-x:auto;align-items:center;}
+  .stats-bar{display:none !important;}
   .stat-chip{display:flex;flex-direction:column;gap:2px;min-width:64px;}
   .stat-chip .num{font-size:16px;font-weight:700;color:var(--accent);font-family:var(--font-mono);}
   .stat-chip .lbl{font-size:10.5px;color:var(--text-dim);white-space:nowrap;}
@@ -159,15 +159,29 @@
   @media print{
     body.compare-print-mode #app > *:not(#compareModalRoot){display:none !important;}
     body.compare-print-mode .compare-modal-head, body.compare-print-mode .no-print{display:none !important;}
-    body.compare-print-mode .compare-overlay{position:static !important;background:none !important;}
-    body.compare-print-mode .compare-modal{width:100% !important;max-height:none !important;box-shadow:none !important;border:none !important;}
+    body.compare-print-mode .compare-overlay{position:static !important;background:none !important;inset:auto !important;}
+    body.compare-print-mode .compare-modal{width:100% !important;max-height:none !important;box-shadow:none !important;border:none !important;overflow:visible !important;}
     body.compare-print-mode .compare-table-wrap{overflow:visible !important;padding:0 !important;}
+    body.compare-print-mode #app{height:auto !important;overflow:visible !important;display:block !important;}
     body.bulk-report-print-mode #app > *:not(#compareModalRoot){display:none !important;}
     body.bulk-report-print-mode #compareModalRoot{display:block !important;}
     body.bulk-report-print-mode .bulk-report-page{page-break-after:always;padding:10mm;}
     body.bulk-report-print-mode .bulk-report-page:last-child{page-break-after:auto;}
     body.bulk-report-print-mode .detail-quad-grid{display:grid !important;grid-template-columns:1fr 1fr !important;gap:10px !important;}
     body.bulk-report-print-mode .detail-quad-box{border:1px solid var(--line) !important;}
+    body.bulk-report-print-mode #app{height:auto !important;overflow:visible !important;display:block !important;}
+    body.sheet-print-mode #app > *:not(.topbar){display:none !important;}
+    body.sheet-print-mode .topbar > *:not(#sheetView){display:none !important;}
+    body.sheet-print-mode .topbar{display:block !important;border:none !important;padding:0 !important;}
+    body.sheet-print-mode #sheetView{display:block !important;position:static !important;overflow:visible !important;inset:auto !important;padding:0 !important;}
+    body.sheet-print-mode #app{height:auto !important;overflow:visible !important;display:block !important;}
+    body.sheet-print-mode .no-print{display:none !important;}
+    body.sheet-print-mode .sheet-table-wrap{overflow:visible !important;max-height:none !important;border:none !important;}
+    body.sheet-print-mode table.sheet-table{min-width:0 !important;}
+    body.sheet-print-mode table.sheet-table thead th{position:static !important;}
+    body.sheet-print-mode table.sheet-table .sheet-frozen{position:static !important;left:auto !important;box-shadow:none !important;background:#fff !important;color:#37352f !important;}
+    body.sheet-print-mode .sheet-colfilter-caret{display:none !important;}
+    body.sheet-print-mode .sheet-colfilter-val{display:none !important;}
   }
   .master-panel{flex:1;min-width:0;overflow-y:auto;}
   @media (max-width:640px){
@@ -313,7 +327,7 @@
   .spec-box{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:14px;}
   .spec-line{font-size:11px;line-height:1.7;font-family:inherit;position:relative;padding-left:14px;white-space:normal;overflow-wrap:break-word;word-break:break-word;}
   .num-value{font-family:var(--font-mono);color:var(--text-main);font-weight:600;letter-spacing:.2px;}
-  .summary-strip{display:flex;gap:0;margin-bottom:10px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:linear-gradient(155deg,var(--card) 0%,var(--card) 60%,var(--bg-side-2) 150%);}
+  .summary-strip{display:flex;gap:0;margin-bottom:10px;background:none;}
   .summary-item{flex:1;padding:6px 8px;text-align:center;border-right:1px dotted var(--line);}
   .summary-item:last-child{border-right:none;}
   .summary-label{font-size:9px;color:var(--text-dim);letter-spacing:.3px;margin-bottom:2px;}
@@ -344,8 +358,8 @@
   .quad-edit-field label{font-size:9px;color:var(--text-dim);letter-spacing:normal;}
   .quad-edit-field input{font-size:11px;padding:4px 6px;border-radius:6px;border:1px solid var(--line);background:var(--bg-side-2);color:var(--text-main);width:100%;box-sizing:border-box;font-family:inherit;}
   /* 개요 탭 4칸(사업현황/비고/진행단계/타사활동)을 완전히 같은 크기로 고정. 내용이 넘치면 그 칸 안에서만 스크롤. */
-  .detail-quad-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
-  .detail-quad-box{background:linear-gradient(155deg,var(--card) 0%,var(--card) 60%,var(--bg-side-2) 140%);border:1px solid var(--line);border-radius:10px;padding:12px 14px;height:auto;overflow:visible;display:flex;flex-direction:column;box-sizing:border-box;box-shadow:inset 0 1px 0 rgba(255,255,255,.03);}
+  .detail-quad-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px 28px;margin-bottom:14px;}
+  .detail-quad-box{background:none;border:none;border-radius:0;padding:10px 0;height:auto;overflow:visible;display:flex;flex-direction:column;box-sizing:border-box;box-shadow:none;}
   .detail-quad-box .spec-heading{margin-bottom:8px;flex:none;display:flex;align-items:center;gap:6px;}
   .quad-edit-btn{background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:12px;padding:2px 4px;border-radius:5px;line-height:1;}
   .quad-edit-btn:hover{color:var(--accent);background:var(--bg-side-2);}
@@ -372,51 +386,74 @@
   .map-tooltip{border-radius:10px;padding:5px 10px;font-size:12px;font-weight:600;box-shadow:0 2px 10px rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.5);}
 
   /* ---------- 전체사업지(표) 보기 ---------- */
+  #sheetView{
+    --bg-side:#ffffff;
+    --bg-side-2:#f7f7f5;
+    --line:#eeeeec;
+    --text-main:#37352f;
+    --text-dim:#8a8a86;
+    --accent:#b8860b;
+    --accent-ink:#ffffff;
+    --card:#ffffff;
+    --card-hover:#f2f1ee;
+    background:#ffffff;
+    padding:20px 24px;
+    border-radius:10px;
+  }
   .sheet-head{display:flex;align-items:center;gap:14px;margin-bottom:16px;flex-wrap:wrap;padding-bottom:14px;border-bottom:1px solid var(--line);}
   .sheet-head h2{margin:0;font-size:18px;font-weight:700;color:var(--text-main);letter-spacing:.2px;}
   .sheet-head .sheet-count{font-size:11.5px;color:var(--text-dim);background:var(--bg-side-2);border:1px solid var(--line);padding:5px 12px;border-radius:8px;}
   .sheet-close{margin-left:auto;}
-  .sheet-table-wrap{overflow:auto;border:1px solid var(--line);border-radius:10px;max-height:calc(100vh - 150px);}
-  table.sheet-table{table-layout:fixed;border-collapse:collapse;width:100%;min-width:1208px;font-size:11.5px;font-weight:400;color:var(--text-main);white-space:pre-line;line-height:1.55;}
-  table.sheet-table th, table.sheet-table td{border:1px solid var(--line);padding:8px 11px;vertical-align:middle;text-align:left;overflow:hidden;}
-  table.sheet-table thead th{position:sticky;top:0;background:var(--bg-side-2);color:var(--text-main);font-weight:700;font-size:11.5px;z-index:3;white-space:nowrap;letter-spacing:.2px;}
-  table.sheet-table thead tr.sheet-filter-row th{position:sticky;top:33px;background:var(--bg-side-2);padding:5px 6px;z-index:2;}
-  .sheet-colfilter-btn{width:100%;box-sizing:border-box;text-align:left;background:var(--bg-side);border:1px solid var(--line);border-radius:6px;padding:4px 6px;font-size:10.5px;font-weight:400;color:var(--text-dim);cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transition:.12s;}
-  .sheet-colfilter-btn:hover{border-color:var(--accent);color:var(--text-main);}
-  .sheet-colfilter-btn.active{border-color:var(--accent);color:var(--accent);font-weight:600;}
+  .sheet-table-wrap{overflow:auto;border:1px solid var(--line);border-radius:8px;max-height:calc(100vh - 150px);}
+  .sheet-hscroll-top{overflow-x:auto;overflow-y:hidden;height:14px;margin-bottom:2px;}
+  .sheet-hscroll-top-inner{height:1px;}
+  table.sheet-table{table-layout:fixed;border-collapse:collapse;width:100%;min-width:1208px;font-size:12px;font-weight:400;color:var(--text-main);white-space:pre-line;line-height:1.5;}
+  table.sheet-table th, table.sheet-table td{border:none;border-bottom:1px solid var(--line);padding:10px 14px;vertical-align:middle;text-align:left;overflow:hidden;}
+  table.sheet-table thead th{position:sticky;top:0;background:var(--bg-side);color:var(--text-dim);font-weight:600;font-size:11px;z-index:3;white-space:nowrap;letter-spacing:.1px;border-bottom:1px solid var(--line);padding:0;}
+  #sheetView .btn-ghost{background:var(--bg-side-2);color:var(--text-main);border-color:var(--line);}
+  #sheetView .btn-ghost:hover{background:var(--card-hover);}
+  .sheet-colfilter-btn{width:100%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:5px;text-align:center;background:none;border:none;padding:10px 12px;font-size:11px;font-weight:600;color:var(--text-dim);cursor:pointer;overflow:hidden;white-space:nowrap;transition:.12s;}
+  .sheet-colfilter-btn:hover{color:var(--text-main);background:var(--card-hover);}
+  .sheet-colfilter-btn.active{color:var(--accent);}
+  .sheet-colfilter-val{font-size:10px;font-weight:600;color:var(--accent-ink);background:var(--accent);padding:1px 7px;border-radius:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:80px;}
+  .sheet-spec-list{padding:2px 0;}
+  .sheet-spec-item{font-size:12px;line-height:1.65;color:var(--text-dim);position:relative;padding-left:12px;white-space:normal;overflow-wrap:break-word;}
+  .sheet-spec-item::before{content:'';position:absolute;left:0;top:6px;width:5px;height:5px;border-radius:2px;background:var(--accent);}
+  .sheet-colfilter-caret{font-size:9px;color:var(--text-dim);opacity:.6;}
+  .sheet-week-date-input{display:block;width:calc(100% - 16px);margin:0 8px 8px;box-sizing:border-box;background:var(--bg-side-2);border:1px solid var(--line);border-radius:5px;padding:3px 5px;font-size:10px;color:var(--text-dim);font-family:inherit;}
+  .sheet-week-date-input:hover, .sheet-week-date-input:focus{border-color:var(--accent);color:var(--text-main);}
   .sheet-colfilter-panel{z-index:900;}
   .sheet-filter-clearbar{display:flex;align-items:center;gap:8px;}
   .sheet-filter-clear{font-size:11px;color:var(--text-dim);background:none;border:1px solid var(--line);border-radius:8px;padding:5px 12px;cursor:pointer;white-space:nowrap;}
   .sheet-filter-clear:hover{color:var(--text-main);border-color:var(--accent);}
-  table.sheet-table tbody tr:nth-child(even){background:rgba(255,255,255,.02);}
-  table.sheet-table tbody tr:hover{background:var(--card-hover);}
-  table.sheet-table td.sheet-no{color:var(--text-dim);text-align:center;font-size:11px;font-weight:400;height:64px;position:relative;}
-  table.sheet-table td.sheet-district{color:var(--text-dim);font-size:11px;font-weight:400;white-space:nowrap;text-overflow:ellipsis;position:relative;overflow:visible;}
-  table.sheet-table td.sheet-name{font-weight:700;font-size:11.5px;color:var(--accent);cursor:pointer;white-space:nowrap;text-overflow:ellipsis;text-align:left;letter-spacing:.1px;}
+  table.sheet-table tbody tr:hover{background:rgba(255,255,255,.035);}
+  table.sheet-table tbody tr:last-child td{border-bottom:none;}
+  table.sheet-table td.sheet-no{color:var(--text-dim);text-align:center;font-size:12px;font-weight:400;position:relative;opacity:.55;}
+  table.sheet-table td.sheet-district{color:var(--text-dim);font-size:12px;font-weight:400;white-space:nowrap;text-overflow:ellipsis;position:relative;overflow:visible;}
+  table.sheet-table td.sheet-name{font-weight:600;font-size:12.5px;color:var(--text-main);cursor:pointer;white-space:nowrap;text-overflow:ellipsis;text-align:left;letter-spacing:0;}
   table.sheet-table thead th .col-resizer{position:absolute;top:0;right:0;width:6px;height:100%;cursor:col-resize;z-index:4;}
-  table.sheet-table thead th .col-resizer:hover{background:rgba(255,255,255,.25);}
-  table.sheet-table td.sheet-name:hover{text-decoration:underline;}
-  table.sheet-table td.sheet-dim{color:var(--text-dim);font-size:11px;font-weight:400;}
-  table.sheet-table td.sheet-week{background:rgba(211,164,95,.07);}
-  table.sheet-table .sheet-district-row td{background:var(--bg-side-2);font-weight:700;color:var(--accent);padding:7px 11px;font-size:11.5px;letter-spacing:.2px;white-space:nowrap;}
-  /* no/구/구역명 컬럼 좌측 고정 (가로 스크롤해도 계속 보이게) */
+  table.sheet-table thead th .col-resizer:hover{background:rgba(255,255,255,.2);}
+  table.sheet-table td.sheet-name:hover{color:var(--accent);}
+  table.sheet-table td.sheet-dim{color:var(--text-dim);font-size:12px;font-weight:400;}
+  table.sheet-table td.sheet-week{background:none;}
+  table.sheet-table .sheet-district-row td{background:none;font-weight:600;color:var(--text-dim);padding:18px 14px 6px;font-size:10.5px;letter-spacing:.3px;white-space:nowrap;border-bottom:none;text-transform:uppercase;}
+  /* no/구역명 컬럼 좌측 고정 (가로 스크롤해도 계속 보이게) */
   table.sheet-table .sheet-frozen{position:sticky;}
   table.sheet-table td.sheet-frozen{background:var(--bg-side);z-index:1;}
-  table.sheet-table tbody tr:nth-child(even) td.sheet-frozen{background:#22372b;}
   table.sheet-table tbody tr:hover td.sheet-frozen{background:var(--card-hover);}
   table.sheet-table thead th.sheet-frozen{z-index:6;}
   table.sheet-table thead tr.sheet-filter-row th.sheet-frozen{z-index:5;}
-  table.sheet-table [data-frozen-idx="1"]{box-shadow:4px 0 6px -4px rgba(0,0,0,.4);}
+  table.sheet-table [data-frozen-idx="1"]{box-shadow:4px 0 6px -4px rgba(0,0,0,.3);}
   table.sheet-table td.sheet-no{overflow:visible;}
   .row-resizer{position:absolute;left:0;right:0;bottom:-4px;height:9px;cursor:row-resize;z-index:6;}
   .row-resizer::after{content:'';position:absolute;left:20%;right:20%;top:3px;height:3px;border-radius:2px;background:transparent;transition:background .12s;}
   .row-resizer:hover::after{background:var(--accent);}
   .row-resizer:hover{background:rgba(255,255,255,.12);}
   td.sheet-no:hover .row-resizer::after, td.sheet-district:hover .row-resizer::after{background:var(--line);}
-  .sheet-stage-badge{display:inline-block;font-size:10px;font-weight:600;padding:3px 9px;border-radius:8px;background:var(--bg-side);border:1px solid var(--line);color:var(--text-main);white-space:nowrap;}
-  .cell-clamp{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;height:66px;min-height:66px;}
+  .sheet-stage-badge{display:inline-block;font-size:10.5px;font-weight:500;padding:2px 9px;border-radius:20px;background:rgba(211,164,95,.14);color:var(--accent);white-space:nowrap;}
+  .cell-clamp{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text-dim);display:block;}
   table.sheet-table td[data-editable="1"]{cursor:text;}
-  table.sheet-table td[data-editable="1"]:hover{background:rgba(255,183,3,.08);}
+  table.sheet-table td[data-editable="1"]:hover{background:rgba(255,183,3,.06);}
   .sheet-cell-edit{width:100%;box-sizing:border-box;background:var(--bg-side-2);border:1px solid var(--accent);border-radius:4px;color:var(--text-main);font-size:11px;font-family:inherit;padding:3px 4px;}
   textarea.sheet-cell-edit{min-height:56px;resize:vertical;}
 
@@ -595,7 +632,7 @@
   <div class="main">
     <div class="sidebar blueprint-grid" id="sidebar"></div>
     <div class="calendar-view no-print" id="calendarView" style="display:none;"></div>
-    <div class="calendar-view no-print" id="sheetView" style="display:none;"></div>
+    <div class="calendar-view" id="sheetView" style="display:none;"></div>
     <div class="map-wrap">
       <button class="btn btn-ghost clear-filter" id="clearDistrictBtn" style="display:none;">구 필터 해제 ✕</button>
       <button class="btn btn-ghost clear-filter no-print" id="labelEditBtn" style="top:auto; bottom:12px;">🔓 라벨 위치 편집</button>
@@ -1216,6 +1253,7 @@ const L = (function(){
   let selectedDistrict = null;
   let searchText = '';
   let sheetColumnFilters = {}; // 전체사업지 표 컬럼별 필터값: key -> Set<string> (담당자 필터와 동일한 검색+체크박스 방식)
+  let sheetWeekBaseDate = null; // 금주/차주계획 기준일 (null이면 오늘 날짜 기준)
   let sheetColumnSearchText = {}; // key -> 드롭다운 안의 검색어
   let sheetColFilterActiveKey = null;
   let sheetActiveColumns = [];
@@ -1745,6 +1783,7 @@ const L = (function(){
   // *텍스트* -> 굵게(강조색), **텍스트** -> 굵고 크게+빨강(매우 강조). 진행단계/비고에서 중요 표시용
   function renderRichText(text, opts){
     const compact = opts && opts.compact;
+    const singleLine = opts && opts.singleLine;
     let html = escapeHtml(text||'');
     if(compact){
       html = html.replace(/\*\*(.+?)\*\*/g, '<span style="font-weight:700;">$1</span>');
@@ -1754,7 +1793,7 @@ const L = (function(){
       html = html.replace(/\*(.+?)\*/g, '<span style="color:var(--accent);font-weight:700;">$1</span>');
     }
     html = html.replace(/~(.+?)~/g, '<u>$1</u>');
-    return html.replace(/\n/g, '<br>');
+    return singleLine ? html.replace(/\n+/g, '  ·  ') : html.replace(/\n/g, '<br>');
   }
   // 텍스트영역 위에 굵게/강조/밑줄 버튼을 붙여서, 기호를 직접 안 쳐도 클릭으로 서식을 넣을 수 있게 함
   function richToolbar(targetId){
@@ -2012,13 +2051,14 @@ const L = (function(){
 
   // ---------- 표(엑셀형) 보기: 기존 카드형 화면과 같은 데이터를 그대로 읽어서 표로만 다르게 보여줌 (별도 저장 없음 = 항상 연동됨) ----------
   function weekRangeStr(offsetWeeks){
-    const now = new Date();
+    const now = sheetWeekBaseDate || new Date();
     const day = now.getDay(); // 0=일 ... 6=토
     const mondayOffset = (day===0 ? -6 : 1-day) + offsetWeeks*7;
     const mon = new Date(now.getFullYear(), now.getMonth(), now.getDate()+mondayOffset);
     const sun = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate()+6);
     const fmt = d => `${d.getMonth()+1}/${d.getDate()}`;
-    return {start:mon, end:sun, label:`${fmt(mon)} ~ ${fmt(sun)}`};
+    const toIso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    return {start:mon, end:sun, label:`${fmt(mon)} ~ ${fmt(sun)}`, monIso:toIso(mon)};
   }
   function eventsInRange(site, start, end){
     return eventsOf(site).filter(e=>{
@@ -2029,16 +2069,24 @@ const L = (function(){
   }
   function sheetSpecBlock(s){
     const rows = [
-      s.area ? `구역면적: ${s.area}` : '',
-      s.totalFloorArea ? `연면적: ${s.totalFloorArea}` : '',
-      s.scale ? `규모: ${s.scale}` : '',
-      s.unionMembers ? `조합원: ${s.unionMembers}` : '',
-      s.households ? `신축세대: ${s.households}` : '',
-      s.trustCompany ? `신탁: ${s.trustCompany}` : '',
-      s.managementCompany ? `정비: ${s.managementCompany}` : '',
-      s.designCompany ? `설계: ${s.designCompany}` : '',
-    ].filter(Boolean);
-    return rows.join('\n') || '-';
+      ['사업단계', s.progressStage],
+      ['구역면적', s.area ? s.area+'㎡' : ''],
+      ['연면적', s.totalFloorArea ? s.totalFloorArea+'㎡' : ''],
+      ['규모', s.scale],
+      ['조합원', s.unionMembers],
+      ['신축세대', s.households],
+      ['정비업체', s.managementCompany],
+      ['설계업체', s.designCompany],
+      ['신탁사', s.trustCompany],
+    ].filter(([,v])=>v);
+    return rows;
+  }
+  // 자유 텍스트(집행부/일정/특이사항/타사활동 등)를 줄 단위로 쪼개서 사업현황 박스와 같은 불릿 목록으로 표시
+  function renderBulletLines(text){
+    if(!text) return '-';
+    const lines = String(text).split('\n').map(l=>l.trim()).filter(Boolean);
+    if(!lines.length) return '-';
+    return `<div class="sheet-spec-list">${lines.map(l=>`<div class="sheet-spec-item sheet-spec-item-plain">${renderRichText(l, {compact:true})}</div>`).join('')}</div>`;
   }
   // 전체사업지 표 컬럼 정의: 필터/렌더링을 컬럼 하나에서 관리 (no~타사활동 전체 필터 대응, 구 컬럼 포함)
   function buildSheetColumns(ctx){
@@ -2053,33 +2101,38 @@ const L = (function(){
       { key:'manager', label:'담당', width:64, type:'text', editable:true,
         getValue: s => s.manager || '',
         render: s => `<td class="sheet-dim" data-editable="1" data-key="manager" data-id="${s.id}">${escapeHtml(s.manager||'-')}</td>` },
-      { key:'memo', label:'집행부', width:126, type:'text', editable:true, multiline:true,
+      { key:'memo', label:'집행부', width:170, type:'text', editable:true, multiline:true,
         getValue: s => s.memo || '',
-        render: s => `<td title="${escapeHtml(s.memo||'')}" data-editable="1" data-key="memo" data-id="${s.id}"><div class="cell-clamp">${renderRichText(s.memo||'-', {compact:true})}</div></td>` },
-      { key:'spec', label:'규모', width:126, type:'text',
-        getValue: s => sheetSpecBlock(s),
-        render: s => `<td class="sheet-dim" title="${escapeHtml(sheetSpecBlock(s))}"><div class="cell-clamp">${renderRichText(sheetSpecBlock(s), {compact:true})}</div></td>` },
+        render: s => `<td title="${escapeHtml(s.memo||'')}" data-editable="1" data-key="memo" data-id="${s.id}">${renderBulletLines(s.memo)}</td>` },
+      { key:'spec', label:'규모', width:150, type:'text',
+        getValue: s => sheetSpecBlock(s).map(([l,v])=>`${l}: ${v}`).join(' '),
+        render: s => {
+          const rows = sheetSpecBlock(s);
+          const title = rows.map(([l,v])=>`${l}: ${v}`).join('\n') || '-';
+          const html = rows.length ? `<div class="sheet-spec-list">${rows.map(([l,v])=>`<div class="sheet-spec-item">${escapeHtml(l)}: ${escapeHtml(String(v))}</div>`).join('')}</div>` : '-';
+          return `<td class="sheet-dim" title="${escapeHtml(title)}">${html}</td>`;
+        } },
       { key:'stage', label:'진행단계', width:78, type:'select', editable:true,
         getValue: s => s.progressStage || '',
-        render: s => `<td data-editable="1" data-key="progressStage" data-id="${s.id}">${s.progressStage ? `<span class="sheet-stage-badge">${escapeHtml(s.progressStage)}</span>` : '-'}</td>` },
+        render: s => `<td data-editable="1" data-key="progressStage" data-id="${s.id}">${s.progressStage ? `<span class="sheet-stage-badge" style="background:${colorForStatus(s.progressStage)}22;color:${colorForStatus(s.progressStage)};">${escapeHtml(s.progressStage)}</span>` : '-'}</td>` },
       { key:'orderExpected', label:'시공사선정시기', width:86, type:'text', editable:true,
         getValue: s => s.orderExpected || '',
         render: s => `<td class="sheet-dim" data-editable="1" data-key="orderExpected" data-id="${s.id}">${escapeHtml(s.orderExpected||'-')}</td>` },
-      { key:'stageDetail', label:'일정', width:100, type:'text', editable:true, multiline:true,
+      { key:'stageDetail', label:'일정', width:170, type:'text', editable:true, multiline:true,
         getValue: s => s.stageDetail || '',
-        render: s => `<td class="sheet-dim" title="${escapeHtml(s.stageDetail||'')}" data-editable="1" data-key="stageDetail" data-id="${s.id}"><div class="cell-clamp">${s.stageDetail ? renderRichText(s.stageDetail, {compact:true}) : '-'}</div></td>` },
-      { key:'thisWeek', label:`금주계획(${ctx.thisWeek.label})`, width:112, type:'text',
+        render: s => `<td title="${escapeHtml(s.stageDetail||'')}" data-editable="1" data-key="stageDetail" data-id="${s.id}">${renderBulletLines(s.stageDetail)}</td>` },
+      { key:'thisWeek', label:`금주계획(${ctx.thisWeek.label})`, width:150, type:'text',
         getValue: s => fmtEv(eventsInRange(s, ctx.thisWeek.start, ctx.thisWeek.end)),
-        render: s => { const t = fmtEv(eventsInRange(s, ctx.thisWeek.start, ctx.thisWeek.end)); return `<td class="sheet-week" title="${escapeHtml(t)}"><div class="cell-clamp">${renderRichText(t, {compact:true})}</div></td>`; } },
-      { key:'nextWeek', label:`차주계획(${ctx.nextWeek.label})`, width:112, type:'text',
+        render: s => { const t = fmtEv(eventsInRange(s, ctx.thisWeek.start, ctx.thisWeek.end)); return `<td class="sheet-week" title="${escapeHtml(t)}">${renderBulletLines(t==='-'?'':t)}</td>`; } },
+      { key:'nextWeek', label:`차주계획(${ctx.nextWeek.label})`, width:150, type:'text',
         getValue: s => fmtEv(eventsInRange(s, ctx.nextWeek.start, ctx.nextWeek.end)),
-        render: s => { const t = fmtEv(eventsInRange(s, ctx.nextWeek.start, ctx.nextWeek.end)); return `<td class="sheet-week" title="${escapeHtml(t)}"><div class="cell-clamp">${renderRichText(t, {compact:true})}</div></td>`; } },
-      { key:'salesNote', label:'특이사항', width:100, type:'text', editable:true, multiline:true,
+        render: s => { const t = fmtEv(eventsInRange(s, ctx.nextWeek.start, ctx.nextWeek.end)); return `<td class="sheet-week" title="${escapeHtml(t)}">${renderBulletLines(t==='-'?'':t)}</td>`; } },
+      { key:'salesNote', label:'특이사항', width:150, type:'text', editable:true, multiline:true,
         getValue: s => s.salesNote || '',
-        render: s => `<td title="${escapeHtml(s.salesNote||'')}" data-editable="1" data-key="salesNote" data-id="${s.id}"><div class="cell-clamp">${s.salesNote ? renderRichText(s.salesNote, {compact:true}) : '-'}</div></td>` },
-      { key:'progressNote', label:'타사활동', width:100, type:'text', editable:true, multiline:true,
+        render: s => `<td title="${escapeHtml(s.salesNote||'')}" data-editable="1" data-key="salesNote" data-id="${s.id}">${renderBulletLines(s.salesNote)}</td>` },
+      { key:'progressNote', label:'타사활동', width:150, type:'text', editable:true, multiline:true,
         getValue: s => s.progressNote || '',
-        render: s => `<td class="sheet-dim" title="${escapeHtml(s.progressNote||'')}" data-editable="1" data-key="progressNote" data-id="${s.id}"><div class="cell-clamp">${s.progressNote ? renderRichText(s.progressNote, {compact:true}) : '-'}</div></td>` },
+        render: s => `<td title="${escapeHtml(s.progressNote||'')}" data-editable="1" data-key="progressNote" data-id="${s.id}">${renderBulletLines(s.progressNote)}</td>` },
     ];
   }
   function sheetFilterOptions(fs, col){
@@ -2166,7 +2219,7 @@ const L = (function(){
     `;
     panel.querySelector('.manager-filter-all').addEventListener('click', ()=>{
       selSet.clear();
-      updateSheetColFilterButtonLabel(col.key);
+      updateSheetColFilterButtonLabel(col);
       renderSheetColFilterShell(col);
       renderSheetRows(sheetActiveBaseFs, sheetActiveColumns);
     });
@@ -2194,7 +2247,7 @@ const L = (function(){
       item.addEventListener('click', ()=>{
         const v = item.dataset.val;
         if(selSet.has(v)) selSet.delete(v); else selSet.add(v);
-        updateSheetColFilterButtonLabel(col.key);
+        updateSheetColFilterButtonLabel(col);
         renderSheetColFilterList(col);
         const allChk = document.querySelector('#sheetColFilterPanel .manager-filter-all .chk');
         if(allChk){ allChk.className = 'chk' + (selSet.size===0?' checked':''); allChk.textContent = selSet.size===0?'✓':''; }
@@ -2202,13 +2255,14 @@ const L = (function(){
       });
     });
   }
-  function updateSheetColFilterButtonLabel(key){
-    const btn = document.querySelector(`.sheet-colfilter-btn[data-key="${cssEscapeKey(key)}"]`);
+  function updateSheetColFilterButtonLabel(col){
+    const btn = document.querySelector(`.sheet-colfilter-btn[data-key="${cssEscapeKey(col.key)}"]`);
     if(!btn) return;
-    const selSet = sheetFilterSet(key);
-    const label = selSet.size===0 ? '전체' : (selSet.size===1 ? Array.from(selSet)[0] : `${selSet.size}개`);
-    btn.textContent = label + ' ▾';
-    btn.title = label;
+    const selSet = sheetFilterSet(col.key);
+    const filtered = selSet.size===0 ? '' : (selSet.size===1 ? Array.from(selSet)[0] : `${selSet.size}개`);
+    btn.classList.toggle('active', !!filtered);
+    btn.innerHTML = `${escapeHtml(col.label)}${filtered?`<span class="sheet-colfilter-val">${escapeHtml(filtered)}</span>`:''} <span class="sheet-colfilter-caret">▾</span>`;
+    btn.title = col.label + (filtered ? ': '+filtered : '');
   }
   function groupByDistrict(fs){
     const groups = [];
@@ -2224,14 +2278,9 @@ const L = (function(){
     const tbody = document.getElementById('sheetTbody');
     if(!tbody) return;
     const fs = applySheetFilters(allFs, columns);
-    const groups = groupByDistrict(fs);
-    const rowsHtml = groups.map(g=>{
-      const groupRow = `<tr class="sheet-district-row"><td colspan="${columns.length}">${escapeHtml(g.key)} (${g.items.length})</td></tr>`;
-      const itemRows = g.items.map(s=>{
-        const cells = columns.map(c=>c.render(s)).join('');
-        return `<tr>${cells}</tr>`;
-      }).join('');
-      return groupRow + itemRows;
+    const rowsHtml = fs.map(s=>{
+      const cells = columns.map(c=>c.render(s)).join('');
+      return `<tr>${cells}</tr>`;
     }).join('');
     tbody.innerHTML = rowsHtml || `<tr><td colspan="${columns.length}" style="text-align:center;color:var(--text-dim);padding:20px;">표시할 현장이 없습니다.</td></tr>`;
     const countEl = document.getElementById('sheetCount');
@@ -2400,17 +2449,15 @@ const L = (function(){
       }
     });
     const colgroupHtml = `<colgroup>${columns.map(c=>`<col style="width:${c.width}px;">`).join('')}</colgroup>`;
+    const weekDateInputHtml = (key) => (key==='thisWeek')
+      ? `<input type="date" class="sheet-week-date-input no-print" id="sheetWeekDateInput" value="${thisWeek.monIso}" title="이 날짜가 포함된 주를 금주로 기준삼습니다">`
+      : '';
     const headHtml = `<tr>${columns.map((c,i)=>{
-      const frozenCls = i<2 ? ' sheet-frozen' : '';
-      const frozenAttr = i<2 ? ` data-frozen-idx="${i}"` : '';
-      return `<th class="${frozenCls.trim()}"${frozenAttr}>${c.label}<span class="col-resizer" data-idx="${i}"></span></th>`;
-    }).join('')}</tr>`;
-    const filterHtml = `<tr class="sheet-filter-row">${columns.map((c,i)=>{
       const selSet = sheetFilterSet(c.key);
-      const label = selSet.size===0 ? '전체' : (selSet.size===1 ? Array.from(selSet)[0] : `${selSet.size}개`);
+      const filtered = selSet.size===0 ? '' : (selSet.size===1 ? Array.from(selSet)[0] : `${selSet.size}개`);
       const frozenCls = i<2 ? ' sheet-frozen' : '';
       const frozenAttr = i<2 ? ` data-frozen-idx="${i}"` : '';
-      return `<th class="${frozenCls.trim()}"${frozenAttr}><button type="button" class="sheet-colfilter-btn" data-key="${c.key}" title="${escapeHtml(label)}">${escapeHtml(label)} ▾</button></th>`;
+      return `<th class="${frozenCls.trim()}"${frozenAttr}><button type="button" class="sheet-colfilter-btn${filtered?' active':''}" data-key="${c.key}" title="${escapeHtml(c.label)}${filtered?': '+escapeHtml(filtered):''}">${escapeHtml(c.label)}${filtered?`<span class="sheet-colfilter-val">${escapeHtml(filtered)}</span>`:''} <span class="sheet-colfilter-caret">▾</span></button>${weekDateInputHtml(c.key)}<span class="col-resizer" data-idx="${i}"></span></th>`;
     }).join('')}</tr>`;
 
     el.innerHTML = `
@@ -2420,18 +2467,89 @@ const L = (function(){
         <span class="sheet-count">금주 ${thisWeek.label} · 차주 ${nextWeek.label}</span>
         <div class="sheet-filter-clearbar">
           <button class="sheet-filter-clear" id="sheetFilterClear">필터 초기화</button>
-          <button class="btn btn-ghost sheet-close" id="sheetCloseBtn">✕ 닫기</button>
+          <button class="btn btn-ghost no-print" id="sheetPrintBtn" style="padding:6px 12px;">🖨 인쇄</button>
+          <button class="btn btn-ghost sheet-close no-print" id="sheetCloseBtn">✕ 닫기</button>
         </div>
       </div>
+      <div class="sheet-hscroll-top no-print" id="sheetHScrollTop"><div class="sheet-hscroll-top-inner" id="sheetHScrollTopInner"></div></div>
       <div class="sheet-table-wrap">
         <table class="sheet-table">
           ${colgroupHtml}
-          <thead>${headHtml}${filterHtml}</thead>
+          <thead>${headHtml}</thead>
           <tbody id="sheetTbody"></tbody>
         </table>
       </div>
     `;
     document.getElementById('sheetCloseBtn').addEventListener('click', closeSheetView);
+    const weekDateInput = document.getElementById('sheetWeekDateInput');
+    if(weekDateInput) weekDateInput.addEventListener('change', (e)=>{
+      const v = e.target.value;
+      sheetWeekBaseDate = v ? new Date(v+'T00:00:00') : null;
+      renderSheetView();
+    });
+    (function setupSheetTopScrollSync(){
+      const topBar = document.getElementById('sheetHScrollTop');
+      const topInner = document.getElementById('sheetHScrollTopInner');
+      const wrap = el.querySelector('.sheet-table-wrap');
+      const table = el.querySelector('table.sheet-table');
+      if(!topBar || !topInner || !wrap || !table) return;
+      const syncWidth = ()=>{ topInner.style.width = table.scrollWidth + 'px'; };
+      syncWidth();
+      setTimeout(syncWidth, 60);
+      let syncing = false;
+      topBar.addEventListener('scroll', ()=>{
+        if(syncing) return; syncing = true;
+        wrap.scrollLeft = topBar.scrollLeft;
+        syncing = false;
+      });
+      wrap.addEventListener('scroll', ()=>{
+        if(syncing) return; syncing = true;
+        topBar.scrollLeft = wrap.scrollLeft;
+        syncing = false;
+      });
+    })();
+    document.getElementById('sheetPrintBtn').addEventListener('click', ()=>{
+      const tableClone = el.querySelector('table.sheet-table').cloneNode(true);
+      // 인쇄본에서는 필터 배지/화살표, 크기조절 손잡이 등 화면 전용 요소를 제거
+      tableClone.querySelectorAll('.sheet-colfilter-caret, .sheet-colfilter-val, .row-resizer, .col-resizer').forEach(x=>x.remove());
+      // 헤더 버튼은 그냥 텍스트로 교체 (인쇄본에서는 클릭 불필요)
+      tableClone.querySelectorAll('.sheet-colfilter-btn').forEach(btn=>{
+        const span = document.createElement('span');
+        span.textContent = btn.textContent.trim();
+        btn.replaceWith(span);
+      });
+      // 좌측 고정열(sticky) 관련 인라인 스타일/클래스를 인쇄본에서는 제거 (새 창에서는 필요 없음)
+      tableClone.querySelectorAll('.sheet-frozen').forEach(elx=>{
+        elx.classList.remove('sheet-frozen');
+        elx.style.position = '';
+        elx.style.left = '';
+      });
+      const title = `${currentOffice===ALL_OFFICE?'전체':currentOffice} 전체사업지`;
+      const printWin = window.open('', '_blank', 'width=1400,height=900');
+      if(!printWin){ alert('팝업이 차단되어 인쇄 창을 열 수 없습니다. 팝업 차단을 해제해주세요.'); return; }
+      printWin.document.write(`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>${title}</title>
+        <style>
+          @page{ size: landscape; margin: 10mm; }
+          *{ box-sizing:border-box; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+          body{ font-family:'Pretendard','Apple SD Gothic Neo',sans-serif; margin:0; padding:20px; color:#37352f; background:#fff; }
+          h1{ font-size:18px; margin:0 0 14px; }
+          table{ border-collapse:collapse; width:100%; font-size:11px; line-height:1.5; }
+          th, td{ border-bottom:1px solid #eeeeec; padding:8px 10px; text-align:left; vertical-align:middle; }
+          thead th{ background:#f7f7f5; color:#8a8a86; font-weight:600; font-size:10.5px; }
+          .sheet-spec-list{ padding:2px 0; }
+          .sheet-spec-item{ font-size:11px; line-height:1.6; color:#5a5954; position:relative; padding-left:12px; }
+          .sheet-spec-item::before{ content:''; position:absolute; left:0; top:6px; width:5px; height:5px; border-radius:2px; background:#b8860b; }
+          .sheet-name{ font-weight:700; color:#37352f; }
+          .sheet-stage-badge{ display:inline-block; font-size:10px; padding:2px 8px; border-radius:20px; }
+        </style>
+      </head><body>
+        <h1>${title}</h1>
+      </body></html>`);
+      printWin.document.body.appendChild(tableClone);
+      printWin.document.close();
+      printWin.focus();
+      setTimeout(()=>{ printWin.print(); }, 300);
+    });
     document.getElementById('sheetFilterClear').addEventListener('click', ()=>{
       sheetColumnFilters = {};
       sheetColumnSearchText = {};
