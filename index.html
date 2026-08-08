@@ -1186,6 +1186,10 @@ const L = (function(){
   // 클라우드 동기화용 JSONBin.io 저장소 (여러 PC에서 같은 데이터를 보기 위함)
   const FIREBASE_DB_URL = 'https://add-project-74efc-default-rtdb.asia-southeast1.firebasedatabase.app';
   const FIREBASE_DATA_URL = `${FIREBASE_DB_URL}/data.json`;
+  // ⚠️ Firebase 콘솔 > 프로젝트 설정 > 서비스 계정 > 데이터베이스 비밀(레거시)에서 발급받은 키를 여기에 넣으세요.
+  // 이 값이 있어야 write:false 규칙 아래서도 이 앱만 저장할 수 있습니다. 절대 외부에 공유하지 마세요.
+  const FIREBASE_DB_SECRET = 'kYHJbpUE7jEVdLu69ZVMY3DGf4DBYeaA4JGZiS4B';
+  const FIREBASE_DATA_WRITE_URL = `${FIREBASE_DB_URL}/data.json?auth=${encodeURIComponent(FIREBASE_DB_SECRET)}`;
 
   async function loadSites(){
     try{
@@ -1416,7 +1420,7 @@ const L = (function(){
           // 관리자 저장 시에도, 그 사이 담당자들이 새로 쌓은 버전 정보를 오래된 로컬 값으로 되돌리지 않도록 최신값을 유지한다.
           guestDataVersions = Object.assign({}, (fresh && fresh.guestDataVersions) || guestDataVersions);
         }
-        const res = await fetch(FIREBASE_DATA_URL, {
+        const res = await fetch(FIREBASE_DATA_WRITE_URL, {
           method:'PUT',
           headers:{'Content-Type':'application/json'},
           body: JSON.stringify({offices: allOfficesData, guests: guestAccounts, changeLog: changeLog, adminPasswordHash: adminPasswordHash, entryPasswordHash: entryPasswordHash, dataVersion: newDataVersion, guestDataVersions: guestDataVersions})
