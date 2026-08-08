@@ -438,26 +438,30 @@
   @media print, screen{
     body.print-mode .topbar, body.print-mode .tabs, body.print-mode .clear-filter,
     body.print-mode .region-panel, body.print-mode .card-actions, body.print-mode .no-print,
-    body.print-mode #editToggle, body.print-mode .site-label{display:none !important;}
+    body.print-mode #editToggle, body.print-mode .site-label,
+    body.print-mode .master-list, body.print-mode .sidebar-head,
+    body.print-mode .office-switcher{display:none !important;}
     body.print-mode .main{flex-direction:row !important; height:180mm !important;}
-    body.print-mode .sidebar{width:520px !important; flex:0 0 520px !important; height:auto !important; border-right:1px solid var(--line) !important; border-left:none !important; border-bottom:none !important; order:1 !important;}
+    body.print-mode .sidebar{width:520px !important; flex:0 0 520px !important; height:auto !important; max-height:none !important; border-right:1px solid var(--line) !important; border-left:none !important; border-bottom:none !important; order:1 !important; overflow:visible !important;}
+    body.print-mode .master-detail{flex-direction:column !important; overflow:visible !important;}
+    body.print-mode .master-panel{overflow:visible !important;}
     body.print-mode .map-wrap{height:100% !important; flex:1 1 auto !important; order:2 !important;}
-    body.print-mode #detailBody{display:flex !important; flex-wrap:wrap !important; gap:0 20px !important;}
-    body.print-mode #detailBody .visit-row, body.print-mode #detailBody .section-head{flex:1 1 100% !important;}
-    body.print-mode .spec-box{flex:1 1 220px !important;}
-    body.print-mode .detail-notes-inline{display:block !important; flex:1 1 220px !important; border-left:1px dashed var(--line); padding-left:16px;}
-    body.print-mode .detail-notes-inline .spec-divider{display:none;}
+    body.print-mode .detail-quad-grid{display:grid !important; grid-template-columns:1fr 1fr !important; gap:10px !important;}
+    body.print-mode .detail-quad-box{height:auto !important; max-height:none !important; overflow:visible !important; resize:none !important;}
+    body.print-mode .rte-toolbar, body.print-mode .quad-edit-btn{display:none !important;}
   }
   @media print{
     .topbar, .tabs, .clear-filter, .region-panel,
-    .card-actions, .no-print, #editToggle, .site-label{display:none !important;}
+    .card-actions, .no-print, #editToggle, .site-label,
+    .master-list, .sidebar-head, .office-switcher{display:none !important;}
     .main{flex-direction:row !important; height:180mm !important;}
-    .sidebar{width:520px !important; flex:0 0 520px !important; height:auto !important; border-right:1px solid var(--line) !important; border-left:none !important; border-bottom:none !important; order:1 !important;}
+    .sidebar{width:520px !important; flex:0 0 520px !important; height:auto !important; max-height:none !important; border-right:1px solid var(--line) !important; border-left:none !important; border-bottom:none !important; order:1 !important; overflow:visible !important;}
+    .master-detail{flex-direction:column !important; overflow:visible !important;}
+    .master-panel{overflow:visible !important;}
     .map-wrap{height:100% !important; flex:1 1 auto !important; order:2 !important;}
-    #detailBody{display:flex !important; flex-wrap:wrap !important; gap:0 20px !important;}
-    #detailBody .visit-row, #detailBody .section-head{flex:1 1 100% !important;}
-    .spec-box{flex:1 1 220px !important;}
-    .detail-notes-inline{display:block !important; flex:1 1 220px !important; border-left:1px dashed var(--line); padding-left:16px;}
+    .detail-quad-grid{display:grid !important; grid-template-columns:1fr 1fr !important; gap:10px !important;}
+    .detail-quad-box{height:auto !important; max-height:none !important; overflow:visible !important; resize:none !important;}
+    .rte-toolbar, .quad-edit-btn{display:none !important;}
     .detail-notes-inline .spec-divider{display:none;}
   }
 </style>
@@ -2680,9 +2684,9 @@ const L = (function(){
       document.body.classList.add('print-mode');
       requestAnimationFrame(()=>{
         requestAnimationFrame(()=>{
-          // 살짝 흔드는 정도로는 부족해서, 인쇄용 크기로 바뀐 지도 위에
-          // 구역(폴리곤)·마커를 아예 통째로 다시 그림
-          focusMapOnSite(site);
+          // 인쇄 직전엔 지도 위치를 강제로 재조정하지 않는다.
+          // (다롱님이 인쇄 전에 지도를 원하는 위치로 미리 옮겨둔 걸 그대로 인쇄하기 위함)
+          map.invalidateSize();
           setTimeout(()=>{
             drawPrintOverlay(site);
             window.print();
