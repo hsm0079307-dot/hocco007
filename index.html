@@ -133,6 +133,26 @@
   .name-item.active{background:var(--accent);color:var(--accent-ink);font-weight:650;}
   .name-item.dragging{opacity:.4;}
   .name-item.drag-over{outline:2px dashed #dba13a;outline-offset:-2px;}
+  .compare-chk{flex:none;width:15px;height:15px;border:1px solid var(--line);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;line-height:1;color:var(--accent-ink);background:var(--bg-side-2);}
+  .compare-chk.checked{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700;}
+  .compare-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 12px;background:var(--bg-side-2);border-bottom:1px solid var(--line);font-size:11px;color:var(--text-dim);}
+  .compare-overlay{z-index:950;}
+  .modal.compare-modal{width:min(90vw,900px);max-width:none;max-height:85vh;display:flex;flex-direction:column;padding:0;overflow:hidden;}
+  .compare-modal-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--line);}
+  .compare-modal-head h3{margin:0;font-size:14px;color:var(--accent);}
+  .compare-table-wrap{overflow:auto;padding:14px 18px 18px;}
+  .compare-table{border-collapse:collapse;width:100%;font-size:12px;}
+  .compare-table th, .compare-table td{border:1px solid var(--line);padding:7px 10px;text-align:left;white-space:nowrap;}
+  .compare-table thead th{background:var(--bg-side-2);color:var(--accent);font-size:12.5px;position:sticky;top:0;}
+  .compare-table .compare-row-label{background:var(--bg-side-2);color:var(--text-dim);font-weight:600;position:sticky;left:0;}
+  .compare-district{font-size:10px;color:var(--text-dim);font-weight:400;margin-top:2px;}
+  @media print{
+    body.compare-print-mode #app > *:not(#compareModalRoot){display:none !important;}
+    body.compare-print-mode .compare-modal-head, body.compare-print-mode .no-print{display:none !important;}
+    body.compare-print-mode .compare-overlay{position:static !important;background:none !important;}
+    body.compare-print-mode .compare-modal{width:100% !important;max-height:none !important;box-shadow:none !important;border:none !important;}
+    body.compare-print-mode .compare-table-wrap{overflow:visible !important;padding:0 !important;}
+  }
   .master-panel{flex:1;min-width:0;overflow-y:auto;}
   @media (max-width:640px){
     .master-detail{flex-direction:column;}
@@ -477,6 +497,7 @@
   </div>
 </div>
 <div id="app">
+  <div id="compareModalRoot"></div>
 
   <div class="topbar blueprint-grid">
     <div class="brand">강서사업소 스크린</div>
@@ -1154,6 +1175,9 @@ const L = (function(){
   let nameFilterOpen = false;   // 왼쪽 "현장 목록" 옆 ▽ 이름 다중선택 드롭다운 열림 상태
   let nameFilterSearchText = ''; // 그 드롭다운 안에서 체크박스 목록을 좁히는 검색어 (실제 필터는 selectedNameIds)
   let selectedNameIds = new Set(); // 체크된 현장(id) 집합. 비어있으면 전체 표시
+  let compareMode = false;      // 현장 비교 모드 on/off
+  let compareIds = new Set();   // 비교 대상으로 체크된 현장 id 집합
+  let compareModalOpen = false; // 비교표 모달 열림 여부
   let currentDetailId = null;
   let savedListScroll = 0;      // 상세보기 진입 전 목록 스크롤 위치 (뒤로가기/ESC 시 복원)
   let detailTab = '개요';
@@ -2413,6 +2437,65 @@ const L = (function(){
   }
 
   // ---------- 메인화면: 이름 목록 + 개요 ----------
+  // ---------- 현장 비교표 ----------
+  function renderCompareModal(){
+    const root = document.getElementById('compareModalRoot');
+    if(!compareModalOpen){ root.innerHTML=''; return; }
+    const chosen = sites.filter(s=>compareIds.has(s.id));
+    if(chosen.length<2){ compareModalOpen=false; root.innerHTML=''; return; }
+    const rows = [
+      ['사업단계', s=>s.progressStage||'-'],
+      ['담당자', s=>s.manager||'-'],
+      ['구역면적', s=>s.area?s.area+'㎡':'-'],
+      ['연면적', s=>s.totalFloorArea?s.totalFloorArea+'㎡':'-'],
+      ['규모', s=>s.scale||'-'],
+      ['조합원', s=>s.unionMembers||'-'],
+      ['신축세대', s=>s.households||'-'],
+      ['정비업체', s=>s.managementCompany||'-'],
+      ['설계업체', s=>s.designCompany||'-'],
+      ['신탁사', s=>s.trustCompany||'-'],
+    ];
+    root.innerHTML = `
+      <div class="overlay show compare-overlay" id="compareOverlay">
+        <div class="modal compare-modal">
+          <div class="compare-modal-head no-print">
+            <h3>현장 비교 (${chosen.length}개)</h3>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-ghost btn-sm" id="comparePrintBtn">🖨 인쇄</button>
+              <button class="btn btn-ghost btn-sm" id="compareCloseBtn">닫기 ✕</button>
+            </div>
+          </div>
+          <div class="compare-table-wrap">
+            <table class="compare-table">
+              <thead>
+                <tr>
+                  <th class="compare-row-label">구분</th>
+                  ${chosen.map(s=>`<th>${escapeHtml(s.name)}<div class="compare-district">${escapeHtml(s.district||'')}</div></th>`).join('')}
+                </tr>
+              </thead>
+              <tbody>
+                ${rows.map(([label, get])=>`
+                  <tr>
+                    <td class="compare-row-label">${label}</td>
+                    ${chosen.map(s=>`<td>${escapeHtml(String(get(s)))}</td>`).join('')}
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>`;
+    document.getElementById('compareCloseBtn').addEventListener('click', ()=>{
+      compareModalOpen = false;
+      renderCompareModal();
+    });
+    document.getElementById('comparePrintBtn').addEventListener('click', ()=>{
+      document.body.classList.add('compare-print-mode');
+      window.print();
+      setTimeout(()=>document.body.classList.remove('compare-print-mode'), 1000);
+    });
+  }
+
   function renderMainScreen(){
     // sidebarEl.innerHTML을 새로 그리면 지금 포커스돼있는 masterList가 통째로 파괴되면서
     // 브라우저가 자동으로 blur를 발생시켜버려서, blur 이벤트로 포커스 여부를 추적하면 안 됨.
@@ -2435,9 +2518,10 @@ const L = (function(){
     const nameItems = fs.map(s=>{
       const stale = isStale(s);
       const active = s.id===currentDetailId;
+      const checked = compareIds.has(s.id);
       return `
-      <div class="name-item ${active?'active':''} ${stale?'stale':''}" data-id="${s.id}">
-        <span class="dot" style="background:${colorForStatus(s.status)}"></span>
+      <div class="name-item ${active?'active':''} ${stale?'stale':''} ${compareMode?'compare-mode':''}" data-id="${s.id}">
+        ${compareMode ? `<span class="compare-chk ${checked?'checked':''}" data-compare-id="${s.id}">${checked?'✓':''}</span>` : `<span class="dot" style="background:${colorForStatus(s.status)}"></span>`}
         <span class="name-item-text">${escapeHtml(s.name)}</span>
         ${s.__officialChanged ? '<span style="font-size:10px;" title="관리자가 원본을 수정했어요">🔔</span>' : ''}
       </div>`;
@@ -2446,6 +2530,7 @@ const L = (function(){
     // 필터에 없어진 현장이 선택돼 있으면 정리 (사업소 전환 등으로 목록 자체가 바뀐 경우)
     const allIds = new Set(sites.map(s=>s.id));
     selectedNameIds = new Set(Array.from(selectedNameIds).filter(id=>allIds.has(id)));
+    compareIds = new Set(Array.from(compareIds).filter(id=>allIds.has(id)));
 
     sidebarEl.innerHTML = `
       <div class="sidebar-head">
@@ -2460,8 +2545,13 @@ const L = (function(){
             <div id="nameFilterList"></div>
           </div>
         </div>
+        <button type="button" id="compareModeBtn" class="btn btn-ghost btn-sm no-print" style="margin-left:auto;margin-right:6px;padding:3px 9px;font-size:10.5px;${compareMode?'border-color:var(--accent);color:var(--accent);':''}">${compareMode?'비교취소':'비교'}</button>
         <span>${fs.length} 개</span>
       </div>
+      ${compareMode ? `<div class="compare-toolbar no-print">
+        <span>${compareIds.size}개 선택됨 (2개 이상 선택하세요)</span>
+        <button type="button" id="compareGoBtn" class="btn btn-primary btn-sm" ${compareIds.size<2?'disabled':''} style="padding:3px 10px;font-size:10.5px;">비교표 보기</button>
+      </div>` : ''}
       <div class="master-detail">
         <div class="master-list" id="masterList" tabindex="0">${nameItems}</div>
         <div class="master-panel" id="masterPanel"></div>
@@ -2481,10 +2571,28 @@ const L = (function(){
     };
     sidebarEl.querySelectorAll('.name-item').forEach(item=>{
       item.addEventListener('click', ()=>{
+        if(compareMode){
+          const id = item.dataset.id;
+          if(compareIds.has(id)) compareIds.delete(id); else compareIds.add(id);
+          renderSidebar();
+          return;
+        }
         if(listEl) listEl.focus({preventScroll:true});
         if(item.classList.contains('active')) return;
         selectSite(item.dataset.id);
       });
+    });
+    const compareModeBtn = document.getElementById('compareModeBtn');
+    if(compareModeBtn) compareModeBtn.addEventListener('click', ()=>{
+      compareMode = !compareMode;
+      if(!compareMode) compareIds.clear();
+      renderSidebar();
+    });
+    const compareGoBtn = document.getElementById('compareGoBtn');
+    if(compareGoBtn) compareGoBtn.addEventListener('click', ()=>{
+      if(compareIds.size<2) return;
+      compareModalOpen = true;
+      renderCompareModal();
     });
     if(listEl){
       // 화살표 위/아래로 목록 이동, 선택된 항목은 자동으로 스크롤해서 보이게 함
