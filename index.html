@@ -84,6 +84,15 @@
   .stale-badge{font-size:10px;font-weight:700;color:#ff8a80;white-space:nowrap;}
   .photo-links{display:flex;flex-wrap:wrap;gap:8px;}
   .photo-link{display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:6px;overflow:hidden;background:var(--bg-side-2);border:1px solid var(--line);text-decoration:none;color:var(--text-main);font-size:11px;}
+  .doc-list{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;}
+  .doc-item{display:flex;align-items:center;gap:8px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);}
+  .doc-item-link{display:flex;align-items:center;gap:8px;flex:1;min-width:0;text-decoration:none;color:var(--text-main);}
+  .doc-item-link:hover{color:var(--accent);}
+  .doc-item-icon{font-size:16px;flex:none;}
+  .doc-item-name{font-size:12.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .doc-item-del{flex:none;background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:13px;padding:2px 6px;border-radius:6px;}
+  .doc-item-del:hover{color:#e5484d;background:var(--bg-side-2);}
+  .doc-add-row{display:flex;gap:8px;flex-wrap:wrap;}
   .photo-link img{width:100%;height:100%;object-fit:cover;}
   .calendar-view{position:absolute;inset:0;background:var(--bg-side);z-index:600;overflow:auto;padding:18px 22px;}
   .cal-header{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
@@ -247,8 +256,8 @@
   #map{width:100%;height:100%;background:#b3b3b3;}
   .leaflet-tile-pane{filter:grayscale(1) brightness(.95) contrast(1);}
   
-  .district-pill{background:rgba(15,15,18,.92);color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:3px 8px;font-size:10px;font-weight:600;white-space:nowrap;display:flex;gap:4px;align-items:center;box-shadow:0 2px 8px rgba(0,0,0,.4);}
-  .district-pill .n{color:var(--accent);}
+  .district-pill{background:#fff3b8;color:#4a3b00;border:1px solid #f0d97a;border-radius:8px;padding:3px 8px;font-size:10px;font-weight:700;white-space:nowrap;display:flex;gap:4px;align-items:center;box-shadow:0 2px 8px rgba(0,0,0,.25);}
+  .district-pill .n{color:#b8860b;font-weight:800;}
   .site-dot{width:14px;height:14px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 2px rgba(0,0,0,.25);cursor:pointer;}
   .site-label{color:#fff;font-size:12px;font-weight:600;padding:4px 12px;border-radius:8px;white-space:nowrap;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.4);border:none;}
   .site-label:hover{background:var(--accent);color:var(--accent-ink);}
@@ -3002,8 +3011,8 @@ const L = (function(){
             <div class="stepper">${steps}</div>
           </div>
           <div class="detail-tabs">
-            ${['개요','일지','공고'].map(t=>`
-              <div class="dtab ${t===detailTab?'active':''}" data-tab="${t}">${t}${t==='일지'?` <span class="dtab-count">${visitCount(site)}</span>`:''}</div>
+            ${['개요','일지','공고','문서함'].map(t=>`
+              <div class="dtab ${t===detailTab?'active':''}" data-tab="${t}">${t}${t==='일지'?` <span class="dtab-count">${visitCount(site)}</span>`:''}${t==='문서함' && (site.documents||[]).length ? ` <span class="dtab-count">${site.documents.length}</span>`:''}</div>
             `).join('')}
           </div>
         </div>
@@ -3303,6 +3312,77 @@ const L = (function(){
           });
         });
       }
+    }else if(detailTab==='문서함'){
+      const docs = Array.isArray(site.documents) ? site.documents : [];
+      const fileIcon = (name)=>{
+        const ext = (name||'').split('.').pop().toLowerCase();
+        if(ext==='pdf') return '📕';
+        if(['doc','docx'].includes(ext)) return '📘';
+        if(['xls','xlsx'].includes(ext)) return '📗';
+        if(['ppt','pptx'].includes(ext)) return '📙';
+        if(['jpg','jpeg','png','gif','webp'].includes(ext)) return '🖼️';
+        return '📄';
+      };
+      body.innerHTML = `
+        <div class="doc-list" id="docList">
+          ${docs.length ? docs.map((d,i)=>`
+            <div class="doc-item" data-idx="${i}">
+              <a href="${escapeHtml(d.url||d.dataUrl||'')}" target="_blank" rel="noopener" class="doc-item-link" ${d.dataUrl?`download="${escapeHtml(d.name||'')}"`:''}>
+                <span class="doc-item-icon">${fileIcon(d.name)}</span>
+                <span class="doc-item-name">${escapeHtml(d.name||'문서')}</span>
+              </a>
+              <button class="doc-item-del no-print" data-idx="${i}" title="삭제">✕</button>
+            </div>
+          `).join('') : '<div class="empty" style="padding:30px 0;">등록된 문서가 없습니다.</div>'}
+        </div>
+        <div class="doc-add-row no-print">
+          <label class="btn btn-ghost" style="cursor:pointer;">📎 파일 첨부
+            <input type="file" id="doc_file_input" multiple style="display:none;">
+          </label>
+          <button class="btn btn-ghost" id="docLinkAddBtn">🔗 링크로 추가</button>
+        </div>
+        <div class="hint">파일 첨부는 용량이 크면(대략 5MB 이상) 느려질 수 있어요. 이미 OneDrive/구글드라이브 등에 자료가 있다면 "링크로 추가"가 더 가벼워요.</div>
+      `;
+      const persistDocs = async ()=>{ await saveSites(); renderAll(); };
+      const fileInput = document.getElementById('doc_file_input');
+      if(fileInput) fileInput.addEventListener('change', async (e)=>{
+        if(!(await ensureUnlocked())) return;
+        const files = Array.from(e.target.files||[]);
+        if(!files.length) return;
+        site.documents = site.documents || [];
+        for(const f of files){
+          try{
+            const dataUrl = await new Promise((resolve,reject)=>{
+              const reader = new FileReader();
+              reader.onload = ()=>resolve(reader.result);
+              reader.onerror = reject;
+              reader.readAsDataURL(f);
+            });
+            site.documents.push({name:f.name, dataUrl, addedAt:new Date().toISOString()});
+          }catch(err){ console.error('문서 처리 실패', err); }
+        }
+        await persistDocs();
+      });
+      const linkAddBtn = document.getElementById('docLinkAddBtn');
+      if(linkAddBtn) linkAddBtn.addEventListener('click', async ()=>{
+        if(!(await ensureUnlocked())) return;
+        const url = prompt('문서 링크(URL)를 입력하세요 (OneDrive, 구글드라이브 등)');
+        if(!url) return;
+        const name = prompt('이 문서를 뭐라고 부를까요? (예: 창립총회 회의록)') || url;
+        site.documents = site.documents || [];
+        site.documents.push({name, url, addedAt:new Date().toISOString()});
+        await persistDocs();
+      });
+      document.querySelectorAll('.doc-item-del').forEach(btn=>{
+        btn.addEventListener('click', async (e)=>{
+          e.stopPropagation();
+          if(!(await ensureUnlocked())) return;
+          if(!confirm('이 문서를 삭제할까요?')) return;
+          const idx = parseInt(btn.dataset.idx,10);
+          site.documents.splice(idx,1);
+          await persistDocs();
+        });
+      });
     }
   }
 
