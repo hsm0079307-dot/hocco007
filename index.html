@@ -23,6 +23,20 @@
     --font-serif:'Pretendard','Apple SD Gothic Neo',sans-serif;
     --font-mono:'Pretendard','Apple SD Gothic Neo',sans-serif;
   }
+  body.theme-dark{
+    --bg-side:#1c3226;
+    --bg-side-2:#25402f;
+    --line:rgba(201,157,107,.3);
+    --text-main:#f2ead9;
+    --text-dim:#a7c0ab;
+    --accent:#d3a45f;
+    --accent-ink:#1c3226;
+    --card:#213b2d;
+    --card-hover:#2c4c39;
+    --grid-line:rgba(255,255,255,.05);
+    background:#2a1d12;
+  }
+  body.theme-dark #app{box-shadow:0 2px 20px rgba(0,0,0,.6);}
   *{box-sizing:border-box;}
   ::-webkit-scrollbar{width:8px;height:8px;}
   ::-webkit-scrollbar-track{background:transparent;}
@@ -598,9 +612,11 @@
         <button class="manager-filter-item" id="changeAdminPwBtn" type="button" style="width:100%;background:none;border:none;text-align:left;">🔑 비번변경</button>
         <button class="manager-filter-item" id="changeEntryPwBtn" type="button" title="첫 화면 입장 비밀번호(자료보호용) 변경" style="width:100%;background:none;border:none;text-align:left;">🚪🔑 입장암호변경</button>
         <button class="manager-filter-item" id="changeLogBtn" type="button" style="width:100%;background:none;border:none;text-align:left;">수정이력</button>
+        <button class="manager-filter-item" id="undoBtn" type="button" style="width:100%;background:none;border:none;text-align:left;">↩️ 실행취소(방금 저장 이전으로)</button>
         <button class="manager-filter-item" id="missingCoordsBtn" type="button" style="width:100%;background:none;border:none;text-align:left;">📍좌표없음</button>
       </div>
     </div>
+    <button class="btn btn-ghost" id="themeToggleBtn" title="다크/라이트 모드 전환">🌙</button>
     <button class="btn btn-ghost" id="refreshDataBtn" title="클라우드에서 최신 데이터 다시 불러오기">🔄 새로고침</button>
     <button class="btn btn-ghost" id="manualSaveBtn" title="지금 화면 내용을 클라우드에 바로 저장">💾 저장</button>
     <button class="btn btn-ghost" id="adminLogoutBtn" title="로그아웃하고 처음 화면으로">🚪 로그아웃</button>
@@ -1089,6 +1105,7 @@ const L = (function(){
   let currentGuest = null; // {key, name, password, siteIds} - 로그인한 담당자(게스트) 정보
   let guestAccounts = {};  // {guest1:{name,password,siteIds:[]}, ...}
   let changeLog = [];      // [{at, who, site, note}, ...] 담당자 수정 이력
+  let undoSnapshot = null; // 바로 이전 저장 상태 스냅샷 (실행취소용, 1단계만 지원)
   const GUEST_KEY = 'realestate-guest-accounts-v1';
   const CHANGELOG_KEY = 'realestate-guest-changelog-v1';
   const ADMIN_PW_KEY = 'realestate-admin-pw-hash-v1';
@@ -1411,6 +1428,9 @@ const L = (function(){
   let editingGuestDraftKey = null; // 관리자가 특정 담당자의 사본을 직접 고치는 중일 때만 그 게스트 key를 담아둠
   async function saveSites(){
     lastSaveBlockedByVersion = false;
+    if(!guestMode){
+      try{ undoSnapshot = JSON.parse(JSON.stringify(allOfficesData)); }catch(e){}
+    }
     if(!guestMode && saveOfficeContext && currentOffice!==ALL_OFFICE) allOfficesData[currentOffice] = sites;
     let editedSiteId = null, editedSiteSnapshot = null;
     const detailSite = currentView==='detail' ? sites.find(s=>s.id===currentDetailId) : null;
@@ -4705,6 +4725,34 @@ const L = (function(){
   });
   document.getElementById('changeLogCloseBtn').addEventListener('click', ()=>{
     document.getElementById('changeLogOverlay').classList.remove('show');
+  });
+  (function initThemeToggle(){
+    const btn = document.getElementById('themeToggleBtn');
+    if(!btn) return;
+    const apply = (mode)=>{
+      document.body.classList.toggle('theme-dark', mode==='dark');
+      btn.textContent = mode==='dark' ? '☀️' : '🌙';
+      btn.title = mode==='dark' ? '라이트 모드로 전환' : '다크 모드로 전환';
+    };
+    let saved = 'light';
+    try{ saved = localStorage.getItem('themeMode') || 'light'; }catch(e){}
+    apply(saved);
+    btn.addEventListener('click', ()=>{
+      const next = document.body.classList.contains('theme-dark') ? 'light' : 'dark';
+      apply(next);
+      try{ localStorage.setItem('themeMode', next); }catch(e){}
+    });
+  })();
+  document.getElementById('undoBtn').addEventListener('click', async ()=>{
+    if(!(await ensureUnlocked())) return;
+    if(!undoSnapshot){ alert('되돌릴 이전 저장 기록이 없습니다 (이번 접속에서 아직 저장한 적이 없거나, 이미 한 번 되돌렸어요).'); return; }
+    if(!confirm('가장 최근 저장 이전 상태로 되돌립니다. 계속할까요?')) return;
+    allOfficesData = undoSnapshot;
+    undoSnapshot = null;
+    sites = currentOffice===ALL_OFFICE ? OFFICES.flatMap(o=>allOfficesData[o]||[]) : (allOfficesData[currentOffice] || []);
+    await saveSites();
+    renderAll();
+    alert('되돌렸습니다.');
   });
 
   // ---------- 좌표 없는 현장 목록 ----------
