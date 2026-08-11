@@ -1446,7 +1446,7 @@ const L = (function(){
     const detailSite = currentView==='detail' ? sites.find(s=>s.id===currentDetailId) : null;
     const modalSite = editingId ? sites.find(s=>s.id===editingId) : null;
     const lastEditedSite = lastEditedSiteId ? (sites.find(s=>s.id===lastEditedSiteId) || OFFICES.flatMap(o=>allOfficesData[o]||[]).find(s=>s.id===lastEditedSiteId)) : null;
-    const targetSite = detailSite || modalSite || lastEditedSite;
+    const targetSite = lastEditedSite || detailSite || modalSite;
     lastEditedSiteId = null; // 한 번 쓰면 초기화
     if(targetSite){ editedSiteId = targetSite.id; editedSiteSnapshot = JSON.parse(JSON.stringify(targetSite)); }
     if(guestMode && currentGuest){
