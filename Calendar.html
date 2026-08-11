@@ -686,9 +686,33 @@ const CAPACITY_DATE_KEY = "capacity_date_override_v1"; // 날짜별 정원 개�
 let dateCapacityOverrides = {};
 try{ dateCapacityOverrides = JSON.parse(localStorage.getItem(CAPACITY_DATE_KEY)) || {}; }catch(e){ dateCapacityOverrides = {}; }
 function persistDateCapacity(){ localStorage.setItem(CAPACITY_DATE_KEY, JSON.stringify(dateCapacityOverrides)); }
-const WEEKS = [];
-for(let i=0;i<ALL_DATES.length;i+=7){ WEEKS.push(ALL_DATES.slice(i,i+7)); }
+let WEEKS = [];
 let currentChartWeek = 0;
+function rebuildWeeks(){
+  const keys = getActiveDateKeys();
+  const weekMap = new Map(); // mondayTimestamp -> true
+  keys.forEach(k=>{
+    const d = parseKeyDate(k);
+    const dow = mondayIndex(d.getDay());
+    const monday = new Date(d);
+    monday.setDate(d.getDate()-dow);
+    monday.setHours(0,0,0,0);
+    weekMap.set(monday.getTime(), true);
+  });
+  const weekStarts = [...weekMap.keys()].sort((a,b)=>a-b);
+  WEEKS = weekStarts.map(ts=>{
+    const monday = new Date(ts);
+    const days = [];
+    for(let i=0;i<7;i++){
+      const d = new Date(monday);
+      d.setDate(monday.getDate()+i);
+      const key = (d.getMonth()+1)+"-"+d.getDate();
+      days.push([key, labelFor(key)]);
+    }
+    return days;
+  });
+  if(currentChartWeek >= WEEKS.length) currentChartWeek = Math.max(0, WEEKS.length-1);
+}
 
 // ---- 갤러리 참석자 상세 (기본값) ----
 const GALLERY_ROWS_DEFAULT = {
@@ -809,8 +833,6 @@ function rebuildDATA(){
       };
     }
   }
-  ALL_DATES.forEach(([k])=>computeEntry(k));
-  // ALL_DATES에 없는(범위 밖) 날짜도 배지 계산에 포함
   new Set([...Object.keys(GALLERY_ROWS), ...Object.keys(TOUR_ROWS), ...Object.keys(GALLERY_CLOSED), ...Object.keys(TOUR_CLOSED)]).forEach(k=>computeEntry(k));
 }
 rebuildDATA();
@@ -822,10 +844,12 @@ function onScheduleDataChanged(){
   selectDate(currentDateKey, false);
   updateSummary();
   updateManagerTable();
+  rebuildWeeks();
   updateStatsChart();
   populateManagerFilter();
   populateDanjiToggleBar();
   populateManagerColDropdowns();
+  populateFilter();
   buildDashboard();
 }
 
@@ -991,16 +1015,9 @@ function pdfExportCurrentDate(){
 
 // ---- 대시보드 요약 ----
 function buildDashboard(){
-  const todayKeyList = ALL_DATES.map(([k])=>k).filter(k=>{
-    const d = parseKeyDate(k);
-    const t = new Date(); t.setHours(0,0,0,0);
-    return d.getTime()===t.getTime();
-  });
-  const todayKey = todayKeyList[0];
+  const todayKey = todayKeyStr();
   let todayCount = 0;
-  if(todayKey){
-    todayCount = (GALLERY_ROWS[todayKey]||[]).length + (TOUR_ROWS[todayKey]||[]).length;
-  }
+  todayCount = (GALLERY_ROWS[todayKey]||[]).length + (TOUR_ROWS[todayKey]||[]).length;
 
   let uncheckedPast = 0;
   const now = new Date(); now.setHours(0,0,0,0);
@@ -1016,7 +1033,7 @@ function buildDashboard(){
   });
 
   let nearFullCount = 0;
-  ALL_DATES.forEach(([key])=>{
+  getActiveDateKeys().forEach(key=>{
     const cap = getCapacityForKey(key);
     if(cap>0){
       const hc = computeDateHeadcount(key);
@@ -1025,16 +1042,15 @@ function buildDashboard(){
   });
 
   const tomorrow = new Date(now); tomorrow.setDate(tomorrow.getDate()+1);
-  const tomorrowMatch = ALL_DATES.find(([k])=>parseKeyDate(k).getTime()===tomorrow.getTime());
-  const tomorrowKey = tomorrowMatch ? tomorrowMatch[0] : null;
-  const tomorrowCount = tomorrowKey ? ((GALLERY_ROWS[tomorrowKey]||[]).length + (TOUR_ROWS[tomorrowKey]||[]).length) : 0;
+  const tomorrowKey = (tomorrow.getMonth()+1)+"-"+tomorrow.getDate();
+  const tomorrowCount = (GALLERY_ROWS[tomorrowKey]||[]).length + (TOUR_ROWS[tomorrowKey]||[]).length;
 
   const html =
     "<div class='dashboard-grid'>"+
-    "<div class='dash-card' onclick=\""+(todayKey?"openPreview('"+todayKey+"')":"")+"\"><div class='dash-num'>"+todayCount+"</div><div class='dash-label'>오늘</div></div>"+
+    "<div class='dash-card' onclick=\"openPreview('"+todayKey+"')\"><div class='dash-num'>"+todayCount+"</div><div class='dash-label'>오늘</div></div>"+
     "<div class='dash-card"+(uncheckedPast>0?" alert":"")+"' onclick=\"openStatusPreview('noshow')\"><div class='dash-num'>"+uncheckedPast+"</div><div class='dash-label'>미확인</div></div>"+
     "<div class='dash-card"+(nearFullCount>0?" warn":"")+"' onclick=\"openNearFullPreview()\"><div class='dash-num'>"+nearFullCount+"</div><div class='dash-label'>마감임박</div></div>"+
-    "<div class='dash-card"+(tomorrowCount>0?" warn":"")+"' onclick=\""+(tomorrowKey?"openPreview('"+tomorrowKey+"')":"")+"\"><div class='dash-num'>"+tomorrowCount+"</div><div class='dash-label'>내일</div></div>"+
+    "<div class='dash-card"+(tomorrowCount>0?" warn":"")+"' onclick=\"openPreview('"+tomorrowKey+"')\"><div class='dash-num'>"+tomorrowCount+"</div><div class='dash-label'>내일</div></div>"+
     "</div>";
   document.getElementById("dashboardCard").innerHTML = html;
 }
@@ -1042,11 +1058,11 @@ function buildDashboard(){
 // ---- 마감임박 날짜 목록 ----
 function openNearFullPreview(){
   const items = [];
-  ALL_DATES.forEach(([key,label])=>{
+  getActiveDateKeys().forEach(key=>{
     const cap = getCapacityForKey(key);
     if(cap>0){
       const hc = computeDateHeadcount(key);
-      if(hc >= cap*0.8) items.push({key, label, hc, cap});
+      if(hc >= cap*0.8) items.push({key, label: labelFor(key), hc, cap});
     }
   });
   document.getElementById("statusTitle").textContent = "마감임박 날짜 ("+items.length+"건)";
@@ -1092,7 +1108,7 @@ function copyShareUrl(){
 function checkUrlForSharedDate(){
   const params = new URLSearchParams(location.search);
   const d = params.get("date");
-  if(d && ALL_DATES.some(([k])=>k===d)){
+  if(d && /^\d{1,2}-\d{1,2}$/.test(d)){
     setTimeout(()=>openPreview(d), 300);
   }
 }
@@ -1403,10 +1419,19 @@ function setNextMonth(){
 function populateFilter(){
   const sel = document.getElementById("dateFilter");
   sel.innerHTML = "";
-  ALL_DATES.forEach(([k,label])=>{
+  const keys = getActiveDateKeys();
+  if(keys.length===0){
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "등록된 일정 없음";
+    sel.appendChild(opt);
+    sel.onchange = null;
+    return;
+  }
+  keys.forEach(k=>{
     const opt = document.createElement("option");
     opt.value = k;
-    opt.textContent = label + ((GALLERY_ROWS[k]||TOUR_ROWS[k]||GALLERY_CLOSED[k]||TOUR_CLOSED[k]) ? "" : "  (일정없음)");
+    opt.textContent = labelFor(k);
     sel.appendChild(opt);
   });
   sel.onchange = ()=>selectDate(sel.value, false);
@@ -1924,8 +1949,13 @@ function updateManagerTable(){
 
 // ---------- 요일별 참석 현황 차트 ----------
 function updateStatsChart(){
-  const week = WEEKS[currentChartWeek] || [];
   const labelEl = document.getElementById("chartWeekLabel");
+  if(WEEKS.length===0){
+    if(labelEl) labelEl.textContent = "-";
+    document.getElementById("statsChart").innerHTML = "<div class='empty-msg'>등록된 일정이 없습니다.</div>";
+    return;
+  }
+  const week = WEEKS[currentChartWeek] || [];
   if(labelEl) labelEl.textContent = (currentChartWeek+1)+"주차";
 
   const counts = week.map(([key])=>computeDateHeadcount(key));
@@ -2000,7 +2030,8 @@ function printAllDates(){
 
   const container = document.getElementById("printAllContainer");
   let html = "";
-  ALL_DATES.forEach(([key,label])=>{
+  getActiveDateKeys().forEach(key=>{
+    const label = labelFor(key);
     const hasGallery = activeCategories.gallery && (GALLERY_ROWS[key] || GALLERY_CLOSED[key]);
     const hasTour = activeCategories.tour && (TOUR_ROWS[key] || TOUR_CLOSED[key]);
     if(!hasGallery && !hasTour) return;
@@ -2032,12 +2063,28 @@ window.addEventListener("afterprint", ()=>{
 });
 
 
-let currentDateKey = ALL_DATES[0][0];
+function todayKeyStr(){
+  const t = new Date();
+  return (t.getMonth()+1)+"-"+t.getDate();
+}
+let currentDateKey = (getActiveDateKeys()[0]) || todayKeyStr();
 let previewKey = null;
 
 function labelFor(key){
-  const found = ALL_DATES.find(([k])=>k===key);
-  return found ? found[1] : key;
+  const d = parseKeyDate(key);
+  const dowNames = ["일","월","화","수","목","금","토"];
+  return (d.getMonth()+1)+"월 "+d.getDate()+"일("+dowNames[d.getDay()]+")";
+}
+
+// 실제 일정(예정/참석 등 데이터)이 있는 날짜만 모아 시간순 정렬
+function getActiveDateKeys(){
+  const keySet = new Set([
+    ...Object.keys(GALLERY_ROWS),
+    ...Object.keys(TOUR_ROWS),
+    ...Object.keys(GALLERY_CLOSED),
+    ...Object.keys(TOUR_CLOSED),
+  ]);
+  return [...keySet].sort((a,b)=>parseKeyDate(a)-parseKeyDate(b));
 }
 
 // 달력 클릭 시 빠른 미리보기 모달
@@ -2365,12 +2412,14 @@ function selectDate(key, scroll){
 }
 
 function prevDate(){
-  const idx = ALL_DATES.findIndex(([k])=>k===currentDateKey);
-  if(idx>0) selectDate(ALL_DATES[idx-1][0], false);
+  const keys = getActiveDateKeys();
+  const idx = keys.findIndex(k=>k===currentDateKey);
+  if(idx>0) selectDate(keys[idx-1], false);
 }
 function nextDate(){
-  const idx = ALL_DATES.findIndex(([k])=>k===currentDateKey);
-  if(idx<ALL_DATES.length-1) selectDate(ALL_DATES[idx+1][0], false);
+  const keys = getActiveDateKeys();
+  const idx = keys.findIndex(k=>k===currentDateKey);
+  if(idx>=0 && idx<keys.length-1) selectDate(keys[idx+1], false);
 }
 
 document.getElementById("rangeStart").value = range.start;
@@ -2379,10 +2428,11 @@ populateDanjiToggleBar();
 buildCalendarArea();
 populateFilter();
 populateManagerFilter();
-selectDate("7-20", false);
+selectDate(currentDateKey, false);
 updateSummary();
 populateManagerColDropdowns();
 updateManagerTable();
+rebuildWeeks();
 updateStatsChart();
 buildDashboard();
 checkUrlForSharedDate();
