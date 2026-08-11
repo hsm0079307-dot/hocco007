@@ -3342,9 +3342,29 @@ const L = (function(){
           </label>
           <button class="btn btn-ghost" id="docLinkAddBtn">🔗 링크로 추가</button>
         </div>
-        <div class="hint">파일 첨부는 용량이 크면(대략 5MB 이상) 느려질 수 있어요. 이미 OneDrive/구글드라이브 등에 자료가 있다면 "링크로 추가"가 더 가벼워요.</div>
+        <div class="hint">사진은 자동으로 압축해서 올려요. PDF/워드 등은 용량이 크면(대략 5MB 이상) 느려질 수 있어요 — 이미 OneDrive/구글드라이브에 있다면 "링크로 추가"가 훨씬 가벼워요.</div>
       `;
       const persistDocs = async ()=>{ await saveSites(); renderAll(); };
+      const compressImageFile = (file) => new Promise((resolve, reject)=>{
+        const reader = new FileReader();
+        reader.onerror = reject;
+        reader.onload = () => {
+          const img = new Image();
+          img.onerror = reject;
+          img.onload = () => {
+            const maxW = 1200;
+            const scale = Math.min(1, maxW / img.width);
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.round(img.width * scale);
+            canvas.height = Math.round(img.height * scale);
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            resolve(canvas.toDataURL('image/jpeg', 0.72));
+          };
+          img.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+      });
       const fileInput = document.getElementById('doc_file_input');
       if(fileInput) fileInput.addEventListener('change', async (e)=>{
         if(!(await ensureUnlocked())) return;
@@ -3353,12 +3373,19 @@ const L = (function(){
         site.documents = site.documents || [];
         for(const f of files){
           try{
-            const dataUrl = await new Promise((resolve,reject)=>{
-              const reader = new FileReader();
-              reader.onload = ()=>resolve(reader.result);
-              reader.onerror = reject;
-              reader.readAsDataURL(f);
-            });
+            const isImage = /^image\//.test(f.type);
+            let dataUrl;
+            if(isImage){
+              // 사진은 자동으로 줄여서(최대 가로 1200px, JPEG 압축) 동기화 용량을 크게 아낀다
+              dataUrl = await compressImageFile(f);
+            }else{
+              dataUrl = await new Promise((resolve,reject)=>{
+                const reader = new FileReader();
+                reader.onload = ()=>resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(f);
+              });
+            }
             site.documents.push({name:f.name, dataUrl, addedAt:new Date().toISOString()});
           }catch(err){ console.error('문서 처리 실패', err); }
         }
