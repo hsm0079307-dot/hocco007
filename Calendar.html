@@ -390,7 +390,12 @@
   .modal .tag.tour{background:var(--tour-bg);color:var(--tour);}
   .modal .row-line{padding:2px 0;border-bottom:1px dashed var(--line);display:flex;align-items:center;justify-content:space-between;gap:8px;}
   .modal .row-line:last-child{border-bottom:none;}
-  .modal .row-line span{flex:1;}
+  .modal .row-line > span:first-child{flex:1;}
+  .modal .row-btns{display:flex;gap:5px;flex-shrink:0;}
+  .modal .row-edit{
+    border:none;background:var(--bg);color:var(--ink);border-radius:6px;
+    padding:2px 8px;font-size:10.5px;font-weight:700;cursor:pointer;flex-shrink:0;
+  }
   .modal .row-del{
     border:none;background:#fdecea;color:var(--closed);border-radius:6px;
     padding:2px 8px;font-size:10.5px;font-weight:700;cursor:pointer;flex-shrink:0;
@@ -812,6 +817,7 @@ function onScheduleDataChanged(){
   updateStatsChart();
   populateManagerFilter();
   populateDanjiToggleBar();
+  populateManagerColDropdowns();
   buildDashboard();
 }
 
@@ -1528,6 +1534,7 @@ function renameDanji(oldName, newName){
   selectDate(currentDateKey, false);
   updateManagerTable();
   populateDanjiToggleBar();
+  populateManagerColDropdowns();
 }
 function toggleDanjiFilter(name){
   if(activeDanjiFilter.has(name)) activeDanjiFilter.delete(name);
@@ -1800,13 +1807,14 @@ function populateManagerColDropdowns(){
 
   const danjiWrap = document.getElementById("danjiDropdown");
   danjiWrap.innerHTML = [...allDanji].sort().map(d=>
-    "<label><input type='checkbox' class='danji-chk' value='"+d+"' onchange=\"onColFilterChange('danji')\">"+d+"</label>"
+    "<label><input type='checkbox' class='danji-chk' value='"+d+"'"+(selectedDanji.has(d)?" checked":"")+" onchange=\"onColFilterChange('danji')\">"+d+"</label>"
   ).join("") + "<div class='df-actions'><button onclick=\"selectAllCol('danji')\">전체</button><button onclick=\"clearCol('danji')\">해제</button></div>";
 
   const managerWrap = document.getElementById("managerDropdown2");
   managerWrap.innerHTML = allManagers.map(m=>
-    "<label><input type='checkbox' class='manager-chk' value='"+m+"' onchange=\"onColFilterChange('manager')\">"+m+"</label>"
+    "<label><input type='checkbox' class='manager-chk' value='"+m+"'"+(selectedManagers.has(m)?" checked":"")+" onchange=\"onColFilterChange('manager')\">"+m+"</label>"
   ).join("") + "<div class='df-actions'><button onclick=\"selectAllCol('manager')\">전체</button><button onclick=\"clearCol('manager')\">해제</button></div>";
+  updateColFilterBtnState();
 }
 
 function onColFilterChange(kind){
@@ -2036,7 +2044,10 @@ function openPreview(key){
       const [time, danji, ho, name, plus, manager, spot] = r;
       const danjiTxt = (danji && danji!==GALLERY_DANJI) ? " ["+danji+"]" : "";
       html += "<div class='row-line'><span>"+time+" · "+name+(plus!=="-"?" "+plus:"")+" ("+manager+") "+(spot||"-")+danjiTxt+"</span>"+
-        "<button class='row-del' onclick=\"deleteEntry('gallery','"+key+"',"+idx+",this)\">삭제</button></div>";
+        "<span class='row-btns'>"+
+        "<button class='row-edit' onclick=\"editEntry('gallery','"+key+"',"+idx+")\">수정</button>"+
+        "<button class='row-del' onclick=\"deleteEntry('gallery','"+key+"',"+idx+",this)\">삭제</button>"+
+        "</span></div>";
     });
     html += "</div>";
   }
@@ -2049,7 +2060,10 @@ function openPreview(key){
       const [time, danji, ho, name, plus, manager] = r;
       const spot = (ho && ho !== "-") ? (danji+" "+ho) : danji;
       html += "<div class='row-line'><span>"+time+" · "+spot+" "+name+(plus!=="-"?" "+plus:"")+" ("+manager+")</span>"+
-        "<button class='row-del' onclick=\"deleteEntry('tour','"+key+"',"+idx+",this)\">삭제</button></div>";
+        "<span class='row-btns'>"+
+        "<button class='row-edit' onclick=\"editEntry('tour','"+key+"',"+idx+")\">수정</button>"+
+        "<button class='row-del' onclick=\"deleteEntry('tour','"+key+"',"+idx+",this)\">삭제</button>"+
+        "</span></div>";
     });
     html += "</div>";
   }
@@ -2215,6 +2229,45 @@ function addEntryFlow(kind){
       if(!TOUR_ROWS[key]) TOUR_ROWS[key] = [];
       TOUR_ROWS[key].push([v.time||"-", v.danji||"-", v.ho||"-", v.name||"-", v.plus||"-", v.manager||"-", v.spot||"-"]);
       logChange(labelFor(key)+" · "+CAT_LABEL.tour+" '"+(v.name||"-")+"' 추가");
+      onScheduleDataChanged();
+      openPreview(key);
+    });
+  }
+}
+
+// ---- 기존 일정 항목 수정 ----
+function editEntry(kind, key, idx){
+  const store = kind==="gallery" ? GALLERY_ROWS : TOUR_ROWS;
+  const raw = store[key] && store[key][idx];
+  if(!raw) return;
+  const [time, danji, ho, name, plus, manager, spot] = raw;
+  if(kind==="gallery"){
+    openForm(CAT_LABEL.gallery+" 일정 수정", [
+      {id:"time", label:"시간", placeholder:"예: 10:30", value: time},
+      {id:"danji", label:"단지명", value: danji||GALLERY_DANJI, placeholder:"예: 화랑아파트"},
+      {id:"ho", label:"동호수", value:"-", readonly:true},
+      {id:"name", label:"성함", placeholder:"이름", value: name},
+      {id:"plus", label:"동반", placeholder:"예: 외1명, 없으면 -", value: plus||"-"},
+      {id:"manager", label:"담당", placeholder:"담당자 이름", value: manager},
+      {id:"spot", label:"픽업/자가", placeholder:"예: 픽업, 자가:12가3456", value: spot||"-"},
+    ], (v)=>{
+      store[key][idx] = [v.time||"-", v.danji||GALLERY_DANJI, v.ho||"-", v.name||"-", v.plus||"-", v.manager||"-", v.spot||"-"];
+      logChange(labelFor(key)+" · "+CAT_LABEL.gallery+" '"+(v.name||"-")+"' 수정");
+      onScheduleDataChanged();
+      openPreview(key);
+    });
+  } else {
+    openForm(CAT_LABEL.tour+" 일정 수정", [
+      {id:"time", label:"시간", placeholder:"예: 1:30", value: time},
+      {id:"danji", label:"단지명", placeholder:"예: 14단지", value: danji||"-"},
+      {id:"ho", label:"동호수", placeholder:"없으면 -", value: ho||"-"},
+      {id:"name", label:"성함/업체", placeholder:"이름 또는 업체명", value: name},
+      {id:"plus", label:"동반", placeholder:"없으면 -", value: plus||"-"},
+      {id:"manager", label:"담당", placeholder:"담당자 이름", value: manager},
+      {id:"spot", label:"픽업/자가", placeholder:"없으면 -", value: spot||"-"},
+    ], (v)=>{
+      store[key][idx] = [v.time||"-", v.danji||"-", v.ho||"-", v.name||"-", v.plus||"-", v.manager||"-", v.spot||"-"];
+      logChange(labelFor(key)+" · "+CAT_LABEL.tour+" '"+(v.name||"-")+"' 수정");
       onScheduleDataChanged();
       openPreview(key);
     });
