@@ -67,7 +67,11 @@
   body.dark-mode .bottom-menu-btn,body.dark-mode .bottom-menu-dropdown{background:var(--card-bg);border-color:var(--line);color:var(--ink);}
   body.dark-mode .bottom-menu-dropdown button:hover{background:var(--bg);}
 
-  .dash-panel{display:flex;align-items:stretch;gap:6px;flex-wrap:wrap;margin-bottom:16px;}
+  .dash-panel{
+    display:flex;align-items:stretch;gap:6px;flex-wrap:wrap;margin-bottom:16px;
+    background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px;
+  }
+  body.dark-mode .dash-panel{background:var(--card-bg);}
   .dashboard-grid{display:flex;gap:6px;flex:0 0 auto;}
   .dash-search-input{
     flex:1;min-width:140px;border:1px solid var(--line);border-radius:8px;padding:0 12px;
@@ -116,7 +120,8 @@
   .legend span.toggle{cursor:pointer;user-select:none;}
   .legend span.toggle:hover{border-color:var(--sub);}
   .cat-label-edit{outline:none;border-bottom:1px dashed transparent;cursor:text;}
-  .cat-label-edit:empty::before{content:"이름 추가";color:var(--sub);opacity:.7;}
+  .cat-label-edit:empty::before{content:"이름 추가";color:var(--sub);opacity:.7;font-style:italic;}
+  .toggle:has(.cat-label-edit:empty){border-style:dashed;background:transparent;}
   .cat-label-edit:hover{border-bottom-color:var(--line);}
   .cat-label-edit:focus{border-bottom-color:var(--sub);}
   #siteSubtitle[contenteditable]{outline:none;cursor:text;border-bottom:1px dashed transparent;}
@@ -1551,12 +1556,15 @@ function populateManagerFilter(){
   Object.values(GALLERY_ROWS).forEach(rows=>rows.forEach(r=>managers.add(r[5])));
   Object.values(TOUR_ROWS).forEach(rows=>rows.forEach(r=>managers.add(r[5])));
   const sel = document.getElementById("managerFilter");
+  const prevValue = sel.value;
+  sel.innerHTML = "<option value=''>담당자 전체</option>";
   [...managers].sort().forEach(name=>{
     const opt = document.createElement("option");
     opt.value = name;
     opt.textContent = name;
     sel.appendChild(opt);
   });
+  sel.value = prevValue;
   sel.onchange = ()=>{
     managerFilterValue = sel.value;
     selectDate(currentDateKey, false);
