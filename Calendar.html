@@ -679,44 +679,44 @@ let currentChartWeek = 0;
 // ---- 갤러리 참석자 상세 (기본값) ----
 const GALLERY_ROWS_DEFAULT = {
 "7-20":[
-  ["10:30","39우5880","이범수","외2명","임윤경"],
-  ["3시","171호8907","손장수(조)","-","성윤희"],
-  ["3시","126구3842","길정만(이)","외1명","성윤희"],
-  ["3시","171호8907","이달재(이)","-","성윤희"],
-  ["3시","171호8907","연규진(감)","-","장연수"],
+  ["10:30","화랑아파트","-","이범수","외2명","임윤경","39우5880"],
+  ["3시","화랑아파트","-","손장수(조)","-","성윤희","171호8907"],
+  ["3시","화랑아파트","-","길정만(이)","외1명","성윤희","126구3842"],
+  ["3시","화랑아파트","-","이달재(이)","-","성윤희","171호8907"],
+  ["3시","화랑아파트","-","연규진(감)","-","장연수","171호8907"],
 ],
-"7-21":[["10:30","339루5560","황성혜","외1명","임윤경"]],
+"7-21":[["10:30","화랑아파트","-","황성혜","외1명","임윤경","339루5560"]],
 "7-22":[
-  ["10:30","픽업","이유직","외1명","성윤희"],
-  ["10:30","106누5812","박경곤","외1명","장연수"],
-  ["10:30","53버3624","안상환","외1명","성윤희"],
-  ["3시","381다3295","고진선","외1명","임윤경"],
+  ["10:30","화랑아파트","-","이유직","외1명","성윤희","픽업"],
+  ["10:30","화랑아파트","-","박경곤","외1명","장연수","106누5812"],
+  ["10:30","화랑아파트","-","안상환","외1명","성윤희","53버3624"],
+  ["3시","화랑아파트","-","고진선","외1명","임윤경","381다3295"],
 ],
 "7-24":[
-  ["10:30","39우2361","김형석","외1명","성윤희"],
-  ["1:30","픽업","김수근","외1명","김민주"],
-  ["1:30","281우4514","김진모","외1명","김민주"],
+  ["10:30","화랑아파트","-","김형석","외1명","성윤희","39우2361"],
+  ["1:30","화랑아파트","-","김수근","외1명","김민주","픽업"],
+  ["1:30","화랑아파트","-","김진모","외1명","김민주","281우4514"],
 ],
 "7-27":[
-  ["10:30","171호8907","손장수(조)","외2명","성윤희"],
-  ["10:30","171호8907","김옥성","-","김민주"],
-  ["10:30","171호8907","장주홍(대)","-","성윤희"],
-  ["10:30","182노7691","최창섭(이)","외1명","성윤희"],
+  ["10:30","화랑아파트","-","손장수(조)","외2명","성윤희","171호8907"],
+  ["10:30","화랑아파트","-","김옥성","-","김민주","171호8907"],
+  ["10:30","화랑아파트","-","장주홍(대)","-","성윤희","171호8907"],
+  ["10:30","화랑아파트","-","최창섭(이)","외1명","성윤희","182노7691"],
 ],
-"7-28":[["10:30","22구3292","김현성","외3명","김민주"]],
-"7-31":[["10:30","픽업","양혜정","외1명","장연수"]],
+"7-28":[["10:30","화랑아파트","-","김현성","외3명","김민주","22구3292"]],
+"7-31":[["10:30","화랑아파트","-","양혜정","외1명","장연수","픽업"]],
 "8-8":[
-  ["1:30","픽업","이기한","외2명","임윤경"],
-  ["1:30","미정","변재현","외3명","장연수"],
+  ["1:30","화랑아파트","-","이기한","외2명","임윤경","픽업"],
+  ["1:30","화랑아파트","-","변재현","외3명","장연수","미정"],
 ],
 "8-9":[
-  ["1:30","100수2403","권남(대)","외2명","김민주"],
-  ["1:30","미정","최성화","외1명","장연수"],
-  ["1:30","자가","고유리","외3명","김민주"],
+  ["1:30","화랑아파트","-","권남(대)","외2명","김민주","100수2403"],
+  ["1:30","화랑아파트","-","최성화","외1명","장연수","미정"],
+  ["1:30","화랑아파트","-","고유리","외3명","김민주","자가"],
 ],
 "8-15":[
-  ["10:30","픽업","전홍식(대)","외1명","장연수"],
-  ["10:30","230허2209","박병권","외1명","성윤희"],
+  ["10:30","화랑아파트","-","전홍식(대)","외1명","장연수","픽업"],
+  ["10:30","화랑아파트","-","박병권","외1명","성윤희","230허2209"],
 ],
 };
 const GALLERY_CLOSED_DEFAULT = {"7-29":"오후 갤러리 불가","8-3":"여름휴관","8-4":"여름휴관","8-5":"여름휴관","8-6":"여름휴관"};
@@ -1080,7 +1080,7 @@ function runGlobalSearch(){
   const results = [];
   Object.keys(GALLERY_ROWS).forEach(key=>{
     GALLERY_ROWS[key].forEach((r,idx)=>{
-      if(r[2] && r[2].includes(q)) results.push({key, kind:"gallery", idx, name:r[2], time:r[0], manager:r[4]});
+      if(r[3] && r[3].includes(q)) results.push({key, kind:"gallery", idx, name:r[3], time:r[0], manager:r[5]});
     });
   });
   Object.keys(TOUR_ROWS).forEach(key=>{
@@ -1298,7 +1298,7 @@ function buildCalendarArea(){
       const info = DATA[key];
       const hasGalleryRows = !!GALLERY_ROWS[key];
       const hasTourRows = !!TOUR_ROWS[key];
-      const showGalleryClosed = info && info.galleryClosed && activeCategories.gallery && galleryMatchesDanjiFilter() && showClosedToggle;
+      const showGalleryClosed = info && info.galleryClosed && activeCategories.gallery && galleryMatchesDanjiFilter(key) && showClosedToggle;
       const showTourClosed = info && info.tourClosed && activeCategories.tour && tourMatchesDanjiFilter(key) && showClosedToggle;
       if(showGalleryClosed || showTourClosed) el.className += " gclosed";
       const cellDate = new Date(y, m-1, d);
@@ -1309,7 +1309,7 @@ function buildCalendarArea(){
       if(info){
         if(showGalleryClosed){
           badges.innerHTML += "<div class='b closed' title='"+CAT_LABEL.gallery+" · "+(GALLERY_CLOSED[key]||"").replace(/'/g,"&#39;")+"'>휴</div>";
-        } else if(hasGalleryRows && activeCategories.gallery && galleryMatchesDanjiFilter()){
+        } else if(hasGalleryRows && activeCategories.gallery && galleryMatchesDanjiFilter(key)){
           badges.innerHTML += "<div class='b gallery'>갤</div>";
         }
         if(showTourClosed){
@@ -1393,15 +1393,14 @@ const GALLERY_DANJI_KEY = "gallery_danji_name_v1";
 let GALLERY_DANJI = localStorage.getItem(GALLERY_DANJI_KEY) || "화랑아파트";
 function persistGalleryDanji(){ localStorage.setItem(GALLERY_DANJI_KEY, GALLERY_DANJI); }
 function reorderRow(kind, r){
-  if(kind==="gallery"){
-    // r = [시간, 자가/픽업, 성함, 동반, 담당]
+  if(kind==="gallery" && r.length<=5){
+    // 구버전 5필드 형식(하위호환): [시간, 자가/픽업, 성함, 동반, 담당]
     const [time, spot, name, plus, manager] = r;
     return [time, GALLERY_DANJI, "-", name, plus, manager, spot];
-  } else {
-    // r = [시간, 단지, 동호수, 성함/업체, 동반, 담당, 픽업/자가?]
-    const [time, danji, ho, name, plus, manager, spot] = r;
-    return [time, danji, ho, name, plus, manager, spot || "-"];
   }
+  // 통합 형식: [시간, 단지명, 동호수, 성함, 동반, 담당, 픽업/자가?]
+  const [time, danji, ho, name, plus, manager, spot] = r;
+  return [time, danji||GALLERY_DANJI, ho||"-", name, plus, manager, spot || "-"];
 }
 
 // 오늘 날짜 기준으로 해당 날짜가 지났는지 판단 (연도는 2026 가정)
@@ -1440,8 +1439,11 @@ function toggleClosedFilter(){
 
 // ---------- 단지별 토글 필터 (예: 화랑아파트, 14단지, 11단지) ----------
 let activeDanjiFilter = new Set(); // 비어있으면 전체 표시
-function galleryMatchesDanjiFilter(){
-  return activeDanjiFilter.size===0 || activeDanjiFilter.has(GALLERY_DANJI);
+function galleryMatchesDanjiFilter(key){
+  if(activeDanjiFilter.size===0) return true;
+  const rows = GALLERY_ROWS[key];
+  if(!rows) return activeDanjiFilter.has(GALLERY_DANJI);
+  return rows.some(r=>activeDanjiFilter.has(r[1]||GALLERY_DANJI));
 }
 function tourMatchesDanjiFilter(key){
   if(activeDanjiFilter.size===0) return true;
@@ -1457,6 +1459,7 @@ function persistExtraDanji(){ localStorage.setItem(EXTRA_DANJI_KEY, JSON.stringi
 function populateDanjiToggleBar(){
   const danjiSet = new Set([GALLERY_DANJI, ...extraDanjiNames]);
   Object.values(TOUR_ROWS).forEach(rows=>rows.forEach(r=>danjiSet.add(r[1])));
+  Object.values(GALLERY_ROWS).forEach(rows=>rows.forEach(r=>{ if(r[1]) danjiSet.add(r[1]); }));
   const names = [...danjiSet].sort();
   const bar = document.getElementById("danjiToggleBar");
   bar.innerHTML = names.map(name=>
@@ -1495,6 +1498,15 @@ function renameDanji(oldName, newName){
       if(r[1]===oldName){ r[1]=newName; changed=true; }
     });
   });
+  Object.keys(GALLERY_ROWS).forEach(key=>{
+    GALLERY_ROWS[key].forEach(r=>{
+      if(r[1]===oldName){ r[1]=newName; changed=true; }
+    });
+  });
+  if(extraDanjiNames.includes(oldName)){
+    extraDanjiNames = extraDanjiNames.map(n=>n===oldName?newName:n);
+    persistExtraDanji();
+  }
   if(changed) persistScheduleData();
   if(activeDanjiFilter.has(oldName)){
     activeDanjiFilter.delete(oldName);
@@ -1519,7 +1531,7 @@ let managerFilterValue = "";
 
 function populateManagerFilter(){
   const managers = new Set();
-  Object.values(GALLERY_ROWS).forEach(rows=>rows.forEach(r=>managers.add(r[4])));
+  Object.values(GALLERY_ROWS).forEach(rows=>rows.forEach(r=>managers.add(r[5])));
   Object.values(TOUR_ROWS).forEach(rows=>rows.forEach(r=>managers.add(r[5])));
   const sel = document.getElementById("managerFilter");
   [...managers].sort().forEach(name=>{
@@ -1536,8 +1548,8 @@ function populateManagerFilter(){
 
 function renderTable(kind, key, rows, colorClass, tagLabel){
   if(!rows || rows.length===0) return "";
-  const managerIdx = kind==="gallery" ? 4 : 5;
-  const danjiOf = (raw)=> kind==="gallery" ? GALLERY_DANJI : raw[1];
+  const managerIdx = 5;
+  const danjiOf = (raw)=> raw[1] || GALLERY_DANJI;
   const visibleIdx = [];
   rows.forEach((raw, idx)=>{
     const managerOk = !managerFilterValue || raw[managerIdx]===managerFilterValue;
@@ -1649,7 +1661,7 @@ function renderStatusTable(kind, key, status, managerFilter){
   const store = kind==="gallery" ? GALLERY_ROWS : TOUR_ROWS;
   const rows = store[key];
   if(!rows) return "";
-  const managerIdx = kind==="gallery" ? 4 : 5;
+  const managerIdx = 5;
   const idxList = [];
   rows.forEach((r,idx)=>{
     if(rowStatus(kind,key,idx)!==status) return;
@@ -1698,7 +1710,7 @@ function openStatusPreview(status, managerFilter){
   Object.keys(GALLERY_ROWS).forEach(key=>{
     GALLERY_ROWS[key].forEach((r,idx)=>{
       if(rowStatus("gallery",key,idx)!==status) return;
-      if(managerFilter && r[4]!==managerFilter) return;
+      if(managerFilter && r[5]!==managerFilter) return;
       dateKeys.add(key);
     });
   });
@@ -1717,7 +1729,7 @@ function openStatusPreview(status, managerFilter){
     const gHtml = renderStatusTable("gallery", key, status, managerFilter);
     const tHtml = renderStatusTable("tour", key, status, managerFilter);
     if(!gHtml && !tHtml) return;
-    const gCount = (GALLERY_ROWS[key]||[]).filter((r,idx)=>rowStatus("gallery",key,idx)===status && (!managerFilter || r[4]===managerFilter)).length;
+    const gCount = (GALLERY_ROWS[key]||[]).filter((r,idx)=>rowStatus("gallery",key,idx)===status && (!managerFilter || r[5]===managerFilter)).length;
     const tCount = (TOUR_ROWS[key]||[]).filter((r,idx)=>rowStatus("tour",key,idx)===status && (!managerFilter || r[5]===managerFilter)).length;
     totalCount += gCount + tCount;
     html += "<div class='print-date-block'><div class='print-date-title'>"+labelFor(key)+"</div>"+gHtml+tHtml+"</div>";
@@ -1753,9 +1765,10 @@ function computeManagerTally(){
   }
   Object.keys(GALLERY_ROWS).forEach(key=>{
     GALLERY_ROWS[key].forEach((r, idx)=>{
-      const manager = r[4];
+      const manager = r[5];
+      const danji = r[1] || GALLERY_DANJI;
       const status = rowStatus("gallery", key, idx);
-      bump(manager, status, GALLERY_DANJI);
+      bump(manager, status, danji);
     });
   });
   Object.keys(TOUR_ROWS).forEach(key=>{
@@ -1915,22 +1928,20 @@ function statusLabel(s){
   return s==="attended" ? "참석" : (s==="noshow" ? "불참" : "예정");
 }
 function exportExcel(){
-  const managerIdxG = 4, managerIdxT = 5;
-  const passesManagerFilter = (raw, idxKind)=>{
+  const passesManagerFilter = (raw)=>{
     if(selectedManagers.size===0) return true;
-    const m = idxKind==="gallery" ? raw[managerIdxG] : raw[managerIdxT];
-    return selectedManagers.has(m);
+    return selectedManagers.has(raw[5]);
   };
-  const passesDanjiFilter = (raw, idxKind)=>{
+  const passesDanjiFilter = (raw)=>{
     if(selectedDanji.size===0) return true;
-    const d = idxKind==="gallery" ? GALLERY_DANJI : raw[1];
+    const d = raw[1] || GALLERY_DANJI;
     return selectedDanji.has(d);
   };
 
   const galleryData = [["날짜","시간","단지명","동호수","성함","동반","담당","픽업/자가","상태"]];
   Object.keys(GALLERY_ROWS).forEach(key=>{
     GALLERY_ROWS[key].forEach((raw, idx)=>{
-      if(!passesManagerFilter(raw,"gallery") || !passesDanjiFilter(raw,"gallery")) return;
+      if(!passesManagerFilter(raw) || !passesDanjiFilter(raw)) return;
       const r = reorderRow("gallery", raw);
       const status = statusLabel(rowStatus("gallery", key, idx));
       galleryData.push([labelFor(key), ...r, status]);
@@ -1939,7 +1950,7 @@ function exportExcel(){
   const tourData = [["날짜","시간","단지명","동호수","성함/업체","동반","담당","픽업/자가","상태"]];
   Object.keys(TOUR_ROWS).forEach(key=>{
     TOUR_ROWS[key].forEach((raw, idx)=>{
-      if(!passesManagerFilter(raw,"tour") || !passesDanjiFilter(raw,"tour")) return;
+      if(!passesManagerFilter(raw) || !passesDanjiFilter(raw)) return;
       const r = reorderRow("tour", raw);
       const status = statusLabel(rowStatus("tour", key, idx));
       tourData.push([labelFor(key), ...r, status]);
@@ -2012,8 +2023,9 @@ function openPreview(key){
   } else if(GALLERY_ROWS[key]){
     html += "<div class='block'><span class='tag gallery'>"+CAT_LABEL.gallery+" "+GALLERY_ROWS[key].length+"팀</span>";
     GALLERY_ROWS[key].forEach((r,idx)=>{
-      const [time, spot, name, plus, manager] = r;
-      html += "<div class='row-line'><span>"+time+" · "+name+(plus!=="-"?" "+plus:"")+" ("+manager+") "+spot+"</span>"+
+      const [time, danji, ho, name, plus, manager, spot] = r;
+      const danjiTxt = (danji && danji!==GALLERY_DANJI) ? " ["+danji+"]" : "";
+      html += "<div class='row-line'><span>"+time+" · "+name+(plus!=="-"?" "+plus:"")+" ("+manager+") "+(spot||"-")+danjiTxt+"</span>"+
         "<button class='row-del' onclick=\"deleteEntry('gallery','"+key+"',"+idx+",this)\">삭제</button></div>";
     });
     html += "</div>";
@@ -2152,7 +2164,7 @@ function deleteEntry(kind, key, idx, btn){
   const store = kind==="gallery" ? GALLERY_ROWS : TOUR_ROWS;
   if(!store[key]) return;
   const removed = store[key][idx];
-  const removedName = removed ? removed[kind==="gallery"?2:3] : "";
+  const removedName = removed ? removed[3] : "";
   store[key].splice(idx,1);
   if(store[key].length===0) delete store[key];
   logChange(labelFor(key)+" · "+(kind==="gallery"?CAT_LABEL.gallery:CAT_LABEL.tour)+" '"+removedName+"' 삭제");
@@ -2167,7 +2179,7 @@ function addEntryFlow(kind){
   if(kind==="gallery"){
     openForm(CAT_LABEL.gallery+" 일정 추가", [
       {id:"time", label:"시간", placeholder:"예: 10:30"},
-      {id:"danji", label:"단지명", value: GALLERY_DANJI, readonly:true},
+      {id:"danji", label:"단지명", value: GALLERY_DANJI, placeholder:"예: 화랑아파트"},
       {id:"ho", label:"동호수", value:"-", readonly:true},
       {id:"name", label:"성함", placeholder:"이름"},
       {id:"plus", label:"동반", placeholder:"예: 외1명, 없으면 -", value:"-"},
@@ -2175,7 +2187,7 @@ function addEntryFlow(kind){
       {id:"spot", label:"픽업/자가", placeholder:"예: 픽업, 자가:12가3456", value:"-"},
     ], (v)=>{
       if(!GALLERY_ROWS[key]) GALLERY_ROWS[key] = [];
-      GALLERY_ROWS[key].push([v.time||"-", v.spot||"-", v.name||"-", v.plus||"-", v.manager||"-"]);
+      GALLERY_ROWS[key].push([v.time||"-", v.danji||GALLERY_DANJI, v.ho||"-", v.name||"-", v.plus||"-", v.manager||"-", v.spot||"-"]);
       logChange(labelFor(key)+" · "+CAT_LABEL.gallery+" '"+(v.name||"-")+"' 추가");
       onScheduleDataChanged();
       openPreview(key);
@@ -2486,8 +2498,8 @@ function parseCompanionCount(str){
 }
 function computeDateHeadcount(key){
   let total = 0;
-  (GALLERY_ROWS[key]||[]).forEach(r=>{ total += 1 + parseCompanionCount(r[3]); }); // r=[time,spot,name,plus,manager]
-  (TOUR_ROWS[key]||[]).forEach(r=>{ total += 1 + parseCompanionCount(r[4]); }); // r=[time,danji,ho,name,plus,manager]
+  (GALLERY_ROWS[key]||[]).forEach(r=>{ total += 1 + parseCompanionCount(r[4]); }); // r=[time,danji,ho,name,plus,manager,spot]
+  (TOUR_ROWS[key]||[]).forEach(r=>{ total += 1 + parseCompanionCount(r[4]); }); // r=[time,danji,ho,name,plus,manager,spot]
   return total;
 }
 </script>
