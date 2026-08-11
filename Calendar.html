@@ -116,6 +116,7 @@
   .legend span.toggle{cursor:pointer;user-select:none;}
   .legend span.toggle:hover{border-color:var(--sub);}
   .cat-label-edit{outline:none;border-bottom:1px dashed transparent;cursor:text;}
+  .cat-label-edit:empty::before{content:"이름 추가";color:var(--sub);opacity:.7;}
   .cat-label-edit:hover{border-bottom-color:var(--line);}
   .cat-label-edit:focus{border-bottom-color:var(--sub);}
   #siteSubtitle[contenteditable]{outline:none;cursor:text;border-bottom:1px dashed transparent;}
@@ -134,7 +135,7 @@
   .danjiToggleBar span:hover{border-color:var(--sub);}
   .add-danji-btn{border-style:dashed!important;color:var(--sub);}
   .add-danji-btn:hover{color:var(--ink);}
-  .danjiToggleBar .dot.danji{background:#fff;border:1.5px solid var(--line);}
+  .danjiToggleBar .dot.danji{background:#c7cdd6;border-color:#c7cdd6;}
   .danjiToggleBar .dot.danji.lit{background:#3b6fd6;border-color:#3b6fd6;}
 
   .month-label{font-size:13.5px;font-weight:700;margin:16px 0 6px 2px;}
@@ -648,7 +649,7 @@ const STORAGE_CHECK = "calendar_checkmarks_v1";
 
 // ---- 카테고리 명칭(갤러리/21차투어) 편집 가능 ----
 const CAT_LABEL_KEY = "category_labels_v1";
-let CAT_LABEL = {gallery:"갤러리", tour:"21차투어"};
+let CAT_LABEL = {gallery:"", tour:""};
 try{
   const savedCat = JSON.parse(localStorage.getItem(CAT_LABEL_KEY));
   if(savedCat) CAT_LABEL = {...CAT_LABEL, ...savedCat};
@@ -770,10 +771,11 @@ function loadScheduleData(){
       return;
     }
   }catch(e){}
-  GALLERY_ROWS = JSON.parse(JSON.stringify(GALLERY_ROWS_DEFAULT));
-  TOUR_ROWS = JSON.parse(JSON.stringify(TOUR_ROWS_DEFAULT));
-  GALLERY_CLOSED = JSON.parse(JSON.stringify(GALLERY_CLOSED_DEFAULT));
-  TOUR_CLOSED = JSON.parse(JSON.stringify(TOUR_CLOSED_DEFAULT));
+  // 새 설치/새 현장은 완전히 빈 상태로 시작 (샘플 데이터 자동 주입 안 함)
+  GALLERY_ROWS = {};
+  TOUR_ROWS = {};
+  GALLERY_CLOSED = {};
+  TOUR_CLOSED = {};
 }
 function persistScheduleData(){
   localStorage.setItem(SCHEDULE_DATA_KEY, JSON.stringify({GALLERY_ROWS, TOUR_ROWS, GALLERY_CLOSED, TOUR_CLOSED}));
@@ -865,10 +867,18 @@ function openResetAllForm(){
     checkState = {};
     personMemos = {};
     dateCapacityOverrides = {};
+    GALLERY_DANJI = "";
+    extraDanjiNames = [];
+    CAT_LABEL = {gallery:"", tour:""};
     persistScheduleData();
     persistCheck();
     persistMemos();
     persistDateCapacity();
+    persistGalleryDanji();
+    persistExtraDanji();
+    persistCatLabel();
+    document.getElementById("labelGallery").textContent = "";
+    document.getElementById("labelTour").textContent = "";
     changeLog = [];
     localStorage.setItem(CHANGE_LOG_KEY, JSON.stringify(changeLog));
     logChange("전체 초기화 — 새 현장 시작");
@@ -882,7 +892,7 @@ function openResetAllForm(){
     populateDanjiToggleBar();
     buildDashboard();
     openForm("✔ 초기화 완료", [], ()=>{});
-    document.getElementById("formFields").innerHTML = "<div style='color:var(--gallery);font-size:13px;padding:8px 0;'>모든 일정·체크·메모가 삭제되었습니다. 새 현장 일정을 등록해주세요.</div>";
+    document.getElementById("formFields").innerHTML = "<div style='color:var(--gallery);font-size:13px;padding:8px 0;'>모든 일정·체크·메모·현장명·카테고리명이 삭제되었습니다. 새 현장에 맞게 다시 등록해주세요.</div>";
   });
 }
 
@@ -1390,7 +1400,7 @@ function populateFilter(){
 
 // 원본 데이터 배열을 [시간, 단지명, 동호수, 성함, 동반, 담당, 픽업/자가] 순서로 재정렬
 const GALLERY_DANJI_KEY = "gallery_danji_name_v1";
-let GALLERY_DANJI = localStorage.getItem(GALLERY_DANJI_KEY) || "화랑아파트";
+let GALLERY_DANJI = localStorage.getItem(GALLERY_DANJI_KEY) || "";
 function persistGalleryDanji(){ localStorage.setItem(GALLERY_DANJI_KEY, GALLERY_DANJI); }
 function reorderRow(kind, r){
   if(kind==="gallery" && r.length<=5){
@@ -1457,8 +1467,8 @@ try{ extraDanjiNames = JSON.parse(localStorage.getItem(EXTRA_DANJI_KEY)) || []; 
 function persistExtraDanji(){ localStorage.setItem(EXTRA_DANJI_KEY, JSON.stringify(extraDanjiNames)); }
 
 function populateDanjiToggleBar(){
-  const danjiSet = new Set([GALLERY_DANJI, ...extraDanjiNames]);
-  Object.values(TOUR_ROWS).forEach(rows=>rows.forEach(r=>danjiSet.add(r[1])));
+  const danjiSet = new Set([GALLERY_DANJI, ...extraDanjiNames].filter(Boolean));
+  Object.values(TOUR_ROWS).forEach(rows=>rows.forEach(r=>{ if(r[1]) danjiSet.add(r[1]); }));
   Object.values(GALLERY_ROWS).forEach(rows=>rows.forEach(r=>{ if(r[1]) danjiSet.add(r[1]); }));
   const names = [...danjiSet].sort();
   const bar = document.getElementById("danjiToggleBar");
@@ -1958,8 +1968,8 @@ function exportExcel(){
   });
 
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(galleryData), CAT_LABEL.gallery.slice(0,31));
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(tourData), "신반포21차");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(galleryData), (CAT_LABEL.gallery||"갤러리").slice(0,31));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(tourData), (CAT_LABEL.tour||"투어").slice(0,31));
   const suffix = (selectedManagers.size>0 || selectedDanji.size>0) ? "_필터적용" : "";
   XLSX.writeFile(wb, "통합일정표_체크결과"+suffix+".xlsx");
 }
