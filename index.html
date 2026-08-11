@@ -1520,10 +1520,14 @@ const L = (function(){
                   // 관리자가 지금 특정 담당자 사본을 직접 고치는 중(editingGuestDraftKey)이면 그 키만 로컬 값으로 반영하고,
                   // 그 외 일반 현장 수정은 담당자 사본들에 아예 손대지 않는다.
                   const freshGuestDrafts = Object.assign({}, arr[idx].guestDrafts || {});
+                  // arr[idx]=editedSiteSnapshot로 참조를 공유하기 전에, "내가 방금 로컬에서 만든 사본 상태"를 미리 따로 떼어둔다.
+                  // (안 그러면 바로 다음 줄에서 arr[idx].guestDrafts를 덮어쓸 때 editedSiteSnapshot.guestDrafts도 같이 덮어써져서,
+                  //  "사본 삭제"가 서버의 예전 사본으로 되살아나는 버그가 있었음)
+                  const localGuestDraftsBeforeOverwrite = editedSiteSnapshot.guestDrafts;
                   arr[idx] = editedSiteSnapshot;
                   arr[idx].guestDrafts = freshGuestDrafts;
                   if(editingGuestDraftKey){
-                    const localDraft = editedSiteSnapshot.guestDrafts && editedSiteSnapshot.guestDrafts[editingGuestDraftKey];
+                    const localDraft = localGuestDraftsBeforeOverwrite && localGuestDraftsBeforeOverwrite[editingGuestDraftKey];
                     if(localDraft) arr[idx].guestDrafts[editingGuestDraftKey] = localDraft;
                     else delete arr[idx].guestDrafts[editingGuestDraftKey];
                   }
