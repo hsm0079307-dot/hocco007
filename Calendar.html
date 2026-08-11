@@ -21,13 +21,13 @@
   }
   body.dark-mode header{background:#0c0f14;}
   body.dark-mode .cell,body.dark-mode .checklist-section,body.dark-mode .car,
-  body.dark-mode .rangebar,body.dark-mode .summary-card,body.dark-mode .legend span,
+  body.dark-mode .control-panel,body.dark-mode .summary-card,body.dark-mode .legend span,
   body.dark-mode .danjiToggleBar span,body.dark-mode .colFilterBtn,body.dark-mode .colFilterDropdown,
   body.dark-mode .toolbar button,body.dark-mode #formFields input,body.dark-mode #formFields textarea,
   body.dark-mode #formFields select,body.dark-mode th,body.dark-mode .managerFilterBar .resetBtn,
   body.dark-mode .modal,body.dark-mode #lockScreen input,body.dark-mode tr.scheduled td,
   body.dark-mode .chartWeekBar button,body.dark-mode .colFilterDropdown .df-actions button,
-  body.dark-mode .rangebar input[type=date]{
+  body.dark-mode .control-row input[type=date]{
     background:var(--card-bg);color:var(--ink);border-color:var(--line);
   }
   body.dark-mode .dow{background:transparent;}
@@ -46,9 +46,26 @@
   .bottom-toolbar{
     margin-top:16px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;
   }
-  .bottom-toolbar button{border:1px solid var(--line);}
-  #saveBtn:disabled{background:var(--gallery);color:#fff;border-color:var(--gallery);}
-  .danger-btn{color:var(--closed)!important;border-color:var(--closed)!important;}
+  .bottom-menu-wrap{position:relative;margin-top:24px;}
+  .bottom-menu-btn{
+    border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:8px;
+    padding:9px 16px;font-size:12.5px;font-weight:700;cursor:pointer;
+  }
+  .bottom-menu-dropdown{
+    display:none;position:absolute;bottom:calc(100% + 6px);left:0;z-index:20;
+    background:#fff;border:1px solid var(--line);border-radius:10px;padding:6px;
+    min-width:180px;box-shadow:0 6px 20px rgba(0,0,0,.1);
+  }
+  .bottom-menu-dropdown.open{display:block;}
+  .bottom-menu-dropdown button{
+    display:block;width:100%;text-align:left;border:none;background:none;color:var(--ink);
+    padding:9px 10px;font-size:12.5px;font-weight:600;cursor:pointer;border-radius:6px;
+  }
+  .bottom-menu-dropdown button:hover{background:var(--bg);}
+  #saveBtn:disabled{background:var(--gallery);color:#fff;}
+  .danger-btn{color:var(--closed)!important;}
+  body.dark-mode .bottom-menu-btn,body.dark-mode .bottom-menu-dropdown{background:var(--card-bg);border-color:var(--line);color:var(--ink);}
+  body.dark-mode .bottom-menu-dropdown button:hover{background:var(--bg);}
 
   .dash-panel{display:flex;align-items:stretch;gap:6px;flex-wrap:wrap;margin-bottom:16px;}
   .dashboard-grid{display:flex;gap:6px;flex:0 0 auto;}
@@ -76,34 +93,28 @@
   .dash-card.alert .dash-num{color:var(--closed);}
   body.dark-mode .dash-card{background:var(--card-bg);border-color:var(--line);}
 
-  .rangebar{
-    display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  .control-panel{
     background:#fff;border:1px solid var(--line);border-radius:10px;
-    padding:10px 14px;margin-bottom:16px;font-size:12.5px;
+    padding:12px 14px;margin-bottom:16px;font-size:12.5px;
   }
-  .rangebar label{color:var(--sub);font-weight:600;}
-  .rangebar input[type=date]{border:1px solid var(--line);border-radius:6px;padding:5px 8px;font-size:12.5px;font-family:inherit;}
-  .rangebar button{border:none;background:var(--ink);color:#fff;border-radius:6px;padding:6px 12px;font-size:12.5px;font-weight:700;cursor:pointer;}
-  .rangebar .quick{background:var(--bg);color:var(--ink);border:1px solid var(--line);}
+  .control-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .control-divider{height:1px;background:var(--line);margin:12px 0;}
+  .control-row label{color:var(--sub);font-weight:600;}
+  .control-row input[type=date]{border:1px solid var(--line);border-radius:6px;padding:5px 8px;font-size:12.5px;font-family:inherit;}
+  .control-row button{border:none;background:var(--ink);color:#fff;border-radius:6px;padding:6px 12px;font-size:12.5px;font-weight:700;cursor:pointer;}
+  .control-row .quick{background:var(--bg);color:var(--ink);border:1px solid var(--line);}
+  .control-row span.toggle{display:inline-flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--line);padding:4px 10px;border-radius:20px;cursor:pointer;user-select:none;}
+  .control-row span.toggle:hover{border-color:var(--sub);}
+  .control-row .danjiToggleBar{display:flex;gap:8px;flex-wrap:wrap;margin:0;}
+  body.dark-mode .control-panel{background:var(--card-bg);}
+  body.dark-mode .control-row span.toggle{background:var(--bg);}
+  body.dark-mode .control-divider{background:var(--line);}
 
   .catbar{display:none;}
   .legend{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0 8px;font-size:12.5px;}
   .legend span{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--line);padding:4px 10px;border-radius:20px;}
   .legend span.toggle{cursor:pointer;user-select:none;}
   .legend span.toggle:hover{border-color:var(--sub);}
-
-  .filter-panel{
-    background:#fff;border:1px solid var(--line);border-radius:10px;
-    padding:10px 14px;margin-bottom:16px;
-  }
-  .filter-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px;}
-  .filter-row:first-child{margin-bottom:8px;}
-  .filter-row-label{font-size:11px;font-weight:700;color:var(--sub);min-width:28px;}
-  .filter-row span.toggle{display:inline-flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--line);padding:4px 10px;border-radius:20px;cursor:pointer;user-select:none;}
-  .filter-row span.toggle:hover{border-color:var(--sub);}
-  .filter-row .danjiToggleBar{display:flex;gap:8px;flex-wrap:wrap;margin:0;}
-  body.dark-mode .filter-panel{background:var(--card-bg);}
-  body.dark-mode .filter-row span.toggle{background:var(--bg);}
   .cat-label-edit{outline:none;border-bottom:1px dashed transparent;cursor:text;}
   .cat-label-edit:hover{border-bottom-color:var(--line);}
   .cat-label-edit:focus{border-bottom-color:var(--sub);}
@@ -121,6 +132,8 @@
     padding:4px 10px;border-radius:20px;cursor:pointer;user-select:none;
   }
   .danjiToggleBar span:hover{border-color:var(--sub);}
+  .add-danji-btn{border-style:dashed!important;color:var(--sub);}
+  .add-danji-btn:hover{color:var(--ink);}
   .danjiToggleBar .dot.danji{background:#fff;border:1.5px solid var(--line);}
   .danjiToggleBar .dot.danji.lit{background:#3b6fd6;border-color:#3b6fd6;}
 
@@ -153,6 +166,14 @@
 
   /* 체크리스트 섹션 */
   .checklist-section{margin-top:28px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px 20px;box-shadow:0 1px 3px rgba(0,0,0,.04);transition:box-shadow .2s;}
+
+  .tab-nav{display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--line);}
+  .tab-btn{
+    flex:1;border:none;background:none;color:var(--sub);font-size:12.5px;font-weight:700;
+    padding:10px 4px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;
+  }
+  .tab-btn.on{color:var(--ink);border-bottom-color:var(--ink);}
+  .tab-btn:hover{color:var(--ink);}
   .checklist-section:hover{box-shadow:0 4px 16px rgba(0,0,0,.06);}
   .checklist-section h2{margin:0 0 10px;font-size:16px;}
   .filterbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
@@ -280,7 +301,7 @@
   }
 
   @media print{
-    header, .toolbar, .rangebar, .catbar, .danjiToggleBar, .legend, .month-label, .grid, .filterbar, #addStaffBtn, .modal-actions, .overlay{display:none !important;}
+    header, .control-panel, .catbar, .danjiToggleBar, .legend, .month-label, .grid, .filterbar, #addStaffBtn, .modal-actions, .overlay, .tab-nav, .bottom-menu-wrap{display:none !important;}
     body{background:#fff;padding:0;}
     .checklist-section, .car{border:none;box-shadow:none;padding:0;margin-top:10px;}
     .summary-bar{margin-bottom:10px;}
@@ -303,9 +324,10 @@
     header h1{font-size:16px;}
     .toolbar{width:100%;}
     .toolbar button{flex:1;font-size:11px;padding:7px 6px;}
-    .rangebar{padding:8px 10px;gap:6px;}
-    .rangebar input[type=date]{font-size:11.5px;padding:5px 6px;}
-    .rangebar button{font-size:11.5px;padding:6px 8px;}
+    .control-panel{padding:10px 10px;}
+    .control-row{gap:6px;}
+    .control-row input[type=date]{font-size:11.5px;padding:5px 6px;}
+    .control-row button{font-size:11.5px;padding:6px 8px;}
     .checklist-section, .car{padding:12px 10px;}
     .summary-card .num{font-size:13px;}
     .filterbar{gap:6px;}
@@ -320,6 +342,15 @@
     .dashboard-grid{flex-wrap:wrap;}
     .dash-card{padding:5px 8px;min-width:50px;}
     .dash-card .dash-num{font-size:12px;}
+    .dash-panel{gap:6px;}
+    .dash-search-input{flex-basis:100%;order:2;}
+    .dash-search-btn{order:3;flex:1;}
+    .preview-actions{grid-template-columns:repeat(2,1fr);}
+    .modal{max-width:94vw;padding:16px;}
+    .tab-nav{gap:0;}
+    .tab-btn{font-size:11px;padding:8px 2px;}
+    .control-row{gap:6px;}
+    .managerFilterBar{gap:6px;}
   }
 
   .car{margin-top:20px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 18px;box-shadow:0 1px 3px rgba(0,0,0,.04);transition:box-shadow .2s;}
@@ -364,10 +395,10 @@
     padding:2px 8px;font-size:10.5px;font-weight:700;cursor:pointer;flex-shrink:0;
   }
   .modal .empty-msg{color:var(--sub);font-size:13px;}
-  .preview-actions{margin-top:14px;display:flex;gap:6px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:10px;}
+  .preview-actions{margin-top:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;border-top:1px solid var(--line);padding-top:10px;}
   .preview-actions button{
-    flex:1;min-width:0;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:7px;
-    padding:7px 2px;font-size:10.5px;font-weight:700;cursor:pointer;white-space:nowrap;
+    border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:7px;
+    padding:8px 4px;font-size:10.5px;font-weight:700;cursor:pointer;white-space:normal;line-height:1.25;
   }
   .preview-actions button.on{background:var(--closed);color:#fff;border-color:var(--closed);}
   .preview-actions button.primary{background:var(--ink);color:#fff;border-color:var(--ink);}
@@ -442,26 +473,22 @@
 
   <div id="printAllContainer"></div>
 
-  <div class="rangebar">
-    <label>시작일</label>
-    <input type="date" id="rangeStart">
-    <label>종료일</label>
-    <input type="date" id="rangeEnd">
-    <button onclick="applyRange()">적용</button>
-    <button class="quick" onclick="setThisMonth()">이번 달</button>
-    <button class="quick" onclick="setNextMonth()">다음 달</button>
-    <span id="rangeErr" style="color:#c94f4f;font-size:12px;"></span>
-  </div>
-
-  <div class="filter-panel">
-    <div class="filter-row">
-      <span class="filter-row-label">범주</span>
+  <div class="control-panel">
+    <div class="control-row">
+      <label>시작일</label>
+      <input type="date" id="rangeStart">
+      <label>종료일</label>
+      <input type="date" id="rangeEnd">
+      <button onclick="applyRange()">적용</button>
+      <button class="quick" onclick="setThisMonth()">이번 달</button>
+      <button class="quick" onclick="setNextMonth()">다음 달</button>
+      <span id="rangeErr" style="color:#c94f4f;font-size:12px;"></span>
+    </div>
+    <div class="control-divider"></div>
+    <div class="control-row">
       <span class="toggle" id="toggleGallery" onclick="toggleCategory('gallery')"><i class="dot gallery lit" id="dotGallery"></i><span class="cat-label-edit" id="labelGallery" contenteditable="true" onclick="event.stopPropagation()">갤러리</span></span>
       <span class="toggle" id="toggleTour" onclick="toggleCategory('tour')"><i class="dot tour lit" id="dotTour"></i><span class="cat-label-edit" id="labelTour" contenteditable="true" onclick="event.stopPropagation()">21차투어</span></span>
       <span class="toggle" id="toggleClosed" onclick="toggleClosedFilter()"><i class="dot closed lit" id="dotClosed"></i>휴관/불가</span>
-    </div>
-    <div class="filter-row">
-      <span class="filter-row-label">현장</span>
       <div class="danjiToggleBar" id="danjiToggleBar"></div>
     </div>
   </div>
@@ -469,40 +496,51 @@
   <div id="calendarArea"></div>
 
   <div class="checklist-section">
-    <h2>전체 집계</h2>
-    <div class="summary-bar" id="summaryBar"></div>
+    <div class="tab-nav">
+      <button class="tab-btn on" id="tabBtn-summary" onclick="switchTab('summary')">전체집계</button>
+      <button class="tab-btn" id="tabBtn-manager" onclick="switchTab('manager')">담당자별</button>
+      <button class="tab-btn" id="tabBtn-chart" onclick="switchTab('chart')">요일별</button>
+      <button class="tab-btn" id="tabBtn-date" onclick="switchTab('date')">날짜별</button>
+    </div>
 
-    <h3 style="font-size:13px;margin:14px 0 6px;">담당자별 집계</h3>
-    <div class="managerFilterBar">
-      <div class="colFilter">
-        <button class="colFilterBtn" id="danjiFilterBtn" onclick="toggleColFilter('danji')">단지명 ▾</button>
-        <div class="colFilterDropdown" id="danjiDropdown"></div>
+    <div class="tab-panel" id="tabPanel-summary">
+      <div class="summary-bar" id="summaryBar"></div>
+    </div>
+
+    <div class="tab-panel" id="tabPanel-manager" style="display:none;">
+      <div class="managerFilterBar">
+        <div class="colFilter">
+          <button class="colFilterBtn" id="danjiFilterBtn" onclick="toggleColFilter('danji')">단지명 ▾</button>
+          <div class="colFilterDropdown" id="danjiDropdown"></div>
+        </div>
+        <div class="colFilter">
+          <button class="colFilterBtn" id="managerFilterBtn2" onclick="toggleColFilter('manager')">담당자 ▾</button>
+          <div class="colFilterDropdown" id="managerDropdown2"></div>
+        </div>
+        <button class="resetBtn" onclick="clearManagerColFilters()">필터 초기화</button>
       </div>
-      <div class="colFilter">
-        <button class="colFilterBtn" id="managerFilterBtn2" onclick="toggleColFilter('manager')">담당자 ▾</button>
-        <div class="colFilterDropdown" id="managerDropdown2"></div>
+      <div id="managerTable"></div>
+    </div>
+
+    <div class="tab-panel" id="tabPanel-chart" style="display:none;">
+      <div class="chartWeekBar">
+        <button onclick="prevChartWeek()">◀</button>
+        <span id="chartWeekLabel">1주차</span>
+        <button onclick="nextChartWeek()">▶</button>
       </div>
-      <button class="resetBtn" onclick="clearManagerColFilters()">필터 초기화</button>
+      <div id="statsChart"></div>
     </div>
-    <div id="managerTable"></div>
 
-    <h3 style="font-size:12.5px;margin:16px 0 4px;">요일별 인원 현황</h3>
-    <div class="chartWeekBar">
-      <button onclick="prevChartWeek()">◀</button>
-      <span id="chartWeekLabel">1주차</span>
-      <button onclick="nextChartWeek()">▶</button>
+    <div class="tab-panel" id="tabPanel-date" style="display:none;">
+      <div class="filterbar">
+        <select id="dateFilter"></select>
+        <button onclick="prevDate()">◀ 이전</button>
+        <button onclick="nextDate()">다음 ▶</button>
+        <select id="managerFilter"><option value="">담당자 전체</option></select>
+      </div>
+      <button class="bulk-check-btn" onclick="bulkCheckCurrentDate()">이 날짜 전체 참석 처리</button>
+      <div id="checklistBody"></div>
     </div>
-    <div id="statsChart"></div>
-
-    <h2 style="margin-top:20px;">날짜별 체크리스트</h2>
-    <div class="filterbar">
-      <select id="dateFilter"></select>
-      <button onclick="prevDate()">◀ 이전</button>
-      <button onclick="nextDate()">다음 ▶</button>
-      <select id="managerFilter"><option value="">담당자 전체</option></select>
-    </div>
-    <button class="bulk-check-btn" onclick="bulkCheckCurrentDate()">이 날짜 전체 참석 처리</button>
-    <div id="checklistBody"></div>
   </div>
 
   <div class="car">
@@ -517,17 +555,20 @@
     <div class="foot-note" id="footNote" contenteditable="true">※ 8/8~9, 8/15~16은 갤러리 10:30 / 1:30 2타임 운영</div>
   </div>
 
-  <div class="toolbar bottom-toolbar">
-    <button onclick="exportExcel()">엑셀</button>
-    <button onclick="pdfExportCurrentDate()">PDF</button>
-    <button onclick="window.print()">인쇄</button>
-    <button onclick="openCapacitySettings()">정원</button>
-    <button id="saveBtn" onclick="manualSave()">저장</button>
-    <button onclick="toggleDarkMode()" id="darkModeBtn">다크모드</button>
-    <button onclick="openChangeLog()">변경이력</button>
-    <button onclick="changePassword()">비번변경</button>
-    <button onclick="showHomeScreenGuide()">홈화면추가</button>
-    <button onclick="openResetAllForm()" class="danger-btn">전체 초기화</button>
+  <div class="bottom-menu-wrap">
+    <button class="bottom-menu-btn" onclick="toggleBottomMenu()">⚙ 메뉴 ▾</button>
+    <div class="bottom-menu-dropdown" id="bottomMenuDropdown">
+      <button onclick="closeBottomMenuThen(exportExcel)">엑셀 내보내기</button>
+      <button onclick="closeBottomMenuThen(pdfExportCurrentDate)">PDF 내보내기</button>
+      <button onclick="closeBottomMenuThen(()=>window.print())">인쇄</button>
+      <button onclick="closeBottomMenuThen(openCapacitySettings)">정원 설정</button>
+      <button id="saveBtn" onclick="closeBottomMenuThen(manualSave)">저장</button>
+      <button onclick="closeBottomMenuThen(toggleDarkMode)" id="darkModeBtn">다크모드</button>
+      <button onclick="closeBottomMenuThen(openChangeLog)">변경이력</button>
+      <button onclick="closeBottomMenuThen(changePassword)">비밀번호 변경</button>
+      <button onclick="closeBottomMenuThen(showHomeScreenGuide)">홈화면 추가 안내</button>
+      <button onclick="closeBottomMenuThen(openResetAllForm)" class="danger-btn">전체 초기화</button>
+    </div>
   </div>
 </div>
 
@@ -773,6 +814,23 @@ function onScheduleDataChanged(){
 }
 
 // ---- 전체 저장 (버튼으로 명시적 확인) ----
+// ---- 하단 메뉴 드롭다운 ----
+function toggleBottomMenu(){
+  document.getElementById("bottomMenuDropdown").classList.toggle("open");
+}
+function closeBottomMenu(){
+  document.getElementById("bottomMenuDropdown").classList.remove("open");
+}
+function closeBottomMenuThen(fn){
+  closeBottomMenu();
+  fn();
+}
+document.addEventListener("click", (e)=>{
+  if(!e.target.closest(".bottom-menu-wrap")){
+    closeBottomMenu();
+  }
+});
+
 function manualSave(){
   persistScheduleData();
   persistCheck();
@@ -1391,8 +1449,13 @@ function tourMatchesDanjiFilter(key){
   if(!rows) return false;
   return rows.some(r=>activeDanjiFilter.has(r[1]));
 }
+const EXTRA_DANJI_KEY = "extra_danji_names_v1";
+let extraDanjiNames = [];
+try{ extraDanjiNames = JSON.parse(localStorage.getItem(EXTRA_DANJI_KEY)) || []; }catch(e){ extraDanjiNames = []; }
+function persistExtraDanji(){ localStorage.setItem(EXTRA_DANJI_KEY, JSON.stringify(extraDanjiNames)); }
+
 function populateDanjiToggleBar(){
-  const danjiSet = new Set([GALLERY_DANJI]);
+  const danjiSet = new Set([GALLERY_DANJI, ...extraDanjiNames]);
   Object.values(TOUR_ROWS).forEach(rows=>rows.forEach(r=>danjiSet.add(r[1])));
   const names = [...danjiSet].sort();
   const bar = document.getElementById("danjiToggleBar");
@@ -1401,7 +1464,20 @@ function populateDanjiToggleBar(){
     "<i class='dot danji"+(activeDanjiFilter.has(name)?" lit":"")+"' id='danjiDot-"+name+"'></i>"+
     "<span class='cat-label-edit' contenteditable='true' onclick='event.stopPropagation()' onblur=\"renameDanjiFromBlur(this,'"+name+"')\">"+name+"</span>"+
     "</span>"
-  ).join("");
+  ).join("") + "<span class='toggle add-danji-btn' onclick='addDanjiName()'>+ 현장 추가</span>";
+}
+function addDanjiName(){
+  openForm("새 현장 추가", [
+    {id:"name", label:"현장명", placeholder:"예: 14단지"}
+  ], (v)=>{
+    const name = v.name.trim();
+    if(!name) return;
+    if(!extraDanjiNames.includes(name)){
+      extraDanjiNames.push(name);
+      persistExtraDanji();
+    }
+    populateDanjiToggleBar();
+  });
 }
 function renameDanjiFromBlur(el, oldName){
   const newName = el.textContent.trim();
@@ -1509,6 +1585,20 @@ function toggleCheck(kind, key, idx, el){
 }
 
 // ---- 특정 날짜 전체 일괄 참석 처리 ----
+// ---- 상단 탭 전환 (전체집계/담당자별/요일별/날짜별) ----
+const TAB_KEY = "active_tab_v1";
+function switchTab(tab){
+  ["summary","manager","chart","date"].forEach(t=>{
+    document.getElementById("tabPanel-"+t).style.display = (t===tab) ? "block" : "none";
+    document.getElementById("tabBtn-"+t).classList.toggle("on", t===tab);
+  });
+  localStorage.setItem(TAB_KEY, tab);
+}
+function initTab(){
+  const saved = localStorage.getItem(TAB_KEY);
+  switchTab(saved || "summary");
+}
+
 function bulkCheckCurrentDate(){
   const key = currentDateKey;
   let count = 0;
@@ -2210,6 +2300,7 @@ updateManagerTable();
 updateStatsChart();
 buildDashboard();
 checkUrlForSharedDate();
+initTab();
 
 // ---------- 홍보직원 연락처/차량 관리 ----------
 const STAFF_KEY = "staff_contacts_v1";
