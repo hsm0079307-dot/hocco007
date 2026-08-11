@@ -3876,8 +3876,12 @@ const L = (function(){
   }
   // 클릭 판정용으로, "지금 화면에 실제로 보이는(=중복 아닌) 회색 구역" 목록만 매번 다시 계산해서 담아둔다
   let agendaZonesKept = [];
+  // 너무 작은 구역(대략 변 길이가 이 값보다 작은 경우)은 모바일에서 손가락 터치 시
+  // 실제 현장 마커/폴리곤 클릭을 가로채기 쉬워서, 클릭 판정 대상에서 제외한다 (화면에는 계속 표시됨)
+  const AGENDA_ZONE_MIN_CLICK_SIZE_DEG = 0.0015; // 대략 지름 150m 이상인 구역만 클릭 가능
   function findAgendaZoneAt(lat, lng){
     for(const z of agendaZonesKept){
+      if(z._sizeDeg!=null && z._sizeDeg < AGENDA_ZONE_MIN_CLICK_SIZE_DEG) continue;
       if(pointInPolygon([lat,lng], z.p)) return z;
     }
     return null;
@@ -3886,24 +3890,46 @@ const L = (function(){
   // zone 데이터(z) + 그 폴리곤의 카카오 객체(w)를 함께 들고 있어서, 겹침 여부가 바뀌면(=sites가 바뀌면)
   // 폴리곤을 다시 만들지 않고 표시/숨김만 다시 계산할 수 있게 한다
   let agendaZoneItems = [];
-  function buildAgendaZonesOnce(){
-    if(agendaZonesBuilt || !agendaZoneLayer || !map) return;
-    if(typeof AGENDA_ZONES==='undefined') return;
-    // 항목 하나가 실패해도 전체가 멈추지 않도록 개별로 try/catch를 걸고,
-    // 한 번 시도했으면(일부 실패 포함) agendaZonesBuilt를 반드시 true로 남겨서
-    // 다음 렌더마다 처음부터 다시 시도되며 중복으로 쌓이는 걸 막는다.
-    AGENDA_ZONES.forEach(z=>{
-      try{
-        if(!z.p || z.p.length<3) return;
-        const w = L.polygon(z.p, {
-          color:'#9a9a9a', weight:1, opacity:.55,
-          fillColor:'#9a9a9a', fillOpacity:.16,
-          interactive:true
-        }).addTo(agendaZoneLayer);
-        agendaZoneItems.push({z, w});
-      }catch(e){ console.error('의제처리구역 개별 생성 실패:', z && z.n, e); }
+  let agendaZonesBuilding = false;
+  // 대략적인 가로/세로 크기(도 단위)를 미리 계산해서, 너무 작은 구역은 클릭 판정에서 제외할 때 씀
+  function zoneBBoxSizeDeg(p){
+    let minLat=90, maxLat=-90, minLng=180, maxLng=-180;
+    p.forEach(([lat,lng])=>{
+      if(lat<minLat) minLat=lat; if(lat>maxLat) maxLat=lat;
+      if(lng<minLng) minLng=lng; if(lng>maxLng) maxLng=lng;
     });
-    agendaZonesBuilt = true;
+    return Math.max(maxLat-minLat, maxLng-minLng);
+  }
+  function buildAgendaZonesOnce(){
+    if(agendaZonesBuilt || agendaZonesBuilding || !agendaZoneLayer || !map) return;
+    if(typeof AGENDA_ZONES==='undefined') return;
+    agendaZonesBuilding = true;
+    let i = 0;
+    const CHUNK = 200; // 한 번에 이 정도씩만 만들고, 나머지는 다음 틱에 이어서 만들어서 화면이 안 멈추게 함
+    function step(){
+      const end = Math.min(i+CHUNK, AGENDA_ZONES.length);
+      for(; i<end; i++){
+        const z = AGENDA_ZONES[i];
+        try{
+          if(!z.p || z.p.length<3) continue;
+          z._sizeDeg = zoneBBoxSizeDeg(z.p);
+          const w = L.polygon(z.p, {
+            color:'#9a9a9a', weight:1, opacity:.55,
+            fillColor:'#9a9a9a', fillOpacity:.16,
+            interactive:true
+          }).addTo(agendaZoneLayer);
+          agendaZoneItems.push({z, w});
+        }catch(e){ console.error('의제처리구역 개별 생성 실패:', z && z.n, e); }
+      }
+      if(i < AGENDA_ZONES.length){
+        setTimeout(step, 0);
+      }else{
+        agendaZonesBuilt = true;
+        agendaZonesBuilding = false;
+        showAgendaZones(); // 다 만든 뒤 최종적으로 한 번 더 표시/숨김 정리
+      }
+    }
+    step();
   }
   // 겹침(중복) 여부를 빌드 시점에 한 번만 판단하면, 그 뒤에 sites가 갱신돼도(사업소 전환/새로고침 등)
   // 반영이 안 되는 문제가 있었음 → 보여줄 때마다 현재 sites 기준으로 다시 판단해서 표시/숨김만 토글
