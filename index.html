@@ -3997,14 +3997,34 @@ const L = (function(){
   }
   // 겹침(중복) 여부를 빌드 시점에 한 번만 판단하면, 그 뒤에 sites가 갱신돼도(사업소 전환/새로고침 등)
   // 반영이 안 되는 문제가 있었음 → 보여줄 때마다 현재 sites 기준으로 다시 판단해서 표시/숨김만 토글
+  // showAgendaZones()가 renderMap()마다 매번 불려서, 겹침 판정(구역 수 x 현장 수)을
+  // 매번 새로 계산하면 구역이 몇천 개로 늘어난 지금은 너무 느려짐.
+  // "지금 추적 중인 현장 목록"이 실제로 안 바뀌었으면 이전 계산 결과를 그대로 재사용한다.
+  let agendaOverlapSignature = null;
+  let agendaOverlapResultSet = null; // Set of zone(z) that were "숨김 대상"이었는지 여부 캐시 (z 객체 참조 기준)
   function showAgendaZones(){
     try{
       if(!map || !agendaZoneLayer) return;
       buildAgendaZonesOnce();
+      const sig = Array.isArray(sites) ? sites.map(s=>s.name).sort().join('|') : '';
+      if(sig !== agendaOverlapSignature){
+        agendaOverlapSignature = sig;
+        agendaOverlapResultSet = new Set();
+        agendaZoneItems.forEach(({z})=>{
+          if(agendaZoneMatchesTrackedSite(z)) agendaOverlapResultSet.add(z);
+        });
+      }
       agendaZonesKept = [];
-      agendaZoneItems.forEach(({z,w})=>{
+      agendaZoneItems.forEach(item=>{
+        const {z,w} = item;
         if(!w._kobj) return;
-        if(agendaZoneMatchesTrackedSite(z)){
+        const shouldHide = agendaOverlapResultSet.has(z);
+        if(item._shown === !shouldHide) { // 이전과 상태가 같으면 setMap 재호출 생략
+          if(!shouldHide) agendaZonesKept.push(z);
+          return;
+        }
+        item._shown = !shouldHide;
+        if(shouldHide){
           w._kobj.setMap(null); // 이미 관리중인 사업지와 겹치면 숨김
         }else{
           w._kobj.setMap(map.kmap);
@@ -4017,6 +4037,7 @@ const L = (function(){
     try{
       if(!agendaZoneLayer) return;
       agendaZoneLayer.items.forEach(it=>{ if(it._kobj) it._kobj.setMap(null); });
+      agendaZoneItems.forEach(item=>{ item._shown = false; }); // 다음 showAgendaZones()에서 다시 정확히 그려지도록 캐시 초기화
       closeAgendaZonePopup();
     }catch(e){ console.error('의제처리구역 숨김 실패', e); }
   }
