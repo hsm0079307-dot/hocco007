@@ -2112,8 +2112,9 @@ function openPreview(key){
     html += "<div class='block'><span class='tag gallery'>"+CAT_LABEL.gallery+" "+GALLERY_ROWS[key].length+"팀</span>";
     GALLERY_ROWS[key].forEach((r,idx)=>{
       const [time, danji, ho, name, plus, manager, spot] = r;
-      const danjiTxt = (danji && danji!==GALLERY_DANJI) ? " ["+danji+"]" : "";
-      html += "<div class='row-line'><span>"+time+" · "+name+(plus!=="-"?" "+plus:"")+" ("+manager+") "+(spot||"-")+danjiTxt+"</span>"+
+      const danjiHo = (danji||GALLERY_DANJI) + ((ho && ho!=="-") ? " "+ho : "");
+      const nameTxt = name + (plus && plus!=="-" ? " "+plus : "");
+      html += "<div class='row-line'><span>"+time+" · "+danjiHo+" · "+nameTxt+" ("+manager+")</span>"+
         "<span class='row-mini-actions'>"+
         "<span class='mini-action' onclick=\"editEntry('gallery','"+key+"',"+idx+")\">수정</span>"+
         "<span class='mini-action danger' onclick=\"deleteEntry('gallery','"+key+"',"+idx+",this)\">삭제</span>"+
@@ -2128,8 +2129,9 @@ function openPreview(key){
     html += "<div class='block'><span class='tag tour'>"+CAT_LABEL.tour+"</span>";
     TOUR_ROWS[key].forEach((r,idx)=>{
       const [time, danji, ho, name, plus, manager] = r;
-      const spot = (ho && ho !== "-") ? (danji+" "+ho) : danji;
-      html += "<div class='row-line'><span>"+time+" · "+spot+" "+name+(plus!=="-"?" "+plus:"")+" ("+manager+")</span>"+
+      const danjiHo = danji + ((ho && ho!=="-") ? " "+ho : "");
+      const nameTxt = name + (plus && plus!=="-" ? " "+plus : "");
+      html += "<div class='row-line'><span>"+time+" · "+danjiHo+" · "+nameTxt+" ("+manager+")</span>"+
         "<span class='row-mini-actions'>"+
         "<span class='mini-action' onclick=\"editEntry('tour','"+key+"',"+idx+")\">수정</span>"+
         "<span class='mini-action danger' onclick=\"deleteEntry('tour','"+key+"',"+idx+",this)\">삭제</span>"+
