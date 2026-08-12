@@ -413,9 +413,9 @@
     padding:10px 14px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;
   }
   .preview-more-dropdown{
-    display:none;position:absolute;bottom:calc(100% + 6px);right:0;z-index:20;
+    display:none;position:fixed;z-index:1000;
     background:#fff;border:1px solid var(--line);border-radius:10px;padding:6px;
-    min-width:160px;box-shadow:0 6px 20px rgba(0,0,0,.1);
+    min-width:170px;max-height:70vh;overflow-y:auto;box-shadow:0 6px 20px rgba(0,0,0,.15);
   }
   .preview-more-dropdown.open{display:block;}
   .preview-more-dropdown button{
@@ -2157,7 +2157,28 @@ function openPreview(key){
 }
 let previewMoreCallback = null;
 function togglePreviewMore(){
-  document.getElementById("previewMoreDropdown").classList.toggle("open");
+  const d = document.getElementById("previewMoreDropdown");
+  const isOpen = d.classList.contains("open");
+  if(isOpen){
+    d.classList.remove("open");
+    return;
+  }
+  // 버튼 위치를 기준으로 화면(fixed) 좌표로 배치 — 모달 스크롤에 안 잘리게
+  const btn = document.querySelector(".more-btn");
+  const rect = btn.getBoundingClientRect();
+  d.style.right = (window.innerWidth - rect.right) + "px";
+  d.style.left = "auto";
+  // 드롭다운을 먼저 보이게 해서 실제 높이를 잰 뒤 위/아래 배치를 정한다
+  d.classList.add("open");
+  const dropH = d.offsetHeight;
+  const spaceBelow = window.innerHeight - rect.bottom;
+  if(spaceBelow >= dropH + 10){
+    d.style.top = (rect.bottom + 6) + "px";
+    d.style.bottom = "auto";
+  } else {
+    d.style.top = "auto";
+    d.style.bottom = (window.innerHeight - rect.top + 6) + "px";
+  }
 }
 function closePreviewMore(){
   const d = document.getElementById("previewMoreDropdown");
