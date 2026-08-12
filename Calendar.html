@@ -352,7 +352,7 @@
     .dash-panel{gap:6px;}
     .dash-search-input{flex-basis:100%;order:2;}
     .dash-search-btn{order:3;flex:1;}
-    .preview-actions{grid-template-columns:repeat(2,1fr);}
+    .more-btn{padding:10px 10px;font-size:11.5px;}
     .modal{max-width:94vw;padding:16px;}
     .tab-nav{gap:0;}
     .tab-btn{font-size:11px;padding:8px 2px;}
@@ -394,30 +394,40 @@
   .modal .tag{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:6px;margin-bottom:5px;}
   .modal .tag.gallery{background:var(--gallery-bg);color:var(--gallery);}
   .modal .tag.tour{background:var(--tour-bg);color:var(--tour);}
-  .modal .row-line{padding:2px 0;border-bottom:1px dashed var(--line);display:flex;align-items:center;justify-content:space-between;gap:8px;}
+  .modal .row-line{padding:4px 0;border-bottom:1px dashed var(--line);display:flex;align-items:center;justify-content:space-between;gap:8px;}
   .modal .row-line:last-child{border-bottom:none;}
-  .modal .row-line > span:first-child{flex:1;}
-  .modal .row-btns{display:flex;gap:5px;flex-shrink:0;}
-  .modal .row-edit{
-    border:none;background:var(--bg);color:var(--ink);border-radius:6px;
-    padding:2px 8px;font-size:10.5px;font-weight:700;cursor:pointer;flex-shrink:0;
-  }
-  .modal .row-del{
-    border:none;background:#fdecea;color:var(--closed);border-radius:6px;
-    padding:2px 8px;font-size:10.5px;font-weight:700;cursor:pointer;flex-shrink:0;
-  }
+  .modal .row-line > span:first-child{flex:1;font-size:12.5px;}
+  .modal .row-mini-actions{display:flex;gap:8px;flex-shrink:0;}
+  .modal .row-mini-actions .mini-action{font-size:10.5px;}
+  .modal .row-mini-actions .mini-action.danger{color:var(--closed);}
   .modal .empty-msg{color:var(--sub);font-size:13px;}
-  .preview-actions{margin-top:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;border-top:1px solid var(--line);padding-top:10px;}
-  .preview-actions button{
-    border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:7px;
-    padding:8px 4px;font-size:10.5px;font-weight:700;cursor:pointer;white-space:normal;line-height:1.25;
+
+  .preview-actions{margin-top:14px;display:flex;align-items:center;gap:8px;border-top:1px solid var(--line);padding-top:12px;}
+  .preview-actions .primary{
+    flex:1;border:none;background:var(--ink);color:#fff;border-radius:8px;
+    padding:10px 0;font-size:13px;font-weight:700;cursor:pointer;
   }
-  .preview-actions button.on{background:var(--closed);color:#fff;border-color:var(--closed);}
-  .preview-actions button.primary{background:var(--ink);color:#fff;border-color:var(--ink);}
+  .preview-more-wrap{position:relative;}
+  .more-btn{
+    border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;
+    padding:10px 14px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;
+  }
+  .preview-more-dropdown{
+    display:none;position:absolute;bottom:calc(100% + 6px);right:0;z-index:20;
+    background:#fff;border:1px solid var(--line);border-radius:10px;padding:6px;
+    min-width:160px;box-shadow:0 6px 20px rgba(0,0,0,.1);
+  }
+  .preview-more-dropdown.open{display:block;}
+  .preview-more-dropdown button{
+    display:block;width:100%;text-align:left;border:none;background:none;color:var(--ink);
+    padding:9px 10px;font-size:12.5px;font-weight:600;cursor:pointer;border-radius:6px;white-space:nowrap;
+  }
+  .preview-more-dropdown button:hover{background:var(--bg);}
+  body.dark-mode .more-btn,body.dark-mode .preview-more-dropdown{background:var(--card-bg);border-color:var(--line);color:var(--ink);}
+  body.dark-mode .preview-more-dropdown button:hover{background:var(--bg);}
 
   .memo-actions-inline{display:flex;justify-content:flex-end;gap:10px;margin-top:12px;}
   .mini-action{font-size:10.5px;font-weight:700;color:var(--sub);cursor:pointer;user-select:none;}
-  .cap-info-line{font-size:11px;color:var(--sub);margin-top:12px;padding-top:10px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;}
   .mini-action:hover{color:var(--ink);}
   .mini-action.danger{color:var(--closed);}
   #memoBody{font-size:15px;line-height:1.7;color:var(--ink);min-height:60px;}
@@ -2098,9 +2108,9 @@ function openPreview(key){
       const [time, danji, ho, name, plus, manager, spot] = r;
       const danjiTxt = (danji && danji!==GALLERY_DANJI) ? " ["+danji+"]" : "";
       html += "<div class='row-line'><span>"+time+" · "+name+(plus!=="-"?" "+plus:"")+" ("+manager+") "+(spot||"-")+danjiTxt+"</span>"+
-        "<span class='row-btns'>"+
-        "<button class='row-edit' onclick=\"editEntry('gallery','"+key+"',"+idx+")\">수정</button>"+
-        "<button class='row-del' onclick=\"deleteEntry('gallery','"+key+"',"+idx+",this)\">삭제</button>"+
+        "<span class='row-mini-actions'>"+
+        "<span class='mini-action' onclick=\"editEntry('gallery','"+key+"',"+idx+")\">수정</span>"+
+        "<span class='mini-action danger' onclick=\"deleteEntry('gallery','"+key+"',"+idx+",this)\">삭제</span>"+
         "</span></div>";
     });
     html += "</div>";
@@ -2114,9 +2124,9 @@ function openPreview(key){
       const [time, danji, ho, name, plus, manager] = r;
       const spot = (ho && ho !== "-") ? (danji+" "+ho) : danji;
       html += "<div class='row-line'><span>"+time+" · "+spot+" "+name+(plus!=="-"?" "+plus:"")+" ("+manager+")</span>"+
-        "<span class='row-btns'>"+
-        "<button class='row-edit' onclick=\"editEntry('tour','"+key+"',"+idx+")\">수정</button>"+
-        "<button class='row-del' onclick=\"deleteEntry('tour','"+key+"',"+idx+",this)\">삭제</button>"+
+        "<span class='row-mini-actions'>"+
+        "<span class='mini-action' onclick=\"editEntry('tour','"+key+"',"+idx+")\">수정</span>"+
+        "<span class='mini-action danger' onclick=\"deleteEntry('tour','"+key+"',"+idx+",this)\">삭제</span>"+
         "</span></div>";
     });
     html += "</div>";
@@ -2128,23 +2138,40 @@ function openPreview(key){
 
   const isGalleryClosed = !!GALLERY_CLOSED[key];
   const isTourClosed = !!TOUR_CLOSED[key];
-  const capForKey = getCapacityForKey(key);
-  const headcountForKey = computeDateHeadcount(key);
-  html += "<div class='cap-info-line'>정원 "+(capForKey>0 ? capForKey+"명" : "미설정")+
-    (headcountForKey>0 ? " · 현재 "+headcountForKey+"명" : "")+
-    " <span class='mini-action' onclick=\"openDateCapacitySettings()\">• 이 날짜만 설정</span></div>";
+
   html += "<div class='preview-actions'>"+
-    "<button onclick=\"addEntryFlow('gallery')\">+"+CAT_LABEL.gallery+"</button>"+
-    "<button onclick=\"addEntryFlow('tour')\">+"+CAT_LABEL.tour+"</button>"+
-    "<button class='"+(isGalleryClosed?"on":"")+"' onclick=\"toggleClosedDay('gallery')\">"+CAT_LABEL.gallery+(isGalleryClosed?" 휴관해제":" 휴관")+"</button>"+
-    "<button class='"+(isTourClosed?"on":"")+"' onclick=\"toggleClosedDay('tour')\">"+CAT_LABEL.tour+(isTourClosed?" 휴관해제":" 휴관")+"</button>"+
     "<button class='primary' onclick=\"openInChecklist()\">체크리스트</button>"+
-    "<button onclick=\"openShareOverlay('"+key+"')\">공유</button>"+
-    "</div>";
+    "<div class='preview-more-wrap'>"+
+    "<button class='more-btn' onclick=\"togglePreviewMore()\">⋯ 더보기</button>"+
+    "<div class='preview-more-dropdown' id='previewMoreDropdown'>"+
+    "<button onclick=\"closePreviewMoreThen(()=>addEntryFlow('gallery'))\">+"+CAT_LABEL.gallery+" 일정</button>"+
+    "<button onclick=\"closePreviewMoreThen(()=>addEntryFlow('tour'))\">+"+CAT_LABEL.tour+" 일정</button>"+
+    "<button onclick=\"closePreviewMoreThen(()=>toggleClosedDay('gallery'))\">"+CAT_LABEL.gallery+(isGalleryClosed?" 휴관해제":" 휴관지정")+"</button>"+
+    "<button onclick=\"closePreviewMoreThen(()=>toggleClosedDay('tour'))\">"+CAT_LABEL.tour+(isTourClosed?" 휴관해제":" 휴관지정")+"</button>"+
+    "<button onclick=\"closePreviewMoreThen(()=>openDateCapacitySettings())\">정원 설정</button>"+
+    "<button onclick=\"closePreviewMoreThen(()=>openShareOverlay('"+key+"'))\">공유</button>"+
+    "</div></div></div>";
 
   body.innerHTML = html;
   document.getElementById("overlay").classList.add("on");
 }
+let previewMoreCallback = null;
+function togglePreviewMore(){
+  document.getElementById("previewMoreDropdown").classList.toggle("open");
+}
+function closePreviewMore(){
+  const d = document.getElementById("previewMoreDropdown");
+  if(d) d.classList.remove("open");
+}
+function closePreviewMoreThen(fn){
+  closePreviewMore();
+  fn();
+}
+document.addEventListener("click", (e)=>{
+  if(!e.target.closest(".preview-more-wrap")){
+    closePreviewMore();
+  }
+});
 
 // ---- 공용 입력 폼 (prompt/confirm 대신 페이지 내 폼 사용) ----
 let formCallback = null;
