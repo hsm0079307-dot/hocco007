@@ -217,6 +217,9 @@
      로그인 전에도 지도는 자유롭게 조회(이동/확대)할 수 있어야 하므로, 박스 바깥쪽은 클릭이 그대로 지도로 통과되게 한다. */
   #modeOverlay{align-items:flex-end;justify-content:flex-end;background:transparent;pointer-events:none;padding-bottom:56px;}
   #modeOverlay .modal{box-shadow:0 8px 28px rgba(0,0,0,.5);pointer-events:auto;}
+  /* 로그인 전(관리자/담당자 선택 뜬 상태)엔 뒤에 있는 시도/구 선택 패널이 겹쳐 보이던 문제 - 로그인 전엔 숨김 */
+  .map-wrap:has(#modeOverlay.show) .region-panel,
+  .map-wrap:has(#modeOverlay.show) .office-switcher{ display:none; }
   .modal h3{margin:0 0 14px;font-size:15px;letter-spacing:normal;color:var(--accent);}
   .field{margin-bottom:10px;}
   .field label{display:block;font-size:13px;color:var(--text-dim);margin-bottom:4px;letter-spacing:normal;}
@@ -298,6 +301,8 @@
   .detail-quad-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
   .detail-quad-box{background:none;border:none;border-radius:0;padding:12px 14px;height:230px;overflow-y:auto;display:flex;flex-direction:column;box-sizing:border-box;}
   .detail-quad-box .spec-heading{margin-bottom:8px;flex:none;}
+  .quad-edit-btn{background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:12px;padding:2px 4px;border-radius:5px;line-height:1;}
+  .quad-edit-btn:hover{color:var(--accent);background:var(--bg-side-2);}
   .detail-quad-box textarea{flex:1;min-height:0;width:100%;box-sizing:border-box;background:var(--bg-side-2);border:1px solid var(--line);border-radius:8px;color:var(--text-main);font-family:inherit;font-size:12px;line-height:1.6;padding:8px 10px;resize:none;}
   .detail-quad-box textarea:focus{outline:none;border-color:var(--accent);}
   @media (max-width:640px){ .detail-quad-grid{grid-template-columns:1fr;} .spec-lines-2col{grid-template-columns:1fr;} }
@@ -2754,7 +2759,7 @@ const L = (function(){
         </div>
       ` : `
         <div class="detail-quad-box">
-          <div class="spec-heading">■ 사업현황</div>
+          <div class="spec-heading">■ 사업현황 <button class="quad-edit-btn no-print" data-quad-edit="1" title="수정">✏</button></div>
           <div class="spec-lines-2col">
             <div class="spec-line">사업단계: ${escapeHtml(site.progressStage||'-')}</div>
             <div class="spec-line">구역면적: ${site.area?escapeHtml(site.area)+'㎡':'-'}</div>
@@ -2776,7 +2781,7 @@ const L = (function(){
         </div>
       ` : `
         <div class="detail-quad-box">
-          <div class="spec-heading">■ ${heading}</div>
+          <div class="spec-heading">■ ${heading} <button class="quad-edit-btn no-print" data-quad-edit="1" title="수정">✏</button></div>
           <div class="spec-stage-detail">${value ? renderRichText(value) : '-'}</div>
         </div>
       `;
@@ -2796,6 +2801,21 @@ const L = (function(){
           </div>
         </div>` : ''}
       `;
+      if(!editMode){
+        const enterEdit = async ()=>{
+          if(!(await ensureUnlocked())) return;
+          editMode = true;
+          renderAll();
+        };
+        body.querySelectorAll('.detail-quad-box').forEach(box=>{
+          box.style.cursor = 'text';
+          box.title = '더블클릭하면 수정할 수 있어요';
+          box.addEventListener('dblclick', enterEdit);
+        });
+        body.querySelectorAll('.quad-edit-btn').forEach(btn=>{
+          btn.addEventListener('click', (e)=>{ e.stopPropagation(); enterEdit(); });
+        });
+      }
 
     }else if(detailTab==='일지'){
       const logs = (site.logs||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
