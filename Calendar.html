@@ -2146,7 +2146,7 @@ function openPreview(key){
   html += "<div class='preview-actions'>"+
     "<button class='primary' onclick=\"openInChecklist()\">체크리스트</button>"+
     "<div class='preview-more-wrap'>"+
-    "<button class='more-btn' onclick=\"togglePreviewMore()\">⋯ 더보기</button>"+
+    "<button class='more-btn' onclick=\"togglePreviewMore(this)\">⋯ 더보기</button>"+
     "<div class='preview-more-dropdown' id='previewMoreDropdown'>"+
     "<button onclick=\"closePreviewMoreThen(()=>addEntryFlow('gallery'))\">+"+CAT_LABEL.gallery+" 일정</button>"+
     "<button onclick=\"closePreviewMoreThen(()=>addEntryFlow('tour'))\">+"+CAT_LABEL.tour+" 일정</button>"+
@@ -2160,8 +2160,9 @@ function openPreview(key){
   document.getElementById("overlay").classList.add("on");
 }
 let previewMoreCallback = null;
-function togglePreviewMore(){
+function togglePreviewMore(btn){
   const d = document.getElementById("previewMoreDropdown");
+  if(!d || !btn) return;
   // 모달에 transform이 걸려있어 position:fixed가 모달 안에 갇히므로,
   // 처음 열 때 body 바로 아래로 옮겨서 화면 기준 고정이 되게 한다
   if(d.parentElement !== document.body){
@@ -2172,7 +2173,6 @@ function togglePreviewMore(){
     d.classList.remove("open");
     return;
   }
-  const btn = document.querySelector(".more-btn");
   const rect = btn.getBoundingClientRect();
   d.style.right = (window.innerWidth - rect.right) + "px";
   d.style.left = "auto";
