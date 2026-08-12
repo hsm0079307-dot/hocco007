@@ -2097,6 +2097,10 @@ function getActiveDateKeys(){
 function openPreview(key){
   previewKey = key;
   document.getElementById("modalTitle").textContent = labelFor(key);
+  // 이전에 body로 옮겨졌던 더보기 드롭다운이 남아있으면 정리 (재렌더링 시 중복 방지)
+  document.querySelectorAll("#previewMoreDropdown").forEach(el=>{
+    if(el.parentElement===document.body) el.remove();
+  });
   const body = document.getElementById("modalBody");
   let html = "";
 
@@ -2158,12 +2162,16 @@ function openPreview(key){
 let previewMoreCallback = null;
 function togglePreviewMore(){
   const d = document.getElementById("previewMoreDropdown");
+  // 모달에 transform이 걸려있어 position:fixed가 모달 안에 갇히므로,
+  // 처음 열 때 body 바로 아래로 옮겨서 화면 기준 고정이 되게 한다
+  if(d.parentElement !== document.body){
+    document.body.appendChild(d);
+  }
   const isOpen = d.classList.contains("open");
   if(isOpen){
     d.classList.remove("open");
     return;
   }
-  // 버튼 위치를 기준으로 화면(fixed) 좌표로 배치 — 모달 스크롤에 안 잘리게
   const btn = document.querySelector(".more-btn");
   const rect = btn.getBoundingClientRect();
   d.style.right = (window.innerWidth - rect.right) + "px";
@@ -2189,7 +2197,7 @@ function closePreviewMoreThen(fn){
   fn();
 }
 document.addEventListener("click", (e)=>{
-  if(!e.target.closest(".preview-more-wrap")){
+  if(!e.target.closest(".preview-more-wrap") && !e.target.closest(".preview-more-dropdown")){
     closePreviewMore();
   }
 });
@@ -2413,6 +2421,7 @@ function toggleClosedDay(kind){
 
 function closeModal(){
   document.getElementById("overlay").classList.remove("on");
+  closePreviewMore();
 }
 document.getElementById("overlay").addEventListener("click",(e)=>{
   if(e.target.id==="overlay") closeModal();
