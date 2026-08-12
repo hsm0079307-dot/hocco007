@@ -1243,7 +1243,11 @@ const L = (function(){
       gwangjang.polygon = [[37.5209265,126.9194986],[37.5196841,126.9208397],[37.5207563,126.9225885],[37.5220753,126.9212903]];
       needsBackfillSave = true;
     }
-    if(needsBackfillSave) saveSites(true); // silent: 자동보정 저장은 실패해도 "동기화 실패"를 사용자에게 보여주지 않음
+    // await로 끝까지 기다려서 loadSites()가 다 끝난 뒤(=화면이 실제로 조작 가능해지기 전)에
+    // localDataVersion까지 최신으로 맞춰둔다. 안 그러면 이 저장이 백그라운드에서 진행되는 도중에
+    // 사용자가 곧바로 뭔가 수정→저장하면, 그 사이 서버 버전은 이미 올라갔는데 로컬 버전은 아직
+    // 안 바뀐 좁은 틈에 걸려서("동기화 실패") 정상적인 저장까지 막히는 경합이 있었음
+    if(needsBackfillSave) await saveSites(true); // silent: 자동보정 저장은 실패해도 "동기화 실패"를 사용자에게 보여주지 않음
   }
 
   // 구(district) 단위 이름표(pill)도 드래그로 옮길 수 있게 위치를 별도 저장공간에 보관
