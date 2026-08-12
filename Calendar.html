@@ -1467,11 +1467,18 @@ function isPast(key){
   today.setHours(0,0,0,0);
   return parseKeyDate(key) < today;
 }
+function isToday(key){
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  return parseKeyDate(key).getTime() === today.getTime();
+}
 
 function rowStatus(kind, key, idx){
   const rowKey = kind+"_"+key+"_"+idx;
-  if(!isPast(key)) return "scheduled";
-  return checkState[rowKey] ? "attended" : "noshow";
+  const checked = !!checkState[rowKey];
+  if(isPast(key)) return checked ? "attended" : "noshow";
+  if(isToday(key)) return checked ? "attended" : "scheduled";
+  return "scheduled";
 }
 
 let activeCategories = {gallery:true, tour:true};
