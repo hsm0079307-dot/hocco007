@@ -488,7 +488,7 @@
 
   <div class="dash-panel">
     <div id="dashboardCard"></div>
-    <input type="text" id="globalSearchInput" class="dash-search-input" placeholder="이름 검색 (예: 이범수)">
+    <input type="text" id="globalSearchInput" class="dash-search-input" placeholder="이름/담당자 검색 (예: 이범수)">
     <button onclick="runGlobalSearch()" class="dash-search-btn">검색</button>
   </div>
 
@@ -1129,12 +1129,12 @@ function runGlobalSearch(){
   const results = [];
   Object.keys(GALLERY_ROWS).forEach(key=>{
     GALLERY_ROWS[key].forEach((r,idx)=>{
-      if(r[3] && r[3].includes(q)) results.push({key, kind:"gallery", idx, name:r[3], time:r[0], manager:r[5]});
+      if((r[3] && r[3].includes(q)) || (r[5] && r[5].includes(q))) results.push({key, kind:"gallery", idx, name:r[3], time:r[0], manager:r[5]});
     });
   });
   Object.keys(TOUR_ROWS).forEach(key=>{
     TOUR_ROWS[key].forEach((r,idx)=>{
-      if(r[3] && r[3].includes(q)) results.push({key, kind:"tour", idx, name:r[3], time:r[0], manager:r[5]});
+      if((r[3] && r[3].includes(q)) || (r[5] && r[5].includes(q))) results.push({key, kind:"tour", idx, name:r[3], time:r[0], manager:r[5]});
     });
   });
   results.sort((a,b)=>parseKeyDate(a.key)-parseKeyDate(b.key));
