@@ -93,6 +93,38 @@
   .doc-item-del{flex:none;background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:13px;padding:2px 6px;border-radius:6px;}
   .doc-item-del:hover{color:#e5484d;background:var(--bg-side-2);}
   .doc-add-row{display:flex;gap:8px;flex-wrap:wrap;}
+  .report-period-toggle{display:flex;gap:6px;}
+  .report-period-toggle .btn.active-toggle{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);}
+  .report-summary-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;}
+  .report-summary-chip{background:var(--bg-side-2);border:1px solid var(--line);border-radius:20px;padding:5px 12px;font-size:11.5px;color:var(--text-main);}
+  .report-table{border-collapse:collapse;width:100%;font-size:12px;}
+  .report-table th, .report-table td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top;}
+  .report-table th{background:var(--bg-side-2);font-weight:700;color:var(--text-dim);font-size:11px;}
+  .report-table .report-site-name{font-weight:700;color:var(--accent);}
+  .report-note-line{margin-bottom:2px;font-size:11.5px;color:var(--text-dim);}
+  #contactReportBody .report-table{display:none;}
+  .report-chart-wrap{border:1px solid var(--line);border-radius:10px;padding:12px 14px 4px;background:var(--bg-side-2);}
+  .report-manager-chip{cursor:pointer;transition:.12s;}
+  .report-manager-chip:hover{border-color:var(--accent);}
+  .report-manager-chip.active{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);}
+  .report-chart-cols{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+  .report-chart-col{border:1px solid var(--line);border-radius:10px;padding:10px 10px 4px;background:var(--bg-side-2);min-width:0;}
+  .report-chart-col-head{font-size:12px;font-weight:700;color:var(--accent);margin-bottom:8px;display:flex;align-items:baseline;gap:6px;}
+  .report-chart-col-head span{font-size:10.5px;font-weight:400;color:var(--text-dim);}
+  .report-chart-empty{font-size:11px;color:var(--text-dim);padding:10px 0;text-align:center;}
+  @media (max-width:820px){ .report-chart-cols{grid-template-columns:1fr;} }
+  .report-bar-rect{transition:opacity .12s;}
+  .report-section-title{font-size:12.5px;font-weight:700;color:var(--text-main);margin:16px 0 8px;}
+  .report-manager-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;}
+  .report-manager-card{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--bg-side-2);}
+  .report-manager-card-head{font-size:12px;font-weight:700;color:var(--accent);margin-bottom:6px;display:flex;justify-content:space-between;align-items:baseline;}
+  .report-manager-card-head span{font-size:10.5px;font-weight:400;color:var(--text-dim);}
+  .report-manager-site-line{display:flex;justify-content:space-between;gap:8px;font-size:11.5px;color:var(--text-main);padding:2px 0;}
+  .report-manager-site-line b{color:var(--accent);font-weight:700;flex:none;}
+  .report-bar-g:hover .report-bar-rect{opacity:1 !important;}
+  .report-detail-panel{margin-top:12px;border:1px solid var(--accent);border-radius:10px;padding:12px 14px;background:var(--card);}
+  .report-detail-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13.5px;flex-wrap:wrap;}
+  .report-detail-notes .report-note-line{font-size:12px;color:var(--text-main);margin-bottom:4px;}
   .photo-link img{width:100%;height:100%;object-fit:cover;}
   .calendar-view{position:absolute;inset:0;background:var(--bg-side);z-index:600;overflow:auto;padding:18px 22px;}
   .cal-header{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
@@ -398,13 +430,18 @@
   .edit-field textarea{min-height:70px;resize:vertical;}
 
   .log-add{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
+  .log-add-row2{display:flex;gap:6px;width:100%;}
+  .log-add-row2 input[type=date]{flex:1 1 50%;min-width:0;}
+  .log-add-row2 input[type=text]{flex:1 1 50%;min-width:0;}
   .log-add input[type=date]{flex:none;width:130px;min-width:0;background:var(--bg-side-2);border:1px solid var(--line);border-radius:10px;padding:7px 8px;color:var(--text-main);font-size:12px;}
   .log-add input[type=text]{flex:1;min-width:80px;background:var(--bg-side-2);border:1px solid var(--line);border-radius:10px;padding:7px 10px;color:var(--text-main);font-size:12px;}
   .log-add button{flex:none;}
   /* 좁은 사이드바(일지 탭)에서는 칸이 잘리지 않도록 세로로 쌓음 */
+  .sidebar .log-add-row2{flex-direction:column;}
   .sidebar .log-add input[type=date], .sidebar .log-add input[type=text]{flex:1 1 100%;width:auto;}
   .log-item{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin-bottom:7px;display:flex;gap:10px;align-items:flex-start;}
   .log-date{font-size:12px;color:var(--accent);font-weight:600;flex:none;white-space:nowrap;padding-top:1px;}
+  .log-author{color:var(--text-dim);font-weight:400;}
   .log-text{flex:1;font-size:12px;line-height:1.5;}
   .log-del{background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:12px;flex:none;}
   .log-del:hover{color:#f87171;}
@@ -623,6 +660,7 @@
         <button class="manager-filter-item" id="changeEntryPwBtn" type="button" title="첫 화면 입장 비밀번호(자료보호용) 변경" style="width:100%;background:none;border:none;text-align:left;">🚪🔑 입장암호변경</button>
         <button class="manager-filter-item" id="changeLogBtn" type="button" style="width:100%;background:none;border:none;text-align:left;">수정이력</button>
         <button class="manager-filter-item" id="undoBtn" type="button" style="width:100%;background:none;border:none;text-align:left;">↩️ 실행취소(방금 저장 이전으로)</button>
+        <button class="manager-filter-item" id="contactReportBtn" type="button" style="width:100%;background:none;border:none;text-align:left;">📊 접촉 리포트</button>
         <button class="manager-filter-item" id="missingCoordsBtn" type="button" style="width:100%;background:none;border:none;text-align:left;">📍좌표없음</button>
       </div>
     </div>
@@ -721,6 +759,28 @@
     <div class="modal-actions">
       <button class="btn btn-ghost" id="changeLogCloseBtn">닫기</button>
     </div>
+  </div>
+</div>
+
+<div class="overlay" id="contactReportOverlay">
+  <div class="modal" style="max-width:min(94vw,900px);">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+      <h3 style="margin:0;">접촉 리포트</h3>
+      <div class="report-period-toggle no-print">
+        <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
+        <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;margin-left:4px;" class="no-print">
+        <button class="btn btn-ghost btn-sm" id="reportPrevBtn">◀</button>
+        <span id="reportRangeLabel" style="font-size:12.5px;font-weight:600;min-width:150px;text-align:center;"></span>
+        <button class="btn btn-ghost btn-sm" id="reportNextBtn">▶</button>
+      </div>
+      <div style="margin-left:auto;display:flex;gap:8px;">
+        <button class="btn btn-ghost no-print" id="reportPrintBtn">🖨 인쇄</button>
+        <button class="btn btn-ghost no-print" id="contactReportCloseBtn">닫기</button>
+      </div>
+    </div>
+    <div id="contactReportBody" style="max-height:72vh;overflow-y:auto;"></div>
   </div>
 </div>
 
@@ -3205,14 +3265,17 @@ const L = (function(){
       const logs = (site.logs||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
       body.innerHTML = `
         <div class="log-add">
-          <input type="date" id="logDate">
+          <div class="log-add-row2">
+            <input type="date" id="logDate">
+            <input type="text" id="logAuthor" placeholder="담당자 (같이 갔으면 공백으로 구분, 예: 김서아 이재희)" value="${escapeHtml(site.manager||'')}">
+          </div>
           <input type="text" id="logText" placeholder="방문 내용을 입력하세요">
           <button class="btn btn-primary btn-sm" id="logAddBtn">추가</button>
         </div>
         <div class="log-list">
           ${logs.length ? logs.map(l=>`
             <div class="log-item">
-              <div class="log-date">${escapeHtml(formatDateKr(l.date))}</div>
+              <div class="log-date">${escapeHtml(formatDateKr(l.date))}${l.author?` <span class="log-author">· ${escapeHtml(l.author)}</span>`:''}</div>
               <div class="log-text">${escapeHtml(l.text)}</div>
               <button class="log-del" data-logid="${l.id}">삭제</button>
             </div>`).join('') : '<div class="empty">아직 기록된 일지가 없습니다.</div>'}
@@ -3220,10 +3283,11 @@ const L = (function(){
       document.getElementById('logAddBtn').addEventListener('click', async ()=>{
         if(!(await ensureUnlocked())) return;
         const d = document.getElementById('logDate').value;
+        const a = document.getElementById('logAuthor').value.trim();
         const t = document.getElementById('logText').value.trim();
         if(!d || !t){ alert('날짜와 내용을 입력해주세요.'); return; }
         site.logs = site.logs || [];
-        site.logs.push({id: crypto.randomUUID?crypto.randomUUID():String(Date.now()), date:d, text:t});
+        site.logs.push({id: crypto.randomUUID?crypto.randomUUID():String(Date.now()), date:d, author:a, text:t});
         site.lastDate = lastVisit(site);
         await saveSites();
         renderAll();
@@ -4881,6 +4945,258 @@ const L = (function(){
       try{ localStorage.setItem('themeMode', next); }catch(e){}
     });
   })();
+  // ---------- 접촉 리포트(현장별/담당별 방문 횟수 + 특이사항) ----------
+  let reportMode = 'week'; // 'week' | 'month'
+  let reportManagerFilter = null; // 담당자 칩 클릭시 그 담당자 현장만 필터링
+  let reportBaseDate = new Date();
+  function getWeekRange(d){
+    const day = d.getDay();
+    const mondayOffset = (day===0 ? -6 : 1-day);
+    const mon = new Date(d.getFullYear(), d.getMonth(), d.getDate()+mondayOffset);
+    const sun = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate()+6, 23,59,59);
+    return {start:mon, end:sun, label:`${mon.getFullYear()}. ${mon.getMonth()+1}. ${mon.getDate()} ~ ${sun.getMonth()+1}. ${sun.getDate()}`};
+  }
+  function getMonthRange(d){
+    const start = new Date(d.getFullYear(), d.getMonth(), 1);
+    const end = new Date(d.getFullYear(), d.getMonth()+1, 0, 23,59,59);
+    return {start, end, label:`${start.getFullYear()}년 ${start.getMonth()+1}월`};
+  }
+  function shiftReportBaseDate(dir){
+    if(reportMode==='week') reportBaseDate = new Date(reportBaseDate.getFullYear(), reportBaseDate.getMonth(), reportBaseDate.getDate()+dir*7);
+    else reportBaseDate = new Date(reportBaseDate.getFullYear(), reportBaseDate.getMonth()+dir, 1);
+  }
+  function buildContactReportData(){
+    const range = reportMode==='week' ? getWeekRange(reportBaseDate) : getMonthRange(reportBaseDate);
+    const allSites = OFFICES.flatMap(o=>(allOfficesData[o]||[]).map(s=>Object.assign({}, s, {office:o})));
+    const rows = [];
+    const managerTotals = {};
+    const managerSiteCounts = {}; // { 담당자명: { 현장명: 횟수 } }
+    allSites.forEach(s=>{
+      const logsInRange = (s.logs||[]).filter(l=>{
+        if(!l.date) return false;
+        const d = new Date(l.date+'T00:00:00');
+        return d >= range.start && d <= range.end;
+      }).sort((a,b)=>a.date.localeCompare(b.date));
+      if(logsInRange.length){
+        // 각 일지 기록에 직접 담당자가 적혀있으면 그걸 쓰고, 없으면(예전 기록) 현장 담당자로 대신함
+        const authorsUnion = new Set();
+        logsInRange.forEach(l=>{
+          const author = (l.author && l.author.trim()) || s.manager || '';
+          String(author).split(/[,\s]+/).filter(Boolean).forEach(name=>{
+            authorsUnion.add(name);
+            managerTotals[name] = (managerTotals[name]||0) + 1;
+            managerSiteCounts[name] = managerSiteCounts[name] || {};
+            managerSiteCounts[name][s.name] = (managerSiteCounts[name][s.name]||0) + 1;
+          });
+        });
+        rows.push({
+          site: s.name, office: s.office,
+          manager: authorsUnion.size ? Array.from(authorsUnion).join(' ') : (s.manager || '-'),
+          district: s.district || '',
+          count: logsInRange.length,
+          notes: logsInRange.map(l=>`${l.date.slice(5)}${l.author?' ['+l.author+']':''} ${l.text}`)
+        });
+      }
+    });
+    rows.sort((a,b)=> b.count - a.count || a.site.localeCompare(b.site));
+    return {range, rows, managerTotals, managerSiteCounts};
+  }
+  function renderContactReport(){
+    document.getElementById('reportModeWeekBtn').classList.toggle('active-toggle', reportMode==='week');
+    document.getElementById('reportModeMonthBtn').classList.toggle('active-toggle', reportMode==='month');
+    const {range, rows, managerTotals, managerSiteCounts} = buildContactReportData();
+    document.getElementById('reportRangeLabel').textContent = range.label;
+    const body = document.getElementById('contactReportBody');
+    const managerRows = Object.keys(managerTotals).sort((a,b)=>managerTotals[b]-managerTotals[a]);
+    // 담당자 칩 클릭시 그 담당자 현장만 걸러서 보여줌 (다시 누르면 해제)
+    const filteredRows = reportManagerFilter
+      ? rows.filter(r => String(r.manager).split(/[,\s]+/).filter(Boolean).includes(reportManagerFilter))
+      : rows;
+    // 좌(양천) / 가운데(영등포) / 우(그외) 3열로 지역 묶기
+    function districtGroupOf(r){
+      const d = String(r.district||'');
+      if(d.includes('양천')) return '양천';
+      if(d.includes('영등포')) return '영등포';
+      return '그외';
+    }
+    const groupNames = ['양천','영등포','그외'];
+    const groups = {'양천':[], '영등포':[], '그외':[]};
+    filteredRows.forEach(r=>{ groups[districtGroupOf(r)].push(r); });
+    const maxCount = filteredRows.length ? Math.max(...filteredRows.map(r=>r.count)) : 0;
+    const barH = 20, gap = 6, chartTop = 8, labelW = 92, barMaxW = 60;
+    const isDark = document.body.classList.contains('theme-dark');
+    const chartTextColor = isDark ? '#f2ead9' : '#2b2a27';
+    const chartBarColor = isDark ? '#d3a45f' : '#0f3d24';
+    function buildGroupSvg(list){
+      const chartW = labelW + barMaxW + 34;
+      const chartH = chartTop*2 + Math.max(list.length,1)*(barH+gap);
+      const bars = list.map((r,i)=>{
+        const y = chartTop + i*(barH+gap);
+        const w = maxCount ? Math.max(3, (r.count/maxCount) * barMaxW) : 0;
+        return `
+          <g class="report-bar-g" data-idx="${r._idx}" style="cursor:pointer;">
+            <rect x="0" y="${y}" width="${labelW-6}" height="${barH}" fill="transparent"></rect>
+            <text x="${labelW-10}" y="${y+barH/2+4}" text-anchor="end" font-size="10.5" fill="${chartTextColor}">${escapeHtml(r.site.length>9?r.site.slice(0,8)+'…':r.site)}</text>
+            <rect x="${labelW}" y="${y}" width="${w}" height="${barH}" rx="5" fill="${chartBarColor}" opacity="0.92" class="report-bar-rect"></rect>
+            <text x="${labelW+w+6}" y="${y+barH/2+4}" font-size="10.5" font-weight="700" fill="${chartTextColor}">${r.count}</text>
+          </g>`;
+      }).join('');
+      return `<svg viewBox="0 0 ${chartW} ${chartH}" width="100%" height="${chartH}" style="overflow:visible;">${bars}</svg>`;
+    }
+    // 상세 패널에서 원래 rows 배열의 인덱스로 찾을 수 있도록 각 항목에 원본 인덱스를 붙여둔다
+    filteredRows.forEach((r,i)=>{ r._idx = rows.indexOf(r); });
+    body.innerHTML = `
+      <div class="report-summary-row">
+        ${managerRows.length ? managerRows.map(m=>`<div class="report-summary-chip report-manager-chip${reportManagerFilter===m?' active':''}" data-manager="${escapeHtml(m)}"><b>${escapeHtml(m)}</b> ${managerTotals[m]}건</div>`).join('') : '<div style="color:var(--text-dim);font-size:12px;">이 기간 방문 기록이 없습니다.</div>'}
+      </div>
+      ${filteredRows.length ? `
+      <div class="report-chart-cols">
+        ${groupNames.map(g=>`
+          <div class="report-chart-col">
+            <div class="report-chart-col-head">${g} <span>${groups[g].length}곳</span></div>
+            ${groups[g].length ? buildGroupSvg(groups[g]) : '<div class="report-chart-empty">기록 없음</div>'}
+          </div>
+        `).join('')}
+      </div>
+      <div id="reportDetailPanel" class="report-detail-panel" style="display:none;"></div>
+      ` : '<div style="color:var(--text-dim);font-size:12px;padding:16px 0;">이 기간에 일지가 등록된 현장이 없습니다.</div>'}
+      ${filteredRows.length ? `
+      <div class="report-manager-breakdown">
+        <div class="report-section-title"><span style="color:#ffb703;">■</span> 현장별 <span style="font-weight:400;color:var(--text-dim);">(클릭하면 일지 내용 확인)</span></div>
+        <div class="report-manager-cards">
+          ${filteredRows.map(r=>`
+            <div class="report-manager-card report-site-card" data-idx="${r._idx}" style="cursor:pointer;">
+              <div class="report-manager-card-head">${escapeHtml(r.site)} <span>${r.count}건</span></div>
+              <div class="report-manager-site-line" style="color:var(--text-dim);">${escapeHtml(r.manager)}</div>
+            </div>`).join('')}
+        </div>
+      </div>
+      ` : ''}
+      <table class="report-table no-print" style="margin-top:16px;">
+        <thead><tr><th>사업소</th><th>현장명</th><th>담당자</th><th>방문</th><th>특이사항</th></tr></thead>
+        <tbody>
+          ${rows.length ? rows.map(r=>`
+            <tr>
+              <td>${escapeHtml(r.office)}</td>
+              <td class="report-site-name">${escapeHtml(r.site)}</td>
+              <td>${escapeHtml(r.manager)}</td>
+              <td style="text-align:center;font-weight:700;color:var(--accent);">${r.count}</td>
+              <td>${r.notes.map(n=>`<div class="report-note-line">${escapeHtml(n)}</div>`).join('')}</td>
+            </tr>`).join('') : ''}
+        </tbody>
+      </table>`;
+    let reportSelectedIdx = null;
+    function hideRowDetail(){
+      reportSelectedIdx = null;
+      const panel = document.getElementById('reportDetailPanel');
+      panel.style.display = 'none';
+      panel.innerHTML = '';
+      body.querySelectorAll('.report-bar-rect').forEach(rc=>rc.style.opacity = '0.92');
+      body.querySelectorAll('.report-site-card').forEach(c=>c.style.borderColor = '');
+    }
+    function showRowDetail(idx, highlightEl){
+      if(reportSelectedIdx === idx){ hideRowDetail(); return; } // 같은 걸 또 누르면 닫기
+      reportSelectedIdx = idx;
+      const r = rows[idx];
+      if(!r) return;
+      const panel = document.getElementById('reportDetailPanel');
+      body.querySelectorAll('.report-bar-rect').forEach(rc=>rc.style.opacity = '0.92');
+      body.querySelectorAll('.report-site-card').forEach(c=>c.style.borderColor = '');
+      if(highlightEl){
+        const rect = highlightEl.querySelector && highlightEl.querySelector('.report-bar-rect');
+        if(rect) rect.style.opacity = '1';
+        if(highlightEl.classList && highlightEl.classList.contains('report-site-card')) highlightEl.style.borderColor = 'var(--accent)';
+      }
+      panel.style.display = 'block';
+      panel.innerHTML = `
+        <div class="report-detail-head">
+          <b>${escapeHtml(r.site)}</b>
+          <span style="color:var(--text-dim);font-size:11.5px;">(${escapeHtml(r.office)} · 담당 ${escapeHtml(r.manager)})</span>
+          <span style="margin-left:auto;font-weight:700;color:var(--accent);">${r.count}회 방문</span>
+        </div>
+        <div class="report-detail-notes">
+          ${r.notes.map(n=>`<div class="report-note-line">・ ${escapeHtml(n)}</div>`).join('')}
+        </div>`;
+      panel.scrollIntoView({behavior:'smooth', block:'nearest'});
+    }
+    body.querySelectorAll('.report-manager-chip').forEach(chip=>{
+      chip.addEventListener('click', ()=>{
+        const m = chip.dataset.manager;
+        reportManagerFilter = (reportManagerFilter === m) ? null : m;
+        renderContactReport();
+      });
+    });
+    body.querySelectorAll('.report-bar-g').forEach(g=>{
+      g.addEventListener('click', ()=>{
+        showRowDetail(parseInt(g.dataset.idx, 10), g);
+      });
+    });
+    body.querySelectorAll('.report-site-card').forEach(card=>{
+      card.addEventListener('click', ()=>{
+        showRowDetail(parseInt(card.dataset.idx, 10), card);
+      });
+    });
+  }
+  document.getElementById('contactReportBtn').addEventListener('click', async ()=>{
+    if(!(await ensureUnlocked())) return;
+    reportMode = 'week';
+    reportBaseDate = new Date();
+    reportManagerFilter = null;
+    renderContactReport();
+    document.getElementById('contactReportOverlay').classList.add('show');
+  });
+  document.getElementById('contactReportCloseBtn').addEventListener('click', ()=>{
+    document.getElementById('contactReportOverlay').classList.remove('show');
+  });
+  document.getElementById('reportModeWeekBtn').addEventListener('click', ()=>{ reportMode='week'; renderContactReport(); });
+  document.getElementById('reportModeMonthBtn').addEventListener('click', ()=>{ reportMode='month'; renderContactReport(); });
+  document.getElementById('reportPrevBtn').addEventListener('click', ()=>{ shiftReportBaseDate(-1); renderContactReport(); });
+  document.getElementById('reportNextBtn').addEventListener('click', ()=>{ shiftReportBaseDate(1); renderContactReport(); });
+  document.getElementById('reportPrintBtn').addEventListener('click', ()=>{
+    const {range} = buildContactReportData();
+    const bodyHtml = document.getElementById('contactReportBody').innerHTML;
+    const printWin = window.open('', '_blank', 'width=1200,height=900');
+    if(!printWin){ alert('팝업이 차단되어 인쇄 창을 열 수 없습니다. 팝업 차단을 해제해주세요.'); return; }
+    printWin.document.write(`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>접촉 리포트</title>
+      <style>
+        @page{ size: landscape; margin: 12mm; }
+        *{ box-sizing:border-box; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+        body{ font-family:'Pretendard','Apple SD Gothic Neo',sans-serif; margin:0; padding:20px; color:#2b2a27; background:#fff; }
+        h1{ font-size:18px; margin:0 0 4px; }
+        .sub{ font-size:12px; color:#6f6a5c; margin-bottom:14px; }
+        .report-summary-row{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
+        .report-summary-chip{ background:#f2f0ea; border:1px solid #dcd7cc; border-radius:20px; padding:5px 12px; font-size:11.5px; }
+        table{ border-collapse:collapse; width:100%; font-size:11.5px; }
+        th, td{ border:1px solid #dcd7cc; padding:7px 9px; text-align:left; vertical-align:top; }
+        th{ background:#f2f0ea; font-weight:700; }
+        .report-note-line{ margin-bottom:2px; }
+        .report-chart-cols{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:16px; }
+        .report-chart-col{ border:1px solid #dcd7cc; border-radius:10px; padding:10px 10px 4px; background:#f2f0ea; break-inside:avoid; }
+        .report-chart-col-head{ font-size:12px; font-weight:700; color:#0f3d24; margin-bottom:8px; display:flex; align-items:baseline; gap:6px; }
+        .report-chart-col-head span{ font-size:10.5px; font-weight:400; color:#6f6a5c; }
+        .report-chart-empty{ font-size:11px; color:#6f6a5c; padding:10px 0; text-align:center; }
+        .report-section-title{ font-size:12.5px; font-weight:700; margin:16px 0 8px; }
+        .report-manager-cards{ display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:10px; }
+        .report-manager-card{ border:1px solid #dcd7cc; border-radius:10px; padding:10px 12px; background:#f2f0ea; break-inside:avoid; }
+        .report-manager-card-head{ font-size:12px; font-weight:700; margin-bottom:6px; display:flex; justify-content:space-between; }
+        .report-manager-card-head span{ font-size:10.5px; font-weight:400; color:#6f6a5c; }
+        .report-manager-site-line{ display:flex; justify-content:space-between; gap:8px; font-size:11.5px; padding:2px 0; }
+        .report-detail-panel{ display:none; }
+        table{ margin-top:10px; }
+        /* 화면이 다크모드였어도 인쇄물은 항상 흰 배경이라, 막대/글씨 색을 여기서 강제로 고정한다 */
+        .report-bar-rect{ fill:#0f3d24 !important; opacity:1 !important; }
+        .report-bar-g text{ fill:#2b2a27 !important; }
+      </style>
+    </head><body>
+      <h1>접촉 리포트</h1>
+      <div class="sub">${escapeHtml(range.label)} 기준 · 강서/강남/강북 사업소</div>
+      ${bodyHtml}
+    </body></html>`);
+    printWin.document.close();
+    printWin.focus();
+    setTimeout(()=>{ printWin.print(); }, 300);
+  });
+
   document.getElementById('undoBtn').addEventListener('click', async ()=>{
     if(!(await ensureUnlocked())) return;
     if(!undoSnapshot){ alert('되돌릴 이전 저장 기록이 없습니다 (이번 접속에서 아직 저장한 적이 없거나, 이미 한 번 되돌렸어요).'); return; }
