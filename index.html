@@ -438,21 +438,20 @@
   .rte-btn:hover{border-color:var(--accent);color:var(--accent);}
   .edit-field textarea{min-height:70px;resize:vertical;}
 
-  .log-add{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
-  .log-add-row2{display:flex;gap:6px;width:100%;}
+  .log-add{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px;}
+  .log-add-row2{display:flex;gap:5px;width:100%;}
   .log-add-row2 input[type=date]{flex:1 1 50%;min-width:0;}
   .log-add-row2 input[type=text]{flex:1 1 50%;min-width:0;}
-  .log-add input[type=date]{flex:none;width:130px;min-width:0;background:var(--bg-side-2);border:1px solid var(--line);border-radius:10px;padding:7px 8px;color:var(--text-main);font-size:12px;}
-  .log-add input[type=text]{flex:1;min-width:80px;background:var(--bg-side-2);border:1px solid var(--line);border-radius:10px;padding:7px 10px;color:var(--text-main);font-size:12px;}
+  .log-add-row3{display:flex;gap:5px;width:100%;}
+  .log-add-row3 input, .log-add-row3 select{flex:1 1 33.3%;min-width:0;}
+  .log-add input[type=date]{flex:none;width:130px;min-width:0;background:var(--bg-side-2);border:1px solid var(--line);border-radius:8px;padding:4px 6px;color:var(--text-main);font-size:11px;}
+  .log-add input[type=text]{flex:1;min-width:0;background:var(--bg-side-2);border:1px solid var(--line);border-radius:8px;padding:4px 6px;color:var(--text-main);font-size:11px;}
   .log-add button{flex:none;}
-  /* 좁은 사이드바(일지 탭)에서는 칸이 잘리지 않도록 세로로 쌓음 */
-  .sidebar .log-add-row2{flex-direction:column;}
-  .sidebar .log-add input[type=date], .sidebar .log-add input[type=text]{flex:1 1 100%;width:auto;}
   .log-item{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin-bottom:7px;display:flex;gap:10px;align-items:flex-start;}
   .log-date{font-size:12px;color:var(--accent);font-weight:600;flex:none;white-space:nowrap;padding-top:1px;}
   .log-author{color:var(--text-dim);font-weight:400;}
-  .log-add select, .log-add textarea{width:100%;box-sizing:border-box;background:var(--bg-side-2);border:1px solid var(--line);border-radius:10px;padding:7px 10px;color:var(--text-main);font-size:12px;font-family:inherit;}
-  .log-add textarea{resize:vertical;min-height:52px;}
+  .log-add select, .log-add textarea{width:100%;box-sizing:border-box;background:var(--bg-side-2);border:1px solid var(--line);border-radius:8px;padding:4px 6px;color:var(--text-main);font-size:11px;font-family:inherit;}
+  .log-add textarea{resize:vertical;min-height:36px;padding:6px;}
   .log-tag{display:inline-block;margin-left:6px;font-size:10px;font-weight:600;color:var(--accent);background:var(--bg-side-2);border:1px solid var(--line);border-radius:8px;padding:1px 7px;}
   .log-meta{font-size:11px;color:var(--text-dim);margin:2px 0 4px;}
   .log-text{flex:1;font-size:12px;line-height:1.5;}
@@ -3295,20 +3294,22 @@ const L = (function(){
         <div class="log-add">
           <div class="log-add-row2">
             <input type="date" id="logDate">
-            <input type="text" id="logAuthor" placeholder="담당자 (같이 갔으면 공백으로 구분)" value="${escapeHtml(site.manager||'')}">
+            <input type="text" id="logAuthor" placeholder="담당자" value="${escapeHtml(site.manager||'')}">
           </div>
-          <div class="log-add-row2">
-            <input type="text" id="logContactName" placeholder="성함 (예: 김진숙 조합장)">
-            <input type="text" id="logUnit" placeholder="동호수 (예: 102동 1503호)">
+          <div class="log-add-row3">
+            <input type="text" id="logContactName" placeholder="성함">
+            <input type="text" id="logUnit" placeholder="동호수">
+            <select id="logContactMethod">
+              <option value="">접촉방법</option>
+              <option value="상담">상담</option>
+              <option value="단순">단순</option>
+              <option value="TM">TM</option>
+              <option value="거부">거부</option>
+              <option value="부재">부재</option>
+              <option value="불명">불명</option>
+            </select>
           </div>
-          <select id="logContactMethod">
-            <option value="">접촉방법 선택</option>
-            <option value="방문">방문</option>
-            <option value="전화">전화</option>
-            <option value="문자">문자/카톡</option>
-            <option value="기타">기타</option>
-          </select>
-          <textarea id="logText" placeholder="상담내용을 입력하세요" rows="3"></textarea>
+          <textarea id="logText" placeholder="상담내용을 입력하세요" rows="2"></textarea>
           <button class="btn btn-primary btn-sm" id="logAddBtn">추가</button>
         </div>
         <div class="log-list">
