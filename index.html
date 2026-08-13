@@ -1610,10 +1610,15 @@ const L = (function(){
                   // 관리자가 지금 특정 담당자 사본을 직접 고치는 중(editingGuestDraftKey)이면 그 키만 로컬 값으로 반영하고,
                   // 그 외 일반 현장 수정은 담당자 사본들에 아예 손대지 않는다.
                   const freshGuestDrafts = Object.assign({}, arr[idx].guestDrafts || {});
+                  // 일지(logs)도 마찬가지 이유로 보호한다: 텔레그램 봇 등 다른 경로로 방금 추가된 일지 기록이,
+                  // 이 브라우저가 미처 못 받아온(오래된) 상태로 저장하면서 통째로 사라지는 사고를 막기 위함.
+                  // "클라우드 최신 logs"와 "내가 지금 저장하려는 logs"를 id 기준으로 합쳐서, 어느 쪽에만 있는 기록도 안 없어지게 한다.
+                  const freshLogs = Array.isArray(arr[idx].logs) ? arr[idx].logs : [];
                   // arr[idx]=editedSiteSnapshot로 참조를 공유하기 전에, "내가 방금 로컬에서 만든 사본 상태"를 미리 따로 떼어둔다.
                   // (안 그러면 바로 다음 줄에서 arr[idx].guestDrafts를 덮어쓸 때 editedSiteSnapshot.guestDrafts도 같이 덮어써져서,
                   //  "사본 삭제"가 서버의 예전 사본으로 되살아나는 버그가 있었음)
                   const localGuestDraftsBeforeOverwrite = editedSiteSnapshot.guestDrafts;
+                  const localLogs = Array.isArray(editedSiteSnapshot.logs) ? editedSiteSnapshot.logs : [];
                   arr[idx] = editedSiteSnapshot;
                   arr[idx].guestDrafts = freshGuestDrafts;
                   if(editingGuestDraftKey){
@@ -1621,6 +1626,11 @@ const L = (function(){
                     if(localDraft) arr[idx].guestDrafts[editingGuestDraftKey] = localDraft;
                     else delete arr[idx].guestDrafts[editingGuestDraftKey];
                   }
+                  // logs 병합: id가 같으면 "내가 지금 저장하는 값"을 우선(수정/삭제 의도 반영), id가 클라우드에만 있으면 그대로 살림
+                  const localLogIds = new Set(localLogs.map(l=>l.id));
+                  const mergedLogs = localLogs.concat(freshLogs.filter(l=>!localLogIds.has(l.id)));
+                  mergedLogs.sort((a,b)=> (a.date||'').localeCompare(b.date||''));
+                  arr[idx].logs = mergedLogs;
                 }
                 patched = true; break;
               }
