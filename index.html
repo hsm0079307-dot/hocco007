@@ -3305,6 +3305,9 @@ const L = (function(){
       const logs = (site.logs||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
       body.innerHTML = `
         <div class="log-add">
+          <div style="display:flex;justify-content:flex-end;margin-bottom:4px;">
+            <button class="btn btn-ghost btn-sm no-print" id="logRefreshBtn" style="padding:3px 9px;font-size:10.5px;" title="이 현장 일지만 다시 최신으로 불러오기">🔄 일지 새로고침</button>
+          </div>
           <div class="log-add-row2">
             <input type="date" id="logDate">
             <input type="text" id="logAuthor" placeholder="담당자" value="${escapeHtml(site.manager||'')}">
@@ -3325,7 +3328,7 @@ const L = (function(){
           <textarea id="logText" placeholder="상담내용을 입력하세요" rows="2"></textarea>
           <button class="btn btn-primary btn-sm" id="logAddBtn">추가</button>
         </div>
-        <div class="log-list">
+        <div class="log-list" id="logListArea">
           ${logs.length ? logs.map(l=>`
             <div class="log-item">
               <div class="log-meta-col">
@@ -3339,6 +3342,47 @@ const L = (function(){
               <button class="log-del" data-logid="${l.id}">삭제</button>
             </div>`).join('') : '<div class="empty">아직 기록된 일지가 없습니다.</div>'}
         </div>`;
+      // "전체 데이터 한꺼번에 불러오기"가 가끔 이 현장의 최신 일지를 놓치는 현상이 있어서(원인 불명, 재현 확인됨),
+      // 일지 탭을 열 때마다 그 현장 일지만 targeted로 별도로 다시 확인해서 화면을 갱신한다.
+      (async function refreshLogsForThisSite(){
+        try{
+          const officeArr = allOfficesData[site.office || currentOffice] || [];
+          const idxInOffice = officeArr.findIndex(s2=>s2.id===site.id);
+          if(idxInOffice<0) return;
+          const officeName = site.office || currentOffice;
+          const url = `${FIREBASE_DB_URL}/offices/${encodeURIComponent(officeName)}/${idxInOffice}/logs.json?_=${Date.now()}`;
+          const res = await fetch(url, {cache:'no-store'});
+          if(!res.ok) return;
+          const freshLogs = await res.json();
+          if(Array.isArray(freshLogs) && JSON.stringify(freshLogs)!==JSON.stringify(site.logs||[])){
+            site.logs = freshLogs;
+            if(officeArr[idxInOffice]) officeArr[idxInOffice].logs = freshLogs;
+            if(currentView==='detail' && currentDetailId===site.id && detailTab==='일지'){
+              renderDetailBody(site); // 지금도 일지 탭을 보고 있으면 다시 그려서 최신 반영
+            }
+          }
+        }catch(e){ console.error('일지 targeted 새로고침 실패', e); }
+      })();
+      const logRefreshBtn = document.getElementById('logRefreshBtn');
+      if(logRefreshBtn) logRefreshBtn.addEventListener('click', async ()=>{
+        logRefreshBtn.disabled = true;
+        logRefreshBtn.textContent = '🔄 불러오는 중...';
+        try{
+          const officeArr = allOfficesData[site.office || currentOffice] || [];
+          const idxInOffice = officeArr.findIndex(s2=>s2.id===site.id);
+          if(idxInOffice>-1){
+            const officeName = site.office || currentOffice;
+            const url = `${FIREBASE_DB_URL}/offices/${encodeURIComponent(officeName)}/${idxInOffice}/logs.json?_=${Date.now()}`;
+            const res = await fetch(url, {cache:'no-store'});
+            if(res.ok){
+              const freshLogs = await res.json();
+              site.logs = Array.isArray(freshLogs) ? freshLogs : [];
+              if(officeArr[idxInOffice]) officeArr[idxInOffice].logs = site.logs;
+            }
+          }
+        }catch(e){ console.error('일지 수동 새로고침 실패', e); }
+        renderDetailBody(site);
+      });
       document.getElementById('logAddBtn').addEventListener('click', async ()=>{
         if(!(await ensureUnlocked())) return;
         const d = document.getElementById('logDate').value;
