@@ -451,6 +451,10 @@
   .log-item{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin-bottom:7px;display:flex;gap:10px;align-items:flex-start;}
   .log-date{font-size:12px;color:var(--accent);font-weight:600;flex:none;white-space:nowrap;padding-top:1px;}
   .log-author{color:var(--text-dim);font-weight:400;}
+  .log-add select, .log-add textarea{width:100%;box-sizing:border-box;background:var(--bg-side-2);border:1px solid var(--line);border-radius:10px;padding:7px 10px;color:var(--text-main);font-size:12px;font-family:inherit;}
+  .log-add textarea{resize:vertical;min-height:52px;}
+  .log-tag{display:inline-block;margin-left:6px;font-size:10px;font-weight:600;color:var(--accent);background:var(--bg-side-2);border:1px solid var(--line);border-radius:8px;padding:1px 7px;}
+  .log-meta{font-size:11px;color:var(--text-dim);margin:2px 0 4px;}
   .log-text{flex:1;font-size:12px;line-height:1.5;}
   .log-del{background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:12px;flex:none;}
   .log-del:hover{color:#f87171;}
@@ -3291,15 +3295,30 @@ const L = (function(){
         <div class="log-add">
           <div class="log-add-row2">
             <input type="date" id="logDate">
-            <input type="text" id="logAuthor" placeholder="담당자 (같이 갔으면 공백으로 구분, 예: 김서아 이재희)" value="${escapeHtml(site.manager||'')}">
+            <input type="text" id="logAuthor" placeholder="담당자 (같이 갔으면 공백으로 구분)" value="${escapeHtml(site.manager||'')}">
           </div>
-          <input type="text" id="logText" placeholder="방문 내용을 입력하세요">
+          <div class="log-add-row2">
+            <input type="text" id="logContactName" placeholder="성함 (예: 김진숙 조합장)">
+            <input type="text" id="logUnit" placeholder="동호수 (예: 102동 1503호)">
+          </div>
+          <select id="logContactMethod">
+            <option value="">접촉방법 선택</option>
+            <option value="방문">방문</option>
+            <option value="전화">전화</option>
+            <option value="문자">문자/카톡</option>
+            <option value="기타">기타</option>
+          </select>
+          <textarea id="logText" placeholder="상담내용을 입력하세요" rows="3"></textarea>
           <button class="btn btn-primary btn-sm" id="logAddBtn">추가</button>
         </div>
         <div class="log-list">
           ${logs.length ? logs.map(l=>`
             <div class="log-item">
-              <div class="log-date">${escapeHtml(formatDateKr(l.date))}${l.author?` <span class="log-author">· ${escapeHtml(l.author)}</span>`:''}</div>
+              <div class="log-date">
+                ${escapeHtml(formatDateKr(l.date))}${l.author?` <span class="log-author">· ${escapeHtml(l.author)}</span>`:''}
+                ${l.contactMethod?`<span class="log-tag">${escapeHtml(l.contactMethod)}</span>`:''}
+              </div>
+              ${(l.contactName || l.unit) ? `<div class="log-meta">${l.contactName?escapeHtml(l.contactName):''}${l.contactName && l.unit?' · ':''}${l.unit?escapeHtml(l.unit):''}</div>` : ''}
               <div class="log-text">${escapeHtml(l.text)}</div>
               <button class="log-del" data-logid="${l.id}">삭제</button>
             </div>`).join('') : '<div class="empty">아직 기록된 일지가 없습니다.</div>'}
@@ -3308,10 +3327,13 @@ const L = (function(){
         if(!(await ensureUnlocked())) return;
         const d = document.getElementById('logDate').value;
         const a = document.getElementById('logAuthor').value.trim();
+        const cn = document.getElementById('logContactName').value.trim();
+        const un = document.getElementById('logUnit').value.trim();
+        const cm = document.getElementById('logContactMethod').value;
         const t = document.getElementById('logText').value.trim();
-        if(!d || !t){ alert('날짜와 내용을 입력해주세요.'); return; }
+        if(!d || !t){ alert('날짜와 상담내용을 입력해주세요.'); return; }
         site.logs = site.logs || [];
-        site.logs.push({id: crypto.randomUUID?crypto.randomUUID():String(Date.now()), date:d, author:a, text:t});
+        site.logs.push({id: crypto.randomUUID?crypto.randomUUID():String(Date.now()), date:d, author:a, contactName:cn, unit:un, contactMethod:cm, text:t});
         site.lastDate = lastVisit(site);
         await saveSites();
         renderAll();
@@ -5058,7 +5080,10 @@ const L = (function(){
           manager: authorsUnion.size ? Array.from(authorsUnion).join(' ') : (s.manager || '-'),
           district: s.district || '',
           count: logsInRange.length,
-          notes: logsInRange.map(l=>`${l.date.slice(5)}${l.author?' ['+l.author+']':''} ${l.text}`)
+          notes: logsInRange.map(l=>{
+            const meta = [l.contactMethod, l.contactName, l.unit].filter(Boolean).join(' · ');
+            return `${l.date.slice(5)}${l.author?' ['+l.author+']':''}${meta?' ('+meta+')':''} ${l.text}`;
+          })
         });
       }
     });
