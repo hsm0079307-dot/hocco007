@@ -1427,7 +1427,7 @@ const L = (function(){
         try{ const lres = await window.storage.get(CHANGELOG_KEY, false); if(lres && lres.value) changeLog = JSON.parse(lres.value); }catch(le){}
       }else{
         // 일반 웹(GitHub Pages)에 배포된 경우엔 Firebase Realtime Database에서 불러와서 PC마다 같은 데이터가 보이게 함
-        const res = await fetch(FIREBASE_DATA_URL);
+        const res = await fetch(FIREBASE_DATA_URL + '?_=' + Date.now(), {cache:'no-store'});
         if(!res.ok) throw new Error('firebase status '+res.status);
         const data = await res.json();
         if(data && data.offices && typeof data.offices==='object'){
@@ -1560,7 +1560,7 @@ const L = (function(){
         // "지금 실제로 수정한 그 현장 하나만" 그 위에 patch해서 저장한다 (폰/PC 어디서 고치든, 순서 상관없이 서로 안 덮어씀)
         let fresh = {};
         try{
-          const fr = await fetch(FIREBASE_DATA_URL);
+          const fr = await fetch(FIREBASE_DATA_URL + '?_=' + Date.now(), {cache:'no-store'});
           if(fr.ok) fresh = await fr.json();
         }catch(fe){ console.error('최신 데이터 선조회 실패, 로컬 데이터로 진행', fe); }
 
