@@ -5319,7 +5319,7 @@ const L = (function(){
       const contact = l.contactName || '-';
       const sentences = splitSentences(t);
       const summarySentence = sentences[0] || t;
-      const summary = truncate(summarySentence, 40);
+      const summary = summarySentence; // 문장 중간에서 잘리면 의미가 바뀔 수 있어 글자수로 자르지 않고 문장 통째로 표시
       const competitorSentence = sentences.find(s=>COMPETITOR_KEYWORDS.some(k=>s.includes(k)));
       const specialSentence = sentences.find(s=>SPECIAL_KEYWORDS.some(k=>s.includes(k)));
       // 상담내용에 이미 나온 문장과 같으면, 또는 앞선 다른 로그에서 이미 보여준 것과 같은 문장이면
@@ -5329,7 +5329,7 @@ const L = (function(){
         if(hitSentence === summarySentence) return '있음 (상담내용 참고)';
         if(shownSet.has(hitSentence)) return '위와 동일';
         shownSet.add(hitSentence);
-        return truncate(hitSentence, 40);
+        return hitSentence;
       }
       const competitorOut = fieldOut(competitorSentence, shownCompetitor);
       const specialOut = fieldOut(specialSentence, shownSpecial);
