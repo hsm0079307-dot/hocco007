@@ -5309,15 +5309,24 @@ const L = (function(){
     function classifySiteLogs(logs){
       const remark = [], competitor = [], special = [];
       (logs||[]).forEach(l=>{
-        const t = l.text || '';
-        if(!t) return;
+        const raw = l.text || '';
+        if(!raw) return;
         const tag = `${l.date?l.date.slice(5):''}${l.author?' ['+l.author+']':''}`.trim();
-        const line = tag ? `${tag} ${t}` : t;
-        const isCompetitor = COMPETITOR_KEYWORDS.some(k=>t.includes(k));
-        const isSpecial = SPECIAL_KEYWORDS.some(k=>t.includes(k));
-        if(isCompetitor) competitor.push(line);
-        if(isSpecial) special.push(line);
-        if(!isCompetitor && !isSpecial) remark.push(line);
+        // 로그 하나가 여러 주제를 담고 있을 수 있어서, 통째로 한 카테고리에 넣지 않고
+        // 줄바꿈(또는 문장) 단위로 쪼개서 조각별로 분류한다.
+        let pieces = raw.split(/\n+/).map(s=>s.replace(/^[·\-\s]+/,'').trim()).filter(Boolean);
+        if(pieces.length<=1){
+          pieces = raw.split(/(?<=[.!?])\s+(?=[가-힣A-Za-z])/).map(s=>s.trim()).filter(Boolean);
+        }
+        pieces.forEach(p=>{
+          if(!p || p==='【상담 내용】' || p.length<2) return;
+          const isCompetitor = COMPETITOR_KEYWORDS.some(k=>p.includes(k));
+          const isSpecial = SPECIAL_KEYWORDS.some(k=>p.includes(k));
+          const line = tag ? `${tag} ${p}` : p;
+          if(isCompetitor) competitor.push(line);
+          if(isSpecial) special.push(line);
+          if(!isCompetitor && !isSpecial) remark.push(line);
+        });
       });
       return {remark, competitor, special};
     }
