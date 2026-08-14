@@ -786,7 +786,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-14-v6</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-14-v7</span>
       <div class="report-period-toggle no-print">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -5220,6 +5220,93 @@ const L = (function(){
     rows.sort((a,b)=> b.count - a.count || a.site.localeCompare(b.site));
     return {range, rows, managerTotals, managerSiteCounts};
   }
+  // 현장 클릭 시 / 인쇄 시 공통으로 쓰는 로그 요약 카드: 날짜/담당/접촉자/상담내용/타사활동/특이사항
+  const COMPETITOR_KEYWORDS = ['현대건설','현대엔지니어링','현산','현건','GS건설','지에스건설','지에스','대우건설','대우','대림','DL이앤씨','DL','롯데건설','롯데','삼성물산','삼성','SK에코플랜트','SK','에스케이','한화건설','한화','코오롱글로벌','코오롱','HDC현대산업개발','HDC','현대산업개발','계룡건설','두산건설','효성중공업','호반건설','금호산업','반도건설','우미건설','타사(','경쟁사'];
+  const SPECIAL_KEYWORDS = ['불만','민원','갈등','반대','집회','총회','서명','우려','분쟁','소송','논란','항의'];
+  function splitSentences(t){
+    return t.split(/(?<=[.!?])\s+|\n+/).map(s=>s.trim()).filter(Boolean);
+  }
+  function buildLogCard(l, shownCompetitor, shownSpecial){
+    const t = (l.text||'').trim();
+    const dateLabel = l.date ? l.date.slice(5) : '';
+    const manager = l.author || '-';
+    const contact = l.contactName || '-';
+    const sentences = splitSentences(t);
+    const summarySentence = sentences[0] || t;
+    const summary = summarySentence; // 문장 중간에서 잘리면 의미가 바뀔 수 있어 글자수로 자르지 않고 문장 통째로 표시
+    const competitorSentence = sentences.find(s=>COMPETITOR_KEYWORDS.some(k=>s.includes(k)));
+    const specialSentence = sentences.find(s=>SPECIAL_KEYWORDS.some(k=>s.includes(k)));
+    // 상담내용에 이미 나온 문장과 같으면, 또는 앞선 다른 로그에서 이미 보여준 것과 같은 문장이면
+    // 또 반복해서 보여주지 않고 짧게만 표시
+    function fieldOut(hitSentence, shownSet){
+      if(!hitSentence) return '없음';
+      if(hitSentence === summarySentence) return '있음 (상담내용 참고)';
+      if(shownSet.has(hitSentence)) return '위와 동일';
+      shownSet.add(hitSentence);
+      return hitSentence;
+    }
+    const competitorOut = fieldOut(competitorSentence, shownCompetitor);
+    let specialOut;
+    if(specialSentence && specialSentence === competitorSentence){
+      // 한 문장이 타사활동·특이사항 키워드에 동시에 걸리면 타사활동 쪽에만 보여주고 특이사항엔 중복 표시하지 않는다
+      specialOut = '타사활동 참고';
+    }else{
+      specialOut = fieldOut(specialSentence, shownSpecial);
+    }
+    return `<div class="report-log-card" style="border:1px solid var(--border,rgba(255,255,255,0.15));border-radius:10px;padding:10px 12px;margin-bottom:8px;">
+      <div style="font-weight:700;font-size:12.5px;margin-bottom:4px;">${escapeHtml(dateLabel)}</div>
+      <div style="font-size:12px;margin-bottom:2px;"><b style="color:var(--accent);">담당:</b> ${escapeHtml(manager)}</div>
+      <div style="font-size:12px;margin-bottom:6px;"><b style="color:var(--accent);">접촉:</b> ${escapeHtml(contact)}</div>
+      <div style="font-size:12px;margin-bottom:4px;"><b style="color:var(--accent);">상담내용</b> ${escapeHtml(summary)}</div>
+      <div style="font-size:12px;margin-bottom:4px;"><b style="color:var(--accent);">타사활동</b> ${escapeHtml(competitorOut)}</div>
+      <div style="font-size:12px;"><b style="color:var(--accent);">특이사항</b> ${escapeHtml(specialOut)}</div>
+    </div>`;
+  }
+  function buildLogCardsForRow(r){
+    const shownC = new Set(), shownS = new Set();
+    const sorted = (r.logs||[]).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+    return sorted.length ? sorted.map(l=>buildLogCard(l, shownC, shownS)).join('') : '<div class="report-note-line" style="color:var(--text-dim);">기록 없음</div>';
+  }
+  // 주간 모드: 월~일 요일별로, 월간 모드: 1주차~N주차 별로 그날/그주에 어느 현장을 몇 번 방문했는지 묶는다
+  function buildDailyGroups(filteredRows, range, mode){
+    const buckets = [];
+    if(mode === 'week'){
+      const dayLabels = ['월','화','수','목','금','토','일'];
+      for(let i=0;i<7;i++){
+        const d = new Date(range.start.getFullYear(), range.start.getMonth(), range.start.getDate()+i);
+        const key = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+        buckets.push({label: dayLabels[i], key, sites:{}});
+      }
+    }else{
+      const daysInMonth = range.end.getDate();
+      const weeksInMonth = Math.ceil(daysInMonth/7);
+      for(let w=1; w<=weeksInMonth; w++){
+        buckets.push({label: `${w}주차`, weekNum:w, sites:{}});
+      }
+    }
+    const bucketByKey = {};
+    if(mode==='week') buckets.forEach(b=>{ bucketByKey[b.key]=b; });
+    filteredRows.forEach(r=>{
+      const seen = new Set();
+      (r.logs||[]).forEach(l=>{
+        if(!l.date) return;
+        let bucket;
+        if(mode==='week'){
+          bucket = bucketByKey[l.date];
+        }else{
+          const dayOfMonth = parseInt(l.date.slice(8,10),10);
+          const w = Math.ceil(dayOfMonth/7);
+          bucket = buckets.find(b=>b.weekNum===w);
+        }
+        if(!bucket) return;
+        const dedupeKey = r.site+'|'+l.date;
+        if(seen.has(dedupeKey)) return;
+        seen.add(dedupeKey);
+        bucket.sites[r.site] = (bucket.sites[r.site]||0) + 1;
+      });
+    });
+    return buckets;
+  }
   function renderContactReport(){
     document.getElementById('reportModeWeekBtn').classList.toggle('active-toggle', reportMode==='week');
     document.getElementById('reportModeMonthBtn').classList.toggle('active-toggle', reportMode==='month');
@@ -5231,17 +5318,9 @@ const L = (function(){
     const filteredRows = reportManagerFilter
       ? rows.filter(r => String(r.manager).split(/[,\s]+/).filter(Boolean).includes(reportManagerFilter))
       : rows;
-    // 좌(양천) / 가운데(영등포) / 우(그외) 3열로 지역 묶기
-    function districtGroupOf(r){
-      const d = String(r.district||'');
-      if(d.includes('양천')) return '양천';
-      if(d.includes('영등포')) return '영등포';
-      return '그외';
-    }
-    const groupNames = ['양천','영등포','그외'];
-    const groups = {'양천':[], '영등포':[], '그외':[]};
-    filteredRows.forEach(r=>{ groups[districtGroupOf(r)].push(r); });
-    const maxCount = filteredRows.length ? Math.max(...filteredRows.map(r=>r.count)) : 0;
+    // 주간: 월~일 요일별 / 월간: 1주차~N주차 별로 방문 현장을 묶어서 그래프로 보여준다
+    const dailyGroups = buildDailyGroups(filteredRows, range, reportMode);
+    const maxCount = Math.max(1, ...dailyGroups.map(b=>Math.max(0, ...Object.values(b.sites))));
     const barH = 20, gap = 6, chartTop = 8, labelW = 92, barMaxW = 60;
     const isDark = document.body.classList.contains('theme-dark');
     const chartTextColor = isDark ? '#f2ead9' : '#2b2a27';
@@ -5249,15 +5328,15 @@ const L = (function(){
     function buildGroupSvg(list){
       const chartW = labelW + barMaxW + 34;
       const chartH = chartTop*2 + Math.max(list.length,1)*(barH+gap);
-      const bars = list.map((r,i)=>{
+      const bars = list.map((item,i)=>{
         const y = chartTop + i*(barH+gap);
-        const w = maxCount ? Math.max(3, (r.count/maxCount) * barMaxW) : 0;
+        const w = maxCount ? Math.max(3, (item.count/maxCount) * barMaxW) : 0;
         return `
-          <g class="report-bar-g" data-idx="${r._idx}" style="cursor:pointer;">
+          <g class="report-bar-g" data-idx="${item.idx}" style="cursor:pointer;">
             <rect x="0" y="${y}" width="${labelW-6}" height="${barH}" fill="transparent"></rect>
-            <text x="${labelW-10}" y="${y+barH/2+4}" text-anchor="end" font-size="10.5" fill="${chartTextColor}">${escapeHtml(r.site.length>9?r.site.slice(0,8)+'…':r.site)}</text>
+            <text x="${labelW-10}" y="${y+barH/2+4}" text-anchor="end" font-size="10.5" fill="${chartTextColor}">${escapeHtml(item.site.length>9?item.site.slice(0,8)+'…':item.site)}</text>
             <rect x="${labelW}" y="${y}" width="${w}" height="${barH}" rx="5" fill="${chartBarColor}" opacity="0.92" class="report-bar-rect"></rect>
-            <text x="${labelW+w+6}" y="${y+barH/2+4}" font-size="10.5" font-weight="700" fill="${chartTextColor}">${r.count}</text>
+            <text x="${labelW+w+6}" y="${y+barH/2+4}" font-size="10.5" font-weight="700" fill="${chartTextColor}">${item.count}</text>
           </g>`;
       }).join('');
       return `<svg viewBox="0 0 ${chartW} ${chartH}" width="100%" height="${chartH}" style="overflow:visible;">${bars}</svg>`;
@@ -5265,23 +5344,26 @@ const L = (function(){
     // 상세 패널에서 원래 rows 배열의 인덱스로 찾을 수 있도록 각 항목에 원본 인덱스를 붙여둔다
     filteredRows.forEach((r,i)=>{ r._idx = rows.indexOf(r); });
     body.innerHTML = `
-      <div class="report-summary-row">
+      <div class="report-summary-row no-print">
         ${managerRows.length ? managerRows.map(m=>`<div class="report-summary-chip report-manager-chip${reportManagerFilter===m?' active':''}" data-manager="${escapeHtml(m)}"><b>${escapeHtml(m)}</b> ${managerTotals[m]}일</div>`).join('') : '<div style="color:var(--text-dim);font-size:12px;">이 기간 방문 기록이 없습니다.</div>'}
       </div>
       ${filteredRows.length ? `
-      <div class="report-chart-cols">
-        ${groupNames.map(g=>`
+      <div class="report-chart-cols" style="grid-template-columns:repeat(${dailyGroups.length},1fr);">
+        ${dailyGroups.map(day=>{
+          const list = Object.entries(day.sites).map(([site,count])=>({site,count,idx: rows.findIndex(rw=>rw.site===site)})).sort((a,b)=>b.count-a.count);
+          const total = list.reduce((s,x)=>s+x.count,0);
+          return `
           <div class="report-chart-col">
-            <div class="report-chart-col-head">${g} <span>${groups[g].length}곳</span></div>
-            ${groups[g].length ? buildGroupSvg(groups[g]) : '<div class="report-chart-empty">기록 없음</div>'}
-          </div>
-        `).join('')}
+            <div class="report-chart-col-head">${escapeHtml(day.label)} <span>${total}건</span></div>
+            ${list.length ? buildGroupSvg(list) : '<div class="report-chart-empty">기록 없음</div>'}
+          </div>`;
+        }).join('')}
       </div>
       <div id="reportDetailPanel" class="report-detail-panel" style="display:none;"></div>
       ` : '<div style="color:var(--text-dim);font-size:12px;padding:16px 0;">이 기간에 보고서가 등록된 현장이 없습니다.</div>'}
       ${filteredRows.length ? `
       <div class="report-manager-breakdown">
-        <div class="report-section-title"><span style="color:#ffb703;">■</span> 현장별 <span style="font-weight:400;color:var(--text-dim);">(클릭하면 보고서 내용 확인)</span></div>
+        <div class="report-section-title"><span style="color:#ffb703;">■</span> 현장별 <span class="report-hint-text" style="font-weight:400;color:var(--text-dim);">(클릭하면 보고서 내용 확인)</span></div>
         <div class="report-manager-cards">
           ${filteredRows.map(r=>`
             <div class="report-manager-card report-site-card" data-idx="${r._idx}" style="cursor:pointer;">
@@ -5292,7 +5374,7 @@ const L = (function(){
       </div>
       ` : ''}
       <table class="report-table no-print" style="margin-top:16px;">
-        <thead><tr><th>사업소</th><th>현장명</th><th>담당자</th><th>방문</th><th>특이사항</th></tr></thead>
+        <thead><tr><th>사업소</th><th>현장명</th><th>담당자</th><th>방문</th><th>상담 내용</th></tr></thead>
         <tbody>
           ${rows.length ? rows.map(r=>`
             <tr>
@@ -5300,55 +5382,10 @@ const L = (function(){
               <td class="report-site-name">${escapeHtml(r.site)}</td>
               <td>${escapeHtml(r.manager)}</td>
               <td style="text-align:center;font-weight:700;color:var(--accent);">${r.count}</td>
-              <td>${r.notes.map(n=>`<div class="report-note-line">${escapeHtml(n)}</div>`).join('')}</td>
+              <td>${buildLogCardsForRow(r)}</td>
             </tr>`).join('') : ''}
         </tbody>
       </table>`;
-    // 현장 클릭 시 보여줄 요약: 로그(방문) 하나마다 날짜/담당/접촉자/상담내용/타사활동/특이사항 카드로 정리
-    const COMPETITOR_KEYWORDS = ['현대건설','현대엔지니어링','현산','현건','GS건설','지에스건설','지에스','대우건설','대우','대림','DL이앤씨','DL','롯데건설','롯데','삼성물산','삼성','SK에코플랜트','SK','에스케이','한화건설','한화','코오롱글로벌','코오롱','HDC현대산업개발','HDC','현대산업개발','계룡건설','두산건설','효성중공업','호반건설','금호산업','반도건설','우미건설','타사(','경쟁사'];
-    const SPECIAL_KEYWORDS = ['불만','민원','갈등','반대','집회','총회','서명','우려','분쟁','소송','논란','항의'];
-    function splitSentences(t){
-      return t.split(/(?<=[.!?])\s+|\n+/).map(s=>s.trim()).filter(Boolean);
-    }
-    function truncate(s, maxLen){
-      return s.length <= maxLen ? s : s.slice(0, maxLen) + '…';
-    }
-    function buildLogCard(l, shownCompetitor, shownSpecial){
-      const t = (l.text||'').trim();
-      const dateLabel = l.date ? l.date.slice(5) : '';
-      const manager = l.author || '-';
-      const contact = l.contactName || '-';
-      const sentences = splitSentences(t);
-      const summarySentence = sentences[0] || t;
-      const summary = summarySentence; // 문장 중간에서 잘리면 의미가 바뀔 수 있어 글자수로 자르지 않고 문장 통째로 표시
-      const competitorSentence = sentences.find(s=>COMPETITOR_KEYWORDS.some(k=>s.includes(k)));
-      const specialSentence = sentences.find(s=>SPECIAL_KEYWORDS.some(k=>s.includes(k)));
-      // 상담내용에 이미 나온 문장과 같으면, 또는 앞선 다른 로그에서 이미 보여준 것과 같은 문장이면
-      // 또 반복해서 보여주지 않고 짧게만 표시
-      function fieldOut(hitSentence, shownSet){
-        if(!hitSentence) return '없음';
-        if(hitSentence === summarySentence) return '있음 (상담내용 참고)';
-        if(shownSet.has(hitSentence)) return '위와 동일';
-        shownSet.add(hitSentence);
-        return hitSentence;
-      }
-      const competitorOut = fieldOut(competitorSentence, shownCompetitor);
-      let specialOut;
-      if(specialSentence && specialSentence === competitorSentence){
-        // 한 문장이 타사활동·특이사항 키워드에 동시에 걸리면 타사활동 쪽에만 보여주고 특이사항엔 중복 표시하지 않는다
-        specialOut = '타사활동 참고';
-      }else{
-        specialOut = fieldOut(specialSentence, shownSpecial);
-      }
-      return `<div class="report-log-card" style="border:1px solid var(--border,rgba(255,255,255,0.15));border-radius:10px;padding:10px 12px;margin-bottom:8px;">
-        <div style="font-weight:700;font-size:12.5px;margin-bottom:4px;">${escapeHtml(dateLabel)}</div>
-        <div style="font-size:12px;margin-bottom:2px;"><b style="color:var(--accent);">담당:</b> ${escapeHtml(manager)}</div>
-        <div style="font-size:12px;margin-bottom:6px;"><b style="color:var(--accent);">접촉:</b> ${escapeHtml(contact)}</div>
-        <div style="font-size:12px;margin-bottom:4px;"><b style="color:var(--accent);">상담내용</b> ${escapeHtml(summary)}</div>
-        <div style="font-size:12px;margin-bottom:4px;"><b style="color:var(--accent);">타사활동</b> ${escapeHtml(competitorOut)}</div>
-        <div style="font-size:12px;"><b style="color:var(--accent);">특이사항</b> ${escapeHtml(specialOut)}</div>
-      </div>`;
-    }
     let reportSelectedIdx = null;
     function hideRowDetail(){
       reportSelectedIdx = null;
@@ -5438,12 +5475,16 @@ const L = (function(){
         body{ font-family:'Pretendard','Apple SD Gothic Neo',sans-serif; margin:0; padding:20px; color:#2b2a27; background:#fff; }
         h1{ font-size:18px; margin:0 0 4px; }
         .sub{ font-size:12px; color:#6f6a5c; margin-bottom:14px; }
-        .report-summary-row{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
+        .report-summary-row{ display:none !important; }
+        .report-hint-text{ display:none !important; }
         .report-summary-chip{ background:#f2f0ea; border:1px solid #dcd7cc; border-radius:20px; padding:5px 12px; font-size:11.5px; }
         table{ border-collapse:collapse; width:100%; font-size:11.5px; }
         th, td{ border:1px solid #dcd7cc; padding:7px 9px; text-align:left; vertical-align:top; }
         th{ background:#f2f0ea; font-weight:700; }
         .report-note-line{ margin-bottom:2px; white-space:pre-wrap; }
+        .report-log-card{ border:1px solid #dcd7cc !important; border-radius:8px; padding:6px 8px; margin-bottom:6px; break-inside:avoid; }
+        .report-log-card div{ color:#2b2a27; }
+        .report-log-card b{ color:#0f3d24 !important; }
         .report-chart-cols{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:16px; }
         .report-chart-col{ border:1px solid #dcd7cc; border-radius:10px; padding:10px 10px 4px; background:#f2f0ea; break-inside:avoid; }
         .report-chart-col-head{ font-size:12px; font-weight:700; color:#0f3d24; margin-bottom:8px; display:flex; align-items:baseline; gap:6px; }
