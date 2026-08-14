@@ -5309,30 +5309,32 @@ const L = (function(){
     function splitSentences(t){
       return t.split(/(?<=[.!?])\s+|\n+/).map(s=>s.trim()).filter(Boolean);
     }
-    function shortSummary(t, maxLen){
-      if(!t) return '-';
-      const firstSentence = splitSentences(t)[0] || t;
-      const base = firstSentence.length <= maxLen ? firstSentence : firstSentence.slice(0, maxLen) + '…';
-      return base;
-    }
-    function extractMatch(t, keywords, maxLen){
-      const sentences = splitSentences(t);
-      const hit = sentences.find(s=>keywords.some(k=>s.includes(k)));
-      if(!hit) return null;
-      return hit.length <= maxLen ? hit : hit.slice(0, maxLen) + '…';
+    function truncate(s, maxLen){
+      return s.length <= maxLen ? s : s.slice(0, maxLen) + '…';
     }
     function buildLogCard(l){
       const t = (l.text||'').trim();
       const dateLabel = l.date ? l.date.slice(5) : '';
       const manager = l.author || '-';
       const contact = l.contactName || '-';
-      const competitorHit = extractMatch(t, COMPETITOR_KEYWORDS, 60);
-      const specialHit = extractMatch(t, SPECIAL_KEYWORDS, 60);
+      const sentences = splitSentences(t);
+      const summarySentence = sentences[0] || t;
+      const summary = truncate(summarySentence, 90);
+      const competitorSentence = sentences.find(s=>COMPETITOR_KEYWORDS.some(k=>s.includes(k)));
+      const specialSentence = sentences.find(s=>SPECIAL_KEYWORDS.some(k=>s.includes(k)));
+      // 상담내용에 이미 나온 문장과 같으면 또 반복해서 보여주지 않고 짧게만 표시
+      function fieldOut(hitSentence){
+        if(!hitSentence) return '없음';
+        if(hitSentence === summarySentence) return '있음 (상담내용 참고)';
+        return truncate(hitSentence, 90);
+      }
+      const competitorOut = fieldOut(competitorSentence);
+      const specialOut = fieldOut(specialSentence);
       return `<div class="report-log-card" style="border:1px solid var(--border,rgba(255,255,255,0.15));border-radius:10px;padding:10px 12px;margin-bottom:8px;">
         <div style="font-weight:700;font-size:12.5px;margin-bottom:6px;">${escapeHtml(dateLabel)} · 담당 ${escapeHtml(manager)} · 접촉자 ${escapeHtml(contact)}</div>
-        <div style="font-size:12px;margin-bottom:4px;"><b style="color:var(--accent);">상담내용</b> ${escapeHtml(shortSummary(t, 60))}</div>
-        <div style="font-size:12px;margin-bottom:4px;"><b style="color:var(--accent);">타사활동</b> ${competitorHit ? escapeHtml(competitorHit) : '없음'}</div>
-        <div style="font-size:12px;"><b style="color:var(--accent);">특이사항</b> ${specialHit ? escapeHtml(specialHit) : '없음'}</div>
+        <div style="font-size:12px;margin-bottom:4px;"><b style="color:var(--accent);">상담내용</b> ${escapeHtml(summary)}</div>
+        <div style="font-size:12px;margin-bottom:4px;"><b style="color:var(--accent);">타사활동</b> ${escapeHtml(competitorOut)}</div>
+        <div style="font-size:12px;"><b style="color:var(--accent);">특이사항</b> ${escapeHtml(specialOut)}</div>
       </div>`;
     }
     let reportSelectedIdx = null;
