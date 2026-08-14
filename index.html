@@ -116,11 +116,11 @@
   .report-matrix-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--bg-side-2);padding:10px;margin-bottom:6px;}
   .report-matrix-title{font-size:12.5px;font-weight:700;color:var(--accent);margin:14px 0 6px;}
   .report-matrix{border-collapse:separate;border-spacing:3px;font-size:11px;table-layout:fixed;width:max-content;}
-  .report-matrix-corner-col{width:34px;}
+  .report-matrix-corner-col{width:64px;}
   .report-matrix-data-col{width:36px;}
-  .report-matrix-corner{min-width:34px;}
+  .report-matrix-corner{min-width:64px;}
   .report-matrix-site-head{padding:2px 1px;font-size:10px;font-weight:700;color:var(--text-main);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .report-matrix-day{padding:0 2px;width:34px;text-align:center;vertical-align:middle;font-size:10px;font-weight:700;color:var(--accent);white-space:nowrap;}
+  .report-matrix-day{padding:0 3px;width:64px;text-align:center;vertical-align:middle;font-size:9.5px;font-weight:700;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .report-matrix-cell{width:36px;height:24px;padding:2px;}
   .report-matrix-cell .rm-cell-inner{width:100%;height:100%;border-radius:6px;background:var(--bg-main,rgba(255,255,255,0.05));border:1px solid var(--line);}
   .report-matrix-cell.visited{cursor:pointer;}
@@ -807,7 +807,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-14-v14</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-14-v15</span>
       <div class="report-period-toggle no-print">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -5298,13 +5298,15 @@ const L = (function(){
       for(let i=0;i<7;i++){
         const d = new Date(range.start.getFullYear(), range.start.getMonth(), range.start.getDate()+i);
         const key = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-        buckets.push({label: dayLabels[i], key, sites:{}});
+        buckets.push({label: `${d.getDate()}일(${dayLabels[i]})`, key, sites:{}});
       }
     }else{
       const daysInMonth = range.end.getDate();
       const weeksInMonth = Math.ceil(daysInMonth/7);
       for(let w=1; w<=weeksInMonth; w++){
-        buckets.push({label: `${w}주차`, weekNum:w, sites:{}});
+        const startDay = (w-1)*7+1;
+        const endDay = Math.min(w*7, daysInMonth);
+        buckets.push({label: `${startDay}~${endDay}일 ${w}주차`, weekNum:w, sites:{}});
       }
     }
     const bucketByKey = {};
@@ -5561,11 +5563,11 @@ const L = (function(){
         .report-matrix-title{ font-size:12.5px; font-weight:700; color:#0f3d24; margin:14px 0 6px; }
         .report-matrix-wrap{ margin-bottom:6px; border:1px solid #dcd7cc; border-radius:10px; padding:8px; break-inside:avoid; }
         .report-matrix{ border-collapse:separate; border-spacing:3px; font-size:10px; table-layout:fixed; width:max-content; }
-        .report-matrix-corner-col{ width:32px; }
+        .report-matrix-corner-col{ width:58px; }
         .report-matrix-data-col{ width:32px; }
-        .report-matrix-corner{ min-width:32px; }
+        .report-matrix-corner{ min-width:58px; }
         .report-matrix-site-head{ font-weight:700; text-align:center; padding:2px 1px; font-size:9px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .report-matrix-day{ padding:2px; width:32px; text-align:center; font-size:9px; font-weight:700; color:#0f3d24; white-space:nowrap; }
+        .report-matrix-day{ padding:1px 2px; width:58px; text-align:center; font-size:8.5px; font-weight:700; color:#0f3d24; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .report-matrix-cell{ width:32px; height:18px; padding:1px; }
         .report-matrix-cell .rm-cell-inner{ width:100%; height:100%; border-radius:5px; border:1px solid #dcd7cc; }
         .report-matrix-cell.visited .rm-cell-inner{ background:#0f3d24 !important; border-color:#0f3d24; }
