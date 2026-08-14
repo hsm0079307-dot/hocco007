@@ -5304,29 +5304,20 @@ const L = (function(){
         </tbody>
       </table>`;
     // 현장 클릭 시 보여줄 요약: 접촉자 / 비고 / 타사활동 / 특이사항 3분류
-    const COMPETITOR_KEYWORDS = ['현대건설','현대엔지니어링','현산','현건','GS건설','지에스건설','지에스','대우건설','대우','대림','DL이앤씨','DL','롯데건설','롯데','삼성물산','삼성','SK에코플랜트','SK','에스케이','한화건설','한화','코오롱글로벌','코오롱','HDC현대산업개발','HDC','현대산업개발','계룡건설','두산건설','효성중공업','호반건설','금호산업','반도건설','우미건설','타사'];
-    const SPECIAL_KEYWORDS = ['불만','민원','갈등','이슈','리스크','반대','집회','총회','서명','특이','우려','문제','분쟁','소송','논란','항의','행사'];
+    const COMPETITOR_KEYWORDS = ['현대건설','현대엔지니어링','현산','현건','GS건설','지에스건설','지에스','대우건설','대우','대림','DL이앤씨','DL','롯데건설','롯데','삼성물산','삼성','SK에코플랜트','SK','에스케이','한화건설','한화','코오롱글로벌','코오롱','HDC현대산업개발','HDC','현대산업개발','계룡건설','두산건설','효성중공업','호반건설','금호산업','반도건설','우미건설','타사(','경쟁사'];
+    const SPECIAL_KEYWORDS = ['불만','민원','갈등','반대','집회','총회','서명','우려','분쟁','소송','논란','항의'];
     function classifySiteLogs(logs){
       const remark = [], competitor = [], special = [];
       (logs||[]).forEach(l=>{
-        const raw = l.text || '';
-        if(!raw) return;
+        const t = (l.text||'').trim();
+        if(!t) return;
         const tag = `${l.date?l.date.slice(5):''}${l.author?' ['+l.author+']':''}`.trim();
-        // 로그 하나가 여러 주제를 담고 있을 수 있어서, 통째로 한 카테고리에 넣지 않고
-        // 줄바꿈(또는 문장) 단위로 쪼개서 조각별로 분류한다.
-        let pieces = raw.split(/\n+/).map(s=>s.replace(/^[·\-\s]+/,'').trim()).filter(Boolean);
-        if(pieces.length<=1){
-          pieces = raw.split(/(?<=[.!?])\s+(?=[가-힣A-Za-z])/).map(s=>s.trim()).filter(Boolean);
-        }
-        pieces.forEach(p=>{
-          if(!p || p==='【상담 내용】' || p.length<2) return;
-          const isCompetitor = COMPETITOR_KEYWORDS.some(k=>p.includes(k));
-          const isSpecial = SPECIAL_KEYWORDS.some(k=>p.includes(k));
-          const line = tag ? `${tag} ${p}` : p;
-          if(isCompetitor) competitor.push(line);
-          if(isSpecial) special.push(line);
-          if(!isCompetitor && !isSpecial) remark.push(line);
-        });
+        const line = tag ? `${tag} ${t}` : t;
+        // 로그 하나(항목 하나)는 한 카테고리에만 들어간다 (중복/반복 방지).
+        // 우선순위: 타사활동 > 특이사항 > 비고
+        if(COMPETITOR_KEYWORDS.some(k=>t.includes(k))) competitor.push(line);
+        else if(SPECIAL_KEYWORDS.some(k=>t.includes(k))) special.push(line);
+        else remark.push(line);
       });
       return {remark, competitor, special};
     }
