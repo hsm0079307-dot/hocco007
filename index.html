@@ -5303,28 +5303,21 @@ const L = (function(){
             </tr>`).join('') : ''}
         </tbody>
       </table>`;
-    // 현장 클릭 시 보여줄 요약: 접촉자 / 비고 / 타사활동 / 특이사항 3분류
+    // 현장 클릭 시 보여줄 요약: 로그(방문) 하나마다 날짜/담당/접촉자/상담내용/타사활동/특이사항 카드로 정리
     const COMPETITOR_KEYWORDS = ['현대건설','현대엔지니어링','현산','현건','GS건설','지에스건설','지에스','대우건설','대우','대림','DL이앤씨','DL','롯데건설','롯데','삼성물산','삼성','SK에코플랜트','SK','에스케이','한화건설','한화','코오롱글로벌','코오롱','HDC현대산업개발','HDC','현대산업개발','계룡건설','두산건설','효성중공업','호반건설','금호산업','반도건설','우미건설','타사(','경쟁사'];
     const SPECIAL_KEYWORDS = ['불만','민원','갈등','반대','집회','총회','서명','우려','분쟁','소송','논란','항의'];
-    function classifySiteLogs(logs){
-      const remark = [], competitor = [], special = [];
-      (logs||[]).forEach(l=>{
-        const t = (l.text||'').trim();
-        if(!t) return;
-        const tag = `${l.date?l.date.slice(5):''}${l.author?' ['+l.author+']':''}`.trim();
-        const line = tag ? `${tag} ${t}` : t;
-        // 로그 하나(항목 하나)는 한 카테고리에만 들어간다 (중복/반복 방지).
-        // 우선순위: 타사활동 > 특이사항 > 비고
-        if(COMPETITOR_KEYWORDS.some(k=>t.includes(k))) competitor.push(line);
-        else if(SPECIAL_KEYWORDS.some(k=>t.includes(k))) special.push(line);
-        else remark.push(line);
-      });
-      return {remark, competitor, special};
-    }
-    function summaryBlock(label, items){
-      return `<div class="report-summary-block" style="margin-bottom:10px;">
-        <div style="font-weight:700;font-size:12px;margin-bottom:4px;color:var(--accent);">${label}</div>
-        ${items.length ? items.map(n=>`<div class="report-note-line">・ ${escapeHtml(n)}</div>`).join('') : '<div class="report-note-line" style="color:var(--text-dim);">없음</div>'}
+    function buildLogCard(l){
+      const t = (l.text||'').trim();
+      const dateLabel = l.date ? l.date.slice(5) : '';
+      const manager = l.author || '-';
+      const contact = l.contactName || '-';
+      const hasCompetitor = COMPETITOR_KEYWORDS.some(k=>t.includes(k));
+      const hasSpecial = SPECIAL_KEYWORDS.some(k=>t.includes(k));
+      return `<div class="report-log-card" style="border:1px solid var(--border,rgba(255,255,255,0.15));border-radius:10px;padding:10px 12px;margin-bottom:8px;">
+        <div style="font-weight:700;font-size:12.5px;margin-bottom:6px;">${escapeHtml(dateLabel)} · 담당 ${escapeHtml(manager)} · 접촉자 ${escapeHtml(contact)}</div>
+        <div style="font-size:12px;margin-bottom:4px;"><b style="color:var(--accent);">상담내용</b> ${t ? escapeHtml(t) : '-'}</div>
+        <div style="font-size:12px;margin-bottom:4px;"><b style="color:var(--accent);">타사활동</b> ${hasCompetitor ? escapeHtml(t) : '없음'}</div>
+        <div style="font-size:12px;"><b style="color:var(--accent);">특이사항</b> ${hasSpecial ? escapeHtml(t) : '없음'}</div>
       </div>`;
     }
     let reportSelectedIdx = null;
@@ -5350,7 +5343,7 @@ const L = (function(){
         if(highlightEl.classList && highlightEl.classList.contains('report-site-card')) highlightEl.style.borderColor = 'var(--accent)';
       }
       const contacts = Array.from(new Set((r.logs||[]).map(l=>l.contactName).filter(Boolean).map(n=>n.trim()).filter(Boolean)));
-      const {remark, competitor, special} = classifySiteLogs(r.logs);
+      const sortedLogs = (r.logs||[]).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
       panel.style.display = 'block';
       panel.innerHTML = `
         <div class="report-detail-head">
@@ -5367,9 +5360,7 @@ const L = (function(){
             <div style="font-weight:700;font-size:12px;margin-bottom:4px;">접촉자</div>
             <div class="report-note-line">${contacts.length ? contacts.map(escapeHtml).join(', ') : '없음'}</div>
           </div>
-          ${summaryBlock('비고', remark)}
-          ${summaryBlock('타사활동', competitor)}
-          ${summaryBlock('특이사항', special)}
+          ${sortedLogs.length ? sortedLogs.map(buildLogCard).join('') : '<div class="report-note-line" style="color:var(--text-dim);">이 기간 상담 기록이 없습니다.</div>'}
         </div>`;
       panel.scrollIntoView({behavior:'smooth', block:'nearest'});
     }
