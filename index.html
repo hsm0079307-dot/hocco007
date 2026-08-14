@@ -115,18 +115,23 @@
   @media (max-width:820px){ .report-chart-cols{grid-template-columns:1fr;} }
   .report-matrix-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--bg-side-2);padding:10px;margin-bottom:6px;}
   .report-matrix-title{font-size:12.5px;font-weight:700;color:var(--accent);margin:14px 0 6px;}
-  .report-matrix{border-collapse:separate;border-spacing:3px;font-size:11px;table-layout:fixed;}
-  .report-matrix-corner-col{width:32px;}
-  .report-matrix-data-col{width:30px;}
-  .report-matrix-corner{min-width:32px;}
-  .report-matrix-site-head{padding:2px 1px 4px;font-size:9px;font-weight:700;color:var(--text-main);white-space:normal;word-break:keep-all;line-height:1.2;text-align:center;vertical-align:bottom;overflow:hidden;}
-  .report-matrix-day{padding:0;width:32px;text-align:center;vertical-align:middle;font-size:11px;font-weight:700;color:var(--accent);}
-  .report-matrix-cell{width:30px;height:26px;padding:2px;}
+  .report-matrix{border-collapse:separate;border-spacing:3px;font-size:11px;table-layout:fixed;width:max-content;}
+  .report-matrix-corner-col{width:28px;}
+  .report-matrix-data-col{width:26px;}
+  .report-matrix-corner{min-width:28px;}
+  .report-matrix-site-head{padding:2px 0;font-size:10.5px;font-weight:700;color:var(--text-main);text-align:center;}
+  .report-matrix-day{padding:0;width:28px;text-align:center;vertical-align:middle;font-size:11px;font-weight:700;color:var(--accent);}
+  .report-matrix-cell{width:26px;height:24px;padding:2px;}
   .report-matrix-cell .rm-cell-inner{width:100%;height:100%;border-radius:6px;background:var(--bg-main,rgba(255,255,255,0.05));border:1px solid var(--line);}
   .report-matrix-cell.visited{cursor:pointer;}
   .report-matrix-cell.visited .rm-cell-inner{background:var(--accent);border-color:var(--accent);transition:.12s;}
-  .report-missed-box{font-size:11px;color:var(--text-dim);padding:8px 10px;border:1px dashed var(--line);border-radius:8px;margin-bottom:14px;line-height:1.6;}
-  .report-missed-label{font-weight:700;color:#e5484d;margin-right:6px;}
+  .report-matrix-legend{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line);}
+  .report-matrix-legend-item{font-size:10.5px;color:var(--text-dim);white-space:nowrap;}
+  .report-matrix-legend-item b{color:var(--accent);margin-right:3px;}
+  .report-missed-box{font-size:11px;color:var(--text-dim);padding:8px 10px;border:1px dashed var(--line);border-radius:8px;margin-bottom:14px;}
+  .report-missed-label{font-weight:700;color:#e5484d;margin-bottom:5px;}
+  .report-missed-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px 8px;}
+  .report-missed-item{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .report-matrix-cell.visited:hover .rm-cell-inner{opacity:0.8;transform:scale(1.05);}
   .report-bar-rect{transition:opacity .12s;}
   .report-section-title{font-size:12.5px;font-weight:700;color:var(--text-main);margin:16px 0 8px;}
@@ -801,7 +806,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-14-v10</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-14-v11</span>
       <div class="report-period-toggle no-print">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -5188,7 +5193,9 @@ const L = (function(){
   }
   function buildContactReportData(){
     const range = reportMode==='week' ? getWeekRange(reportBaseDate) : getMonthRange(reportBaseDate);
-    const allSites = OFFICES.flatMap(o=>(allOfficesData[o]||[]).map(s=>Object.assign({}, s, {office:o})));
+    // 지금 선택된 사업소(강서/강남/강북)만 보여주고, '전체'일 때만 모든 사업소를 합쳐서 보여준다
+    const targetOffices = currentOffice===ALL_OFFICE ? OFFICES : [currentOffice];
+    const allSites = targetOffices.flatMap(o=>(allOfficesData[o]||[]).map(s=>Object.assign({}, s, {office:o})));
     const rows = [];
     const managerTotals = {};
     const managerSiteCounts = {}; // { 담당자명: { 현장명: 방문일수 } }
@@ -5353,23 +5360,19 @@ const L = (function(){
       districtMissed[districtGroupOf(s)].push(s.name);
     });
     // 긴 현장명은 한글/숫자 경계에서 줄바꿈해서 두 줄로 가운데 정렬 표시
-    function siteHeaderHtml(site){
-      const m = site.match(/^([가-힣]{2,}?)(\d.*)$/);
-      if(m) return escapeHtml(m[1]) + '<br>' + escapeHtml(m[2]);
-      return escapeHtml(site);
-    }
     function buildMatrixTable(groupRows, missedNames){
       const missedHtml = missedNames.length
-        ? `<div class="report-missed-box"><span class="report-missed-label">미방문 현장</span> ${missedNames.map(n=>escapeHtml(n)).join(', ')}</div>`
+        ? `<div class="report-missed-box"><div class="report-missed-label">미방문 현장</div><div class="report-missed-grid">${missedNames.map(n=>`<div class="report-missed-item">${escapeHtml(n)}</div>`).join('')}</div></div>`
         : '';
       if(!groupRows.length) return `<div style="color:var(--text-dim);font-size:12px;padding:10px 0;">기록 없음</div>${missedHtml}`;
       const groupDaily = buildDailyGroups(groupRows, range, reportMode);
+      // 현장명 길이가 제각각이면 칸 크기가 들쑥날쑥해지므로, 헤더엔 번호만 쓰고 아래 범례에서 번호-현장명을 매칭한다
       return `<div class="report-matrix-wrap">
         <table class="report-matrix">
           <colgroup><col class="report-matrix-corner-col">${groupRows.map(()=>'<col class="report-matrix-data-col">').join('')}</colgroup>
           <thead><tr>
             <th class="report-matrix-corner"></th>
-            ${groupRows.map(r=>`<th class="report-matrix-site-head">${siteHeaderHtml(r.site)}</th>`).join('')}
+            ${groupRows.map((r,i)=>`<th class="report-matrix-site-head">${i+1}</th>`).join('')}
           </tr></thead>
           <tbody>
             ${groupDaily.map(day=>`<tr>
@@ -5381,6 +5384,7 @@ const L = (function(){
               </tr>`).join('')}
           </tbody>
         </table>
+        <div class="report-matrix-legend">${groupRows.map((r,i)=>`<div class="report-matrix-legend-item"><b>${i+1}</b> ${escapeHtml(r.site)}</div>`).join('')}</div>
       </div>
       ${missedHtml}`;
     }
@@ -5527,17 +5531,21 @@ const L = (function(){
         .report-chart-cols{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:16px; }
         .report-matrix-title{ font-size:12.5px; font-weight:700; color:#0f3d24; margin:14px 0 6px; }
         .report-matrix-wrap{ margin-bottom:6px; border:1px solid #dcd7cc; border-radius:10px; padding:8px; break-inside:avoid; }
-        .report-matrix{ border-collapse:separate; border-spacing:3px; font-size:10px; table-layout:fixed; }
-        .report-matrix-corner-col{ width:30px; }
-        .report-matrix-data-col{ width:28px; }
-        .report-matrix-corner{ min-width:30px; }
-        .report-matrix-site-head{ font-weight:700; white-space:normal; word-break:keep-all; line-height:1.15; text-align:center; vertical-align:bottom; padding:2px 1px; font-size:8.5px; }
-        .report-matrix-day{ padding:2px; width:30px; text-align:center; font-size:10px; font-weight:700; color:#0f3d24; }
-        .report-matrix-cell{ width:28px; height:24px; padding:1px; }
+        .report-matrix{ border-collapse:separate; border-spacing:3px; font-size:10px; table-layout:fixed; width:max-content; }
+        .report-matrix-corner-col{ width:26px; }
+        .report-matrix-data-col{ width:24px; }
+        .report-matrix-corner{ min-width:26px; }
+        .report-matrix-site-head{ font-weight:700; text-align:center; padding:2px 0; font-size:9.5px; }
+        .report-matrix-day{ padding:2px; width:26px; text-align:center; font-size:9.5px; font-weight:700; color:#0f3d24; }
+        .report-matrix-cell{ width:24px; height:22px; padding:1px; }
         .report-matrix-cell .rm-cell-inner{ width:100%; height:100%; border-radius:5px; border:1px solid #dcd7cc; }
         .report-matrix-cell.visited .rm-cell-inner{ background:#0f3d24 !important; border-color:#0f3d24; }
+        .report-matrix-legend{ display:flex; flex-wrap:wrap; gap:3px 10px; margin-top:6px; padding-top:6px; border-top:1px solid #dcd7cc; }
+        .report-matrix-legend-item{ font-size:9.5px; color:#6f6a5c; white-space:nowrap; }
+        .report-matrix-legend-item b{ color:#0f3d24; margin-right:2px; }
         .report-missed-box{ font-size:10.5px; color:#6f6a5c; padding:6px 8px; border:1px dashed #dcd7cc; border-radius:8px; margin-bottom:12px; }
-        .report-missed-label{ font-weight:700; color:#b3261e; margin-right:6px; }
+        .report-missed-label{ font-weight:700; color:#b3261e; margin-bottom:4px; }
+        .report-missed-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:3px 8px; }
         .report-chart-col{ border:1px solid #dcd7cc; border-radius:10px; padding:10px 10px 4px; background:#f2f0ea; break-inside:avoid; }
         .report-chart-col-head{ font-size:12px; font-weight:700; color:#0f3d24; margin-bottom:8px; display:flex; align-items:baseline; gap:6px; }
         .report-chart-col-head span{ font-size:10.5px; font-weight:400; color:#6f6a5c; }
@@ -5556,7 +5564,7 @@ const L = (function(){
       </style>
     </head><body>
       <h1>접촉 리포트</h1>
-      <div class="sub">${escapeHtml(range.label)} 기준 · 강서/강남/강북 사업소</div>
+      <div class="sub">${escapeHtml(range.label)} 기준 · ${currentOffice===ALL_OFFICE ? '강서/강남/강북 사업소' : escapeHtml(currentOffice)}</div>
       ${bodyHtml}
     </body></html>`);
     printWin.document.close();
