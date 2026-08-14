@@ -458,6 +458,9 @@
   .log-tag{display:inline-block;margin-left:6px;font-size:10px;font-weight:600;color:var(--accent);background:var(--bg-side-2);border:1px solid var(--line);border-radius:8px;padding:1px 7px;}
   .log-meta{font-size:11px;color:var(--text-dim);margin:2px 0 4px;}
   .log-text{flex:1;font-size:12px;line-height:1.5;}
+  .log-actions{display:flex;flex-direction:column;gap:4px;flex:none;}
+  .log-edit{background:none;border:none;color:var(--accent);cursor:pointer;font-size:12px;}
+  .log-edit:hover{text-decoration:underline;}
   .log-del{background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:12px;flex:none;}
   .log-del:hover{color:#f87171;}
 
@@ -896,7 +899,7 @@
         <input id="f_union" placeholder="예: 3,986 (동의 527)">
       </div>
       <div class="field">
-        <label>최근 일지 날짜</label>
+        <label>최근 보고서 날짜</label>
         <input id="f_date" type="date">
       </div>
     </div>
@@ -1210,6 +1213,7 @@ const L = (function(){
   // (텔레그램 봇 등 외부에서 추가한 일지가 저장 중에 사라지지 않게 "병합" 방식으로 바꾸면서,
   //  반대로 "지운 것도 다시 살아나는" 부작용이 생겨서 이걸로 막음)
   const deletedLogIds = new Set();
+  let editingLogId = null; // 보고서(일지) "수정" 버튼 눌렀을 때, 지금 고치고 있는 항목의 id
   const GUEST_KEY = 'realestate-guest-accounts-v1';
   const CHANGELOG_KEY = 'realestate-guest-changelog-v1';
   const ADMIN_PW_KEY = 'realestate-admin-pw-hash-v1';
@@ -1834,7 +1838,7 @@ const L = (function(){
       '면적(m²)': s.area||'', '예상발주': s.orderExpected||'', '신축세대': s.households||'',
       '연면적(m²)': s.totalFloorArea||'', '규모': s.scale||'', '조합원수': s.unionMembers||'',
       '정비업체': s.managementCompany||'', '설계업체': s.designCompany||'', '신탁사': s.trustCompany||'',
-      '담당자': s.manager||'', '최근 일지 날짜': s.lastDate||'', '일정': eventsSummary(s), '비고': s.memo||'', '사진 링크': (s.photos||[]).join(' | ')
+      '담당자': s.manager||'', '최근 보고서 날짜': s.lastDate||'', '일정': eventsSummary(s), '비고': s.memo||'', '사진 링크': (s.photos||[]).join(' | ')
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
@@ -3121,7 +3125,7 @@ const L = (function(){
           </div>
           <div class="detail-tabs">
             ${['개요','일지','공고','문서함'].map(t=>`
-              <div class="dtab ${t===detailTab?'active':''}" data-tab="${t}">${t}${t==='일지'?` <span class="dtab-count">${visitCount(site)}</span>`:''}${t==='문서함' && (site.documents||[]).length ? ` <span class="dtab-count">${site.documents.length}</span>`:''}</div>
+              <div class="dtab ${t===detailTab?'active':''}" data-tab="${t}">${t==='일지'?'보고서':t}${t==='일지'?` <span class="dtab-count">${visitCount(site)}</span>`:''}${t==='문서함' && (site.documents||[]).length ? ` <span class="dtab-count">${site.documents.length}</span>`:''}</div>
             `).join('')}
           </div>
         </div>
@@ -3182,6 +3186,7 @@ const L = (function(){
       t.addEventListener('click', ()=>{
         detailTab = t.dataset.tab;
         editMode = false;
+        editingLogId = null;
         renderAll();
       });
     });
@@ -3307,30 +3312,30 @@ const L = (function(){
 
     }else if(detailTab==='일지'){
       const logs = (site.logs||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
+      const editingLog = editingLogId ? (site.logs||[]).find(l=>l.id===editingLogId) : null;
       body.innerHTML = `
         <div class="log-add">
-          <div style="display:flex;justify-content:flex-end;margin-bottom:4px;">
-            <button class="btn btn-ghost btn-sm no-print" id="logRefreshBtn" style="padding:3px 9px;font-size:10.5px;" title="이 현장 일지만 다시 최신으로 불러오기">🔄 일지 새로고침</button>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+            ${editingLog ? '<span style="font-size:11px;color:var(--accent);font-weight:700;">✏️ 보고서 수정 중</span>' : '<span></span>'}
+            <button class="btn btn-ghost btn-sm no-print" id="logRefreshBtn" style="padding:3px 9px;font-size:10.5px;" title="이 현장 보고서만 다시 최신으로 불러오기">🔄 보고서 새로고침</button>
           </div>
           <div class="log-add-row2">
-            <input type="date" id="logDate">
-            <input type="text" id="logAuthor" placeholder="담당자" value="${escapeHtml(site.manager||'')}">
+            <input type="date" id="logDate" value="${editingLog?escapeHtml(editingLog.date):''}">
+            <input type="text" id="logAuthor" placeholder="담당자" value="${editingLog?escapeHtml(editingLog.author||''):escapeHtml(site.manager||'')}">
           </div>
           <div class="log-add-row3">
-            <input type="text" id="logContactName" placeholder="성함">
-            <input type="text" id="logUnit" placeholder="동호수">
+            <input type="text" id="logContactName" placeholder="성함" value="${editingLog?escapeHtml(editingLog.contactName||''):''}">
+            <input type="text" id="logUnit" placeholder="동호수" value="${editingLog?escapeHtml(editingLog.unit||''):''}">
             <select id="logContactMethod">
               <option value="">접촉방법</option>
-              <option value="상담">상담</option>
-              <option value="단순">단순</option>
-              <option value="TM">TM</option>
-              <option value="거부">거부</option>
-              <option value="부재">부재</option>
-              <option value="불명">불명</option>
+              ${['상담','단순','TM','거부','부재','불명'].map(m=>`<option value="${m}" ${editingLog&&editingLog.contactMethod===m?'selected':''}>${m}</option>`).join('')}
             </select>
           </div>
-          <textarea id="logText" placeholder="상담내용을 입력하세요" rows="2"></textarea>
-          <button class="btn btn-primary btn-sm" id="logAddBtn">추가</button>
+          <textarea id="logText" placeholder="상담내용을 입력하세요" rows="2">${editingLog?escapeHtml(editingLog.text||''):''}</textarea>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-primary btn-sm" id="logAddBtn">${editingLog?'수정 저장':'추가'}</button>
+            ${editingLog?'<button class="btn btn-ghost btn-sm" id="logEditCancelBtn">취소</button>':''}
+          </div>
         </div>
         <div class="log-list" id="logListArea">
           ${logs.length ? logs.map(l=>`
@@ -3343,8 +3348,11 @@ const L = (function(){
                 ${l.unit?`<div class="log-meta-line">${escapeHtml(l.unit)}</div>`:''}
               </div>
               <div class="log-text">${escapeHtml(l.text)}</div>
-              <button class="log-del" data-logid="${l.id}">삭제</button>
-            </div>`).join('') : '<div class="empty">아직 기록된 일지가 없습니다.</div>'}
+              <div class="log-actions">
+                <button class="log-edit" data-logid="${l.id}">수정</button>
+                <button class="log-del" data-logid="${l.id}">삭제</button>
+              </div>
+            </div>`).join('') : '<div class="empty">아직 기록된 보고서가 없습니다.</div>'}
         </div>`;
       // "전체 데이터 한꺼번에 불러오기"가 가끔 이 현장의 최신 일지를 놓치는 현상이 있어서(원인 불명, 재현 확인됨),
       // 일지 탭을 열 때마다 그 현장 일지만 targeted로 별도로 다시 확인해서 화면을 갱신한다.
@@ -3398,16 +3406,38 @@ const L = (function(){
         const t = document.getElementById('logText').value.trim();
         if(!d || !t){ alert('날짜와 상담내용을 입력해주세요.'); return; }
         site.logs = site.logs || [];
-        site.logs.push({id: crypto.randomUUID?crypto.randomUUID():String(Date.now()), date:d, author:a, contactName:cn, unit:un, contactMethod:cm, text:t});
+        if(editingLogId){
+          const target = site.logs.find(l=>l.id===editingLogId);
+          if(target){
+            target.date = d; target.author = a; target.contactName = cn;
+            target.unit = un; target.contactMethod = cm; target.text = t;
+          }
+          editingLogId = null;
+        }else{
+          site.logs.push({id: crypto.randomUUID?crypto.randomUUID():String(Date.now()), date:d, author:a, contactName:cn, unit:un, contactMethod:cm, text:t});
+        }
         site.lastDate = lastVisit(site);
         await saveSites();
         renderAll();
+      });
+      const logEditCancelBtn = document.getElementById('logEditCancelBtn');
+      if(logEditCancelBtn) logEditCancelBtn.addEventListener('click', ()=>{
+        editingLogId = null;
+        renderDetailBody(site);
+      });
+      body.querySelectorAll('.log-edit').forEach(btn=>{
+        btn.addEventListener('click', async ()=>{
+          if(!(await ensureUnlocked())) return;
+          editingLogId = btn.dataset.logid;
+          renderDetailBody(site);
+        });
       });
       body.querySelectorAll('.log-del').forEach(btn=>{
         btn.addEventListener('click', async ()=>{
           if(!(await ensureUnlocked())) return;
           deletedLogIds.add(btn.dataset.logid);
           site.logs = (site.logs||[]).filter(l=>l.id!==btn.dataset.logid);
+          if(editingLogId===btn.dataset.logid) editingLogId = null;
           site.lastDate = lastVisit(site);
           await saveSites();
           renderAll();
@@ -5214,10 +5244,10 @@ const L = (function(){
         `).join('')}
       </div>
       <div id="reportDetailPanel" class="report-detail-panel" style="display:none;"></div>
-      ` : '<div style="color:var(--text-dim);font-size:12px;padding:16px 0;">이 기간에 일지가 등록된 현장이 없습니다.</div>'}
+      ` : '<div style="color:var(--text-dim);font-size:12px;padding:16px 0;">이 기간에 보고서가 등록된 현장이 없습니다.</div>'}
       ${filteredRows.length ? `
       <div class="report-manager-breakdown">
-        <div class="report-section-title"><span style="color:#ffb703;">■</span> 현장별 <span style="font-weight:400;color:var(--text-dim);">(클릭하면 일지 내용 확인)</span></div>
+        <div class="report-section-title"><span style="color:#ffb703;">■</span> 현장별 <span style="font-weight:400;color:var(--text-dim);">(클릭하면 보고서 내용 확인)</span></div>
         <div class="report-manager-cards">
           ${filteredRows.map(r=>`
             <div class="report-manager-card report-site-card" data-idx="${r._idx}" style="cursor:pointer;">
@@ -5418,7 +5448,7 @@ const L = (function(){
               ${bulletList(it.progressNote)}
             </div>
             <div class="handover-col">
-              <div class="handover-col-title">최근 일지</div>
+              <div class="handover-col-title">최근 보고서</div>
               ${it.recentLogs.length ? it.recentLogs.map(l=>`<div class="spec-line">${escapeHtml(l.date.slice(5))}${l.author?' ['+escapeHtml(l.author)+']':''} ${escapeHtml(l.text)}</div>`).join('') : '<div class="spec-line">-</div>'}
             </div>
           </div>
