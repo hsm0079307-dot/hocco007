@@ -5312,7 +5312,7 @@ const L = (function(){
     function truncate(s, maxLen){
       return s.length <= maxLen ? s : s.slice(0, maxLen) + '…';
     }
-    function buildLogCard(l){
+    function buildLogCard(l, shownCompetitor, shownSpecial){
       const t = (l.text||'').trim();
       const dateLabel = l.date ? l.date.slice(5) : '';
       const manager = l.author || '-';
@@ -5322,14 +5322,17 @@ const L = (function(){
       const summary = truncate(summarySentence, 40);
       const competitorSentence = sentences.find(s=>COMPETITOR_KEYWORDS.some(k=>s.includes(k)));
       const specialSentence = sentences.find(s=>SPECIAL_KEYWORDS.some(k=>s.includes(k)));
-      // 상담내용에 이미 나온 문장과 같으면 또 반복해서 보여주지 않고 짧게만 표시
-      function fieldOut(hitSentence){
+      // 상담내용에 이미 나온 문장과 같으면, 또는 앞선 다른 로그에서 이미 보여준 것과 같은 문장이면
+      // 또 반복해서 보여주지 않고 짧게만 표시
+      function fieldOut(hitSentence, shownSet){
         if(!hitSentence) return '없음';
         if(hitSentence === summarySentence) return '있음 (상담내용 참고)';
+        if(shownSet.has(hitSentence)) return '위와 동일';
+        shownSet.add(hitSentence);
         return truncate(hitSentence, 40);
       }
-      const competitorOut = fieldOut(competitorSentence);
-      const specialOut = fieldOut(specialSentence);
+      const competitorOut = fieldOut(competitorSentence, shownCompetitor);
+      const specialOut = fieldOut(specialSentence, shownSpecial);
       return `<div class="report-log-card" style="border:1px solid var(--border,rgba(255,255,255,0.15));border-radius:10px;padding:10px 12px;margin-bottom:8px;">
         <div style="font-weight:700;font-size:12.5px;margin-bottom:4px;">${escapeHtml(dateLabel)}</div>
         <div style="font-size:12px;margin-bottom:2px;"><b style="color:var(--accent);">담당:</b> ${escapeHtml(manager)}</div>
@@ -5379,7 +5382,7 @@ const L = (function(){
             <div style="font-weight:700;font-size:12px;margin-bottom:4px;">접촉자</div>
             <div class="report-note-line">${contacts.length ? contacts.map(escapeHtml).join(', ') : '없음'}</div>
           </div>
-          ${sortedLogs.length ? sortedLogs.map(buildLogCard).join('') : '<div class="report-note-line" style="color:var(--text-dim);">이 기간 상담 기록이 없습니다.</div>'}
+          ${sortedLogs.length ? (()=>{ const shownCompetitor=new Set(), shownSpecial=new Set(); return sortedLogs.map(l=>buildLogCard(l, shownCompetitor, shownSpecial)).join(''); })() : '<div class="report-note-line" style="color:var(--text-dim);">이 기간 상담 기록이 없습니다.</div>'}
         </div>`;
       panel.scrollIntoView({behavior:'smooth', block:'nearest'});
     }
