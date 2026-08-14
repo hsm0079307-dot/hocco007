@@ -116,18 +116,18 @@
   .report-matrix-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--bg-side-2);padding:10px;margin-bottom:6px;}
   .report-matrix-title{font-size:12.5px;font-weight:700;color:var(--accent);margin:14px 0 6px;}
   .report-matrix{border-collapse:separate;border-spacing:3px;font-size:11px;table-layout:fixed;width:max-content;}
-  .report-matrix-corner-col{width:28px;}
-  .report-matrix-data-col{width:26px;}
-  .report-matrix-corner{min-width:28px;}
-  .report-matrix-site-head{padding:2px 0;font-size:10.5px;font-weight:700;color:var(--text-main);text-align:center;}
-  .report-matrix-day{padding:0;width:28px;text-align:center;vertical-align:middle;font-size:11px;font-weight:700;color:var(--accent);}
-  .report-matrix-cell{width:26px;height:24px;padding:2px;}
+  .report-matrix-corner-col{width:26px;}
+  .report-matrix-data-col{width:46px;}
+  .report-matrix-corner{min-width:26px;}
+  .report-matrix-site-head{padding:2px 1px;font-size:10px;font-weight:700;color:var(--text-main);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .report-matrix-day{padding:0;width:26px;text-align:center;vertical-align:middle;font-size:11px;font-weight:700;color:var(--accent);}
+  .report-matrix-cell{width:46px;height:24px;padding:2px;}
   .report-matrix-cell .rm-cell-inner{width:100%;height:100%;border-radius:6px;background:var(--bg-main,rgba(255,255,255,0.05));border:1px solid var(--line);}
   .report-matrix-cell.visited{cursor:pointer;}
   .report-matrix-cell.visited .rm-cell-inner{background:var(--accent);border-color:var(--accent);transition:.12s;}
-  .report-matrix-legend{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line);}
-  .report-matrix-legend-item{font-size:10.5px;color:var(--text-dim);white-space:nowrap;}
-  .report-matrix-legend-item b{color:var(--accent);margin-right:3px;}
+  .report-matrix-legend{display:grid;grid-template-columns:repeat(2,1fr);gap:4px 12px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line);}
+  .report-matrix-legend-item{font-size:10.5px;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .report-matrix-legend-item b{color:var(--accent);margin-right:5px;}
   .report-missed-box{font-size:11px;color:var(--text-dim);padding:8px 10px;border:1px dashed var(--line);border-radius:8px;margin-bottom:14px;}
   .report-missed-label{font-weight:700;color:#e5484d;margin-bottom:5px;}
   .report-missed-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px 8px;}
@@ -135,9 +135,10 @@
   .report-matrix-cell.visited:hover .rm-cell-inner{opacity:0.8;transform:scale(1.05);}
   .report-bar-rect{transition:opacity .12s;}
   .report-section-title{font-size:12.5px;font-weight:700;color:var(--text-main);margin:16px 0 8px;}
-  .report-manager-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;}
-  .report-manager-card{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--bg-side-2);}
-  .report-manager-card-head{font-size:12px;font-weight:700;color:var(--accent);margin-bottom:6px;display:flex;justify-content:space-between;align-items:baseline;}
+  .report-manager-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+  .report-manager-card{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--bg-side-2);min-width:0;}
+  .report-manager-card-head{font-size:11.5px;font-weight:700;color:var(--accent);margin-bottom:4px;display:flex;justify-content:space-between;align-items:baseline;gap:4px;overflow:hidden;}
+  .report-manager-card-head>*:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .report-manager-card-head span{font-size:10.5px;font-weight:400;color:var(--text-dim);}
   .report-manager-site-line{display:flex;justify-content:space-between;gap:8px;font-size:11.5px;color:var(--text-main);padding:2px 0;}
   .report-manager-site-line b{color:var(--accent);font-weight:700;flex:none;}
@@ -806,7 +807,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-14-v11</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-14-v12</span>
       <div class="report-period-toggle no-print">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -5359,20 +5360,48 @@ const L = (function(){
       if(reportManagerFilter && !siteManagerNames(s).includes(reportManagerFilter)) return;
       districtMissed[districtGroupOf(s)].push(s.name);
     });
-    // 긴 현장명은 한글/숫자 경계에서 줄바꿈해서 두 줄로 가운데 정렬 표시
+    // 긴 현장명을 열 헤더에 바로 쓸 수 있게 축약 (예: 목동2단지(신탁)->목동2, 평촌신도시 A-17->평촌A17)
+    function abbreviateSite(site){
+      const STRIP_WORDS = ['단지','구역','아파트','재개발','빌라','신도시','주택'];
+      function stripSuffix(tok){
+        let t = tok, changed = true;
+        while(changed){
+          changed = false;
+          for(const w of STRIP_WORDS){
+            if(t.length > w.length && t.endsWith(w)){ t = t.slice(0, -w.length); changed = true; }
+          }
+        }
+        return t;
+      }
+      const s = site.replace(/\([^)]*\)/g,'').trim();
+      const tokens = s.split(/\s+/).filter(Boolean);
+      if(tokens.length <= 1){
+        const t = stripSuffix(tokens[0] || site);
+        return (t || site).slice(0,6);
+      }
+      const last = tokens[tokens.length-1];
+      if(/번지$/.test(last)){
+        // 주소 번지수는 식별성이 낮아 생략하고 앞 토큰만 사용
+        const t = stripSuffix(tokens[0]);
+        return (t || tokens[0]).slice(0,6);
+      }
+      // 마지막 토큰이 동/구역 코드 형태면 앞 토큰 축약과 붙여서 표시
+      const lastClean = last.replace(/[^0-9A-Za-z가-힣]/g,'');
+      const firstShort = stripSuffix(tokens[0]).slice(0,2);
+      return (firstShort + lastClean).slice(0,7);
+    }
     function buildMatrixTable(groupRows, missedNames){
       const missedHtml = missedNames.length
         ? `<div class="report-missed-box"><div class="report-missed-label">미방문 현장</div><div class="report-missed-grid">${missedNames.map(n=>`<div class="report-missed-item">${escapeHtml(n)}</div>`).join('')}</div></div>`
         : '';
       if(!groupRows.length) return `<div style="color:var(--text-dim);font-size:12px;padding:10px 0;">기록 없음</div>${missedHtml}`;
       const groupDaily = buildDailyGroups(groupRows, range, reportMode);
-      // 현장명 길이가 제각각이면 칸 크기가 들쑥날쑥해지므로, 헤더엔 번호만 쓰고 아래 범례에서 번호-현장명을 매칭한다
       return `<div class="report-matrix-wrap">
         <table class="report-matrix">
           <colgroup><col class="report-matrix-corner-col">${groupRows.map(()=>'<col class="report-matrix-data-col">').join('')}</colgroup>
           <thead><tr>
             <th class="report-matrix-corner"></th>
-            ${groupRows.map((r,i)=>`<th class="report-matrix-site-head">${i+1}</th>`).join('')}
+            ${groupRows.map(r=>`<th class="report-matrix-site-head">${escapeHtml(abbreviateSite(r.site))}</th>`).join('')}
           </tr></thead>
           <tbody>
             ${groupDaily.map(day=>`<tr>
@@ -5384,7 +5413,7 @@ const L = (function(){
               </tr>`).join('')}
           </tbody>
         </table>
-        <div class="report-matrix-legend">${groupRows.map((r,i)=>`<div class="report-matrix-legend-item"><b>${i+1}</b> ${escapeHtml(r.site)}</div>`).join('')}</div>
+        <div class="report-matrix-legend">${groupRows.map(r=>`<div class="report-matrix-legend-item"><b>${escapeHtml(abbreviateSite(r.site))}</b> ${escapeHtml(r.site)}</div>`).join('')}</div>
       </div>
       ${missedHtml}`;
     }
@@ -5411,7 +5440,7 @@ const L = (function(){
         <div class="report-manager-cards">
           ${filteredRows.map(r=>`
             <div class="report-manager-card report-site-card" data-idx="${r._idx}" style="cursor:pointer;">
-              <div class="report-manager-card-head">${escapeHtml(r.site)} <span>${r.count}회</span></div>
+              <div class="report-manager-card-head"><span>${escapeHtml(r.site)}</span><span style="flex:none;">${r.count}회</span></div>
               <div class="report-manager-site-line" style="color:var(--text-dim);">${escapeHtml(r.manager)}</div>
             </div>`).join('')}
         </div>
@@ -5532,16 +5561,16 @@ const L = (function(){
         .report-matrix-title{ font-size:12.5px; font-weight:700; color:#0f3d24; margin:14px 0 6px; }
         .report-matrix-wrap{ margin-bottom:6px; border:1px solid #dcd7cc; border-radius:10px; padding:8px; break-inside:avoid; }
         .report-matrix{ border-collapse:separate; border-spacing:3px; font-size:10px; table-layout:fixed; width:max-content; }
-        .report-matrix-corner-col{ width:26px; }
-        .report-matrix-data-col{ width:24px; }
-        .report-matrix-corner{ min-width:26px; }
-        .report-matrix-site-head{ font-weight:700; text-align:center; padding:2px 0; font-size:9.5px; }
-        .report-matrix-day{ padding:2px; width:26px; text-align:center; font-size:9.5px; font-weight:700; color:#0f3d24; }
-        .report-matrix-cell{ width:24px; height:22px; padding:1px; }
+        .report-matrix-corner-col{ width:24px; }
+        .report-matrix-data-col{ width:40px; }
+        .report-matrix-corner{ min-width:24px; }
+        .report-matrix-site-head{ font-weight:700; text-align:center; padding:2px 1px; font-size:9px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .report-matrix-day{ padding:2px; width:24px; text-align:center; font-size:9.5px; font-weight:700; color:#0f3d24; }
+        .report-matrix-cell{ width:40px; height:20px; padding:1px; }
         .report-matrix-cell .rm-cell-inner{ width:100%; height:100%; border-radius:5px; border:1px solid #dcd7cc; }
         .report-matrix-cell.visited .rm-cell-inner{ background:#0f3d24 !important; border-color:#0f3d24; }
-        .report-matrix-legend{ display:flex; flex-wrap:wrap; gap:3px 10px; margin-top:6px; padding-top:6px; border-top:1px solid #dcd7cc; }
-        .report-matrix-legend-item{ font-size:9.5px; color:#6f6a5c; white-space:nowrap; }
+        .report-matrix-legend{ display:grid; grid-template-columns:repeat(2,1fr); gap:3px 10px; margin-top:6px; padding-top:6px; border-top:1px solid #dcd7cc; }
+        .report-matrix-legend-item{ font-size:9.5px; color:#6f6a5c; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .report-matrix-legend-item b{ color:#0f3d24; margin-right:2px; }
         .report-missed-box{ font-size:10.5px; color:#6f6a5c; padding:6px 8px; border:1px dashed #dcd7cc; border-radius:8px; margin-bottom:12px; }
         .report-missed-label{ font-weight:700; color:#b3261e; margin-bottom:4px; }
@@ -5551,9 +5580,9 @@ const L = (function(){
         .report-chart-col-head span{ font-size:10.5px; font-weight:400; color:#6f6a5c; }
         .report-chart-empty{ font-size:11px; color:#6f6a5c; padding:10px 0; text-align:center; }
         .report-section-title{ font-size:12.5px; font-weight:700; margin:16px 0 8px; }
-        .report-manager-cards{ display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:10px; }
-        .report-manager-card{ border:1px solid #dcd7cc; border-radius:10px; padding:10px 12px; background:#f2f0ea; break-inside:avoid; }
-        .report-manager-card-head{ font-size:12px; font-weight:700; margin-bottom:6px; display:flex; justify-content:space-between; }
+        .report-manager-cards{ display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }
+        .report-manager-card{ border:1px solid #dcd7cc; border-radius:10px; padding:8px 10px; background:#f2f0ea; break-inside:avoid; }
+        .report-manager-card-head{ font-size:11.5px; font-weight:700; margin-bottom:4px; display:flex; justify-content:space-between; gap:4px; }
         .report-manager-card-head span{ font-size:10.5px; font-weight:400; color:#6f6a5c; }
         .report-manager-site-line{ display:flex; justify-content:space-between; gap:8px; font-size:11.5px; padding:2px 0; }
         .report-detail-panel{ display:none; }
