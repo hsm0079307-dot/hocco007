@@ -117,11 +117,11 @@
   .report-matrix-title{font-size:12.5px;font-weight:700;color:var(--accent);margin:14px 0 6px;}
   .report-matrix{border-collapse:separate;border-spacing:3px;font-size:11px;table-layout:fixed;width:max-content;}
   .report-matrix-corner-col{width:34px;}
-  .report-matrix-data-col{width:46px;}
+  .report-matrix-data-col{width:36px;}
   .report-matrix-corner{min-width:34px;}
   .report-matrix-site-head{padding:2px 1px;font-size:10px;font-weight:700;color:var(--text-main);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .report-matrix-day{padding:0 2px;width:34px;text-align:center;vertical-align:middle;font-size:10px;font-weight:700;color:var(--accent);white-space:nowrap;}
-  .report-matrix-cell{width:46px;height:24px;padding:2px;}
+  .report-matrix-cell{width:36px;height:24px;padding:2px;}
   .report-matrix-cell .rm-cell-inner{width:100%;height:100%;border-radius:6px;background:var(--bg-main,rgba(255,255,255,0.05));border:1px solid var(--line);}
   .report-matrix-cell.visited{cursor:pointer;}
   .report-matrix-cell.visited .rm-cell-inner{background:var(--accent);border-color:var(--accent);transition:.12s;}
@@ -135,12 +135,12 @@
   .report-matrix-cell.visited:hover .rm-cell-inner{opacity:0.8;transform:scale(1.05);}
   .report-bar-rect{transition:opacity .12s;}
   .report-section-title{font-size:12.5px;font-weight:700;color:var(--text-main);margin:16px 0 8px;}
-  .report-manager-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;}
-  .report-manager-card{border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--bg-side-2);min-width:0;}
-  .report-manager-card-head{font-size:10.5px;font-weight:700;color:var(--accent);margin-bottom:2px;display:flex;justify-content:space-between;align-items:baseline;gap:4px;overflow:hidden;}
+  .report-manager-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;}
+  .report-manager-card{border:1px solid var(--line);border-radius:7px;padding:5px 7px;background:var(--bg-side-2);min-width:0;}
+  .report-manager-card-head{font-size:9.5px;font-weight:700;color:var(--accent);margin-bottom:1px;display:flex;justify-content:space-between;align-items:baseline;gap:4px;overflow:hidden;}
   .report-manager-card-head>*:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .report-manager-card-head span{font-size:9.5px;font-weight:400;color:var(--text-dim);}
-  .report-manager-site-line{display:flex;justify-content:space-between;gap:6px;font-size:10px;color:var(--text-dim);padding:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .report-manager-card-head span{font-size:8.5px;font-weight:400;color:var(--text-dim);}
+  .report-manager-site-line{display:flex;justify-content:space-between;gap:6px;font-size:9px;color:var(--text-dim);padding:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .report-manager-site-line b{color:var(--accent);font-weight:700;flex:none;}
   .handover-summary{font-size:13px;font-weight:700;color:var(--text-main);margin-bottom:12px;}
   .handover-summary b{color:var(--accent);}
@@ -807,7 +807,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-14-v13</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-14-v14</span>
       <div class="report-period-toggle no-print">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -5377,18 +5377,18 @@ const L = (function(){
       const tokens = s.split(/\s+/).filter(Boolean);
       if(tokens.length <= 1){
         const t = stripSuffix(tokens[0] || site);
-        return (t || site).slice(0,6);
+        return (t || site).slice(0,4);
       }
       const last = tokens[tokens.length-1];
       if(/번지$/.test(last)){
         // 주소 번지수는 식별성이 낮아 생략하고 앞 토큰만 사용
         const t = stripSuffix(tokens[0]);
-        return (t || tokens[0]).slice(0,6);
+        return (t || tokens[0]).slice(0,4);
       }
       // 마지막 토큰이 동/구역 코드 형태면 앞 토큰 축약과 붙여서 표시
       const lastClean = last.replace(/[^0-9A-Za-z가-힣]/g,'');
       const firstShort = stripSuffix(tokens[0]).slice(0,2);
-      return (firstShort + lastClean).slice(0,7);
+      return (firstShort + lastClean).slice(0,4);
     }
     function buildMatrixTable(groupRows, missedNames){
       const missedHtml = missedNames.length
@@ -5562,11 +5562,11 @@ const L = (function(){
         .report-matrix-wrap{ margin-bottom:6px; border:1px solid #dcd7cc; border-radius:10px; padding:8px; break-inside:avoid; }
         .report-matrix{ border-collapse:separate; border-spacing:3px; font-size:10px; table-layout:fixed; width:max-content; }
         .report-matrix-corner-col{ width:32px; }
-        .report-matrix-data-col{ width:40px; }
+        .report-matrix-data-col{ width:32px; }
         .report-matrix-corner{ min-width:32px; }
         .report-matrix-site-head{ font-weight:700; text-align:center; padding:2px 1px; font-size:9px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .report-matrix-day{ padding:2px; width:32px; text-align:center; font-size:9px; font-weight:700; color:#0f3d24; white-space:nowrap; }
-        .report-matrix-cell{ width:40px; height:20px; padding:1px; }
+        .report-matrix-cell{ width:32px; height:18px; padding:1px; }
         .report-matrix-cell .rm-cell-inner{ width:100%; height:100%; border-radius:5px; border:1px solid #dcd7cc; }
         .report-matrix-cell.visited .rm-cell-inner{ background:#0f3d24 !important; border-color:#0f3d24; }
         .report-matrix-legend{ display:grid; grid-template-columns:repeat(2,1fr); gap:3px 10px; margin-top:6px; padding-top:6px; border-top:1px solid #dcd7cc; }
@@ -5580,11 +5580,11 @@ const L = (function(){
         .report-chart-col-head span{ font-size:10.5px; font-weight:400; color:#6f6a5c; }
         .report-chart-empty{ font-size:11px; color:#6f6a5c; padding:10px 0; text-align:center; }
         .report-section-title{ font-size:12.5px; font-weight:700; margin:16px 0 8px; }
-        .report-manager-cards{ display:grid; grid-template-columns:repeat(2,1fr); gap:6px; }
-        .report-manager-card{ border:1px solid #dcd7cc; border-radius:8px; padding:6px 8px; background:#f2f0ea; break-inside:avoid; }
-        .report-manager-card-head{ font-size:10.5px; font-weight:700; margin-bottom:2px; display:flex; justify-content:space-between; gap:4px; }
+        .report-manager-cards{ display:grid; grid-template-columns:repeat(2,1fr); gap:5px; }
+        .report-manager-card{ border:1px solid #dcd7cc; border-radius:7px; padding:5px 7px; background:#f2f0ea; break-inside:avoid; }
+        .report-manager-card-head{ font-size:9.5px; font-weight:700; margin-bottom:1px; display:flex; justify-content:space-between; gap:4px; }
         .report-manager-card-head span{ font-size:10.5px; font-weight:400; color:#6f6a5c; }
-        .report-manager-site-line{ display:flex; justify-content:space-between; gap:6px; font-size:10px; padding:0; }
+        .report-manager-site-line{ display:flex; justify-content:space-between; gap:6px; font-size:9px; padding:0; }
         .report-detail-panel{ display:none; }
         table{ margin-top:10px; }
         /* 화면이 다크모드였어도 인쇄물은 항상 흰 배경이라, 막대/글씨 색을 여기서 강제로 고정한다 */
