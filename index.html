@@ -3324,12 +3324,17 @@ const L = (function(){
             <input type="text" id="logAuthor" placeholder="담당자" value="${editingLog?escapeHtml(editingLog.author||''):escapeHtml(site.manager||'')}">
           </div>
           <div class="log-add-row3">
-            <input type="text" id="logContactName" placeholder="성함" value="${editingLog?escapeHtml(editingLog.contactName||''):''}">
+            <input type="text" id="logContactName" placeholder="성함(접촉대상)" value="${editingLog?escapeHtml(editingLog.contactName||''):''}">
+            <input type="text" id="logOwner" placeholder="소유자" value="${editingLog?escapeHtml(editingLog.owner||''):''}">
             <input type="text" id="logUnit" placeholder="동호수" value="${editingLog?escapeHtml(editingLog.unit||''):''}">
+          </div>
+          <div class="log-add-row3">
             <select id="logContactMethod">
               <option value="">접촉방법</option>
               ${['상담','단순','TM','거부','부재','불명'].map(m=>`<option value="${m}" ${editingLog&&editingLog.contactMethod===m?'selected':''}>${m}</option>`).join('')}
             </select>
+            <input type="text" id="logExecutiveStance" placeholder="집행부 성향" value="${editingLog?escapeHtml(editingLog.executiveStance||''):''}">
+            <input type="text" id="logCloseness" placeholder="친밀도" value="${editingLog?escapeHtml(editingLog.closeness||''):''}">
           </div>
           <textarea id="logText" placeholder="상담내용을 입력하세요" rows="2">${editingLog?escapeHtml(editingLog.text||''):''}</textarea>
           <div style="display:flex;gap:6px;">
@@ -3344,8 +3349,11 @@ const L = (function(){
                 <div class="log-date">${escapeHtml(formatDateKr(l.date))}</div>
                 ${l.author?`<div class="log-author-line">${escapeHtml(l.author)}</div>`:''}
                 ${l.contactMethod?`<div class="log-tag">${escapeHtml(l.contactMethod)}</div>`:''}
-                ${l.contactName?`<div class="log-meta-line">${escapeHtml(l.contactName)}</div>`:''}
+                ${l.contactName?`<div class="log-meta-line">접촉: ${escapeHtml(l.contactName)}</div>`:''}
+                ${l.owner?`<div class="log-meta-line">소유자: ${escapeHtml(l.owner)}</div>`:''}
                 ${l.unit?`<div class="log-meta-line">${escapeHtml(l.unit)}</div>`:''}
+                ${l.executiveStance?`<div class="log-meta-line">성향: ${escapeHtml(l.executiveStance)}</div>`:''}
+                ${l.closeness?`<div class="log-meta-line">친밀도: ${escapeHtml(l.closeness)}</div>`:''}
               </div>
               <div class="log-text" style="white-space:pre-wrap;">${escapeHtml(l.text)}</div>
               <div class="log-actions">
@@ -3412,20 +3420,23 @@ const L = (function(){
         const d = document.getElementById('logDate').value;
         const a = document.getElementById('logAuthor').value.trim();
         const cn = document.getElementById('logContactName').value.trim();
+        const ow = document.getElementById('logOwner').value.trim();
         const un = document.getElementById('logUnit').value.trim();
         const cm = document.getElementById('logContactMethod').value;
+        const es = document.getElementById('logExecutiveStance').value.trim();
+        const cl = document.getElementById('logCloseness').value.trim();
         const t = document.getElementById('logText').value.trim();
         if(!d || !t){ alert('날짜와 상담내용을 입력해주세요.'); return; }
         site.logs = site.logs || [];
         if(editingLogId){
           const target = site.logs.find(l=>l.id===editingLogId);
           if(target){
-            target.date = d; target.author = a; target.contactName = cn;
-            target.unit = un; target.contactMethod = cm; target.text = t;
+            target.date = d; target.author = a; target.contactName = cn; target.owner = ow;
+            target.unit = un; target.contactMethod = cm; target.executiveStance = es; target.closeness = cl; target.text = t;
           }
           editingLogId = null;
         }else{
-          site.logs.push({id: crypto.randomUUID?crypto.randomUUID():String(Date.now()), date:d, author:a, contactName:cn, unit:un, contactMethod:cm, text:t});
+          site.logs.push({id: crypto.randomUUID?crypto.randomUUID():String(Date.now()), date:d, author:a, contactName:cn, owner:ow, unit:un, contactMethod:cm, executiveStance:es, closeness:cl, text:t});
         }
         site.lastDate = lastVisit(site);
         await saveSites();
@@ -5197,7 +5208,7 @@ const L = (function(){
           district: s.district || '',
           count: visitDayCount,
           notes: logsInRange.map(l=>{
-            const meta = [l.contactMethod, l.contactName, l.unit].filter(Boolean).join(' · ');
+            const meta = [l.contactMethod, l.contactName, l.owner?('소유자 '+l.owner):'', l.unit, l.executiveStance, l.closeness].filter(Boolean).join(' · ');
             return `${l.date.slice(5)}${l.author?' ['+l.author+']':''}${meta?' ('+meta+')':''} ${l.text}`;
           })
         });
