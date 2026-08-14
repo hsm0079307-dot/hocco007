@@ -5163,7 +5163,7 @@ const L = (function(){
     const allSites = OFFICES.flatMap(o=>(allOfficesData[o]||[]).map(s=>Object.assign({}, s, {office:o})));
     const rows = [];
     const managerTotals = {};
-    const managerSiteCounts = {}; // { 담당자명: { 현장명: 횟수 } }
+    const managerSiteCounts = {}; // { 담당자명: { 현장명: 방문일수 } }
     allSites.forEach(s=>{
       const logsInRange = (s.logs||[]).filter(l=>{
         if(!l.date) return false;
@@ -5171,12 +5171,21 @@ const L = (function(){
         return d >= range.start && d <= range.end;
       }).sort((a,b)=>a.date.localeCompare(b.date));
       if(logsInRange.length){
-        // 각 일지 기록에 직접 담당자가 적혀있으면 그걸 쓰고, 없으면(예전 기록) 현장 담당자로 대신함
+        // 방문 횟수 = 그 현장에 일지가 몇 "건" 있느냐가 아니라, 몇 "일(고유 날짜)" 갔느냐로 센다.
+        // (같은 날 상담 여러 건 기록해도 1회 방문으로 집계)
+        const dateAuthorsMap = {}; // { 날짜: Set(담당자명) }
         const authorsUnion = new Set();
         logsInRange.forEach(l=>{
           const author = (l.author && l.author.trim()) || s.manager || '';
-          String(author).split(/[,\s]+/).filter(Boolean).forEach(name=>{
-            authorsUnion.add(name);
+          const names = String(author).split(/[,\s]+/).filter(Boolean);
+          names.forEach(n=>authorsUnion.add(n));
+          dateAuthorsMap[l.date] = dateAuthorsMap[l.date] || new Set();
+          names.forEach(n=>dateAuthorsMap[l.date].add(n));
+        });
+        const visitDayCount = Object.keys(dateAuthorsMap).length;
+        // 담당자별 합계도 "고유 방문일" 기준: 같은 날 그 현장에 여러 건 적어도 그 사람에겐 1일로만 반영
+        Object.values(dateAuthorsMap).forEach(namesSet=>{
+          namesSet.forEach(name=>{
             managerTotals[name] = (managerTotals[name]||0) + 1;
             managerSiteCounts[name] = managerSiteCounts[name] || {};
             managerSiteCounts[name][s.name] = (managerSiteCounts[name][s.name]||0) + 1;
@@ -5186,7 +5195,7 @@ const L = (function(){
           site: s.name, office: s.office,
           manager: authorsUnion.size ? Array.from(authorsUnion).join(' ') : (s.manager || '-'),
           district: s.district || '',
-          count: logsInRange.length,
+          count: visitDayCount,
           notes: logsInRange.map(l=>{
             const meta = [l.contactMethod, l.contactName, l.unit].filter(Boolean).join(' · ');
             return `${l.date.slice(5)}${l.author?' ['+l.author+']':''}${meta?' ('+meta+')':''} ${l.text}`;
@@ -5243,7 +5252,7 @@ const L = (function(){
     filteredRows.forEach((r,i)=>{ r._idx = rows.indexOf(r); });
     body.innerHTML = `
       <div class="report-summary-row">
-        ${managerRows.length ? managerRows.map(m=>`<div class="report-summary-chip report-manager-chip${reportManagerFilter===m?' active':''}" data-manager="${escapeHtml(m)}"><b>${escapeHtml(m)}</b> ${managerTotals[m]}건</div>`).join('') : '<div style="color:var(--text-dim);font-size:12px;">이 기간 방문 기록이 없습니다.</div>'}
+        ${managerRows.length ? managerRows.map(m=>`<div class="report-summary-chip report-manager-chip${reportManagerFilter===m?' active':''}" data-manager="${escapeHtml(m)}"><b>${escapeHtml(m)}</b> ${managerTotals[m]}일</div>`).join('') : '<div style="color:var(--text-dim);font-size:12px;">이 기간 방문 기록이 없습니다.</div>'}
       </div>
       ${filteredRows.length ? `
       <div class="report-chart-cols">
@@ -5262,7 +5271,7 @@ const L = (function(){
         <div class="report-manager-cards">
           ${filteredRows.map(r=>`
             <div class="report-manager-card report-site-card" data-idx="${r._idx}" style="cursor:pointer;">
-              <div class="report-manager-card-head">${escapeHtml(r.site)} <span>${r.count}건</span></div>
+              <div class="report-manager-card-head">${escapeHtml(r.site)} <span>${r.count}회</span></div>
               <div class="report-manager-site-line" style="color:var(--text-dim);">${escapeHtml(r.manager)}</div>
             </div>`).join('')}
         </div>
