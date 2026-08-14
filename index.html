@@ -5332,7 +5332,13 @@ const L = (function(){
         return hitSentence;
       }
       const competitorOut = fieldOut(competitorSentence, shownCompetitor);
-      const specialOut = fieldOut(specialSentence, shownSpecial);
+      let specialOut;
+      if(specialSentence && specialSentence === competitorSentence){
+        // 한 문장이 타사활동·특이사항 키워드에 동시에 걸리면 타사활동 쪽에만 보여주고 특이사항엔 중복 표시하지 않는다
+        specialOut = '타사활동 참고';
+      }else{
+        specialOut = fieldOut(specialSentence, shownSpecial);
+      }
       return `<div class="report-log-card" style="border:1px solid var(--border,rgba(255,255,255,0.15));border-radius:10px;padding:10px 12px;margin-bottom:8px;">
         <div style="font-weight:700;font-size:12.5px;margin-bottom:4px;">${escapeHtml(dateLabel)}</div>
         <div style="font-size:12px;margin-bottom:2px;"><b style="color:var(--accent);">담당:</b> ${escapeHtml(manager)}</div>
