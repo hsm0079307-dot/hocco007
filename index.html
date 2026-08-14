@@ -1206,6 +1206,10 @@ const L = (function(){
   let guestAccounts = {};  // {guest1:{name,password,siteIds:[]}, ...}
   let changeLog = [];      // [{at, who, site, note}, ...] 담당자 수정 이력
   let undoSnapshot = null; // 바로 이전 저장 상태 스냅샷 (실행취소용, 1단계만 지원)
+  // 일지 삭제 기록: 클라우드 최신값과 병합할 때, 여기 있는 id는 클라우드에 아직 남아있어도 다시 살리지 않는다.
+  // (텔레그램 봇 등 외부에서 추가한 일지가 저장 중에 사라지지 않게 "병합" 방식으로 바꾸면서,
+  //  반대로 "지운 것도 다시 살아나는" 부작용이 생겨서 이걸로 막음)
+  const deletedLogIds = new Set();
   const GUEST_KEY = 'realestate-guest-accounts-v1';
   const CHANGELOG_KEY = 'realestate-guest-changelog-v1';
   const ADMIN_PW_KEY = 'realestate-admin-pw-hash-v1';
@@ -1628,7 +1632,7 @@ const L = (function(){
                   }
                   // logs 병합: id가 같으면 "내가 지금 저장하는 값"을 우선(수정/삭제 의도 반영), id가 클라우드에만 있으면 그대로 살림
                   const localLogIds = new Set(localLogs.map(l=>l.id));
-                  const mergedLogs = localLogs.concat(freshLogs.filter(l=>!localLogIds.has(l.id)));
+                  const mergedLogs = localLogs.concat(freshLogs.filter(l=>!localLogIds.has(l.id) && !deletedLogIds.has(l.id)));
                   mergedLogs.sort((a,b)=> (a.date||'').localeCompare(b.date||''));
                   arr[idx].logs = mergedLogs;
                 }
@@ -3354,9 +3358,10 @@ const L = (function(){
           const res = await fetch(url, {cache:'no-store'});
           if(!res.ok) return;
           const freshLogs = await res.json();
-          if(Array.isArray(freshLogs) && JSON.stringify(freshLogs)!==JSON.stringify(site.logs||[])){
-            site.logs = freshLogs;
-            if(officeArr[idxInOffice]) officeArr[idxInOffice].logs = freshLogs;
+          const filteredFresh = (Array.isArray(freshLogs) ? freshLogs : []).filter(l=>!deletedLogIds.has(l.id));
+          if(JSON.stringify(filteredFresh)!==JSON.stringify(site.logs||[])){
+            site.logs = filteredFresh;
+            if(officeArr[idxInOffice]) officeArr[idxInOffice].logs = filteredFresh;
             if(currentView==='detail' && currentDetailId===site.id && detailTab==='일지'){
               renderDetailBody(site); // 지금도 일지 탭을 보고 있으면 다시 그려서 최신 반영
             }
@@ -3376,7 +3381,7 @@ const L = (function(){
             const res = await fetch(url, {cache:'no-store'});
             if(res.ok){
               const freshLogs = await res.json();
-              site.logs = Array.isArray(freshLogs) ? freshLogs : [];
+              site.logs = (Array.isArray(freshLogs) ? freshLogs : []).filter(l=>!deletedLogIds.has(l.id));
               if(officeArr[idxInOffice]) officeArr[idxInOffice].logs = site.logs;
             }
           }
@@ -3401,6 +3406,7 @@ const L = (function(){
       body.querySelectorAll('.log-del').forEach(btn=>{
         btn.addEventListener('click', async ()=>{
           if(!(await ensureUnlocked())) return;
+          deletedLogIds.add(btn.dataset.logid);
           site.logs = (site.logs||[]).filter(l=>l.id!==btn.dataset.logid);
           site.lastDate = lastVisit(site);
           await saveSites();
