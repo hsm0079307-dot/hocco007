@@ -1428,6 +1428,8 @@ const L = (function(){
   const OFFICES = ['강서사업소','강남사업소','강북사업소'];
   const ALL_OFFICE = '__ALL__';
   let currentOffice = localStorage.getItem('currentOffice') || '강서사업소';
+  // 갤러리(쇼룸) 투어 예약 캘린더 앱 주소. 실제 배포 주소로 바꿔주세요 (예: 'https://xxxx.github.io/gallery-calendar/').
+  const GALLERY_CALENDAR_URL = 'https://hsm0079307-dot.github.io/hocco007/Calendar.html';
   let allOfficesData = {};
   let selectedStage = '전체';
   let selectedManagers = new Set();
@@ -1737,7 +1739,7 @@ const L = (function(){
         const res = await fetch(FIREBASE_DATA_WRITE_URL, {
           method:'PUT',
           headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({offices: allOfficesData, guests: guestAccounts, changeLog: changeLog, adminPasswordHash: adminPasswordHash, entryPasswordHash: entryPasswordHash, dataVersion: newDataVersion, guestDataVersions: guestDataVersions})
+          body: JSON.stringify({offices: allOfficesData, guests: guestAccounts, changeLog: changeLog, adminPasswordHash: adminPasswordHash, entryPasswordHash: entryPasswordHash, dataVersion: newDataVersion, guestDataVersions: guestDataVersions, galleryBookings: (fresh && fresh.galleryBookings) || undefined})
         });
         if(!res.ok) throw new Error('firebase save status '+res.status);
         if(!guestMode) localDataVersion = newDataVersion; // 관리자 저장만 이 탭의 기준 버전을 갱신
@@ -3182,6 +3184,7 @@ const L = (function(){
             ${(editMode && (detailTab==='개요' || detailTab==='공고')) ? `<button class="btn btn-primary no-print" id="tabEditToggle" style="padding:3px 10px;font-size:10px;">저장</button>` : ''}
             <span class="detail-head-divider no-print"></span>
             <button class="btn btn-ghost no-print" id="editInfoBtn" style="padding:3px 8px;font-size:10px;">정보수정</button>
+            <button class="btn btn-ghost no-print" id="galleryBookBtn" style="padding:3px 8px;font-size:10px;" title="이 현장으로 갤러리 투어 예약 화면 열기">🖼 투어 예약</button>
             ${guestMode ? '' : `<button class="btn btn-ghost no-print" id="deleteSiteBtn" style="padding:3px 8px;font-size:10px;">삭제</button>`}
             <button class="btn btn-ghost no-print" id="printBtn" style="padding:3px 8px;font-size:10px;">🖨 인쇄</button>
           </div>
@@ -3220,6 +3223,11 @@ const L = (function(){
     document.getElementById('editInfoBtn').addEventListener('click', async ()=>{
       if(!(await ensureUnlocked())) return;
       openModal(site);
+    });
+    const galleryBtn = document.getElementById('galleryBookBtn');
+    if(galleryBtn) galleryBtn.addEventListener('click', ()=>{
+      const url = GALLERY_CALENDAR_URL + (GALLERY_CALENDAR_URL.includes('?') ? '&' : '?') + 'site=' + encodeURIComponent(site.name) + '&office=' + encodeURIComponent(site.office || currentOffice);
+      window.open(url, '_blank');
     });
     const delBtn = document.getElementById('deleteSiteBtn');
     if(delBtn) delBtn.addEventListener('click', async ()=>{

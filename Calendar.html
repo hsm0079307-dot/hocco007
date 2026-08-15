@@ -828,6 +828,132 @@ function persistScheduleData(){
 }
 loadScheduleData();
 
+// ---------- 강서사업소 스크린(접촉 리포트) 연동 ----------
+// 같은 Firebase 프로젝트를 공유해서: (1) 이 캘린더의 예약 데이터를 클라우드에도 올려 기기 간에 보이게 하고
+// (2) 예약이 잡히면 해당 현장의 접촉 리포트에 자동으로 방문 기록을 남긴다.
+const CAL_FIREBASE_DB_URL = 'https://add-project-74efc-default-rtdb.asia-southeast1.firebasedatabase.app';
+const CAL_FIREBASE_DATA_URL = CAL_FIREBASE_DB_URL + '/data.json';
+const CAL_FIREBASE_DB_SECRET = 'kYHJbpUE7jEVdLu69ZVMY3DGf4DBYeaA4JGZiS4B';
+const CAL_FIREBASE_WRITE_URL = CAL_FIREBASE_DATA_URL + '?auth=' + encodeURIComponent(CAL_FIREBASE_DB_SECRET);
+const CAL_DEFAULT_OFFICE = '강서사업소'; // 현장 목록에서 못 찾을 때 기본으로 찾아볼 사업소
+
+let cachedOfficesData = {}; // 대시보드의 현장 목록 (사업소별)
+let siteOptionsList = [];   // [{name, office}] - 단지명 드롭다운용, 대시보드 현장 목록에서 그대로 가져옴
+
+function rebuildSiteOptions(){
+  siteOptionsList = [];
+  Object.keys(cachedOfficesData).forEach(off=>{
+    (cachedOfficesData[off]||[]).forEach(s=>{
+      if(s && s.name) siteOptionsList.push({name: s.name, office: off});
+    });
+  });
+}
+
+function officeForSiteName(name){
+  const found = siteOptionsList.find(s=>s.name===name);
+  return found ? found.office : CAL_DEFAULT_OFFICE;
+}
+
+// "단지명" 입력칸: 현장 목록을 불러왔으면 드롭다운으로, 아직 못 불러왔으면(오프라인 등) 기존처럼 직접입력으로 대체
+function danjiSelectField(currentValue, defaultValue){
+  if(!siteOptionsList.length){
+    return {id:"danji", label:"단지명", value: currentValue||defaultValue||"", placeholder:"예: 화랑아파트"};
+  }
+  const names = siteOptionsList.map(s=>s.name);
+  const val = (currentValue && names.includes(currentValue)) ? currentValue
+    : (defaultValue && names.includes(defaultValue)) ? defaultValue
+    : names[0];
+  return {id:"danji", label:"단지명", type:"select", value: val, options: siteOptionsList.map(s=>({value:s.name, label:s.name}))};
+}
+
+// M-D 형식(연도 없음) 예약 날짜 키를 접촉리포트가 쓰는 YYYY-MM-DD로 변환
+function bookingKeyToISODate(key){
+  const parts = String(key).split('-').map(Number);
+  const m = parts[0], d = parts[1];
+  const y = new Date().getFullYear();
+  if(!m || !d) return new Date().toISOString().slice(0,10);
+  return y + '-' + String(m).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+}
+
+// 예약 1건을 접촉리포트 현장 로그로 밀어넣고, 이 캘린더의 예약 데이터 전체도 클라우드에 올린다.
+// 실패해도(오프라인 등) 이 캘린더 자체 저장(localStorage)은 이미 끝난 뒤라 예약 자체는 안전하다.
+async function syncBookingToDashboard(kind, key, v){
+  try{
+    const res = await fetch(CAL_FIREBASE_DATA_URL + '?_=' + Date.now(), {cache:'no-store'});
+    const fresh = res.ok ? await res.json() : {};
+    const offices = Object.assign({}, (fresh && fresh.offices && typeof fresh.offices==='object') ? fresh.offices : cachedOfficesData);
+    const siteName = v.danji;
+    if(siteName){
+      const office = officeForSiteName(siteName);
+      if(Array.isArray(offices[office])){
+        const idx = offices[office].findIndex(s=>s && s.name===siteName);
+        if(idx > -1){
+          const site = Object.assign({}, offices[office][idx]);
+          const logs = Array.isArray(site.logs) ? site.logs.slice() : [];
+          const noteBits = [];
+          if(v.time) noteBits.push(v.time);
+          if(v.plus && v.plus!=='-') noteBits.push('동반: '+v.plus);
+          if(v.spot && v.spot!=='-') noteBits.push(v.spot);
+          logs.push({
+            id: (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now())+Math.random().toString(36).slice(2,8),
+            date: bookingKeyToISODate(key),
+            author: v.manager || '',
+            contactName: v.name || '',
+            owner: '',
+            unit: v.ho || '',
+            contactMethod: kind==='gallery' ? '갤러리 투어' : '현장 투어',
+            executiveStance: '',
+            closeness: '',
+            text: (kind==='gallery' ? '갤러리' : '현장') + ' 투어 예약' + (noteBits.length ? ' - ' + noteBits.join(' · ') : '')
+          });
+          site.logs = logs;
+          const arr = offices[office].slice();
+          arr[idx] = site;
+          offices[office] = arr;
+        }
+      }
+    }
+    const galleryBookings = {GALLERY_ROWS, TOUR_ROWS, GALLERY_CLOSED, TOUR_CLOSED};
+    const body = Object.assign({}, fresh, {offices, galleryBookings});
+    await fetch(CAL_FIREBASE_WRITE_URL, {
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    });
+    cachedOfficesData = offices;
+    rebuildSiteOptions();
+  }catch(e){
+    console.error('접촉리포트 연동 실패(오프라인일 수 있음). 이 예약은 이 기기에는 저장되어 있습니다.', e);
+  }
+}
+
+// 페이지를 열 때 클라우드의 현장 목록(단지명 드롭다운용)과, 이 캘린더의 최신 예약 데이터를 받아온다.
+async function loadDashboardLinkOnStartup(){
+  try{
+    const res = await fetch(CAL_FIREBASE_DATA_URL + '?_=' + Date.now(), {cache:'no-store'});
+    if(!res.ok) return;
+    const data = await res.json();
+    if(data && data.offices && typeof data.offices==='object'){
+      cachedOfficesData = data.offices;
+      rebuildSiteOptions();
+    }
+    if(data && data.galleryBookings && typeof data.galleryBookings==='object'){
+      const gb = data.galleryBookings;
+      if(gb.GALLERY_ROWS) GALLERY_ROWS = gb.GALLERY_ROWS;
+      if(gb.TOUR_ROWS) TOUR_ROWS = gb.TOUR_ROWS;
+      if(gb.GALLERY_CLOSED) GALLERY_CLOSED = gb.GALLERY_CLOSED;
+      if(gb.TOUR_CLOSED) TOUR_CLOSED = gb.TOUR_CLOSED;
+      persistScheduleData();
+      onScheduleDataChanged();
+    }
+  }catch(e){
+    console.error('클라우드 예약 데이터 불러오기 실패, 이 기기에 저장된 내용으로 진행합니다', e);
+  }
+}
+loadDashboardLinkOnStartup();
+
+// 주소창에 ?site=현장명&office=사업소 가 붙어서 들어오면(대시보드의 "🖼 투어 예약" 버튼으로 들어온 경우)
+// 그 현장을 갤러리 방문 기본 단지명으로 미리 채워둔다. (실제 적용은 GALLERY_DANJI 선언 이후 아래쪽에서 처리)
 const DATA = {}; // 캘린더 배지 표시용
 function rebuildDATA(){
   Object.keys(DATA).forEach(k=>delete DATA[k]);
@@ -1446,6 +1572,13 @@ function populateFilter(){
 const GALLERY_DANJI_KEY = "gallery_danji_name_v1";
 let GALLERY_DANJI = localStorage.getItem(GALLERY_DANJI_KEY) || "";
 function persistGalleryDanji(){ localStorage.setItem(GALLERY_DANJI_KEY, GALLERY_DANJI); }
+(function applyIncomingSiteParam(){
+  try{
+    const p = new URLSearchParams(window.location.search);
+    const siteParam = p.get('site');
+    if(siteParam){ GALLERY_DANJI = siteParam; persistGalleryDanji(); }
+  }catch(e){}
+})();
 function reorderRow(kind, r){
   if(kind==="gallery" && r.length<=5){
     // 구버전 5필드 형식(하위호환): [시간, 자가/픽업, 성함, 동반, 담당]
@@ -2285,7 +2418,7 @@ function addEntryFlow(kind){
   if(kind==="gallery"){
     openForm(CAT_LABEL.gallery+" 일정 추가", [
       {id:"time", label:"시간", placeholder:"예: 10:30"},
-      {id:"danji", label:"단지명", value: GALLERY_DANJI, placeholder:"예: 화랑아파트"},
+      danjiSelectField(GALLERY_DANJI, GALLERY_DANJI),
       {id:"ho", label:"동호수", value:"-", placeholder:"없으면 -"},
       {id:"name", label:"성함", placeholder:"이름"},
       {id:"plus", label:"동반", placeholder:"예: 외1명, 없으면 -", value:"-"},
@@ -2296,12 +2429,13 @@ function addEntryFlow(kind){
       GALLERY_ROWS[key].push([v.time||"-", v.danji||GALLERY_DANJI, v.ho||"-", v.name||"-", v.plus||"-", v.manager||"-", v.spot||"-"]);
       logChange(labelFor(key)+" · "+CAT_LABEL.gallery+" '"+(v.name||"-")+"' 추가");
       onScheduleDataChanged();
+      syncBookingToDashboard("gallery", key, v);
       openPreview(key);
     });
   } else {
     openForm(CAT_LABEL.tour+" 일정 추가", [
       {id:"time", label:"시간", placeholder:"예: 1:30"},
-      {id:"danji", label:"단지명", placeholder:"예: 14단지"},
+      danjiSelectField("", ""),
       {id:"ho", label:"동호수", placeholder:"없으면 -", value:"-"},
       {id:"name", label:"성함/업체", placeholder:"이름 또는 업체명"},
       {id:"plus", label:"동반", placeholder:"없으면 -", value:"-"},
@@ -2312,6 +2446,7 @@ function addEntryFlow(kind){
       TOUR_ROWS[key].push([v.time||"-", v.danji||"-", v.ho||"-", v.name||"-", v.plus||"-", v.manager||"-", v.spot||"-"]);
       logChange(labelFor(key)+" · "+CAT_LABEL.tour+" '"+(v.name||"-")+"' 추가");
       onScheduleDataChanged();
+      syncBookingToDashboard("tour", key, v);
       openPreview(key);
     });
   }
@@ -2326,7 +2461,7 @@ function editEntry(kind, key, idx){
   if(kind==="gallery"){
     openForm(CAT_LABEL.gallery+" 일정 수정", [
       {id:"time", label:"시간", placeholder:"예: 10:30", value: time},
-      {id:"danji", label:"단지명", value: danji||GALLERY_DANJI, placeholder:"예: 화랑아파트"},
+      danjiSelectField(danji, GALLERY_DANJI),
       {id:"ho", label:"동호수", value: ho||"-", placeholder:"없으면 -"},
       {id:"name", label:"성함", placeholder:"이름", value: name},
       {id:"plus", label:"동반", placeholder:"예: 외1명, 없으면 -", value: plus||"-"},
@@ -2336,12 +2471,13 @@ function editEntry(kind, key, idx){
       store[key][idx] = [v.time||"-", v.danji||GALLERY_DANJI, v.ho||"-", v.name||"-", v.plus||"-", v.manager||"-", v.spot||"-"];
       logChange(labelFor(key)+" · "+CAT_LABEL.gallery+" '"+(v.name||"-")+"' 수정");
       onScheduleDataChanged();
+      syncBookingToDashboard("gallery", key, v);
       openPreview(key);
     });
   } else {
     openForm(CAT_LABEL.tour+" 일정 수정", [
       {id:"time", label:"시간", placeholder:"예: 1:30", value: time},
-      {id:"danji", label:"단지명", placeholder:"예: 14단지", value: danji||"-"},
+      danjiSelectField(danji, "-"),
       {id:"ho", label:"동호수", placeholder:"없으면 -", value: ho||"-"},
       {id:"name", label:"성함/업체", placeholder:"이름 또는 업체명", value: name},
       {id:"plus", label:"동반", placeholder:"없으면 -", value: plus||"-"},
@@ -2351,6 +2487,7 @@ function editEntry(kind, key, idx){
       store[key][idx] = [v.time||"-", v.danji||"-", v.ho||"-", v.name||"-", v.plus||"-", v.manager||"-", v.spot||"-"];
       logChange(labelFor(key)+" · "+CAT_LABEL.tour+" '"+(v.name||"-")+"' 수정");
       onScheduleDataChanged();
+      syncBookingToDashboard("tour", key, v);
       openPreview(key);
     });
   }
