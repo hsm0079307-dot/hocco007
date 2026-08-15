@@ -856,7 +856,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-15-v29</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-15-v30</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -5546,46 +5546,49 @@ const L = (function(){
   function renderContactsView(){
     const body = document.getElementById('contactReportBody');
     const flat = getAllLogsFlat();
-    const contactMap = {};
+    // 현장별로 접촉자를 묶는다 (한 사람이 여러 현장에 걸쳐 있으면 각 현장 아래에 따로 나옴)
+    const siteMap = {}; // { 현장명: { 접촉자명: {name,count,logs} } }
     flat.forEach(l=>{
       const name = (l.contactName||'').trim();
       if(!name) return;
-      if(!contactMap[name]) contactMap[name] = {name, count:0, sites:new Set(), lastDate:'', logs:[]};
-      const c = contactMap[name];
-      c.count++;
-      c.sites.add(l.__site);
-      if(!c.lastDate || (l.date||'') > c.lastDate) c.lastDate = l.date||'';
-      c.logs.push(l);
+      const site = l.__site || '기타';
+      if(!siteMap[site]) siteMap[site] = {};
+      if(!siteMap[site][name]) siteMap[site][name] = {name, count:0, logs:[]};
+      siteMap[site][name].count++;
+      siteMap[site][name].logs.push(l);
     });
-    const contacts = Object.values(contactMap).sort((a,b)=> b.count - a.count || (b.lastDate||'').localeCompare(a.lastDate||''));
+    const siteNames = Object.keys(siteMap).sort((a,b)=> Object.keys(siteMap[b]).length - Object.keys(siteMap[a]).length);
+    const totalContacts = new Set(flat.map(l=>(l.contactName||'').trim()).filter(Boolean)).size;
 
     body.innerHTML = `
-      <div style="margin-bottom:10px;color:var(--text-dim);font-size:12px;">전체 기간 기준 · 접촉자 ${contacts.length}명</div>
-      ${contacts.length ? `
-      <div class="report-manager-cards">
-        ${contacts.map((c,i)=>`
-          <div class="report-manager-card report-contact-card" data-idx="${i}" style="cursor:pointer;">
-            <div class="report-manager-card-head"><span>${escapeHtml(c.name)}</span><span style="flex:none;">${c.count}회</span></div>
-            <div class="report-manager-site-line" style="color:var(--text-dim);">${Array.from(c.sites).map(escapeHtml).join(', ')}</div>
-          </div>`).join('')}
-      </div>
+      <div style="margin-bottom:12px;color:var(--text-dim);font-size:12px;">전체 기간 기준 · 접촉자 ${totalContacts}명 · ${siteNames.length}개 현장</div>
+      ${siteNames.length ? siteNames.map(site=>{
+        const contacts = Object.values(siteMap[site]).sort((a,b)=>b.count-a.count);
+        return `
+        <div class="report-matrix-title">📍 ${escapeHtml(site)} <span style="font-weight:400;color:var(--text-dim);">${contacts.length}명</span></div>
+        <div class="report-manager-cards" style="margin-bottom:14px;">
+          ${contacts.map(c=>`
+            <div class="report-manager-card report-contact-card" data-site="${escapeHtml(site)}" data-name="${escapeHtml(c.name)}" style="cursor:pointer;">
+              <div class="report-manager-card-head"><span>${escapeHtml(c.name)}</span><span style="flex:none;">${c.count}회</span></div>
+            </div>`).join('')}
+        </div>`;
+      }).join('') : '<div style="color:var(--text-dim);font-size:12px;padding:16px 0;">접촉자 기록이 없습니다.</div>'}
       <div id="reportContactDetailPanel" class="report-detail-panel" style="display:none;"></div>
-      ` : '<div style="color:var(--text-dim);font-size:12px;padding:16px 0;">접촉자 기록이 없습니다.</div>'}
     `;
 
-    let selectedContactIdx = null;
-    function showContactDetail(idx, highlightEl){
-      if(selectedContactIdx === idx){
-        selectedContactIdx = null;
-        const panel = document.getElementById('reportContactDetailPanel');
+    let selectedKey = null;
+    function showContactDetail(site, name, highlightEl){
+      const key = site+'|'+name;
+      const panel = document.getElementById('reportContactDetailPanel');
+      if(selectedKey === key){
+        selectedKey = null;
         panel.style.display = 'none'; panel.innerHTML = '';
         body.querySelectorAll('.report-contact-card').forEach(el=>el.style.borderColor='');
         return;
       }
-      selectedContactIdx = idx;
-      const c = contacts[idx];
+      selectedKey = key;
+      const c = siteMap[site] && siteMap[site][name];
       if(!c) return;
-      const panel = document.getElementById('reportContactDetailPanel');
       body.querySelectorAll('.report-contact-card').forEach(el=>el.style.borderColor='');
       if(highlightEl) highlightEl.style.borderColor = 'var(--accent)';
       const sortedLogs = c.logs.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
@@ -5594,17 +5597,17 @@ const L = (function(){
       panel.innerHTML = `
         <div class="report-detail-head">
           <b>${escapeHtml(c.name)}</b>
-          <span style="color:var(--text-dim);font-size:11.5px;">${Array.from(c.sites).map(escapeHtml).join(', ')}</span>
+          <span style="color:var(--text-dim);font-size:11.5px;">📍 ${escapeHtml(site)}</span>
           <span style="margin-left:auto;font-weight:700;color:var(--accent);">${c.count}회 접촉</span>
         </div>
         <div class="report-detail-notes">
-          <div class="report-timeline">${sortedLogs.map(l=>buildLogCard(l, shownC, shownS, {siteLabel:l.__site, fullDate:true})).join('')}</div>
+          <div class="report-timeline">${sortedLogs.map(l=>buildLogCard(l, shownC, shownS, {fullDate:true})).join('')}</div>
         </div>`;
       panel.scrollIntoView({behavior:'smooth', block:'nearest'});
     }
     body.querySelectorAll('.report-contact-card').forEach(card=>{
       card.addEventListener('click', ()=>{
-        showContactDetail(parseInt(card.dataset.idx,10), card);
+        showContactDetail(card.dataset.site, card.dataset.name, card);
       });
     });
   }
