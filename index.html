@@ -852,7 +852,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-15-v27</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-15-v28</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -3160,6 +3160,60 @@ const L = (function(){
         dragSrcId = null;
         await saveSites();
         renderAll();
+      });
+      // ---- 모바일(터치) 순서 바꾸기: HTML5 드래그는 터치기기에서 안 먹혀서 길게 누르면 시작하는 방식으로 따로 구현 ----
+      let touchTimer = null, touchDragging = false, touchStartX = 0, touchStartY = 0;
+      item.addEventListener('touchstart', (e)=>{
+        const t = e.touches[0];
+        touchStartX = t.clientX; touchStartY = t.clientY;
+        clearTimeout(touchTimer);
+        touchTimer = setTimeout(()=>{
+          touchDragging = true;
+          dragSrcId = item.dataset.id;
+          item.classList.add('dragging');
+          if(navigator.vibrate) navigator.vibrate(15);
+        }, 350);
+      }, {passive:true});
+      item.addEventListener('touchmove', (e)=>{
+        if(!touchDragging){
+          const t = e.touches[0];
+          if(Math.abs(t.clientX-touchStartX)>10 || Math.abs(t.clientY-touchStartY)>10) clearTimeout(touchTimer);
+          return;
+        }
+        e.preventDefault(); // 순서 바꾸기가 시작된 뒤로는 화면 스크롤 대신 순서 이동으로 처리
+        const t = e.touches[0];
+        const el = document.elementFromPoint(t.clientX, t.clientY);
+        const overItem = el && el.closest('.name-item');
+        sidebarEl.querySelectorAll('.name-item').forEach(x=>x.classList.remove('drag-over'));
+        if(overItem && overItem.dataset.id !== dragSrcId) overItem.classList.add('drag-over');
+      }, {passive:false});
+      item.addEventListener('touchend', async ()=>{
+        clearTimeout(touchTimer);
+        if(!touchDragging) return;
+        touchDragging = false;
+        item.classList.remove('dragging');
+        const overItem = sidebarEl.querySelector('.name-item.drag-over');
+        sidebarEl.querySelectorAll('.name-item').forEach(x=>x.classList.remove('drag-over'));
+        const targetId = overItem ? overItem.dataset.id : null;
+        const srcId = dragSrcId;
+        dragSrcId = null;
+        if(targetId && srcId && targetId!==srcId){
+          const fromIdx = sites.findIndex(s=>s.id===srcId);
+          const toIdx = sites.findIndex(s=>s.id===targetId);
+          if(fromIdx>-1 && toIdx>-1){
+            const [moved] = sites.splice(fromIdx, 1);
+            sites.splice(toIdx, 0, moved);
+            await saveSites();
+            renderAll();
+          }
+        }
+      });
+      item.addEventListener('touchcancel', ()=>{
+        clearTimeout(touchTimer);
+        touchDragging = false;
+        dragSrcId = null;
+        item.classList.remove('dragging');
+        sidebarEl.querySelectorAll('.name-item').forEach(x=>x.classList.remove('drag-over'));
       });
     });
   }
