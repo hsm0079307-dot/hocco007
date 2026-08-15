@@ -95,7 +95,8 @@
   .card.stale .card-name::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:#e5534b;margin-right:5px;vertical-align:middle;flex:none;}
   .stale-badge{font-size:10px;font-weight:700;color:#ff8a80;white-space:nowrap;}
   .photo-links{display:flex;flex-wrap:wrap;gap:8px;}
-  .photo-link{display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:6px;overflow:hidden;background:var(--bg-side-2);border:1px solid var(--line);text-decoration:none;color:var(--text-main);font-size:11px;}
+  .photo-link{display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:6px;overflow:hidden;background:var(--bg-side-2);border:1px solid var(--line);text-decoration:none;color:var(--text-main);font-size:11px;transition:transform .15s, box-shadow .15s;}
+  .photo-link:hover{transform:translateY(-2px);box-shadow:var(--shadow-sm);}
   .doc-list{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;}
   .doc-item{display:flex;align-items:center;gap:8px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);box-shadow:var(--shadow-xs);transition:box-shadow .15s;}
   .doc-item:hover{box-shadow:var(--shadow-sm);}
@@ -180,13 +181,15 @@
   .cal-dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
   .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
   .cal-dow{text-align:center;font-size:11px;color:var(--text-dim);padding:4px 0;}
-  .cal-cell{min-height:78px;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:5px 6px;font-size:11px;}
+  .cal-cell{min-height:78px;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:5px 6px;font-size:11px;transition:box-shadow .15s, border-color .15s;}
+  .cal-cell:hover{box-shadow:var(--shadow-xs);border-color:var(--accent);}
   .cal-cell.other-month{opacity:.35;}
-  .cal-cell.today{border-color:var(--accent);}
+  .cal-cell.today{border-color:var(--accent);background:color-mix(in srgb, var(--accent) 9%, var(--card));box-shadow:var(--shadow-xs);}
   .cal-daynum{font-weight:700;color:var(--text-main);margin-bottom:3px;display:flex;justify-content:space-between;align-items:center;}
-  .cal-add-btn{flex:none;width:16px;height:16px;line-height:14px;padding:0;border-radius:5px;border:1px solid var(--line);background:var(--bg-side-2);color:var(--text-dim);font-size:12px;cursor:pointer;}
-  .cal-add-btn:hover{color:var(--accent);border-color:var(--accent);}
-  .cal-event{display:inline-flex;max-width:100%;width:fit-content;align-items:center;justify-content:space-between;gap:4px;padding:2px 4px 2px 5px;border-radius:5px;margin-bottom:2px;font-size:10px;color:#fff;white-space:nowrap;overflow:hidden;cursor:pointer;}
+  .cal-add-btn{flex:none;width:16px;height:16px;line-height:14px;padding:0;border-radius:5px;border:1px solid var(--line);background:var(--bg-side-2);color:var(--text-dim);font-size:12px;cursor:pointer;transition:color .15s, border-color .15s, transform .12s;}
+  .cal-add-btn:hover{color:var(--accent);border-color:var(--accent);transform:scale(1.1);}
+  .cal-event{display:inline-flex;max-width:100%;width:fit-content;align-items:center;justify-content:space-between;gap:4px;padding:2px 4px 2px 5px;border-radius:5px;margin-bottom:2px;font-size:10px;color:#fff;white-space:nowrap;overflow:hidden;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.15);transition:transform .12s, box-shadow .12s;}
+  .cal-event:hover{transform:translateY(-1px);box-shadow:0 3px 8px rgba(0,0,0,.22);}
   .cal-event>*:first-child{overflow:hidden;text-overflow:ellipsis;}
   .cal-event-del{flex:none;opacity:.7;padding:0 1px;cursor:pointer;}
   .cal-event-del:hover{opacity:1;color:#ffb3b3;}
@@ -328,7 +331,7 @@
   .card-actions{display:flex;flex-direction:row;gap:6px;margin-top:0;flex:none;}
   .card-actions button{flex:1;font-size:10px;padding:2px 4px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--text-dim);cursor:pointer;}
   .card-actions button:hover{color:var(--accent-ink);background:var(--accent);border-color:var(--accent);}
-  .empty{color:var(--text-dim);font-size:13px;text-align:center;padding:40px 16px;}
+  .empty{color:var(--text-dim);font-size:13px;text-align:center;padding:40px 16px;line-height:1.7;}
 
   .map-wrap{flex:1 1 50%;position:relative;}
   #map{width:100%;height:100%;background:#b3b3b3;}
@@ -343,8 +346,9 @@
   .leaflet-tooltip-top:before{border-top-color:#fff;}
   .clear-filter{position:absolute;top:56px;left:12px;z-index:500;}
   .office-switcher{position:absolute;bottom:12px;right:12px;z-index:500;display:flex;gap:6px;}
-  .office-btn{background:var(--bg-side-2);color:var(--text-main);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:11px;font-weight:600;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.3);}
-  .office-btn.active{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);}
+  .office-btn{background:var(--bg-side-2);color:var(--text-main);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:11px;font-weight:600;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.3);transition:transform .12s, box-shadow .15s;}
+  .office-btn:hover{transform:translateY(-1px);}
+  .office-btn.active{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);box-shadow:var(--shadow-accent);}
 
   .region-panel{position:absolute;top:12px;right:12px;z-index:500;background:var(--bg-side);border:1px solid var(--line);border-radius:12px;padding:10px;width:200px;max-height:70vh;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.4);}
   .region-crumb{font-size:11px;color:var(--text-dim);margin-bottom:8px;display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
@@ -369,8 +373,11 @@
   .manager-filter-empty{padding:8px;font-size:12px;color:var(--text-dim);}
 
   /* modal */
-  .overlay{position:fixed;inset:0;background:rgba(3,12,22,.7);display:none;align-items:center;justify-content:center;z-index:1000;padding:16px;}
-  .overlay.show{display:flex;}
+  .overlay{position:fixed;inset:0;background:rgba(3,12,22,.7);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;z-index:1000;padding:16px;}
+  .overlay.show{display:flex;animation:overlayFadeIn .18s ease-out;}
+  .overlay.show .modal{animation:modalPopIn .2s cubic-bezier(.2,.8,.3,1);}
+  @keyframes overlayFadeIn{from{opacity:0;}to{opacity:1;}}
+  @keyframes modalPopIn{from{opacity:0;transform:translateY(6px) scale(.98);}to{opacity:1;transform:translateY(0) scale(1);}}
   .modal{background:var(--bg-side);border:1px solid var(--accent);border-radius:10px;width:100%;max-width:420px;max-height:92vh;overflow-y:auto;padding:18px;box-shadow:0 0 0 1px rgba(255,183,3,.15), 0 20px 60px rgba(0,0,0,.5);}
   /* 모드 선택(관리자/담당자) 박스는 화면을 가리지 않게 우측 하단에 작게 배치.
      로그인 전에도 지도는 자유롭게 조회(이동/확대)할 수 있어야 하므로, 박스 바깥쪽은 클릭이 그대로 지도로 통과되게 한다. */
@@ -413,12 +420,14 @@
 
   .stepper{display:flex;align-items:flex-start;margin-bottom:14px;}
   .step{display:flex;flex-direction:column;align-items:center;flex:0 1 auto;cursor:pointer;min-width:24px;}
-  .step .dot{width:10px;height:10px;border-radius:50%;border:2px solid var(--line);background:var(--bg-side-2);margin-bottom:3px;}
+  .step .dot{width:10px;height:10px;border-radius:50%;border:2px solid var(--line);background:var(--bg-side-2);margin-bottom:3px;transition:background .2s, border-color .2s, box-shadow .2s, transform .15s;}
+  .step:hover .dot{transform:scale(1.15);}
   .step.done .dot{background:var(--text-dim);border-color:var(--text-dim);}
   .step.active .dot{background:var(--accent);border-color:var(--accent);box-shadow:0 0 0 3px rgba(255,183,3,.25);}
   .step-label{font-size:10px;color:var(--text-dim);text-align:center;line-height:1.2;white-space:nowrap;}
   .step.active .step-label{color:var(--accent);font-weight:600;}
-  .step-line{flex:0 0 7px;height:1px;background:var(--line);margin-top:5px;border-top:1px dashed var(--line);}
+  .step-line{flex:0 0 7px;height:1px;background:var(--line);margin-top:5px;border-top:1px dashed var(--line);transition:background .2s, border-color .2s;}
+  .step-line.filled{background:var(--accent);opacity:.55;border-top:1px solid var(--accent);}
 
 
 
@@ -3031,7 +3040,7 @@ const L = (function(){
     if(site){
       renderDetailPanel(site);
     }else if(panel){
-      panel.innerHTML = `<div class="empty" style="padding:60px 16px;">왼쪽에서 현장을 선택하면<br>여기에 개요가 표시됩니다.</div>`;
+      panel.innerHTML = `<div class="empty" style="padding:60px 16px;"><div style="font-size:32px;opacity:.35;margin-bottom:10px;">🏢</div>왼쪽에서 현장을 선택하면<br>여기에 개요가 표시됩니다.</div>`;
     }
   }
 
@@ -3138,7 +3147,15 @@ const L = (function(){
       const labelStyle = isBlue ? `style="color:#3b82c4;font-weight:600;"` : '';
       return `<div class="step ${active?'active':''} ${done?'done':''}" data-stage="${st}">
         <div class="dot" ${dotStyle}></div><div class="step-label" ${labelStyle}>${st}</div></div>`;
-    }).join('<div class="step-line"></div>');
+    });
+    let stepsHtml = '';
+    steps.forEach((div,i)=>{
+      stepsHtml += div;
+      if(i < steps.length-1){
+        const filled = stepIdx>-1 && i < stepIdx;
+        stepsHtml += `<div class="step-line${filled?' filled':''}"></div>`;
+      }
+    });
 
     panel.innerHTML = `
       <div class="detail">
@@ -3162,7 +3179,7 @@ const L = (function(){
               ${site.status? `<span class="badge"><span class="dot" style="background:${colorForStatus(site.status)}"></span>${escapeHtml(site.status)}</span>`:''}
               ${site.progressStage? `<span class="badge" style="color:var(--accent);font-weight:700;">${escapeHtml(site.progressStage)}</span>`:''}
             </div>
-            <div class="stepper">${steps}</div>
+            <div class="stepper">${stepsHtml}</div>
           </div>
           <div class="detail-tabs">
             ${['개요','일지','공고','문서함'].map(t=>`
