@@ -852,7 +852,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-15-v23</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-15-v24</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -3536,6 +3536,17 @@ const L = (function(){
         }
         site.lastDate = lastVisit(site);
         await saveSites();
+        // 저장 로직이 그 사이 다른 변경과 충돌해 막히는 경우에도 이 로그 자체는 확실히 반영되도록,
+        // 그 현장의 logs 경로에 직접 한 번 더 못박아 쓴다.
+        try{
+          const officeName = site.office || currentOffice;
+          const officeArr = allOfficesData[officeName] || [];
+          const idxInOffice = officeArr.findIndex(s2=>s2.id===site.id);
+          if(idxInOffice>-1){
+            const url = `${FIREBASE_DB_URL}/offices/${encodeURIComponent(officeName)}/${idxInOffice}/logs.json?auth=${encodeURIComponent(FIREBASE_DB_SECRET)}`;
+            await fetch(url, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(site.logs)});
+          }
+        }catch(e){ console.error('보고서 저장 클라우드 반영 실패', e); }
         renderAll();
       });
       const logEditCancelBtn = document.getElementById('logEditCancelBtn');
@@ -3558,22 +3569,23 @@ const L = (function(){
           site.logs = (site.logs||[]).filter(l=>l.id!==logId);
           if(editingLogId===logId) editingLogId = null;
           site.lastDate = lastVisit(site);
-          await saveSites();
-          if(lastSaveBlockedByVersion){
-            // 그 사이 클라우드에 다른 변경이 있어서 저장이 막힌 경우, 최신 데이터를 다시 받아온 뒤
-            // 방금 누른 삭제를 그 위에 다시 적용해서 한 번 더 저장을 시도한다 (경고창만 보고 지나쳐도 삭제가 실제로 반영되게).
-            try{
-              await loadSites();
-              const officeArr2 = allOfficesData[site.office || currentOffice] || [];
-              const freshSite = officeArr2.find(s2=>s2.id===site.id);
-              if(freshSite){
-                freshSite.logs = (freshSite.logs||[]).filter(l=>l.id!==logId);
-                freshSite.lastDate = lastVisit(freshSite);
-                await saveSites();
-              }
-            }catch(e){ console.error('삭제 재시도 실패', e); }
-          }
-          renderAll();
+          renderAll(); // 화면은 바로 반영
+          // 이 삭제는 복잡한 전체 저장/버전충돌 로직을 거치지 않고, 그 현장의 logs 경로만
+          // 클라우드에 곧바로 확정해서 쓴다. (다른 로직에 막혀서 삭제가 유실되는 일이 없도록)
+          try{
+            const officeName = site.office || currentOffice;
+            const officeArr = allOfficesData[officeName] || [];
+            const idxInOffice = officeArr.findIndex(s2=>s2.id===site.id);
+            if(idxInOffice>-1){
+              const url = `${FIREBASE_DB_URL}/offices/${encodeURIComponent(officeName)}/${idxInOffice}/logs.json?auth=${encodeURIComponent(FIREBASE_DB_SECRET)}`;
+              const res = await fetch(url, {
+                method:'PUT',
+                headers:{'Content-Type':'application/json'},
+                body: JSON.stringify(site.logs)
+              });
+              if(!res.ok) console.error('로그 삭제 클라우드 반영 실패, 상태코드', res.status);
+            }
+          }catch(e){ console.error('로그 삭제 클라우드 반영 실패', e); }
         });
       });
 
