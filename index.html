@@ -852,7 +852,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-15-v19</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-15-v20</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -1490,7 +1490,7 @@ const L = (function(){
     if(logs.length===0) return site.lastDate||'';
     return logs.slice().sort((a,b)=>b.date.localeCompare(a.date))[0].date;
   }
-  function visitCount(site){ return (site.logs||[]).length; }
+  function visitCount(site){ return (site.logs||[]).filter(l=>!isTourBookingLog(l)).length; }
 
   // ---------- storage ----------
   // Claude 아티팩트 안에서는 window.storage를 쓰고,
@@ -3403,7 +3403,7 @@ const L = (function(){
       }
 
     }else if(detailTab==='일지'){
-      const logs = (site.logs||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
+      const logs = (site.logs||[]).filter(l=>!isTourBookingLog(l)).slice().sort((a,b)=>b.date.localeCompare(a.date));
       const editingLog = editingLogId ? (site.logs||[]).find(l=>l.id===editingLogId) : null;
       body.innerHTML = `
         <div class="log-add">
