@@ -852,7 +852,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-15-v22</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-15-v23</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -1287,6 +1287,7 @@ const L = (function(){
   // (텔레그램 봇 등 외부에서 추가한 일지가 저장 중에 사라지지 않게 "병합" 방식으로 바꾸면서,
   //  반대로 "지운 것도 다시 살아나는" 부작용이 생겨서 이걸로 막음)
   const deletedLogIds = new Set();
+  const refreshedSitesThisSession = new Set(); // 일지 targeted 새로고침을 그 현장당 이 세션에서 한 번만 돌리기 위한 기록
   let editingLogId = null; // 보고서(일지) "수정" 버튼 눌렀을 때, 지금 고치고 있는 항목의 id
   const GUEST_KEY = 'realestate-guest-accounts-v1';
   const CHANGELOG_KEY = 'realestate-guest-changelog-v1';
@@ -3456,9 +3457,11 @@ const L = (function(){
             </div>`).join('') : '<div class="empty">아직 기록된 보고서가 없습니다.</div>'}
         </div>`;
       // "전체 데이터 한꺼번에 불러오기"가 가끔 이 현장의 최신 일지를 놓치는 현상이 있어서(원인 불명, 재현 확인됨),
-      // 일지 탭을 열 때마다 그 현장 일지만 targeted로 별도로 다시 확인해서 화면을 갱신한다.
+      // 일지 탭을 처음 열 때 그 현장 일지만 targeted로 한 번 더 확인해서 화면을 갱신한다.
+      // (탭을 왔다갔다 할 때마다 매번 다시 돌면 병합이 반복돼서 개수가 계속 늘어나 보이는 문제가 있어, 세션당 현장 1회로 제한)
       // 단, 기존 항목의 "내용"은 절대 덮어쓰지 않고(수정 중인 걸 되돌리지 않기 위해) "새로 생긴 항목만" 추가한다.
-      if(!editingLogId){
+      if(!editingLogId && !refreshedSitesThisSession.has(site.id)){
+        refreshedSitesThisSession.add(site.id);
         (async function refreshLogsForThisSite(){
           try{
             const officeArr = allOfficesData[site.office || currentOffice] || [];
