@@ -109,6 +109,7 @@
   .doc-add-row{display:flex;gap:8px;flex-wrap:wrap;}
   .report-period-toggle{display:flex;gap:6px;}
   .report-period-toggle .btn.active-toggle{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);}
+  .report-view-tab.active-toggle{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);box-shadow:var(--shadow-accent);}
   .report-summary-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;}
   .report-summary-chip{background:var(--bg-side-2);border:1px solid var(--line);border-radius:20px;padding:5px 12px;font-size:11.5px;color:var(--text-main);}
   .report-table{border-collapse:collapse;width:100%;font-size:12px;}
@@ -168,6 +169,13 @@
   @media (max-width:820px){ .handover-card-body{grid-template-columns:1fr 1fr;} }
   .report-bar-g:hover .report-bar-rect{opacity:1 !important;}
   .report-detail-panel{margin-top:12px;border:1px solid var(--accent);border-radius:10px;padding:12px 14px;background:var(--card);}
+  .report-timeline{position:relative;padding-left:14px;}
+  .report-timeline .report-log-card{position:relative;}
+  .report-timeline .report-log-card::before{content:'';position:absolute;left:-14px;top:14px;width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 2px var(--card);}
+  .report-timeline .report-log-card::after{content:'';position:absolute;left:-11px;top:22px;bottom:-8px;width:1px;background:var(--line);}
+  .report-timeline .report-log-card:last-child::after{display:none;}
+  .report-view-tab{transition:transform .12s;}
+  .report-view-tab:hover{transform:translateY(-1px);}
   .report-detail-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13.5px;flex-wrap:wrap;}
   .report-detail-notes .report-note-line{font-size:12px;color:var(--text-main);margin-bottom:4px;white-space:pre-wrap;}
   .photo-link img{width:100%;height:100%;object-fit:cover;}
@@ -834,12 +842,12 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-14-v15</span>
-      <div class="report-period-toggle no-print">
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-14-v16</span>
+      <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
       </div>
-      <div style="display:flex;align-items:center;gap:6px;margin-left:4px;" class="no-print">
+      <div style="display:flex;align-items:center;gap:6px;margin-left:4px;" class="no-print" id="reportDateNavWrap">
         <button class="btn btn-ghost btn-sm" id="reportPrevBtn">◀</button>
         <span id="reportRangeLabel" style="font-size:12.5px;font-weight:600;min-width:150px;text-align:center;"></span>
         <button class="btn btn-ghost btn-sm" id="reportNextBtn">▶</button>
@@ -848,6 +856,11 @@
         <button class="btn btn-ghost no-print" id="reportPrintBtn">🖨 인쇄</button>
         <button class="btn btn-ghost no-print" id="contactReportCloseBtn">닫기</button>
       </div>
+    </div>
+    <div class="report-view-tabs no-print" style="display:flex;gap:6px;margin-bottom:12px;">
+      <button class="btn btn-ghost btn-sm report-view-tab" id="reportViewTabSites" data-view="sites">📍 현장별</button>
+      <button class="btn btn-ghost btn-sm report-view-tab" id="reportViewTabContacts" data-view="contacts">👤 접촉자</button>
+      <button class="btn btn-ghost btn-sm report-view-tab" id="reportViewTabSearch" data-view="search">🔍 검색</button>
     </div>
     <div id="contactReportBody" style="max-height:72vh;overflow-y:auto;"></div>
   </div>
@@ -5211,6 +5224,9 @@ const L = (function(){
   let reportMode = 'week'; // 'week' | 'month'
   let reportManagerFilter = null; // 담당자 칩 클릭시 그 담당자 현장만 필터링
   let reportBaseDate = new Date();
+  let reportViewTab = 'sites'; // 'sites' | 'contacts' | 'search'
+  let reportSearchQuery = '';
+  let reportSiteFullLogs = {}; // { 현장명: 전체(기간 무관) 로그 배열 } - 타임라인/검색/CRM에서 재사용
   function getWeekRange(d){
     const day = d.getDay();
     const mondayOffset = (day===0 ? -6 : 1-day);
@@ -5284,9 +5300,10 @@ const L = (function(){
   function splitSentences(t){
     return t.split(/(?<=[.!?])\s+|\n+/).map(s=>s.trim()).filter(Boolean);
   }
-  function buildLogCard(l, shownCompetitor, shownSpecial){
+  function buildLogCard(l, shownCompetitor, shownSpecial, opts){
+    opts = opts || {};
     const t = (l.text||'').trim();
-    const dateLabel = l.date ? l.date.slice(5) : '';
+    const dateLabel = l.date ? (opts.fullDate ? l.date : l.date.slice(5)) : '';
     const manager = l.author || '-';
     const contact = l.contactName || '-';
     const sentences = splitSentences(t);
@@ -5311,7 +5328,9 @@ const L = (function(){
     }else{
       specialOut = fieldOut(specialSentence, shownSpecial);
     }
+    const siteLine = opts.siteLabel ? `<div style="font-size:11.5px;margin-bottom:4px;color:var(--accent);font-weight:700;">📍 ${escapeHtml(opts.siteLabel)}</div>` : '';
     return `<div class="report-log-card" style="border:1px solid var(--border,rgba(255,255,255,0.15));border-radius:10px;padding:10px 12px;margin-bottom:8px;">
+      ${siteLine}
       <div style="font-weight:700;font-size:12.5px;margin-bottom:4px;">${escapeHtml(dateLabel)}</div>
       <div style="font-size:12px;margin-bottom:2px;"><b style="color:var(--accent);">담당:</b> ${escapeHtml(manager)}</div>
       <div style="font-size:12px;margin-bottom:6px;"><b style="color:var(--accent);">접촉:</b> ${escapeHtml(contact)}</div>
@@ -5367,9 +5386,145 @@ const L = (function(){
     });
     return buckets;
   }
+  // ---------- 전체 이력(기간 무관) 로그 평면 배열 - 검색/접촉자 뷰에서 사용 ----------
+  function getAllLogsFlat(){
+    const flat = [];
+    Object.keys(reportSiteFullLogs).forEach(siteName=>{
+      (reportSiteFullLogs[siteName]||[]).forEach(l=>{
+        flat.push(Object.assign({}, l, {__site: siteName}));
+      });
+    });
+    return flat;
+  }
+
+  // ---------- 접촉자 CRM 뷰: 사람 기준으로 접촉 이력을 모아서 보여줌 ----------
+  function renderContactsView(){
+    const body = document.getElementById('contactReportBody');
+    const flat = getAllLogsFlat();
+    const contactMap = {};
+    flat.forEach(l=>{
+      const name = (l.contactName||'').trim();
+      if(!name) return;
+      if(!contactMap[name]) contactMap[name] = {name, count:0, sites:new Set(), lastDate:'', logs:[]};
+      const c = contactMap[name];
+      c.count++;
+      c.sites.add(l.__site);
+      if(!c.lastDate || (l.date||'') > c.lastDate) c.lastDate = l.date||'';
+      c.logs.push(l);
+    });
+    const contacts = Object.values(contactMap).sort((a,b)=> b.count - a.count || (b.lastDate||'').localeCompare(a.lastDate||''));
+
+    body.innerHTML = `
+      <div style="margin-bottom:10px;color:var(--text-dim);font-size:12px;">전체 기간 기준 · 접촉자 ${contacts.length}명</div>
+      ${contacts.length ? `
+      <div class="report-manager-cards">
+        ${contacts.map((c,i)=>`
+          <div class="report-manager-card report-contact-card" data-idx="${i}" style="cursor:pointer;">
+            <div class="report-manager-card-head"><span>${escapeHtml(c.name)}</span><span style="flex:none;">${c.count}회</span></div>
+            <div class="report-manager-site-line" style="color:var(--text-dim);">${Array.from(c.sites).map(escapeHtml).join(', ')}</div>
+          </div>`).join('')}
+      </div>
+      <div id="reportContactDetailPanel" class="report-detail-panel" style="display:none;"></div>
+      ` : '<div style="color:var(--text-dim);font-size:12px;padding:16px 0;">접촉자 기록이 없습니다.</div>'}
+    `;
+
+    let selectedContactIdx = null;
+    function showContactDetail(idx, highlightEl){
+      if(selectedContactIdx === idx){
+        selectedContactIdx = null;
+        const panel = document.getElementById('reportContactDetailPanel');
+        panel.style.display = 'none'; panel.innerHTML = '';
+        body.querySelectorAll('.report-contact-card').forEach(el=>el.style.borderColor='');
+        return;
+      }
+      selectedContactIdx = idx;
+      const c = contacts[idx];
+      if(!c) return;
+      const panel = document.getElementById('reportContactDetailPanel');
+      body.querySelectorAll('.report-contact-card').forEach(el=>el.style.borderColor='');
+      if(highlightEl) highlightEl.style.borderColor = 'var(--accent)';
+      const sortedLogs = c.logs.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+      const shownC = new Set(), shownS = new Set();
+      panel.style.display = 'block';
+      panel.innerHTML = `
+        <div class="report-detail-head">
+          <b>${escapeHtml(c.name)}</b>
+          <span style="color:var(--text-dim);font-size:11.5px;">${Array.from(c.sites).map(escapeHtml).join(', ')}</span>
+          <span style="margin-left:auto;font-weight:700;color:var(--accent);">${c.count}회 접촉</span>
+        </div>
+        <div class="report-detail-notes">
+          <div class="report-timeline">${sortedLogs.map(l=>buildLogCard(l, shownC, shownS, {siteLabel:l.__site, fullDate:true})).join('')}</div>
+        </div>`;
+      panel.scrollIntoView({behavior:'smooth', block:'nearest'});
+    }
+    body.querySelectorAll('.report-contact-card').forEach(card=>{
+      card.addEventListener('click', ()=>{
+        showContactDetail(parseInt(card.dataset.idx,10), card);
+      });
+    });
+  }
+
+  // ---------- 통합 검색 뷰: 현장명·담당자·접촉자·상담내용 전체에서 검색 ----------
+  function renderSearchView(){
+    const body = document.getElementById('contactReportBody');
+    const flat = getAllLogsFlat();
+    body.innerHTML = `
+      <div style="margin-bottom:12px;">
+        <input type="text" id="reportSearchInput" placeholder="현장명·담당자·접촉자·상담내용 검색" value="${escapeHtml(reportSearchQuery)}"
+          style="width:100%;box-sizing:border-box;background:var(--bg-side-2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;color:var(--text-main);font-size:13px;">
+      </div>
+      <div id="reportSearchResults"></div>
+    `;
+    const input = document.getElementById('reportSearchInput');
+    function runSearch(){
+      reportSearchQuery = input.value.trim();
+      const resultsEl = document.getElementById('reportSearchResults');
+      if(!reportSearchQuery){
+        resultsEl.innerHTML = '<div style="color:var(--text-dim);font-size:12px;padding:16px 0;">현장명, 담당자, 접촉자, 상담내용 어디서든 검색돼요.</div>';
+        return;
+      }
+      const q = reportSearchQuery.toLowerCase();
+      const matched = flat.filter(l=>
+        (l.__site||'').toLowerCase().includes(q) ||
+        (l.author||'').toLowerCase().includes(q) ||
+        (l.contactName||'').toLowerCase().includes(q) ||
+        (l.text||'').toLowerCase().includes(q)
+      ).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+      if(!matched.length){
+        resultsEl.innerHTML = '<div style="color:var(--text-dim);font-size:12px;padding:16px 0;">검색 결과가 없습니다.</div>';
+        return;
+      }
+      const shownC = new Set(), shownS = new Set();
+      resultsEl.innerHTML = `<div style="margin-bottom:8px;color:var(--text-dim);font-size:11.5px;">${matched.length}건 검색됨</div>
+        <div class="report-timeline">${matched.map(l=>buildLogCard(l, shownC, shownS, {siteLabel:l.__site, fullDate:true})).join('')}</div>`;
+    }
+    input.addEventListener('input', runSearch);
+    if(reportSearchQuery) runSearch();
+  }
+
+  // ---------- 접촉 리포트 진입점: 현장별/접촉자/검색 뷰로 분기 ----------
   function renderContactReport(){
     document.getElementById('reportModeWeekBtn').classList.toggle('active-toggle', reportMode==='week');
     document.getElementById('reportModeMonthBtn').classList.toggle('active-toggle', reportMode==='month');
+    document.getElementById('reportViewTabSites').classList.toggle('active-toggle', reportViewTab==='sites');
+    document.getElementById('reportViewTabContacts').classList.toggle('active-toggle', reportViewTab==='contacts');
+    document.getElementById('reportViewTabSearch').classList.toggle('active-toggle', reportViewTab==='search');
+    // 접촉자/검색 뷰는 기간(주간·월간) 개념이 없는 전체 이력 기준이라 기간 컨트롤을 숨긴다
+    const showPeriodControls = reportViewTab === 'sites';
+    document.getElementById('reportPeriodToggleWrap').style.display = showPeriodControls ? '' : 'none';
+    document.getElementById('reportDateNavWrap').style.display = showPeriodControls ? '' : 'none';
+
+    // 타임라인/검색/접촉자 뷰에서 공통으로 쓰는 "현장별 전체 이력(기간 무관)" 맵을 미리 준비해둔다
+    const {allSites} = buildContactReportData();
+    reportSiteFullLogs = {};
+    allSites.forEach(s=>{ reportSiteFullLogs[s.name] = s.logs || []; });
+
+    if(reportViewTab === 'contacts'){ renderContactsView(); return; }
+    if(reportViewTab === 'search'){ renderSearchView(); return; }
+    renderSitesView();
+  }
+
+  function renderSitesView(){
     const {range, rows, managerTotals, managerSiteCounts, allSites} = buildContactReportData();
     document.getElementById('reportRangeLabel').textContent = range.label;
     const body = document.getElementById('contactReportBody');
@@ -5518,7 +5673,8 @@ const L = (function(){
         if(highlightEl.classList && highlightEl.classList.contains('report-site-card')) highlightEl.style.borderColor = 'var(--accent)';
       }
       const contacts = Array.from(new Set((r.logs||[]).map(l=>l.contactName).filter(Boolean).map(n=>n.trim()).filter(Boolean)));
-      const sortedLogs = (r.logs||[]).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+      // 전체 이력(기간 무관) - 현장 타임라인
+      const allHistoryLogs = (reportSiteFullLogs[r.site] || r.logs || []).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
       panel.style.display = 'block';
       panel.innerHTML = `
         <div class="report-detail-head">
@@ -5528,14 +5684,15 @@ const L = (function(){
         </div>
         <div class="report-detail-notes">
           <div class="report-summary-block" style="margin-bottom:10px;">
-            <div style="font-weight:700;font-size:12px;margin-bottom:4px;">주간 현장방문</div>
+            <div style="font-weight:700;font-size:12px;margin-bottom:4px;">이번 기간 현장방문</div>
             <div class="report-note-line">${r.count}회</div>
           </div>
-          <div class="report-summary-block" style="margin-bottom:10px;">
-            <div style="font-weight:700;font-size:12px;margin-bottom:4px;">접촉자</div>
+          <div class="report-summary-block" style="margin-bottom:14px;">
+            <div style="font-weight:700;font-size:12px;margin-bottom:4px;">이번 기간 접촉자</div>
             <div class="report-note-line">${contacts.length ? contacts.map(escapeHtml).join(', ') : '없음'}</div>
           </div>
-          ${sortedLogs.length ? (()=>{ const shownCompetitor=new Set(), shownSpecial=new Set(); return sortedLogs.map(l=>buildLogCard(l, shownCompetitor, shownSpecial)).join(''); })() : '<div class="report-note-line" style="color:var(--text-dim);">이 기간 상담 기록이 없습니다.</div>'}
+          <div class="report-section-title" style="margin:0 0 8px;"><span style="color:#ffb703;">■</span> 전체 이력 타임라인 <span style="font-weight:400;color:var(--text-dim);">(총 ${allHistoryLogs.length}건)</span></div>
+          ${allHistoryLogs.length ? `<div class="report-timeline">${(()=>{ const shownCompetitor=new Set(), shownSpecial=new Set(); return allHistoryLogs.map(l=>buildLogCard(l, shownCompetitor, shownSpecial, {fullDate:true})).join(''); })()}</div>` : '<div class="report-note-line" style="color:var(--text-dim);">상담 기록이 없습니다.</div>'}
         </div>`;
       panel.scrollIntoView({behavior:'smooth', block:'nearest'});
     }
@@ -5562,9 +5719,14 @@ const L = (function(){
     reportMode = 'week';
     reportBaseDate = new Date();
     reportManagerFilter = null;
+    reportViewTab = 'sites';
+    reportSearchQuery = '';
     renderContactReport();
     document.getElementById('contactReportOverlay').classList.add('show');
   });
+  document.getElementById('reportViewTabSites').addEventListener('click', ()=>{ reportViewTab='sites'; renderContactReport(); });
+  document.getElementById('reportViewTabContacts').addEventListener('click', ()=>{ reportViewTab='contacts'; renderContactReport(); });
+  document.getElementById('reportViewTabSearch').addEventListener('click', ()=>{ reportViewTab='search'; renderContactReport(); });
   document.getElementById('contactReportCloseBtn').addEventListener('click', ()=>{
     document.getElementById('contactReportOverlay').classList.remove('show');
   });
