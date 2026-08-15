@@ -852,7 +852,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-15-v26</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-15-v27</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -5552,12 +5552,36 @@ const L = (function(){
   }
 
   // ---------- 통합 검색 뷰: 현장명·담당자·접촉자·상담내용 전체에서 검색 ----------
+  // 투어예약(갤러리/현장) 데이터를 검색 가능한 평면 배열로 변환
+  function getAllBookingsFlat(){
+    const flat = [];
+    function pushFrom(store, kind){
+      Object.keys(store||{}).forEach(key=>{
+        (store[key]||[]).forEach(r=>{
+          flat.push({kind, dateKey:key, time:r[0]||'', site:r[1]||'', ho:r[2]||'', name:r[3]||'', plus:r[4]||'', manager:r[5]||'', spot:r[6]||''});
+        });
+      });
+    }
+    pushFrom(reportGalleryRows, 'gallery');
+    pushFrom(reportTourRows, 'tour');
+    return flat;
+  }
+  function bookingCardHtml(b){
+    const icon = b.kind==='gallery' ? '🖼' : '🚗';
+    return `<div class="report-log-card" style="border:1px solid var(--border,rgba(255,255,255,0.15));border-radius:10px;padding:10px 12px;margin-bottom:8px;">
+      <div style="font-weight:700;font-size:12.5px;margin-bottom:4px;">${icon} ${escapeHtml(b.dateKey)}일 ${escapeHtml(b.time)} · <span style="color:var(--accent);">${escapeHtml(b.site)}</span></div>
+      <div style="font-size:12px;margin-bottom:2px;"><b style="color:var(--accent);">성함:</b> ${escapeHtml(b.name||'-')} ${b.plus && b.plus!=='-' ? '('+escapeHtml(b.plus)+')' : ''}</div>
+      <div style="font-size:12px;margin-bottom:2px;"><b style="color:var(--accent);">동호수:</b> ${escapeHtml(b.ho||'-')}</div>
+      <div style="font-size:12px;margin-bottom:2px;"><b style="color:var(--accent);">담당:</b> ${escapeHtml(b.manager||'-')}</div>
+      <div style="font-size:12px;"><b style="color:var(--accent);">픽업/자가:</b> ${escapeHtml(b.spot||'-')}</div>
+    </div>`;
+  }
   function renderSearchView(){
     const body = document.getElementById('contactReportBody');
     const flat = getAllLogsFlat();
     body.innerHTML = `
       <div style="margin-bottom:12px;">
-        <input type="text" id="reportSearchInput" placeholder="현장명·담당자·접촉자·상담내용 검색" value="${escapeHtml(reportSearchQuery)}"
+        <input type="text" id="reportSearchInput" placeholder="현장명·담당자·접촉자·상담내용·투어예약 검색" value="${escapeHtml(reportSearchQuery)}"
           style="width:100%;box-sizing:border-box;background:var(--bg-side-2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;color:var(--text-main);font-size:13px;">
       </div>
       <div id="reportSearchResults"></div>
@@ -5567,7 +5591,7 @@ const L = (function(){
       reportSearchQuery = input.value.trim();
       const resultsEl = document.getElementById('reportSearchResults');
       if(!reportSearchQuery){
-        resultsEl.innerHTML = '<div style="color:var(--text-dim);font-size:12px;padding:16px 0;">현장명, 담당자, 접촉자, 상담내용 어디서든 검색돼요.</div>';
+        resultsEl.innerHTML = '<div style="color:var(--text-dim);font-size:12px;padding:16px 0;">현장명, 담당자, 접촉자, 상담내용, 투어예약 어디서든 검색돼요.</div>';
         return;
       }
       const q = reportSearchQuery.toLowerCase();
@@ -5577,15 +5601,28 @@ const L = (function(){
         (l.contactName||'').toLowerCase().includes(q) ||
         (l.text||'').toLowerCase().includes(q)
       ).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-      if(!matched.length){
+      const matchedBookings = getAllBookingsFlat().filter(b=>
+        (b.site||'').toLowerCase().includes(q) ||
+        (b.manager||'').toLowerCase().includes(q) ||
+        (b.name||'').toLowerCase().includes(q)
+      );
+      if(!matched.length && !matchedBookings.length){
         resultsEl.innerHTML = '<div style="color:var(--text-dim);font-size:12px;padding:16px 0;">검색 결과가 없습니다.</div>';
         return;
       }
       const shownC = new Set(), shownS = new Set();
-      resultsEl.innerHTML = `<div style="margin-bottom:8px;color:var(--text-dim);font-size:11.5px;">${matched.length}건 검색됨</div>
-        <div class="report-timeline">${matched.map(l=>buildLogCard(l, shownC, shownS, {siteLabel:l.__site, fullDate:true})).join('')}</div>`;
+      const logsHtml = matched.length ? `<div class="report-timeline">${matched.map(l=>buildLogCard(l, shownC, shownS, {siteLabel:l.__site, fullDate:true})).join('')}</div>` : '';
+      const bookingsHtml = matchedBookings.length ? `
+        <div class="report-section-title" style="margin-top:16px;"><span style="color:#ffb703;">■</span> 투어예약 ${matchedBookings.length}건</div>
+        ${matchedBookings.map(bookingCardHtml).join('')}
+      ` : '';
+      resultsEl.innerHTML = `<div style="margin-bottom:8px;color:var(--text-dim);font-size:11.5px;">상담기록 ${matched.length}건${matchedBookings.length?` · 투어예약 ${matchedBookings.length}건`:''}</div>
+        ${logsHtml}${bookingsHtml}`;
     }
     input.addEventListener('input', runSearch);
+    loadGalleryBookingsIfNeeded().then(()=>{
+      if(reportViewTab==='search' && document.getElementById('reportSearchInput')) runSearch();
+    });
     if(reportSearchQuery) runSearch();
   }
 
