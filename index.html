@@ -68,7 +68,9 @@
   .sync-pill.ok{color:#7ee787;border-color:rgba(126,231,135,.35);}
   .sync-pill.warn{color:#f0ad4e;border-color:rgba(240,173,78,.4);}
   .sync-pill.bad{color:#ff8a80;border-color:rgba(255,138,128,.4);}
-  .search-box{flex:0 1 320px;min-width:160px;display:flex;align-items:center;background:var(--bg-side-2);border:1px solid var(--line);border-radius:8px;padding:6px 10px;}
+  .search-box{flex:0 1 320px;min-width:160px;display:flex;align-items:center;background:var(--bg-side-2);border:1px solid var(--line);border-radius:8px;padding:6px 10px;transition:border-color .15s, box-shadow .15s;}
+  .search-box:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);}
+  .search-box input{outline:none !important;box-shadow:none !important;border:none !important;background:transparent !important;}
   .search-box input{background:transparent;border:none;outline:none;color:var(--text-main);font-size:11px;width:100%;}
   .search-box input::placeholder{color:var(--text-dim);}
   .btn{border:1px solid var(--line);border-radius:12px;padding:9px 16px;font-size:13px;cursor:pointer;font-weight:600;white-space:nowrap;transition:transform .15s, box-shadow .15s, background .15s, color .15s;letter-spacing:.1px;box-shadow:var(--shadow-xs);}
@@ -208,8 +210,9 @@
   .cal-inline-label{font-weight:600;color:var(--text-dim);white-space:nowrap;}
   .cal-inline-item{display:flex;align-items:center;gap:5px;cursor:pointer;color:var(--text-main);white-space:nowrap;}
   .cal-inline-item:hover{color:var(--accent);}
-  .tab{flex:none;padding:6px 14px;border-radius:8px;background:var(--bg-side-2);color:var(--text-dim);font-size:12px;cursor:pointer;border:1px solid var(--line);white-space:nowrap;display:flex;gap:6px;align-items:center;}
-  .tab.active{background:var(--accent);color:var(--accent-ink);border-style:solid;font-weight:600;}
+  .tab{flex:none;padding:6px 14px;border-radius:8px;background:var(--bg-side-2);color:var(--text-dim);font-size:12px;cursor:pointer;border:1px solid var(--line);white-space:nowrap;display:flex;gap:6px;align-items:center;transition:background .15s, box-shadow .15s, transform .1s;}
+  .tab:hover{transform:translateY(-1px);}
+  .tab.active{background:var(--accent);color:var(--accent-ink);border-style:solid;font-weight:600;box-shadow:var(--shadow-accent);}
   .tab .count{opacity:.8;font-size:12px;}
 
   /* 보기 전환줄: 일정 캘린더 / 전체사업지(표) / 담당자 필터 — 위 버튼줄과 분리해서 한 곳에 모아둠 */
@@ -376,6 +379,8 @@
   .modal h3{margin:0 0 14px;font-size:14px;letter-spacing:normal;color:var(--accent);}
   .field{margin-bottom:10px;}
   .field label{display:block;font-size:12px;color:var(--text-dim);margin-bottom:4px;letter-spacing:normal;}
+  input,select,textarea{transition:border-color .15s, box-shadow .15s;}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent) !important;box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);}
   .field input,.field select,.field textarea{width:100%;background:var(--bg-side-2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;color:var(--text-main);font-size:13px;font-family:inherit;}
   .field textarea{resize:vertical;min-height:50px;}
   .field-row{display:flex;gap:8px;}
