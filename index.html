@@ -852,7 +852,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-15-v21</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-15-v22</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -939,32 +939,8 @@
         <input id="f_status" placeholder="예: 재건축, 모아타운, 신속통합">
       </div>
       <div class="field">
-        <label>면적(m²)</label>
-        <input id="f_area" placeholder="예: 232,298.6">
-      </div>
-      <div class="field">
         <label>사업단계(진행상황)</label>
         <input id="f_progressStage" placeholder="예: 사업시행자지정고시, 창립총회">
-      </div>
-    </div>
-    <div class="field-row">
-      <div class="field">
-        <label>예상발주</label>
-        <input id="f_order" placeholder="예: 27년 상반기">
-      </div>
-      <div class="field">
-        <label>신축세대</label>
-        <input id="f_house" placeholder="예: 6,103">
-      </div>
-    </div>
-    <div class="field-row">
-      <div class="field">
-        <label>연면적(m²)</label>
-        <input id="f_totalFloorArea" placeholder="예: 338,186">
-      </div>
-      <div class="field">
-        <label>규모(층수 등)</label>
-        <input id="f_scale" placeholder="예: 49층">
       </div>
     </div>
     <div class="field-row">
@@ -973,9 +949,33 @@
         <input id="f_union" placeholder="예: 3,986 (동의 527)">
       </div>
       <div class="field">
-        <label>최근 보고서 날짜</label>
-        <input id="f_date" type="date">
+        <label>신축세대</label>
+        <input id="f_house" placeholder="예: 6,103">
       </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>면적(m²)</label>
+        <input id="f_area" placeholder="예: 232,298.6">
+      </div>
+      <div class="field">
+        <label>연면적(m²)</label>
+        <input id="f_totalFloorArea" placeholder="예: 338,186">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>규모(층수 등)</label>
+        <input id="f_scale" placeholder="예: 49층">
+      </div>
+      <div class="field">
+        <label>예상발주</label>
+        <input id="f_order" placeholder="예: 27년 상반기">
+      </div>
+    </div>
+    <div class="field">
+      <label>최근 보고서 날짜</label>
+      <input id="f_date" type="date">
     </div>
     <div class="field">
       <label>일정 (날짜 + 내용, 예: 정기총회, 전체회의, 입찰마감 등 자유롭게 추가)</label>
@@ -1913,9 +1913,10 @@ const L = (function(){
   function exportSitesToExcel(){
     const rows = sites.map(s=>({
       '현장명': s.name, '구': s.district, '단계': s.stage||'', '상태(사업방식)': s.status||'', '사업단계': s.progressStage||'',
-      '면적(m²)': s.area||'', '예상발주': s.orderExpected||'', '신축세대': s.households||'',
-      '연면적(m²)': s.totalFloorArea||'', '규모': s.scale||'', '조합원수': s.unionMembers||'',
+      '조합원수': s.unionMembers||'', '신축세대': s.households||'',
+      '면적(m²)': s.area||'', '연면적(m²)': s.totalFloorArea||'', '규모': s.scale||'',
       '정비업체': s.managementCompany||'', '설계업체': s.designCompany||'', '신탁사': s.trustCompany||'',
+      '예상발주': s.orderExpected||'',
       '담당자': s.manager||'', '최근 보고서 날짜': s.lastDate||'', '일정': eventsSummary(s), '비고': s.memo||'', '사진 링크': (s.photos||[]).join(' | ')
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
@@ -2283,11 +2284,11 @@ const L = (function(){
   function sheetSpecBlock(s){
     const rows = [
       ['사업단계', s.progressStage],
+      ['조합원', s.unionMembers],
+      ['신축세대', s.households],
       ['구역면적', s.area ? s.area+'㎡' : ''],
       ['연면적', s.totalFloorArea ? s.totalFloorArea+'㎡' : ''],
       ['규모', s.scale],
-      ['조합원', s.unionMembers],
-      ['신축세대', s.households],
       ['정비업체', s.managementCompany],
       ['설계업체', s.designCompany],
       ['신탁사', s.trustCompany],
@@ -2820,11 +2821,11 @@ const L = (function(){
     const rows = [
       ['사업단계', s=>s.progressStage||'-'],
       ['담당자', s=>s.manager||'-'],
+      ['조합원', s=>s.unionMembers||'-'],
+      ['신축세대', s=>s.households||'-'],
       ['구역면적', s=>s.area?s.area+'㎡':'-'],
       ['연면적', s=>s.totalFloorArea?s.totalFloorArea+'㎡':'-'],
       ['규모', s=>s.scale||'-'],
-      ['조합원', s=>s.unionMembers||'-'],
-      ['신축세대', s=>s.households||'-'],
       ['정비업체', s=>s.managementCompany||'-'],
       ['설계업체', s=>s.designCompany||'-'],
       ['신탁사', s=>s.trustCompany||'-'],
@@ -2885,11 +2886,11 @@ const L = (function(){
     const rows = [
       ['사업단계', s=>s.progressStage||'-'],
       ['담당자', s=>s.manager||'-'],
+      ['조합원', s=>s.unionMembers||'-'],
+      ['신축세대', s=>s.households||'-'],
       ['구역면적', s=>s.area?s.area+'㎡':'-'],
       ['연면적', s=>s.totalFloorArea?s.totalFloorArea+'㎡':'-'],
       ['규모', s=>s.scale||'-'],
-      ['조합원', s=>s.unionMembers||'-'],
-      ['신축세대', s=>s.households||'-'],
       ['정비업체', s=>s.managementCompany||'-'],
       ['설계업체', s=>s.designCompany||'-'],
       ['신탁사', s=>s.trustCompany||'-'],
@@ -3323,11 +3324,11 @@ const L = (function(){
           <div class="spec-heading">■ 사업현황 <span class="spec-heading-hint">(* 굵게 · ** 빨간색)</span></div>
           <div class="quad-edit-grid">
             <div class="quad-edit-field"><label>사업단계</label><input id="e_progressStage" value="${escapeHtml(site.progressStage||'')}"></div>
+            <div class="quad-edit-field"><label>조합원수</label><input id="e_union" value="${escapeHtml(site.unionMembers||'')}"></div>
+            <div class="quad-edit-field"><label>신축세대</label><input id="e_households" value="${escapeHtml(site.households||'')}"></div>
             <div class="quad-edit-field"><label>구역면적(㎡)</label><input id="e_area" value="${escapeHtml(site.area||'')}"></div>
             <div class="quad-edit-field"><label>연면적(㎡)</label><input id="e_totalFloorArea" value="${escapeHtml(site.totalFloorArea||'')}"></div>
             <div class="quad-edit-field"><label>규모</label><input id="e_scale" value="${escapeHtml(site.scale||'')}"></div>
-            <div class="quad-edit-field"><label>조합원수</label><input id="e_union" value="${escapeHtml(site.unionMembers||'')}"></div>
-            <div class="quad-edit-field"><label>신축세대</label><input id="e_households" value="${escapeHtml(site.households||'')}"></div>
             <div class="quad-edit-field"><label>정비업체</label><input id="e_mgmtCo" value="${escapeHtml(site.managementCompany||'')}"></div>
             <div class="quad-edit-field"><label>설계업체</label><input id="e_designCo" value="${escapeHtml(site.designCompany||'')}"></div>
             <div class="quad-edit-field"><label>신탁사</label><input id="e_trustCo" value="${escapeHtml(site.trustCompany||'')}"></div>
@@ -3338,14 +3339,14 @@ const L = (function(){
           <div class="spec-heading">■ 사업현황 <button class="quad-edit-btn no-print" data-quad-edit="1" title="수정">✏</button></div>
           <div class="spec-lines-2col">
             <div class="spec-line">사업단계: ${escapeHtml(site.progressStage||'-')}</div>
-            <div class="spec-line">연면적: <span class="num-value">${site.totalFloorArea?escapeHtml(site.totalFloorArea)+'㎡':'-'}</span></div>
             <div class="spec-line">조합원: <span class="num-value">${escapeHtml(site.unionMembers||'-')}</span></div>
-            <div class="spec-line">정비업체: ${escapeHtml(site.managementCompany||'-')}</div>
-            <div class="spec-line">신탁사: ${escapeHtml(site.trustCompany||'-')}</div>
-            <div class="spec-line">구역면적: <span class="num-value">${site.area?escapeHtml(site.area)+'㎡':'-'}</span></div>
-            <div class="spec-line">규모: ${escapeHtml(site.scale||'-')}</div>
             <div class="spec-line">신축세대: <span class="num-value">${escapeHtml(site.households||'-')}</span></div>
+            <div class="spec-line">구역면적: <span class="num-value">${site.area?escapeHtml(site.area)+'㎡':'-'}</span></div>
+            <div class="spec-line">연면적: <span class="num-value">${site.totalFloorArea?escapeHtml(site.totalFloorArea)+'㎡':'-'}</span></div>
+            <div class="spec-line">규모: ${escapeHtml(site.scale||'-')}</div>
+            <div class="spec-line">정비업체: ${escapeHtml(site.managementCompany||'-')}</div>
             <div class="spec-line">설계업체: ${escapeHtml(site.designCompany||'-')}</div>
+            <div class="spec-line">신탁사: ${escapeHtml(site.trustCompany||'-')}</div>
           </div>
         </div>
       `;
