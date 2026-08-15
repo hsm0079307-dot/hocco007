@@ -667,6 +667,19 @@ document.getElementById("pwInput").addEventListener("keydown", (e)=>{
   if(e.key === "Enter") checkPassword();
 });
 
+// 강서사업소 스크린(대시보드)의 "🖼 투어 예약" 버튼으로 들어온 경우엔 비밀번호 화면을 건너뛴다.
+// (대시보드 쪽에서 같은 토큰을 붙여서 링크를 열어줌 — index.html의 GALLERY_ENTRY_TOKEN과 반드시 같아야 함)
+const DASHBOARD_ENTRY_TOKEN = 'gs-dash-2026';
+(function tryDashboardAutoUnlock(){
+  try{
+    const p = new URLSearchParams(window.location.search);
+    if(p.get('entry') === DASHBOARD_ENTRY_TOKEN){
+      document.getElementById("lockScreen").style.display = "none";
+      document.getElementById("appRoot").style.display = "block";
+    }
+  }catch(e){}
+})();
+
 const STORAGE_CHECK = "calendar_checkmarks_v1";
 
 // ---- 카테고리 명칭(갤러리/21차투어) 편집 가능 ----
