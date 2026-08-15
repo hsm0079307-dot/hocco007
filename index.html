@@ -852,7 +852,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-15-v25</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-15-v26</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -5426,6 +5426,8 @@ const L = (function(){
   // 주간 모드: 월~일 요일별로, 월간 모드: 1주차~N주차 별로 그날/그주에 어느 현장을 몇 번 방문했는지 묶는다
   function buildDailyGroups(filteredRows, range, mode){
     const buckets = [];
+    // 월요일 시작 기준 실제 달력 주차를 계산 (예: 8월 1일이 토요일이면 1일~2일이 1주차, 3일부터 진짜 한 주가 시작)
+    function weekOfDay(d, mondayOffset){ return Math.ceil((d + mondayOffset) / 7); }
     if(mode === 'week'){
       const dayLabels = ['월','화','수','목','금','토','일'];
       for(let i=0;i<7;i++){
@@ -5435,10 +5437,14 @@ const L = (function(){
       }
     }else{
       const daysInMonth = range.end.getDate();
-      const weeksInMonth = Math.ceil(daysInMonth/7);
+      const firstDow = new Date(range.start.getFullYear(), range.start.getMonth(), 1).getDay(); // 0=일 ~ 6=토
+      const mondayOffset = (firstDow + 6) % 7;
+      const weeksInMonth = weekOfDay(daysInMonth, mondayOffset);
       for(let w=1; w<=weeksInMonth; w++){
-        const startDay = (w-1)*7+1;
-        const endDay = Math.min(w*7, daysInMonth);
+        let startDay = null, endDay = null;
+        for(let d=1; d<=daysInMonth; d++){
+          if(weekOfDay(d, mondayOffset)===w){ if(startDay===null) startDay=d; endDay=d; }
+        }
         buckets.push({label: `${startDay}~${endDay}일 ${w}주차`, weekNum:w, sites:{}});
       }
     }
@@ -5453,7 +5459,9 @@ const L = (function(){
           bucket = bucketByKey[l.date];
         }else{
           const dayOfMonth = parseInt(l.date.slice(8,10),10);
-          const w = Math.ceil(dayOfMonth/7);
+          const firstDow = new Date(range.start.getFullYear(), range.start.getMonth(), 1).getDay();
+          const mondayOffset = (firstDow + 6) % 7;
+          const w = weekOfDay(dayOfMonth, mondayOffset);
           bucket = buckets.find(b=>b.weekNum===w);
         }
         if(!bucket) return;
