@@ -852,7 +852,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-15-v24</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-15-v25</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -3583,9 +3583,26 @@ const L = (function(){
                 headers:{'Content-Type':'application/json'},
                 body: JSON.stringify(site.logs)
               });
-              if(!res.ok) console.error('로그 삭제 클라우드 반영 실패, 상태코드', res.status);
+              if(!res.ok){
+                alert('⚠️ 클라우드 저장 실패 (상태코드 '+res.status+'). 이 삭제는 이 화면에서만 지워졌고, 클라우드엔 반영 안 됐을 수 있어요.');
+              }else{
+                // 방금 쓴 걸 그대로 다시 읽어와서, 정말 서버에 반영됐는지 확인 (같은 URL, 캐시 무시)
+                const verifyUrl = `${FIREBASE_DB_URL}/offices/${encodeURIComponent(officeName)}/${idxInOffice}/logs.json?_=${Date.now()}`;
+                const vres = await fetch(verifyUrl, {cache:'no-store'});
+                const vdata = vres.ok ? await vres.json() : null;
+                const stillThere = Array.isArray(vdata) && vdata.some(l=>l && l.id===logId);
+                if(stillThere){
+                  alert('⚠️ 클라우드에 다시 확인해봤는데 아직 그 로그가 남아있어요. (URL 또는 권한 문제로 보임)');
+                }
+                console.log('[삭제 확인] 서버에 저장된 로그 개수:', Array.isArray(vdata)?vdata.length:'응답 이상함', vdata);
+              }
+            }else{
+              alert('⚠️ 이 현장을 사업소 목록에서 못 찾아서 클라우드에는 반영 못 했어요. (office: '+officeName+')');
             }
-          }catch(e){ console.error('로그 삭제 클라우드 반영 실패', e); }
+          }catch(e){
+            alert('⚠️ 클라우드 저장 중 오류: '+e.message);
+            console.error('로그 삭제 클라우드 반영 실패', e);
+          }
         });
       });
 
