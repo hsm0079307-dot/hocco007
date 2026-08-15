@@ -852,7 +852,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-15-v18</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-15-v19</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -3239,7 +3239,7 @@ const L = (function(){
     });
     const galleryBtn = document.getElementById('galleryBookBtn');
     if(galleryBtn) galleryBtn.addEventListener('click', ()=>{
-      const url = GALLERY_CALENDAR_URL + (GALLERY_CALENDAR_URL.includes('?') ? '&' : '?') + 'site=' + encodeURIComponent(site.name) + '&office=' + encodeURIComponent(site.office || currentOffice) + '&entry=' + encodeURIComponent(GALLERY_ENTRY_TOKEN);
+      const url = GALLERY_CALENDAR_URL + (GALLERY_CALENDAR_URL.includes('?') ? '&' : '?') + 'site=' + encodeURIComponent(site.name) + '&office=' + encodeURIComponent(site.office || currentOffice) + '&entry=' + encodeURIComponent(GALLERY_ENTRY_TOKEN) + '&mode=' + (guestMode ? 'guest' : 'admin');
       window.open(url, '_blank');
     });
     const delBtn = document.getElementById('deleteSiteBtn');
@@ -5268,6 +5268,11 @@ const L = (function(){
     if(reportMode==='week') reportBaseDate = new Date(reportBaseDate.getFullYear(), reportBaseDate.getMonth(), reportBaseDate.getDate()+dir*7);
     else reportBaseDate = new Date(reportBaseDate.getFullYear(), reportBaseDate.getMonth()+dir, 1);
   }
+  // Calendar.html 투어예약이 자동으로 남긴 로그(접촉방법: 갤러리 투어/현장 투어)는
+  // 일반 상담 보고서(현장별/접촉자/검색/타임라인/인쇄)엔 안 보이게 하고, 🖼 투어예약 탭에서만 보여준다.
+  function isTourBookingLog(l){
+    return !!(l && (l.contactMethod==='갤러리 투어' || l.contactMethod==='현장 투어'));
+  }
   function buildContactReportData(){
     const range = reportMode==='week' ? getWeekRange(reportBaseDate) : getMonthRange(reportBaseDate);
     // 지금 선택된 사업소(강서/강남/강북)만 보여주고, '전체'일 때만 모든 사업소를 합쳐서 보여준다
@@ -5278,6 +5283,7 @@ const L = (function(){
     const managerSiteCounts = {}; // { 담당자명: { 현장명: 방문일수 } }
     allSites.forEach(s=>{
       const logsInRange = (s.logs||[]).filter(l=>{
+        if(isTourBookingLog(l)) return false;
         if(!l.date) return false;
         const d = new Date(l.date+'T00:00:00');
         return d >= range.start && d <= range.end;
@@ -5543,7 +5549,7 @@ const L = (function(){
     // 타임라인/검색/접촉자 뷰에서 공통으로 쓰는 "현장별 전체 이력(기간 무관)" 맵을 미리 준비해둔다
     const {allSites} = buildContactReportData();
     reportSiteFullLogs = {};
-    allSites.forEach(s=>{ reportSiteFullLogs[s.name] = s.logs || []; });
+    allSites.forEach(s=>{ reportSiteFullLogs[s.name] = (s.logs || []).filter(l=>!isTourBookingLog(l)); });
 
     if(reportViewTab === 'contacts'){ renderContactsView(); return; }
     if(reportViewTab === 'search'){ renderSearchView(); return; }

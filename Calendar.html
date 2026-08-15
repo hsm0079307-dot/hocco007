@@ -670,6 +670,8 @@ document.getElementById("pwInput").addEventListener("keydown", (e)=>{
 // 강서사업소 스크린(대시보드)의 "🖼 투어 예약" 버튼으로 들어온 경우엔 비밀번호 화면을 건너뛴다.
 // (대시보드 쪽에서 같은 토큰을 붙여서 링크를 열어줌 — index.html의 GALLERY_ENTRY_TOKEN과 반드시 같아야 함)
 const DASHBOARD_ENTRY_TOKEN = 'gs-dash-2026';
+// 대시보드에서 게스트로 넘어온 경우엔 예약 추가/수정/삭제를 막고 조회만 되게 한다.
+let CAL_READONLY_MODE = false;
 (function tryDashboardAutoUnlock(){
   try{
     const p = new URLSearchParams(window.location.search);
@@ -677,8 +679,21 @@ const DASHBOARD_ENTRY_TOKEN = 'gs-dash-2026';
       document.getElementById("lockScreen").style.display = "none";
       document.getElementById("appRoot").style.display = "block";
     }
+    if(p.get('mode') === 'guest') CAL_READONLY_MODE = true;
   }catch(e){}
 })();
+function blockIfReadonly(){
+  if(!CAL_READONLY_MODE) return false;
+  alert('게스트는 조회만 가능해요. 예약 추가/수정/삭제는 관리자로 들어와야 해요.');
+  return true;
+}
+window.addEventListener('DOMContentLoaded', ()=>{
+  if(!CAL_READONLY_MODE) return;
+  const banner = document.createElement('div');
+  banner.textContent = '👁 읽기 전용 모드 (게스트) — 예약 추가/수정/삭제 불가';
+  banner.style.cssText = 'position:sticky;top:0;z-index:900;background:#8a5a00;color:#fff;text-align:center;font-size:12.5px;font-weight:700;padding:7px 10px;';
+  document.body.insertBefore(banner, document.body.firstChild);
+});
 
 const STORAGE_CHECK = "calendar_checkmarks_v1";
 
@@ -2407,6 +2422,7 @@ function showHomeScreenGuide(){
 
 // ---- 항목 삭제 (두 번 클릭으로 확인) ----
 function deleteEntry(kind, key, idx, btn){
+  if(blockIfReadonly()) return;
   if(btn && btn.dataset.confirm !== "1"){
     btn.dataset.confirm = "1";
     btn.textContent = "정말 삭제?";
@@ -2426,6 +2442,7 @@ function deleteEntry(kind, key, idx, btn){
 
 // ---- 항목 추가 ----
 function addEntryFlow(kind){
+  if(blockIfReadonly()) return;
   const key = previewKey;
   if(!key) return;
   if(kind==="gallery"){
@@ -2467,6 +2484,7 @@ function addEntryFlow(kind){
 
 // ---- 기존 일정 항목 수정 ----
 function editEntry(kind, key, idx){
+  if(blockIfReadonly()) return;
   const store = kind==="gallery" ? GALLERY_ROWS : TOUR_ROWS;
   const raw = store[key] && store[key][idx];
   if(!raw) return;
@@ -2508,6 +2526,7 @@ function editEntry(kind, key, idx){
 
 // ---- 휴관/불가 지정·해제 ----
 function toggleClosedDay(kind){
+  if(blockIfReadonly()) return;
   const key = previewKey;
   if(!key) return;
   const store = kind==="tour" ? TOUR_CLOSED : GALLERY_CLOSED;
