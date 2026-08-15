@@ -852,7 +852,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-15-v20</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-15-v21</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -3549,11 +3549,26 @@ const L = (function(){
       body.querySelectorAll('.log-del').forEach(btn=>{
         btn.addEventListener('click', async ()=>{
           if(!(await ensureUnlocked())) return;
-          deletedLogIds.add(btn.dataset.logid);
-          site.logs = (site.logs||[]).filter(l=>l.id!==btn.dataset.logid);
-          if(editingLogId===btn.dataset.logid) editingLogId = null;
+          const logId = btn.dataset.logid;
+          deletedLogIds.add(logId);
+          site.logs = (site.logs||[]).filter(l=>l.id!==logId);
+          if(editingLogId===logId) editingLogId = null;
           site.lastDate = lastVisit(site);
           await saveSites();
+          if(lastSaveBlockedByVersion){
+            // 그 사이 클라우드에 다른 변경이 있어서 저장이 막힌 경우, 최신 데이터를 다시 받아온 뒤
+            // 방금 누른 삭제를 그 위에 다시 적용해서 한 번 더 저장을 시도한다 (경고창만 보고 지나쳐도 삭제가 실제로 반영되게).
+            try{
+              await loadSites();
+              const officeArr2 = allOfficesData[site.office || currentOffice] || [];
+              const freshSite = officeArr2.find(s2=>s2.id===site.id);
+              if(freshSite){
+                freshSite.logs = (freshSite.logs||[]).filter(l=>l.id!==logId);
+                freshSite.lastDate = lastVisit(freshSite);
+                await saveSites();
+              }
+            }catch(e){ console.error('삭제 재시도 실패', e); }
+          }
           renderAll();
         });
       });
