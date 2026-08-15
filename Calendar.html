@@ -903,69 +903,65 @@ function bookingKeyToISODate(key){
   return y + '-' + String(m).padStart(2,'0') + '-' + String(d).padStart(2,'0');
 }
 
-// 예약 1건을 접촉리포트 현장 로그로 밀어넣고, 이 캘린더의 예약 데이터 전체도 클라우드에 올린다.
-// 실패해도(오프라인 등) 이 캘린더 자체 저장(localStorage)은 이미 끝난 뒤라 예약 자체는 안전하다.
+// 예약 1건을 접촉리포트 현장 로그로 밀어넣고, 이 캘린더의 예약 데이터도 클라우드에 올린다.
+// PATCH로 "galleryBookings"랑 그 현장의 "logs" 경로만 콕 집어서 고치기 때문에,
+// 대시보드가 그 사이 다른 걸(예: 다른 로그 삭제) 저장해도 이 요청이 그걸 되돌려버리는 일이 없다.
+// (예전엔 문서 전체를 다시 써서, 그 사이 다른 곳에서 지운 게 되살아나는 문제가 있었음)
 async function syncBookingToDashboard(kind, key, v){
   try{
-    const res = await fetch(CAL_FIREBASE_DATA_URL + '?_=' + Date.now(), {cache:'no-store'});
-    const fresh = res.ok ? await res.json() : {};
-    const offices = Object.assign({}, (fresh && fresh.offices && typeof fresh.offices==='object') ? fresh.offices : cachedOfficesData);
+    const patchBody = {};
     const siteName = v.danji;
     if(siteName){
       const office = officeForSiteName(siteName);
-      if(Array.isArray(offices[office])){
-        const idx = offices[office].findIndex(s=>s && s.name===siteName);
-        if(idx > -1){
-          const site = Object.assign({}, offices[office][idx]);
-          const logs = Array.isArray(site.logs) ? site.logs.slice() : [];
-          const noteBits = [];
-          if(v.time) noteBits.push(v.time);
-          if(v.plus && v.plus!=='-') noteBits.push('동반: '+v.plus);
-          if(v.spot && v.spot!=='-') noteBits.push(v.spot);
-          logs.push({
-            id: (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now())+Math.random().toString(36).slice(2,8),
-            date: bookingKeyToISODate(key),
-            author: v.manager || '',
-            contactName: v.name || '',
-            owner: '',
-            unit: v.ho || '',
-            contactMethod: kind==='gallery' ? '갤러리 투어' : '현장 투어',
-            executiveStance: '',
-            closeness: '',
-            text: (kind==='gallery' ? '갤러리' : '현장') + ' 투어 예약' + (noteBits.length ? ' - ' + noteBits.join(' · ') : '')
-          });
-          site.logs = logs;
-          const arr = offices[office].slice();
-          arr[idx] = site;
-          offices[office] = arr;
+      const arr = cachedOfficesData[office];
+      const idx = Array.isArray(arr) ? arr.findIndex(s=>s && s.name===siteName) : -1;
+      if(idx > -1){
+        // 이 현장의 logs만 지금 최신으로 다시 읽어서(전체 문서 아님) 새 로그를 덧붙인다
+        const logsUrl = `${CAL_FIREBASE_DB_URL}/offices/${encodeURIComponent(office)}/${idx}/logs.json?_=${Date.now()}`;
+        const logsRes = await fetch(logsUrl, {cache:'no-store'});
+        const freshLogs = logsRes.ok ? await logsRes.json() : null;
+        const logs = Array.isArray(freshLogs) ? freshLogs.slice() : [];
+        const noteBits = [];
+        if(v.time) noteBits.push(v.time);
+        if(v.plus && v.plus!=='-') noteBits.push('동반: '+v.plus);
+        if(v.spot && v.spot!=='-') noteBits.push(v.spot);
+        logs.push({
+          id: (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now())+Math.random().toString(36).slice(2,8),
+          date: bookingKeyToISODate(key),
+          author: v.manager || '',
+          contactName: v.name || '',
+          owner: '',
+          unit: v.ho || '',
+          contactMethod: kind==='gallery' ? '갤러리 투어' : '현장 투어',
+          executiveStance: '',
+          closeness: '',
+          text: (kind==='gallery' ? '갤러리' : '현장') + ' 투어 예약' + (noteBits.length ? ' - ' + noteBits.join(' · ') : '')
+        });
+        patchBody['offices/'+office+'/'+idx+'/logs'] = logs;
+        if(cachedOfficesData[office] && cachedOfficesData[office][idx]){
+          cachedOfficesData[office][idx].logs = logs; // 이 기기 화면(드롭다운 등)에서도 바로 반영
         }
       }
     }
-    const galleryBookings = {GALLERY_ROWS, TOUR_ROWS, GALLERY_CLOSED, TOUR_CLOSED};
-    const body = Object.assign({}, fresh, {offices, galleryBookings});
+    patchBody.galleryBookings = {GALLERY_ROWS, TOUR_ROWS, GALLERY_CLOSED, TOUR_CLOSED};
     await fetch(CAL_FIREBASE_WRITE_URL, {
-      method:'PUT',
+      method:'PATCH',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(body)
+      body: JSON.stringify(patchBody)
     });
-    cachedOfficesData = offices;
-    rebuildSiteOptions();
   }catch(e){
     console.error('접촉리포트 연동 실패(오프라인일 수 있음). 이 예약은 이 기기에는 저장되어 있습니다.', e);
   }
 }
 // 삭제/휴관 지정처럼 접촉리포트에 로그를 새로 남길 필요는 없고 예약 목록 자체만 클라우드에 반영하면 되는 경우용.
 // (이걸 안 하면 이 기기에서만 지워지고, 다음에 새로고침할 때 클라우드의 예전 데이터로 되살아나 버림)
+// 여기서도 PATCH로 "galleryBookings" 경로만 고쳐서, offices 등 다른 데이터는 절대 안 건드린다.
 async function syncBookingsStateOnly(){
   try{
-    const res = await fetch(CAL_FIREBASE_DATA_URL + '?_=' + Date.now(), {cache:'no-store'});
-    const fresh = res.ok ? await res.json() : {};
-    const galleryBookings = {GALLERY_ROWS, TOUR_ROWS, GALLERY_CLOSED, TOUR_CLOSED};
-    const body = Object.assign({}, fresh, {galleryBookings});
     await fetch(CAL_FIREBASE_WRITE_URL, {
-      method:'PUT',
+      method:'PATCH',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(body)
+      body: JSON.stringify({galleryBookings: {GALLERY_ROWS, TOUR_ROWS, GALLERY_CLOSED, TOUR_CLOSED}})
     });
   }catch(e){
     console.error('예약 변경사항 클라우드 동기화 실패(오프라인일 수 있음). 이 기기에는 반영되어 있습니다.', e);
