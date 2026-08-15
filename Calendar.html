@@ -954,6 +954,23 @@ async function syncBookingToDashboard(kind, key, v){
     console.error('접촉리포트 연동 실패(오프라인일 수 있음). 이 예약은 이 기기에는 저장되어 있습니다.', e);
   }
 }
+// 삭제/휴관 지정처럼 접촉리포트에 로그를 새로 남길 필요는 없고 예약 목록 자체만 클라우드에 반영하면 되는 경우용.
+// (이걸 안 하면 이 기기에서만 지워지고, 다음에 새로고침할 때 클라우드의 예전 데이터로 되살아나 버림)
+async function syncBookingsStateOnly(){
+  try{
+    const res = await fetch(CAL_FIREBASE_DATA_URL + '?_=' + Date.now(), {cache:'no-store'});
+    const fresh = res.ok ? await res.json() : {};
+    const galleryBookings = {GALLERY_ROWS, TOUR_ROWS, GALLERY_CLOSED, TOUR_CLOSED};
+    const body = Object.assign({}, fresh, {galleryBookings});
+    await fetch(CAL_FIREBASE_WRITE_URL, {
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    });
+  }catch(e){
+    console.error('예약 변경사항 클라우드 동기화 실패(오프라인일 수 있음). 이 기기에는 반영되어 있습니다.', e);
+  }
+}
 
 // 페이지를 열 때 클라우드의 현장 목록(단지명 드롭다운용)과, 이 캘린더의 최신 예약 데이터를 받아온다.
 async function loadDashboardLinkOnStartup(){
@@ -2437,6 +2454,7 @@ function deleteEntry(kind, key, idx, btn){
   if(store[key].length===0) delete store[key];
   logChange(labelFor(key)+" · "+(kind==="gallery"?CAT_LABEL.gallery:CAT_LABEL.tour)+" '"+removedName+"' 삭제");
   onScheduleDataChanged();
+  syncBookingsStateOnly();
   openPreview(key);
 }
 
@@ -2535,6 +2553,7 @@ function toggleClosedDay(kind){
     delete store[key];
     logChange(labelFor(key)+" · "+label+" 휴관 해제");
     onScheduleDataChanged();
+    syncBookingsStateOnly();
     openPreview(key);
   } else {
     openForm(label+" 휴관/불가 지정", [
@@ -2555,6 +2574,7 @@ function toggleClosedDay(kind){
       store[key] = text;
       logChange(labelFor(key)+" · "+label+" "+text+" 지정");
       onScheduleDataChanged();
+      syncBookingsStateOnly();
       openPreview(key);
     });
   }
