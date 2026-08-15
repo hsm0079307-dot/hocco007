@@ -693,6 +693,8 @@ window.addEventListener('DOMContentLoaded', ()=>{
   banner.textContent = '👁 읽기 전용 모드 (게스트) — 예약 추가/수정/삭제 불가';
   banner.style.cssText = 'position:sticky;top:0;z-index:900;background:#8a5a00;color:#fff;text-align:center;font-size:12.5px;font-weight:700;padding:7px 10px;';
   document.body.insertBefore(banner, document.body.firstChild);
+  // 제목/부제목/하단 안내문구처럼 직접 타이핑해서 고치는 영역도 게스트는 손 못 대게 한 번에 잠근다
+  document.querySelectorAll('[contenteditable="true"]').forEach(el=>{ el.contentEditable = 'false'; });
 });
 
 const STORAGE_CHECK = "calendar_checkmarks_v1";
@@ -1419,6 +1421,7 @@ document.getElementById("memoOverlay").addEventListener("click",(e)=>{
   if(e.target.id==="memoOverlay") closeMemoOverlay();
 });
 function editMemo(){
+  if(blockIfReadonly()) return;
   const {rowKey, displayName, refresh} = memoContext;
   closeMemoOverlay();
   openForm("메모 — "+displayName, [
@@ -1431,6 +1434,7 @@ function editMemo(){
   });
 }
 function deleteMemo(btn){
+  if(blockIfReadonly()) return;
   if(btn.dataset.confirm !== "1"){
     btn.dataset.confirm = "1";
     btn.textContent = "정말 삭제?";
@@ -1825,6 +1829,7 @@ function renderTable(kind, key, rows, colorClass, tagLabel){
 }
 
 function toggleCheck(kind, key, idx, el){
+  if(blockIfReadonly()){ el.checked = !el.checked; return; }
   const rowKey = kind+"_"+key+"_"+idx;
   checkState[rowKey] = el.checked;
   persistCheck();
@@ -1851,6 +1856,7 @@ function initTab(){
 }
 
 function bulkCheckCurrentDate(){
+  if(blockIfReadonly()) return;
   const key = currentDateKey;
   let count = 0;
   if(activeCategories.gallery && GALLERY_ROWS[key]){
@@ -2672,17 +2678,19 @@ initStaffTable();
 function renderStaffTable(){
   const body = document.getElementById("staffBody");
   body.innerHTML = "";
+  const editable = !CAL_READONLY_MODE;
   staffList.forEach((s, idx)=>{
     const tr = document.createElement("tr");
     tr.innerHTML =
-      "<td class='name' contenteditable='true' data-field='name' data-idx='"+idx+"'>"+(s.name||"")+"</td>"+
-      "<td contenteditable='true' data-field='phone' data-idx='"+idx+"'>"+(s.phone||"")+"</td>"+
-      "<td contenteditable='true' data-field='car' data-idx='"+idx+"'>"+(s.car||"")+"</td>"+
-      "<td class='del'><button onclick='removeStaffRow("+idx+")'>✕</button></td>";
+      "<td class='name' contenteditable='"+editable+"' data-field='name' data-idx='"+idx+"'>"+(s.name||"")+"</td>"+
+      "<td contenteditable='"+editable+"' data-field='phone' data-idx='"+idx+"'>"+(s.phone||"")+"</td>"+
+      "<td contenteditable='"+editable+"' data-field='car' data-idx='"+idx+"'>"+(s.car||"")+"</td>"+
+      "<td class='del'>"+(editable ? "<button onclick='removeStaffRow("+idx+")'>✕</button>" : "")+"</td>";
     body.appendChild(tr);
   });
   body.querySelectorAll("td[contenteditable]").forEach(td=>{
     td.addEventListener("blur", ()=>{
+      if(blockIfReadonly()) return;
       const idx = +td.dataset.idx;
       const field = td.dataset.field;
       staffList[idx][field] = td.textContent.trim();
@@ -2691,6 +2699,7 @@ function renderStaffTable(){
   });
 }
 function addStaffRow(){
+  if(blockIfReadonly()) return;
   staffList.push({name:"", phone:"", car:""});
   persistStaff();
   renderStaffTable();
@@ -2699,6 +2708,7 @@ function addStaffRow(){
   if(lastNameCell) lastNameCell.focus();
 }
 function removeStaffRow(idx){
+  if(blockIfReadonly()) return;
   staffList.splice(idx,1);
   persistStaff();
   renderStaffTable();
@@ -2714,6 +2724,7 @@ function initFootnote(){
   const saved = localStorage.getItem(FOOTNOTE_KEY);
   if(saved !== null) el.textContent = saved;
   el.addEventListener("blur", ()=>{
+    if(CAL_READONLY_MODE) return;
     localStorage.setItem(FOOTNOTE_KEY, el.textContent);
   });
 }
@@ -2726,6 +2737,7 @@ function initSiteTitle(){
   const saved = localStorage.getItem(SITE_TITLE_KEY);
   if(saved !== null) el.textContent = saved;
   el.addEventListener("blur", ()=>{
+    if(CAL_READONLY_MODE) return;
     localStorage.setItem(SITE_TITLE_KEY, el.textContent);
     document.title = el.textContent;
   });
@@ -2740,6 +2752,7 @@ function initSiteSubtitle(){
   const saved = localStorage.getItem(SITE_SUBTITLE_KEY);
   if(saved !== null) el.textContent = saved;
   el.addEventListener("blur", ()=>{
+    if(CAL_READONLY_MODE) return;
     localStorage.setItem(SITE_SUBTITLE_KEY, el.textContent);
   });
 }
