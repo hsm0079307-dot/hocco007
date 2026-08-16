@@ -732,7 +732,7 @@ const CAPACITY_WEEKEND_KEY = "capacity_weekend_v1"; // 주말 정원 키
 const CAPACITY_DATE_KEY = "capacity_date_override_v1"; // 날짜별 정원 개별 지정 키
 let dateCapacityOverrides = {};
 try{ dateCapacityOverrides = JSON.parse(localStorage.getItem(CAPACITY_DATE_KEY)) || {}; }catch(e){ dateCapacityOverrides = {}; }
-function persistDateCapacity(){ localStorage.setItem(CAPACITY_DATE_KEY, JSON.stringify(dateCapacityOverrides)); }
+function persistDateCapacity(){ localStorage.setItem(CAPACITY_DATE_KEY, JSON.stringify(dateCapacityOverrides)); syncBookingsStateOnly(); }
 let WEEKS = [];
 let currentChartWeek = 0;
 function rebuildWeeks(){
@@ -953,7 +953,7 @@ async function syncBookingToDashboard(kind, key, v){
         }
       }
     }
-    patchBody.galleryBookings = {GALLERY_ROWS, TOUR_ROWS, GALLERY_CLOSED, TOUR_CLOSED};
+    patchBody.galleryBookings = {GALLERY_ROWS, TOUR_ROWS, GALLERY_CLOSED, TOUR_CLOSED, staffList, dateCapacityOverrides, capacitySettings: {weekday: localStorage.getItem(CAPACITY_WEEKDAY_KEY)||null, weekend: localStorage.getItem(CAPACITY_WEEKEND_KEY)||null}};
     await fetch(CAL_FIREBASE_WRITE_URL, {
       method:'PATCH',
       headers:{'Content-Type':'application/json'},
@@ -971,7 +971,7 @@ async function syncBookingsStateOnly(){
     await fetch(CAL_FIREBASE_WRITE_URL, {
       method:'PATCH',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({galleryBookings: {GALLERY_ROWS, TOUR_ROWS, GALLERY_CLOSED, TOUR_CLOSED}})
+      body: JSON.stringify({galleryBookings: {GALLERY_ROWS, TOUR_ROWS, GALLERY_CLOSED, TOUR_CLOSED, staffList, dateCapacityOverrides, capacitySettings: {weekday: localStorage.getItem(CAPACITY_WEEKDAY_KEY)||null, weekend: localStorage.getItem(CAPACITY_WEEKEND_KEY)||null}}})
     });
   }catch(e){
     console.error('예약 변경사항 클라우드 동기화 실패(오프라인일 수 있음). 이 기기에는 반영되어 있습니다.', e);
@@ -995,7 +995,20 @@ async function loadDashboardLinkOnStartup(){
       if(gb.GALLERY_CLOSED) GALLERY_CLOSED = gb.GALLERY_CLOSED;
       if(gb.TOUR_CLOSED) TOUR_CLOSED = gb.TOUR_CLOSED;
       persistScheduleData();
-      onScheduleDataChanged();
+      if(Array.isArray(gb.staffList)){
+        staffList = gb.staffList;
+        localStorage.setItem(STAFF_KEY, JSON.stringify(staffList));
+        if(typeof renderStaffTable === 'function') renderStaffTable();
+      }
+      if(gb.dateCapacityOverrides && typeof gb.dateCapacityOverrides === 'object'){
+        dateCapacityOverrides = gb.dateCapacityOverrides;
+        localStorage.setItem(CAPACITY_DATE_KEY, JSON.stringify(dateCapacityOverrides));
+      }
+      if(gb.capacitySettings){
+        if(gb.capacitySettings.weekday) localStorage.setItem(CAPACITY_WEEKDAY_KEY, String(gb.capacitySettings.weekday));
+        if(gb.capacitySettings.weekend) localStorage.setItem(CAPACITY_WEEKEND_KEY, String(gb.capacitySettings.weekend));
+      }
+      onScheduleDataChanged(); // 예약/정원/직원 정보를 다 반영한 뒤에 한 번만 다시 그린다
     }
   }catch(e){
     console.error('클라우드 예약 데이터 불러오기 실패, 이 기기에 저장된 내용으로 진행합니다', e);
@@ -1076,6 +1089,7 @@ function manualSave(){
 
 // ---- 현장 종료 시 전체 초기화 ----
 function openResetAllForm(){
+  if(blockIfReadonly()) return;
   openForm("⚠ 전체 초기화 — 새 현장 시작", [
     {id:"confirm", label:"정말 초기화하려면 '초기화'라고 입력하세요", placeholder:"초기화"}
   ], (v)=>{
@@ -2419,6 +2433,7 @@ function submitForm(){
 
 // ---- 비밀번호 변경 (폼 방식) ----
 function changePassword(errorMsg){
+  if(blockIfReadonly()) return;
   openForm((errorMsg?("⚠ "+errorMsg+" — "):"")+"비밀번호 변경", [
     {id:"current", label:"현재 비밀번호", placeholder:"현재 비밀번호"},
     {id:"next", label:"새 비밀번호", placeholder:"새 비밀번호 (4자리 이상 권장)"},
@@ -2689,6 +2704,7 @@ function loadStaff(){
 }
 function persistStaff(){
   localStorage.setItem(STAFF_KEY, JSON.stringify(staffList));
+  syncBookingsStateOnly(); // 직원 연락처도 기기 간 동기화되게 클라우드에 같이 반영
 }
 let staffList = loadStaff();
 initStaffTable();
@@ -2822,6 +2838,7 @@ function getCapacityForKey(key){
   return (dow>=5) ? cap.weekend : cap.weekday;
 }
 function openDateCapacitySettings(){
+  if(blockIfReadonly()) return;
   const key = previewKey;
   if(!key) return;
   const current = dateCapacityOverrides[key];
@@ -2837,6 +2854,7 @@ function openDateCapacitySettings(){
   });
 }
 function openCapacitySettings(){
+  if(blockIfReadonly()) return;
   const cap = getCapacityRaw();
   openForm("일일 정원 설정 (동반 포함 인원, 0이면 사용 안 함)", [
     {id:"weekday", label:"평일 정원(월~금)", placeholder:"예: 15", value: cap.weekday ? String(cap.weekday) : ""},
@@ -2848,6 +2866,7 @@ function openCapacitySettings(){
     else localStorage.setItem(CAPACITY_WEEKDAY_KEY, String(wd));
     if(isNaN(we) || we<=0) localStorage.removeItem(CAPACITY_WEEKEND_KEY);
     else localStorage.setItem(CAPACITY_WEEKEND_KEY, String(we));
+    syncBookingsStateOnly(); // 평일/주말 정원도 기기 간 동기화되게 클라우드에 같이 반영
     buildCalendarArea();
   });
 }
