@@ -858,7 +858,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v38</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v39</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -1290,6 +1290,10 @@ const L = (function(){
   let guestAccounts = {};  // {guest1:{name,password,siteIds:[]}, ...}
   let changeLog = [];      // [{at, who, site, note}, ...] 담당자 수정 이력
   let undoSnapshot = null; // 바로 이전 저장 상태 스냅샷 (실행취소용, 1단계만 지원)
+  let lastSavedStateSnapshot = null; // 마지막으로 "저장 성공"했던 시점의 상태. undoSnapshot은 항상 이 값을 기준으로 채운다
+  // (allOfficesData는 편집하는 즉시 바로 바뀌는 공유 객체라서, saveSites() 호출 시점에 그대로 복제하면
+  //  이미 "지금 막 하려는 편집"까지 포함된 걸 복제하게 돼 되돌리기가 사실상 아무 효과가 없어진다.
+  //  그래서 반드시 "마지막으로 성공 저장된 시점"의 스냅샷을 따로 들고 있다가 그걸 되돌리기 기준으로 쓴다.)
   // 일지 삭제 기록: 클라우드 최신값과 병합할 때, 여기 있는 id는 클라우드에 아직 남아있어도 다시 살리지 않는다.
   // (텔레그램 봇 등 외부에서 추가한 일지가 저장 중에 사라지지 않게 "병합" 방식으로 바꾸면서,
   //  반대로 "지운 것도 다시 살아나는" 부작용이 생겨서 이걸로 막음)
@@ -1609,6 +1613,7 @@ const L = (function(){
     if(currentOffice!==ALL_OFFICE && !OFFICES.includes(currentOffice)){ currentOffice = '강서사업소'; }
     sites = currentOffice===ALL_OFFICE ? OFFICES.flatMap(o=>allOfficesData[o]||[]) : (allOfficesData[currentOffice]||[]);
     sites.forEach(s=>{ s.district = migrateDistrict(s.district); });
+    if(!guestMode){ try{ lastSavedStateSnapshot = JSON.parse(JSON.stringify(allOfficesData)); }catch(e4){} }
     // 이미 저장돼있던 기존 데이터에도(=새로고침만 해도) 목동1단지 구역경계가 채워지도록 1회성 보정 (강서사업소 한정)
     const gangseoSites = allOfficesData['강서사업소'];
     const mok1 = gangseoSites.find(s=>s.id==='default-mokdong1');
@@ -1653,7 +1658,7 @@ const L = (function(){
   async function saveSites(){
     lastSaveBlockedByVersion = false;
     if(!guestMode){
-      try{ undoSnapshot = JSON.parse(JSON.stringify(allOfficesData)); }catch(e){}
+      undoSnapshot = lastSavedStateSnapshot; // 지금 막 하려는 편집이 반영되기 전, 마지막 저장 성공 시점 기준
     }
     if(!guestMode && saveOfficeContext && currentOffice!==ALL_OFFICE) allOfficesData[currentOffice] = sites;
     let editedSiteId = null, editedSiteSnapshot = null;
@@ -1797,6 +1802,7 @@ const L = (function(){
         if(guestMode && currentGuest && newGuestVersion) localGuestDataVersion = newGuestVersion;
       }
       syncState = 'ok';
+      if(!guestMode){ try{ lastSavedStateSnapshot = JSON.parse(JSON.stringify(allOfficesData)); }catch(e0b){} }
       try{ localStorage.removeItem(PENDING_OFFLINE_KEY); }catch(e0){}
     }catch(e){
       console.error('클라우드 저장 실패(오프라인일 수 있음), 로컬에는 저장되었습니다', e);
