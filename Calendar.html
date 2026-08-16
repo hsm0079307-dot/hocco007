@@ -1643,10 +1643,20 @@ function reorderRow(kind, r){
   return [time, danji||GALLERY_DANJI, ho||"-", name, plus, manager, spot || "-"];
 }
 
-// 오늘 날짜 기준으로 해당 날짜가 지났는지 판단 (연도는 2026 가정)
+// 날짜 키(M-D)엔 연도 정보가 없어서, 오늘과 가장 가까운 연도로 추정해 실제 날짜를 만든다.
+// (하드코딩된 연도를 쓰면 해가 바뀌는 순간 "지났는지/오늘인지/정렬" 판단이 전부 틀어지므로, 항상 현재 시점 기준으로 계산한다)
 function parseKeyDate(key){
   const [m,d] = key.split("-").map(Number);
-  return new Date(2026, m-1, d);
+  const now = new Date();
+  const thisYear = now.getFullYear();
+  let best = new Date(thisYear, m-1, d);
+  let bestDiff = Math.abs(best - now);
+  [thisYear-1, thisYear+1].forEach(y=>{
+    const cand = new Date(y, m-1, d);
+    const diff = Math.abs(cand - now);
+    if(diff < bestDiff){ best = cand; bestDiff = diff; }
+  });
+  return best;
 }
 function isPast(key){
   const today = new Date();
