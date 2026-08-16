@@ -858,7 +858,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v41</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v42</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -1637,8 +1637,18 @@ const L = (function(){
         const res = await window.storage.get(DISTRICT_LABEL_KEY, false);
         if(res && res.value) districtLabelOverrides = JSON.parse(res.value);
       }else{
-        const raw = localStorage.getItem(DISTRICT_LABEL_KEY);
-        if(raw) districtLabelOverrides = JSON.parse(raw);
+        // 클라우드에 저장된 값을 먼저 확인 (다른 기기에서 옮긴 라벨 위치도 보이게)
+        try{
+          const res = await fetch(`${FIREBASE_DB_URL}/data/districtLabelOverrides.json?_=${Date.now()}`, {cache:'no-store'});
+          if(res.ok){
+            const cloudVal = await res.json();
+            if(cloudVal && typeof cloudVal==='object'){ districtLabelOverrides = cloudVal; }
+          }
+        }catch(ce){}
+        if(!districtLabelOverrides || Object.keys(districtLabelOverrides).length===0){
+          const raw = localStorage.getItem(DISTRICT_LABEL_KEY);
+          if(raw) districtLabelOverrides = JSON.parse(raw);
+        }
       }
     }catch(e){ districtLabelOverrides = {}; }
   }
@@ -1646,7 +1656,15 @@ const L = (function(){
     const json = JSON.stringify(districtLabelOverrides);
     try{
       if(window.storage){ await window.storage.set(DISTRICT_LABEL_KEY, json, false); }
-      else{ localStorage.setItem(DISTRICT_LABEL_KEY, json); }
+      else{
+        localStorage.setItem(DISTRICT_LABEL_KEY, json);
+        // 다른 기기에서도 같은 라벨 위치가 보이게, 이 항목만 콕 집어서 클라우드에도 반영 (다른 데이터는 안 건드림)
+        try{
+          await fetch(`${FIREBASE_DB_URL}/data/districtLabelOverrides.json?auth=${encodeURIComponent(FIREBASE_DB_SECRET)}`, {
+            method:'PUT', headers:{'Content-Type':'application/json'}, body: json
+          });
+        }catch(ce){}
+      }
     }catch(e){
       try{ localStorage.setItem(DISTRICT_LABEL_KEY, json); }catch(e2){}
     }
@@ -1795,7 +1813,7 @@ const L = (function(){
         const res = await fetch(FIREBASE_DATA_WRITE_URL, {
           method:'PUT',
           headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({offices: allOfficesData, guests: guestAccounts, changeLog: changeLog, adminPasswordHash: adminPasswordHash, entryPasswordHash: entryPasswordHash, dataVersion: newDataVersion, guestDataVersions: guestDataVersions, galleryBookings: (fresh && fresh.galleryBookings) || undefined})
+          body: JSON.stringify({offices: allOfficesData, guests: guestAccounts, changeLog: changeLog, adminPasswordHash: adminPasswordHash, entryPasswordHash: entryPasswordHash, dataVersion: newDataVersion, guestDataVersions: guestDataVersions, galleryBookings: (fresh && fresh.galleryBookings) || undefined, districtLabelOverrides: (fresh && fresh.districtLabelOverrides) || undefined})
         });
         if(!res.ok) throw new Error('firebase save status '+res.status);
         if(!guestMode) localDataVersion = newDataVersion; // 관리자 저장만 이 탭의 기준 버전을 갱신
