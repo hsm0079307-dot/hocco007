@@ -3596,6 +3596,9 @@ const L = (function(){
       });
       document.getElementById('logAddBtn').addEventListener('click', async ()=>{
         if(!(await ensureUnlocked())) return;
+        const submitBtn = document.getElementById('logAddBtn');
+        if(submitBtn.disabled) return; // 연타로 같은 내용이 중복 저장되는 것 방지
+        submitBtn.disabled = true;
         const d = document.getElementById('logDate').value;
         const a = document.getElementById('logAuthor').value.trim();
         const cn = document.getElementById('logContactName').value.trim();
@@ -3605,7 +3608,7 @@ const L = (function(){
         const es = document.getElementById('logExecutiveStance').value.trim();
         const cl = document.getElementById('logCloseness').value.trim();
         const t = document.getElementById('logText').value.trim();
-        if(!d || !t){ alert('날짜와 상담내용을 입력해주세요.'); return; }
+        if(!d || !t){ alert('날짜와 상담내용을 입력해주세요.'); submitBtn.disabled = false; return; }
         site.logs = site.logs || [];
         if(editingLogId){
           const target = site.logs.find(l=>l.id===editingLogId);
@@ -4596,6 +4599,8 @@ const L = (function(){
     renderEventRows();
   });
   function openModal(site){
+    const saveBtnEl = document.getElementById('saveBtn');
+    if(saveBtnEl) saveBtnEl.disabled = false; // 이전에 저장하면서 잠겼던 버튼을 다시 열 때는 항상 풀어준다
     editingId = site ? site.id : null;
     document.getElementById('modalTitle').textContent = site ? '현장 수정' : '현장 추가';
     document.getElementById('f_name').value = site ? site.name : '';
@@ -4663,8 +4668,11 @@ const L = (function(){
     if(guestMode && !editingId){ alert('담당자 모드에서는 새 현장을 추가할 수 없습니다.'); return; }
     if(currentOffice===ALL_OFFICE){ alert('전체 보기에서는 수정할 수 없습니다. 먼저 사업소를 선택해주세요.'); return; }
     if(!(await ensureUnlocked())) return;
+    const saveBtn = document.getElementById('saveBtn');
+    if(saveBtn.disabled) return; // 연타로 현장이 중복 추가되는 것 방지
     const name = document.getElementById('f_name').value.trim();
     if(!name){ alert('현장명을 입력해주세요.'); return; }
+    saveBtn.disabled = true;
     const existing = editingId ? (sites.find(s=>s.id===editingId) || {}) : {};
     const data = Object.assign({}, existing, {
       id: editingId || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())+Math.random()),
