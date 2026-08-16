@@ -464,6 +464,7 @@
   .spec-box{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:14px;}
   .spec-line{font-size:13px;line-height:1.8;font-family:inherit;position:relative;padding-left:14px;white-space:normal;overflow-wrap:break-word;word-break:break-word;}
   .spec-label{display:inline-block;min-width:4.3em;}
+  .date-label{display:inline-block;min-width:6.6em;color:var(--accent);font-weight:600;margin-right:2px;}
   .num-value{font-family:var(--font-mono);color:var(--text-main);font-weight:600;letter-spacing:.2px;}
   .summary-strip{display:flex;gap:0;margin-bottom:10px;background:none;}
   .summary-item{flex:1;padding:6px 8px;text-align:center;border-right:1px dotted var(--line);}
@@ -857,7 +858,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-15-v31</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-15-v32</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -2004,6 +2005,7 @@ const L = (function(){
   function renderRichText(text, opts){
     const compact = opts && opts.compact;
     const singleLine = opts && opts.singleLine;
+    const alignDates = opts && opts.alignDates;
     let html = escapeHtml(text||'');
     if(compact){
       html = html.replace(/\*\*(.+?)\*\*/g, '<span style="font-weight:700;">$1</span>');
@@ -2013,6 +2015,13 @@ const L = (function(){
       html = html.replace(/\*(.+?)\*/g, '<span style="color:var(--accent);font-weight:700;">$1</span>');
     }
     html = html.replace(/~(.+?)~/g, '<u>$1</u>');
+    if(alignDates){
+      // 줄 맨 앞의 "26. 08. 08 (토)" 같은 날짜 부분을 고정폭으로 감싸서, 뒤에 오는 내용의 시작 위치를 줄마다 맞춘다
+      html = html.split('\n').map(line=>{
+        const m = line.match(/^(\d{2}\.\s?\d{2}(?:\.\s?\d{2})?\s?(?:\([가-힣]\))?)\s*(.*)$/);
+        return (m && m[1]) ? `<span class="date-label">${m[1]}</span>${m[2]}` : line;
+      }).join('\n');
+    }
     return singleLine ? html.replace(/\n+/g, '  ·  ') : html.replace(/\n/g, '<br>');
   }
   // 텍스트영역 위에 굵게/강조/밑줄 버튼을 붙여서, 기호를 직접 안 쳐도 클릭으로 서식을 넣을 수 있게 함
@@ -3411,7 +3420,7 @@ const L = (function(){
         </div>
       `;
       // 비고/진행단계/타사활동: 보기·수정 모드가 같은 자리에서 바뀌게 구성. 4칸 모두 크기를 동일하게 맞춘다(.detail-quad-box 높이 고정).
-      const noteBox = (heading, editId, value) => editMode ? `
+      const noteBox = (heading, editId, value, opts) => editMode ? `
         <div class="detail-quad-box">
           <div class="spec-heading">■ ${heading}</div>
           ${richToolbar(editId)}
@@ -3420,7 +3429,7 @@ const L = (function(){
       ` : `
         <div class="detail-quad-box">
           <div class="spec-heading">■ ${heading} <button class="quad-edit-btn no-print" data-quad-edit="1" title="수정">✏</button></div>
-          <div class="spec-stage-detail">${value ? renderRichText(value) : '-'}</div>
+          <div class="spec-stage-detail">${value ? renderRichText(value, opts) : '-'}</div>
         </div>
       `;
       body.innerHTML = `
@@ -3434,7 +3443,7 @@ const L = (function(){
         <div class="detail-quad-grid">
           ${statusBoxHtml}
           ${noteBox('비고', 'e_salesNote', site.salesNote)}
-          ${noteBox('진행단계', 'e_stageDetail', site.stageDetail)}
+          ${noteBox('진행단계', 'e_stageDetail', site.stageDetail, {alignDates:true})}
           ${noteBox('타사활동', 'e_progressNote', site.progressNote)}
         </div>
         ${editMode ? `<div class="hint">날짜 적힌 줄(예: 26.05.09 전체회의)은 저장 시 캘린더 일정에 자동으로 반영돼요.<br>강조 표시: *텍스트*(굵게) · **텍스트**(빨간색, 굵게)</div>` : ''}
