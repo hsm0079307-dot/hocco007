@@ -858,7 +858,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v33</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v35</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -1709,8 +1709,8 @@ const L = (function(){
                 if(guestMode && currentGuest){
                   // 담당자 수정은 원본을 바꾸지 않고 담당자별 독립된 사본(guestDrafts[게스트key])에만 남긴다.
                   // baseSnapshot: 이 시점의 "관리자 원본" 값을 같이 저장해둬서, 나중에 관리자가 원본을 바꾸면 담당자가 알 수 있게 한다.
-                  const draftSnapshot = Object.assign({}, editedSiteSnapshot);
-                  delete draftSnapshot.guestDrafts;
+                  const draftSnapshot = {};
+                  DRAFT_FIELDS_KEYS.forEach(k=>{ draftSnapshot[k] = editedSiteSnapshot[k] || ''; });
                   const baseSnapshot = {};
                   DRAFT_FIELDS_KEYS.forEach(k=>{ baseSnapshot[k] = arr[idx][k] || ''; });
                   arr[idx].guestDrafts = arr[idx].guestDrafts || {};
