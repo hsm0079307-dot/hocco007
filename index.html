@@ -858,7 +858,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v37</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v38</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -4796,7 +4796,7 @@ const L = (function(){
     if(currentOffice===ALL_OFFICE){ alert('전체 보기에서는 엑셀 업로드를 할 수 없습니다. 먼저 사업소를 선택해주세요.'); e.target.value=''; return; }
     if(!(await ensureUnlocked())){ e.target.value=''; return; }
     const buf = await file.arrayBuffer();
-    const wb = XLSX.read(buf, {type:'array'});
+    const wb = XLSX.read(buf, {type:'array', cellDates:true});
     const sheet = wb.Sheets[wb.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(sheet, {defval:''});
     if(rows.length===0){ alert('엑셀에서 데이터를 찾지 못했습니다.'); return; }
@@ -4818,8 +4818,10 @@ const L = (function(){
       if(!name || !rawDistrict) return;
       const rawCity = colMap.city ? String(r[colMap.city]||'').trim() : '';
       const matchedDistrict = resolveDistrict(rawDistrict, rawCity);
-      let lastDate = colMap.lastDate ? String(r[colMap.lastDate]||'').trim() : '';
-      if(lastDate instanceof Date) lastDate = lastDate.toISOString().slice(0,10);
+      const rawLastDate = colMap.lastDate ? r[colMap.lastDate] : '';
+      let lastDate = (rawLastDate instanceof Date)
+        ? rawLastDate.toISOString().slice(0,10)
+        : String(rawLastDate||'').trim();
       sites.push({
         id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now())+Math.random()+added,
         name,
