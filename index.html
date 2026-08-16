@@ -858,7 +858,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v36</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v37</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -3591,22 +3591,19 @@ const L = (function(){
         logRefreshBtn.disabled = true;
         logRefreshBtn.textContent = '🔄 불러오는 중...';
         try{
-          const officeArr = allOfficesData[site.office || currentOffice] || [];
-          const idxInOffice = officeArr.findIndex(s2=>s2.id===site.id);
-          if(idxInOffice>-1){
-            const officeName = site.office || currentOffice;
-            const url = `${FIREBASE_DB_URL}/offices/${encodeURIComponent(officeName)}/${idxInOffice}/logs.json?_=${Date.now()}`;
-            const res = await fetch(url, {cache:'no-store'});
-            if(res.ok){
-              const freshLogs = await res.json();
-              // 수동 새로고침도 마찬가지로, 기존 항목 내용은 안 건드리고 새로 생긴 것만 더한다.
-              const localIds = new Set((site.logs||[]).map(l=>l.id));
-              const newFromServer = (Array.isArray(freshLogs) ? freshLogs : [])
-                .filter(l=>!localIds.has(l.id) && !deletedLogIds.has(l.id));
-              if(newFromServer.length){
-                site.logs = (site.logs||[]).concat(newFromServer);
-                if(officeArr[idxInOffice]) officeArr[idxInOffice].logs = site.logs;
-              }
+          const officeName = site.office || currentOffice;
+          const {idx: idxInOffice, freshArr} = await getFreshIndexInOffice(officeName, site.id);
+          if(idxInOffice>-1 && freshArr){
+            const freshLogs = freshArr[idxInOffice].logs;
+            const officeArr = allOfficesData[officeName] || [];
+            // 수동 새로고침도 마찬가지로, 기존 항목 내용은 안 건드리고 새로 생긴 것만 더한다.
+            const localIds = new Set((site.logs||[]).map(l=>l.id));
+            const newFromServer = (Array.isArray(freshLogs) ? freshLogs : [])
+              .filter(l=>!localIds.has(l.id) && !deletedLogIds.has(l.id));
+            if(newFromServer.length){
+              site.logs = (site.logs||[]).concat(newFromServer);
+              const localIdx = officeArr.findIndex(s2=>s2.id===site.id);
+              if(localIdx>-1) officeArr[localIdx].logs = site.logs;
             }
           }
         }catch(e){ console.error('일지 수동 새로고침 실패', e); }
