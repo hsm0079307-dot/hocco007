@@ -1115,6 +1115,7 @@ function openResetAllForm(){
     persistGalleryDanji();
     persistExtraDanji();
     persistCatLabel();
+    syncBookingsStateOnly(); // 초기화된 상태를 클라우드에도 명시적으로 반영 (안 하면 새로고침 시 예전 데이터가 되살아남)
     document.getElementById("labelGallery").textContent = "";
     document.getElementById("labelTour").textContent = "";
     changeLog = [];
@@ -1741,6 +1742,7 @@ function populateDanjiToggleBar(){
   ).join("") + "<span class='toggle add-danji-btn' onclick='addDanjiName()'>+ 현장 추가</span>";
 }
 function addDanjiName(){
+  if(blockIfReadonly()) return;
   openForm("새 현장 추가", [
     {id:"name", label:"현장명", placeholder:"예: 14단지"}
   ], (v)=>{
@@ -1754,6 +1756,7 @@ function addDanjiName(){
   });
 }
 function renameDanjiFromBlur(el, oldName){
+  if(CAL_READONLY_MODE){ el.textContent = oldName; return; }
   const newName = el.textContent.trim();
   if(!newName || newName===oldName){ el.textContent = oldName; return; }
   renameDanji(oldName, newName);
@@ -1778,7 +1781,7 @@ function renameDanji(oldName, newName){
     extraDanjiNames = extraDanjiNames.map(n=>n===oldName?newName:n);
     persistExtraDanji();
   }
-  if(changed) persistScheduleData();
+  if(changed) { persistScheduleData(); syncBookingsStateOnly(); }
   if(activeDanjiFilter.has(oldName)){
     activeDanjiFilter.delete(oldName);
     activeDanjiFilter.add(newName);
@@ -2799,12 +2802,14 @@ function initCatLabels(){
   gEl.textContent = CAT_LABEL.gallery;
   tEl.textContent = CAT_LABEL.tour;
   gEl.addEventListener("blur", ()=>{
+    if(CAL_READONLY_MODE){ gEl.textContent = CAT_LABEL.gallery; return; }
     CAT_LABEL.gallery = gEl.textContent.trim() || "갤러리";
     gEl.textContent = CAT_LABEL.gallery;
     persistCatLabel();
     refreshAllViews();
   });
   tEl.addEventListener("blur", ()=>{
+    if(CAL_READONLY_MODE){ tEl.textContent = CAT_LABEL.tour; return; }
     CAT_LABEL.tour = tEl.textContent.trim() || "21차투어";
     tEl.textContent = CAT_LABEL.tour;
     persistCatLabel();
