@@ -923,14 +923,14 @@ async function syncBookingToDashboard(kind, key, v){
     const siteName = v.danji;
     if(siteName){
       const office = officeForSiteName(siteName);
-      const arr = cachedOfficesData[office];
-      const idx = Array.isArray(arr) ? arr.findIndex(s=>s && s.name===siteName) : -1;
+      // 몇 번째 현장인지(배열 순서)는 캐시해둔 값을 믿지 않고, 지금 이 순간 서버의 실제 배열을 다시 읽어서 확인한다.
+      // (그 사이 대시보드에서 현장을 추가/삭제/순서변경 했으면 캐시된 순서가 어긋나서, 엉뚱한 현장에 잘못 쓰일 수 있어서)
+      const officeArrUrl = `${CAL_FIREBASE_DB_URL}/offices/${encodeURIComponent(office)}.json?_=${Date.now()}`;
+      const officeArrRes = await fetch(officeArrUrl, {cache:'no-store'});
+      const officeArrFresh = officeArrRes.ok ? await officeArrRes.json() : null;
+      const idx = Array.isArray(officeArrFresh) ? officeArrFresh.findIndex(s=>s && s.name===siteName) : -1;
       if(idx > -1){
-        // 이 현장의 logs만 지금 최신으로 다시 읽어서(전체 문서 아님) 새 로그를 덧붙인다
-        const logsUrl = `${CAL_FIREBASE_DB_URL}/offices/${encodeURIComponent(office)}/${idx}/logs.json?_=${Date.now()}`;
-        const logsRes = await fetch(logsUrl, {cache:'no-store'});
-        const freshLogs = logsRes.ok ? await logsRes.json() : null;
-        const logs = Array.isArray(freshLogs) ? freshLogs.slice() : [];
+        const logs = Array.isArray(officeArrFresh[idx].logs) ? officeArrFresh[idx].logs.slice() : [];
         const noteBits = [];
         if(v.time) noteBits.push(v.time);
         if(v.plus && v.plus!=='-') noteBits.push('동반: '+v.plus);
@@ -948,8 +948,9 @@ async function syncBookingToDashboard(kind, key, v){
           text: (kind==='gallery' ? '갤러리' : '현장') + ' 투어 예약' + (noteBits.length ? ' - ' + noteBits.join(' · ') : '')
         });
         patchBody['offices/'+office+'/'+idx+'/logs'] = logs;
-        if(cachedOfficesData[office] && cachedOfficesData[office][idx]){
-          cachedOfficesData[office][idx].logs = logs; // 이 기기 화면(드롭다운 등)에서도 바로 반영
+        if(Array.isArray(officeArrFresh)){
+          cachedOfficesData[office] = officeArrFresh; // 방금 받아온 최신 배열로 캐시도 같이 갱신 (드롭다운 등에서도 최신 유지)
+          cachedOfficesData[office][idx].logs = logs;
         }
       }
     }

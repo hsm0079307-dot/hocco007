@@ -858,7 +858,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-15-v32</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v33</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -1508,6 +1508,23 @@ const L = (function(){
   // ⚠️ Firebase 콘솔 > 프로젝트 설정 > 서비스 계정 > 데이터베이스 비밀(레거시)에서 발급받은 키를 여기에 넣으세요.
   // 이 값이 있어야 write:false 규칙 아래서도 이 앱만 저장할 수 있습니다. 절대 외부에 공유하지 마세요.
   const FIREBASE_DB_SECRET = 'kYHJbpUE7jEVdLu69ZVMY3DGf4DBYeaA4JGZiS4B';
+  // 그 현장이 지금 이 순간 서버의 실제 배열에서 몇 번째인지 다시 확인해서 반환한다.
+  // (allOfficesData 캐시 값을 그대로 믿으면, 그 사이 다른 곳에서 같은 사업소에 현장을 추가/삭제/순서변경 했을 때
+  //  인덱스가 어긋나서 엉뚱한 현장의 로그를 읽거나 써버릴 수 있어서, 로그 읽기/쓰기 직전엔 항상 이걸로 다시 확인한다)
+  async function getFreshIndexInOffice(officeName, siteId){
+    try{
+      const url = `${FIREBASE_DB_URL}/offices/${encodeURIComponent(officeName)}.json?_=${Date.now()}`;
+      const res = await fetch(url, {cache:'no-store'});
+      if(!res.ok) return {idx:-1, freshArr:null};
+      const freshArr = await res.json();
+      if(!Array.isArray(freshArr)) return {idx:-1, freshArr:null};
+      const idx = freshArr.findIndex(s=>s && s.id===siteId);
+      return {idx, freshArr};
+    }catch(e){
+      console.error('현장 위치 재확인 실패', e);
+      return {idx:-1, freshArr:null};
+    }
+  }
   const FIREBASE_DATA_WRITE_URL = `${FIREBASE_DB_URL}/data.json?auth=${encodeURIComponent(FIREBASE_DB_SECRET)}`;
 
   async function loadSites(){
@@ -3532,20 +3549,18 @@ const L = (function(){
         refreshedSitesThisSession.add(site.id);
         (async function refreshLogsForThisSite(){
           try{
-            const officeArr = allOfficesData[site.office || currentOffice] || [];
-            const idxInOffice = officeArr.findIndex(s2=>s2.id===site.id);
-            if(idxInOffice<0) return;
             const officeName = site.office || currentOffice;
-            const url = `${FIREBASE_DB_URL}/offices/${encodeURIComponent(officeName)}/${idxInOffice}/logs.json?_=${Date.now()}`;
-            const res = await fetch(url, {cache:'no-store'});
-            if(!res.ok) return;
-            const freshLogs = await res.json();
+            const {idx: idxInOffice, freshArr} = await getFreshIndexInOffice(officeName, site.id);
+            if(idxInOffice<0 || !freshArr) return;
+            const freshLogs = freshArr[idxInOffice].logs;
+            const officeArr = allOfficesData[officeName] || [];
             const localIds = new Set((site.logs||[]).map(l=>l.id));
             const newFromServer = (Array.isArray(freshLogs) ? freshLogs : [])
               .filter(l=>!localIds.has(l.id) && !deletedLogIds.has(l.id));
             if(newFromServer.length && !editingLogId){
               site.logs = (site.logs||[]).concat(newFromServer);
-              if(officeArr[idxInOffice]) officeArr[idxInOffice].logs = site.logs;
+              const localIdx = officeArr.findIndex(s2=>s2.id===site.id);
+              if(localIdx>-1) officeArr[localIdx].logs = site.logs;
               if(currentView==='detail' && currentDetailId===site.id && detailTab==='일지' && !editingLogId){
                 renderDetailBody(site); // 지금도 일지 탭을 보고 있으면 다시 그려서 최신 반영
               }
@@ -3608,8 +3623,7 @@ const L = (function(){
         // 그 현장의 logs 경로에 직접 한 번 더 못박아 쓴다.
         try{
           const officeName = site.office || currentOffice;
-          const officeArr = allOfficesData[officeName] || [];
-          const idxInOffice = officeArr.findIndex(s2=>s2.id===site.id);
+          const {idx: idxInOffice} = await getFreshIndexInOffice(officeName, site.id);
           if(idxInOffice>-1){
             const url = `${FIREBASE_DB_URL}/offices/${encodeURIComponent(officeName)}/${idxInOffice}/logs.json?auth=${encodeURIComponent(FIREBASE_DB_SECRET)}`;
             await fetch(url, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(site.logs)});
@@ -3642,8 +3656,7 @@ const L = (function(){
           // 클라우드에 곧바로 확정해서 쓴다. (다른 로직에 막혀서 삭제가 유실되는 일이 없도록)
           try{
             const officeName = site.office || currentOffice;
-            const officeArr = allOfficesData[officeName] || [];
-            const idxInOffice = officeArr.findIndex(s2=>s2.id===site.id);
+            const {idx: idxInOffice} = await getFreshIndexInOffice(officeName, site.id);
             if(idxInOffice>-1){
               const url = `${FIREBASE_DB_URL}/offices/${encodeURIComponent(officeName)}/${idxInOffice}/logs.json?auth=${encodeURIComponent(FIREBASE_DB_SECRET)}`;
               const res = await fetch(url, {
