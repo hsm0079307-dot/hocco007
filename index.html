@@ -858,7 +858,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v44</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v45</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -2078,12 +2078,14 @@ const L = (function(){
     if(alignDates){
       // 줄 맨 앞의 "26. 08. 08 (토)" 같은 날짜 부분을 고정폭 칸으로 만들고, 내용을 그 옆 칸에 넣어서
       // 내용이 길어져 줄바꿈되더라도 항상 날짜 칸 너비만큼 들여쓰기된 위치에서 이어지게 한다.
+      // 날짜로 시작하지 않는 줄(위 일정의 장소/메모 등 추가 설명)은 보이지 않는 날짜칸을 넣어서
+      // 위 줄의 "내용"이 시작하는 위치에 맞춰 들여쓰기한다 (왼쪽 끝으로 튀어나오지 않게).
       return html.split('\n').map(line=>{
         const m = line.match(/^(\d{2}\.\s?\d{2}(?:\.\s?\d{2})?\s?(?:\([가-힣]\))?)\s*(.*)$/);
         if(m && m[1]){
           return `<div style="display:flex;gap:2px;"><span class="date-label" style="flex:none;">${m[1]}</span><span style="flex:1;min-width:0;">${m[2]}</span></div>`;
         }
-        return `<div>${line}</div>`;
+        return `<div style="display:flex;gap:2px;"><span class="date-label" style="flex:none;visibility:hidden;">00.00</span><span style="flex:1;min-width:0;">${line}</span></div>`;
       }).join('');
     }
     return singleLine ? html.replace(/\n+/g, '  ·  ') : html.replace(/\n/g, '<br>');
