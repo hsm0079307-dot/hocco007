@@ -858,7 +858,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v46</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v47</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -4416,6 +4416,9 @@ const L = (function(){
   // 너무 작은 구역(대략 변 길이가 이 값보다 작은 경우)은 모바일에서 손가락 터치 시
   // 실제 현장 마커/폴리곤 클릭을 가로채기 쉬워서, 클릭 판정 대상에서 제외한다 (화면에는 계속 표시됨)
   const AGENDA_ZONE_MIN_CLICK_SIZE_DEG = 0.0015; // 대략 지름 150m 이상인 구역만 클릭 가능
+  // "토지구획정리사업" 같은 옛날식 구역은 한 지역을 통째로 덮을 만큼 커서(수 km 단위), 관리 대상인
+  // 개별 재건축/재개발 구역과 성격이 다르다. 이렇게 지나치게 큰 구역은 아예 화면에 안 보이게 뺀다.
+  const AGENDA_ZONE_MAX_SIZE_DEG = 0.02; // 대략 지름 2km 이상인 구역은 제외
   function findAgendaZoneAt(lat, lng){
     for(const z of agendaZonesKept){
       if(z._sizeDeg!=null && z._sizeDeg < AGENDA_ZONE_MIN_CLICK_SIZE_DEG) continue;
@@ -4450,6 +4453,7 @@ const L = (function(){
         try{
           if(!z.p || z.p.length<3) continue;
           z._sizeDeg = zoneBBoxSizeDeg(z.p);
+          if(z._sizeDeg > AGENDA_ZONE_MAX_SIZE_DEG) continue; // 너무 큰 구역(옛날식 토지구획정리사업 등)은 아예 표시 안 함
           const w = L.polygon(z.p, {
             color:'#9a9a9a', weight:1, opacity:.55,
             fillColor:'#9a9a9a', fillOpacity:.16,
