@@ -858,7 +858,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v42</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v43</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -1300,6 +1300,7 @@ const L = (function(){
   const deletedLogIds = new Set();
   const refreshedSitesThisSession = new Set(); // 일지 targeted 새로고침을 그 현장당 이 세션에서 한 번만 돌리기 위한 기록
   let editingLogId = null; // 보고서(일지) "수정" 버튼 눌렀을 때, 지금 고치고 있는 항목의 id
+  let logFormOpen = false; // "보고서 입력" 버튼을 눌러서 입력 폼을 펼친 상태인지
   const GUEST_KEY = 'realestate-guest-accounts-v1';
   const CHANGELOG_KEY = 'realestate-guest-changelog-v1';
   const ADMIN_PW_KEY = 'realestate-admin-pw-hash-v1';
@@ -3415,6 +3416,7 @@ const L = (function(){
         detailTab = t.dataset.tab;
         editMode = false;
         editingLogId = null;
+        logFormOpen = false;
         renderAll();
       });
     });
@@ -3541,12 +3543,14 @@ const L = (function(){
     }else if(detailTab==='일지'){
       const logs = (site.logs||[]).filter(l=>!isTourBookingLog(l)).slice().sort((a,b)=>b.date.localeCompare(a.date));
       const editingLog = editingLogId ? (site.logs||[]).find(l=>l.id===editingLogId) : null;
+      const showForm = logFormOpen || !!editingLog;
       body.innerHTML = `
         <div class="log-add">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
             ${editingLog ? '<span style="font-size:11px;color:var(--accent);font-weight:700;">✏️ 보고서 수정 중</span>' : '<span></span>'}
             <button class="btn btn-ghost btn-sm no-print" id="logRefreshBtn" style="padding:3px 9px;font-size:10.5px;" title="이 현장 보고서만 다시 최신으로 불러오기">🔄 보고서 새로고침</button>
           </div>
+          ${showForm ? `
           <div class="log-add-row3">
             <input type="date" id="logDate" value="${editingLog?escapeHtml(editingLog.date):''}">
             <input type="text" id="logAuthor" placeholder="담당자" value="${editingLog?escapeHtml(editingLog.author||''):escapeHtml(site.manager||'')}">
@@ -3567,8 +3571,11 @@ const L = (function(){
           <textarea id="logText" placeholder="상담내용을 입력하세요" rows="2">${editingLog?escapeHtml(editingLog.text||''):''}</textarea>
           <div style="display:flex;gap:6px;">
             <button class="btn btn-primary btn-sm" id="logAddBtn">${editingLog?'수정 저장':'추가'}</button>
-            ${editingLog?'<button class="btn btn-ghost btn-sm" id="logEditCancelBtn">취소</button>':''}
+            <button class="btn btn-ghost btn-sm" id="logEditCancelBtn">취소</button>
           </div>
+          ` : `
+          <button class="btn btn-primary btn-sm no-print" id="logOpenFormBtn" style="width:100%;margin-top:2px;">✏️ 보고서 입력</button>
+          `}
         </div>
         <div class="log-list" id="logListArea">
           ${logs.length ? logs.map(l=>`
@@ -3656,6 +3663,7 @@ const L = (function(){
         const t = document.getElementById('logText').value.trim();
         if(!d || !t){ alert('날짜와 상담내용을 입력해주세요.'); submitBtn.disabled = false; return; }
         site.logs = site.logs || [];
+        logFormOpen = false;
         if(editingLogId){
           const target = site.logs.find(l=>l.id===editingLogId);
           if(target){
@@ -3683,6 +3691,12 @@ const L = (function(){
       const logEditCancelBtn = document.getElementById('logEditCancelBtn');
       if(logEditCancelBtn) logEditCancelBtn.addEventListener('click', ()=>{
         editingLogId = null;
+        logFormOpen = false;
+        renderDetailBody(site);
+      });
+      const logOpenFormBtn = document.getElementById('logOpenFormBtn');
+      if(logOpenFormBtn) logOpenFormBtn.addEventListener('click', ()=>{
+        logFormOpen = true;
         renderDetailBody(site);
       });
       body.querySelectorAll('.log-edit').forEach(btn=>{
