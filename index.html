@@ -858,7 +858,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v45</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v46</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -2381,7 +2381,7 @@ const L = (function(){
     if(!text) return '-';
     const lines = String(text).split('\n').map(l=>l.trim()).filter(Boolean);
     if(!lines.length) return '-';
-    return `<div class="sheet-spec-list">${lines.map(l=>`<div class="sheet-spec-item sheet-spec-item-plain">${renderRichText(l, {compact:true})}</div>`).join('')}</div>`;
+    return `<div class="sheet-spec-list">${lines.map(l=>`<div class="sheet-spec-item sheet-spec-item-plain">${renderRichText(l, {compact:true, alignDates:true})}</div>`).join('')}</div>`;
   }
   // 전체사업지 표 컬럼 정의: 필터/렌더링을 컬럼 하나에서 관리 (no~타사활동 전체 필터 대응, 구 컬럼 포함)
   function buildSheetColumns(ctx){
@@ -2911,11 +2911,11 @@ const L = (function(){
       ['설계업체', s=>s.designCompany||'-'],
       ['신탁사', s=>s.trustCompany||'-'],
     ];
-    const bulletList = (text)=>{
+    const bulletList = (text, opts)=>{
       if(!text) return '<div class="spec-line">-</div>';
       const lines = String(text).split('\n').map(l=>l.trim()).filter(Boolean);
       if(!lines.length) return '<div class="spec-line">-</div>';
-      return lines.map(l=>`<div class="spec-line">${renderRichText(l, {compact:true})}</div>`).join('');
+      return lines.map(l=>`<div class="spec-line">${renderRichText(l, Object.assign({compact:true}, opts))}</div>`).join('');
     };
     const pagesHtml = chosen.map(s=>`
       <div class="bulk-report-page">
@@ -2930,7 +2930,7 @@ const L = (function(){
             ${rows.map(([label,get])=>`<div class="spec-line">${label}: ${escapeHtml(String(get(s)))}</div>`).join('')}
           </div>
           <div class="detail-quad-box"><div class="spec-heading">■ 비고</div>${bulletList(s.salesNote)}</div>
-          <div class="detail-quad-box"><div class="spec-heading">■ 진행단계</div>${bulletList(s.stageDetail)}</div>
+          <div class="detail-quad-box"><div class="spec-heading">■ 진행단계</div>${bulletList(s.stageDetail, {alignDates:true})}</div>
           <div class="detail-quad-box"><div class="spec-heading">■ 타사활동</div>${bulletList(s.progressNote)}</div>
         </div>
       </div>
@@ -6224,11 +6224,11 @@ const L = (function(){
     }
     const managerName = sel.value || names[0] || '';
     const items = managerName ? buildHandoverData(managerName) : [];
-    const bulletList = (text)=>{
+    const bulletList = (text, opts)=>{
       if(!text) return '<div class="spec-line">-</div>';
       const lines = String(text).split('\n').map(l=>l.trim()).filter(Boolean);
       if(!lines.length) return '<div class="spec-line">-</div>';
-      return lines.map(l=>`<div class="spec-line">${renderRichText(l, {compact:true})}</div>`).join('');
+      return lines.map(l=>`<div class="spec-line">${renderRichText(l, Object.assign({compact:true}, opts))}</div>`).join('');
     };
     const body = document.getElementById('handoverBody');
     body.innerHTML = `
@@ -6247,7 +6247,7 @@ const L = (function(){
             </div>
             <div class="handover-col">
               <div class="handover-col-title">진행단계</div>
-              ${bulletList(it.stageDetail)}
+              ${bulletList(it.stageDetail, {alignDates:true})}
             </div>
             <div class="handover-col">
               <div class="handover-col-title">타사활동</div>
