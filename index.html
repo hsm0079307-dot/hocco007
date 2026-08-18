@@ -858,7 +858,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v47</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v48</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -6359,16 +6359,21 @@ const L = (function(){
     const btn = document.getElementById('refreshDataBtn');
     btn.disabled = true;
     btn.textContent = '🔄 불러오는 중...';
-    await loadSites();
-    if(guestMode && currentGuest){
-      localGuestDataVersion = guestDataVersions[currentGuest.key] || null;
-      sites = buildGuestShadowSites();
-    }else{
-      sites = currentOffice===ALL_OFFICE ? OFFICES.flatMap(o=>allOfficesData[o]||[]) : (allOfficesData[currentOffice]||[]);
+    try{
+      await loadSites();
+      if(guestMode && currentGuest){
+        localGuestDataVersion = guestDataVersions[currentGuest.key] || null;
+        sites = buildGuestShadowSites();
+      }else{
+        sites = currentOffice===ALL_OFFICE ? OFFICES.flatMap(o=>allOfficesData[o]||[]) : (allOfficesData[currentOffice]||[]);
+      }
+      renderAll();
+      renderSeoulShapes();
+      renderRegionPanel();
+    }catch(e){
+      console.error('새로고침 실패', e);
+      alert('새로고침 중 오류가 발생했어요: ' + (e && e.message ? e.message : e) + '\n（버튼이 계속 "불러오는 중"으로 멈춰있었다면 바로 이 오류가 원인이었을 거예요. 이 메시지를 캡처해서 알려주세요.）');
     }
-    renderAll();
-    renderSeoulShapes();
-    renderRegionPanel();
     btn.disabled = false;
     btn.textContent = '🔄 새로고침';
   });
@@ -6414,25 +6419,30 @@ const L = (function(){
 
   // ---------- boot ----------
   (async function(){
-    initFormSelects();
-    initMap();
-    await loadSites();
-    await loadDistrictLabelOverrides();
-    const brandEl = document.querySelector('.brand');
-    if(brandEl) brandEl.textContent = currentOffice + ' 스크린';
-    syncState = 'ok';
-    renderSyncStatus();
-    renderOfficeSwitcher();
-    renderAll();
-    renderSeoulShapes();
-    renderRegionPanel();
-    // 관리자/담당자로 실제 로그인하기 전까지는 게스트(조회 전용)와 동일하게 취급: 편집/저장 버튼 숨기고 수정 자체를 막는다.
-    guestMode = true;
-    currentGuest = null;
-    applyGuestRestrictions();
-    // 클라우드에서 최신 입장 비밀번호를 받아온 뒤에야 검증 가능하므로, 여기서 버튼을 활성화한다.
-    entryGateBtn.disabled = false;
-    entryGateBtn.textContent = '입장';
+    try{
+      initFormSelects();
+      initMap();
+      await loadSites();
+      await loadDistrictLabelOverrides();
+      const brandEl = document.querySelector('.brand');
+      if(brandEl) brandEl.textContent = currentOffice + ' 스크린';
+      syncState = 'ok';
+      renderSyncStatus();
+      renderOfficeSwitcher();
+      renderAll();
+      renderSeoulShapes();
+      renderRegionPanel();
+      // 관리자/담당자로 실제 로그인하기 전까지는 게스트(조회 전용)와 동일하게 취급: 편집/저장 버튼 숨기고 수정 자체를 막는다.
+      guestMode = true;
+      currentGuest = null;
+      applyGuestRestrictions();
+      // 클라우드에서 최신 입장 비밀번호를 받아온 뒤에야 검증 가능하므로, 여기서 버튼을 활성화한다.
+      entryGateBtn.disabled = false;
+      entryGateBtn.textContent = '입장';
+    }catch(bootErr){
+      console.error('앱 초기 로딩 실패', bootErr);
+      alert('페이지를 여는 중 오류가 발생했어요: ' + (bootErr && bootErr.message ? bootErr.message : bootErr) + '\n이 메시지를 캡처해서 알려주세요.');
+    }
     entryGateInput.focus();
   })();
 })();
