@@ -1514,6 +1514,18 @@ const L = (function(){
   // ⚠️ Firebase 콘솔 > 프로젝트 설정 > 서비스 계정 > 데이터베이스 비밀(레거시)에서 발급받은 키를 여기에 넣으세요.
   // 이 값이 있어야 write:false 규칙 아래서도 이 앱만 저장할 수 있습니다. 절대 외부에 공유하지 마세요.
   const FIREBASE_DB_SECRET = 'kYHJbpUE7jEVdLu69ZVMY3DGf4DBYeaA4JGZiS4B';
+  // site.office 필드는 데이터에 실제로 저장되어 있지 않고(일부 화면에서 임시로만 붙여줌),
+  // "전체" 탭처럼 site.office가 비어있는 상황에서 currentOffice로 대체하면 '__ALL__' 같은 가짜 사업소로
+  // 조회하게 되어 조용히 실패하는 버그가 있었다. 그래서 site.id로 allOfficesData를 직접 뒤져서
+  // 그 현장이 실제로 속한 사업소명을 항상 정확히 찾아낸다.
+  function findOfficeForSite(siteId){
+    if(!siteId) return null;
+    for(const off of OFFICES){
+      const arr = allOfficesData[off];
+      if(Array.isArray(arr) && arr.some(s=>s && s.id===siteId)) return off;
+    }
+    return null;
+  }
   // 그 현장이 지금 이 순간 서버의 실제 배열에서 몇 번째인지 다시 확인해서 반환한다.
   // (allOfficesData 캐시 값을 그대로 믿으면, 그 사이 다른 곳에서 같은 사업소에 현장을 추가/삭제/순서변경 했을 때
   //  인덱스가 어긋나서 엉뚱한 현장의 로그를 읽거나 써버릴 수 있어서, 로그 읽기/쓰기 직전엔 항상 이걸로 다시 확인한다)
@@ -3382,7 +3394,7 @@ const L = (function(){
     });
     const galleryBtn = document.getElementById('galleryBookBtn');
     if(galleryBtn) galleryBtn.addEventListener('click', ()=>{
-      const url = GALLERY_CALENDAR_URL + (GALLERY_CALENDAR_URL.includes('?') ? '&' : '?') + 'site=' + encodeURIComponent(site.name) + '&office=' + encodeURIComponent(site.office || currentOffice) + '&entry=' + encodeURIComponent(GALLERY_ENTRY_TOKEN) + '&mode=' + (guestMode ? 'guest' : 'admin');
+      const url = GALLERY_CALENDAR_URL + (GALLERY_CALENDAR_URL.includes('?') ? '&' : '?') + 'site=' + encodeURIComponent(site.name) + '&office=' + encodeURIComponent(findOfficeForSite(site.id) || site.office || currentOffice) + '&entry=' + encodeURIComponent(GALLERY_ENTRY_TOKEN) + '&mode=' + (guestMode ? 'guest' : 'admin');
       window.open(url, '_blank');
     });
     const delBtn = document.getElementById('deleteSiteBtn');
@@ -3611,7 +3623,7 @@ const L = (function(){
         refreshedSitesThisSession.add(site.id);
         (async function refreshLogsForThisSite(){
           try{
-            const officeName = site.office || currentOffice;
+            const officeName = findOfficeForSite(site.id) || site.office || currentOffice;
             const {idx: idxInOffice, freshArr} = await getFreshIndexInOffice(officeName, site.id);
             if(idxInOffice<0 || !freshArr) return;
             const freshLogs = freshArr[idxInOffice].logs;
@@ -3635,7 +3647,7 @@ const L = (function(){
         logRefreshBtn.disabled = true;
         logRefreshBtn.textContent = '🔄 불러오는 중...';
         try{
-          const officeName = site.office || currentOffice;
+          const officeName = findOfficeForSite(site.id) || site.office || currentOffice;
           const {idx: idxInOffice, freshArr} = await getFreshIndexInOffice(officeName, site.id);
           if(idxInOffice>-1 && freshArr){
             const freshLogs = freshArr[idxInOffice].logs;
@@ -3686,7 +3698,7 @@ const L = (function(){
         // 저장 로직이 그 사이 다른 변경과 충돌해 막히는 경우에도 이 로그 자체는 확실히 반영되도록,
         // 그 현장의 logs 경로에 직접 한 번 더 못박아 쓴다.
         try{
-          const officeName = site.office || currentOffice;
+          const officeName = findOfficeForSite(site.id) || site.office || currentOffice;
           const {idx: idxInOffice} = await getFreshIndexInOffice(officeName, site.id);
           if(idxInOffice>-1){
             const url = `${FIREBASE_DB_URL}/offices/${encodeURIComponent(officeName)}/${idxInOffice}/logs.json?auth=${encodeURIComponent(FIREBASE_DB_SECRET)}`;
@@ -3725,7 +3737,7 @@ const L = (function(){
           // 이 삭제는 복잡한 전체 저장/버전충돌 로직을 거치지 않고, 그 현장의 logs 경로만
           // 클라우드에 곧바로 확정해서 쓴다. (다른 로직에 막혀서 삭제가 유실되는 일이 없도록)
           try{
-            const officeName = site.office || currentOffice;
+            const officeName = findOfficeForSite(site.id) || site.office || currentOffice;
             const {idx: idxInOffice} = await getFreshIndexInOffice(officeName, site.id);
             if(idxInOffice>-1){
               const url = `${FIREBASE_DB_URL}/offices/${encodeURIComponent(officeName)}/${idxInOffice}/logs.json?auth=${encodeURIComponent(FIREBASE_DB_SECRET)}`;
