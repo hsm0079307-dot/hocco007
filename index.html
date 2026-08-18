@@ -858,7 +858,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v48</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v49</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -3653,7 +3653,8 @@ const L = (function(){
         }catch(e){ console.error('일지 수동 새로고침 실패', e); }
         renderDetailBody(site);
       });
-      document.getElementById('logAddBtn').addEventListener('click', async ()=>{
+      const logAddBtnEl = document.getElementById('logAddBtn');
+      if(logAddBtnEl) logAddBtnEl.addEventListener('click', async ()=>{
         if(!(await ensureUnlocked())) return;
         const submitBtn = document.getElementById('logAddBtn');
         if(submitBtn.disabled) return; // 연타로 같은 내용이 중복 저장되는 것 방지
