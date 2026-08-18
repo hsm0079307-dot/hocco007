@@ -1526,6 +1526,23 @@ const L = (function(){
     }
     return null;
   }
+  // Firebase는 배열 중간에 삭제된 현장이 많아 인덱스가 듬성듬성해지면(예: 0,1,3,4...처럼 2번이 빔),
+  // 그 데이터를 배열이 아니라 "객체" 형태로 돌려줄 때가 있다. 이때 단순히 앞으로 당겨서 배열을 만들면
+  // (0,1,3,4 → 0,1,2,3) 원래 Firebase상의 진짜 인덱스(3번)와 어긋나서, 그 인덱스로 로그를 쓸 때
+  // 엉뚱한 자리에 저장돼버리는 새로운 사고가 생긴다. 그래서 원래 인덱스 자리는 그대로 비워두고(그 자리는
+  // undefined) 실제 있는 항목만 원래 번호 그대로 채운, 진짜 배열처럼 구멍이 있는 배열로 복원한다.
+  function normalizeToArray(raw){
+    if(Array.isArray(raw)) return raw;
+    if(raw && typeof raw==='object'){
+      const keys = Object.keys(raw).filter(k=>/^\d+$/.test(k));
+      if(keys.length===0) return null;
+      const maxIdx = Math.max(...keys.map(Number));
+      const arr = new Array(maxIdx+1);
+      keys.forEach(k=>{ arr[Number(k)] = raw[k]; });
+      return arr;
+    }
+    return null;
+  }
   // 그 현장이 지금 이 순간 서버의 실제 배열에서 몇 번째인지 다시 확인해서 반환한다.
   // (allOfficesData 캐시 값을 그대로 믿으면, 그 사이 다른 곳에서 같은 사업소에 현장을 추가/삭제/순서변경 했을 때
   //  인덱스가 어긋나서 엉뚱한 현장의 로그를 읽거나 써버릴 수 있어서, 로그 읽기/쓰기 직전엔 항상 이걸로 다시 확인한다)
@@ -1534,8 +1551,9 @@ const L = (function(){
       const url = `${FIREBASE_DB_URL}/offices/${encodeURIComponent(officeName)}.json?_=${Date.now()}`;
       const res = await fetch(url, {cache:'no-store'});
       if(!res.ok) return {idx:-1, freshArr:null};
-      const freshArr = await res.json();
-      if(!Array.isArray(freshArr)) return {idx:-1, freshArr:null};
+      const rawArr = await res.json();
+      const freshArr = normalizeToArray(rawArr);
+      if(!freshArr) return {idx:-1, freshArr:null};
       const idx = freshArr.findIndex(s=>s && s.id===siteId);
       return {idx, freshArr};
     }catch(e){
@@ -1619,7 +1637,14 @@ const L = (function(){
     { const defaults = defaultGuestAccounts(); Object.keys(defaults).forEach(k=>{ if(!guestAccounts[k]) guestAccounts[k] = defaults[k]; }); }
     if(!Array.isArray(changeLog)) changeLog = [];
     if(!allOfficesData || typeof allOfficesData!=='object') allOfficesData = {};
-    OFFICES.forEach(o=>{ if(!Array.isArray(allOfficesData[o])) allOfficesData[o] = []; });
+    // Firebase는 배열 중간에 삭제된 현장이 많아 인덱스가 듬성듬성해지면(예: 0,1,3,4...처럼 2번이 빔),
+    // 그 사업소 데이터를 배열이 아니라 "객체" 형태로 돌려줄 때가 있다. 예전엔 이럴 때 무조건 빈 배열로
+    // 바꿔버려서 그 사업소의 현장/일지가 전부 조용히 사라지는 버그가 있었다. 그래서 객체로 온 경우엔
+    // 데이터를 버리지 않고, 원래 인덱스 번호를 그대로 유지한 채(당겨서 압축하지 않고) 배열로 복원한다.
+    // (인덱스를 당겨버리면 그 번호로 로그를 쓸 때 엉뚱한 자리에 저장되는 사고가 생기기 때문)
+    OFFICES.forEach(o=>{
+      allOfficesData[o] = normalizeToArray(allOfficesData[o]) || [];
+    });
     if(allOfficesData['강서사업소'].length===0){
       allOfficesData['강서사업소'] = makeDefaultSites();
     }
@@ -1752,9 +1777,12 @@ const L = (function(){
           // 일반적인 단일 현장 수정: 그 현장 하나만 최신 데이터 위에 patch (guest든 admin이든 동일하게 안전)
           let patched = false;
           for(const off of OFFICES){
-            const arr = mergedOffices[off];
-            if(Array.isArray(arr)){
-              const idx = arr.findIndex(s=>s.id===editedSiteId);
+            // 클라우드에서 방금 새로 받아온 이 사업소 데이터도, 삭제된 현장 때문에 배열이 아니라
+            // 객체 형태로 왔을 수 있어서(위 normalizeToArray와 같은 이유) 인덱스를 보존한 채 배열로 되돌린다.
+            const arr = normalizeToArray(mergedOffices[off]);
+            if(arr){
+              mergedOffices[off] = arr;
+              const idx = arr.findIndex(s=>s && s.id===editedSiteId);
               if(idx>-1){
                 if(guestMode && currentGuest){
                   // 담당자 수정은 원본을 바꾸지 않고 담당자별 독립된 사본(guestDrafts[게스트key])에만 남긴다.
