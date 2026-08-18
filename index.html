@@ -146,6 +146,14 @@
   .report-site-note-line{padding:3px 0;border-bottom:1px dotted var(--line);}
   .report-site-note-line:last-child{border-bottom:none;}
   .report-site-note-line b{color:var(--accent);margin-right:6px;}
+  .report-site-note-edit{padding:6px 0;border-bottom:1px dotted var(--line);}
+  .report-site-note-edit:last-child{border-bottom:none;}
+  .report-site-note-edit-head{display:flex;align-items:baseline;gap:8px;margin-bottom:4px;flex-wrap:wrap;}
+  .report-site-note-edit-head b{color:var(--accent);font-size:11.5px;}
+  .report-site-note-hint{font-size:10px;color:var(--text-dim);font-style:italic;}
+  .report-site-note-textarea{width:100%;box-sizing:border-box;background:var(--bg-main,rgba(255,255,255,.04));border:1px solid var(--line);border-radius:8px;padding:6px 8px;color:var(--text-main);font-size:12px;font-family:inherit;resize:vertical;min-height:30px;line-height:1.5;transition:border-color .15s, box-shadow .15s;}
+  .report-site-note-textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);}
+  .report-site-note-readonly{font-size:12px;color:var(--text-main);padding:4px 2px;}
   .report-missed-box{font-size:11px;color:var(--text-dim);padding:8px 10px;border:1px dashed var(--line);border-radius:8px;margin-bottom:14px;}
   .report-missed-label{font-weight:700;color:#e5484d;margin-bottom:5px;}
   .report-missed-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px 8px;}
@@ -523,6 +531,7 @@
   .log-add button{flex:none;}
   .log-author-group{margin-bottom:10px;}
   .log-author-heading{font-size:11.5px;font-weight:700;color:var(--accent);margin-bottom:5px;padding-left:2px;}
+  .log-joint-tag{display:inline-block;font-size:9.5px;font-weight:700;color:#fff;background:#3b82c4;border-radius:10px;padding:1px 7px;margin-left:2px;vertical-align:middle;}
   .log-item{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin-bottom:7px;display:flex;gap:10px;align-items:flex-start;}
   .log-meta-col{flex:none;width:148px;display:flex;flex-direction:column;gap:2px;}
   .log-date{font-size:11.5px;color:var(--accent);font-weight:700;white-space:nowrap;}
@@ -862,7 +871,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v52</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v54</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -1536,6 +1545,23 @@ const L = (function(){
     }
   }
   const FIREBASE_DATA_WRITE_URL = `${FIREBASE_DB_URL}/data.json?auth=${encodeURIComponent(FIREBASE_DB_SECRET)}`;
+
+  // 접촉리포트에서 입력한 "현장 특이사항"을 그 현장 레코드에 직접 저장한다 (현장 하나의 필드 하나만 콕 집어서 반영)
+  async function saveSiteReportNote(siteId, officeName, text){
+    if(!siteId || !officeName) return;
+    // 화면(로컬)에 먼저 반영 - 다른 뷰(현장별 카드 등)에서도 바로 최신으로 보이게
+    const officeArrLocal = allOfficesData[officeName];
+    if(Array.isArray(officeArrLocal)){
+      const localIdx = officeArrLocal.findIndex(s=>s && s.id===siteId);
+      if(localIdx>-1) officeArrLocal[localIdx].reportSpecialNote = text;
+    }
+    try{
+      const {idx} = await getFreshIndexInOffice(officeName, siteId);
+      if(idx<0) return;
+      const url = `${FIREBASE_DB_URL}/offices/${encodeURIComponent(officeName)}/${idx}/reportSpecialNote.json?auth=${encodeURIComponent(FIREBASE_DB_SECRET)}`;
+      await fetch(url, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(text)});
+    }catch(e){ console.error('현장 특이사항 저장 실패', e); }
+  }
 
   async function loadSites(){
     try{
@@ -3590,21 +3616,41 @@ const L = (function(){
         <div class="log-list" id="logListArea">
           ${(()=>{
             if(!logs.length) return '<div class="empty">아직 기록된 보고서가 없습니다.</div>';
-            // 담당자별로 묶어서 보여준다 (날짜순은 그대로 유지한 채, 그룹 안에서 최신순)
+            // 같은 날짜 + 같은 접촉자를 담당자 여러 명이 각자 보고서로 남긴 경우, "공동방문"으로 묶어서 보여준다.
+            const byDateContact = {};
+            logs.forEach(l=>{
+              const cn = (l.contactName||'').trim();
+              if(!cn || !l.date) return;
+              const k = l.date+'|'+cn;
+              if(!byDateContact[k]) byDateContact[k] = [];
+              byDateContact[k].push(l);
+            });
+            const jointGroupKeyByLogId = {};
+            Object.values(byDateContact).forEach(arr=>{
+              const authors = [...new Set(arr.map(l=>l.author||'담당자 미상'))];
+              if(authors.length>=2 && arr.length>=2){
+                const groupName = authors.join(', ');
+                arr.forEach(l=>{ jointGroupKeyByLogId[l.id] = groupName; });
+              }
+            });
+            // 담당자별로 묶어서 보여준다 (날짜순은 그대로 유지한 채, 그룹 안에서 최신순) — 공동방문 건은 위에서 만든 묶음으로
             const groups = {};
             const authorOrder = [];
             logs.forEach(l=>{
-              const key = l.author || '담당자 미상';
+              const key = jointGroupKeyByLogId[l.id] || (l.author || '담당자 미상');
               if(!groups[key]){ groups[key] = []; authorOrder.push(key); }
               groups[key].push(l);
             });
-            return authorOrder.map(author=>`
+            return authorOrder.map(author=>{
+              const isJoint = author.includes(', ');
+              return `
               <div class="log-author-group">
-                <div class="log-author-heading">👤 ${escapeHtml(author)} <span style="font-weight:400;color:var(--text-dim);">${groups[author].length}건</span></div>
+                <div class="log-author-heading">${isJoint?'🤝':'👤'} ${escapeHtml(author)}${isJoint?' <span class="log-joint-tag">공동방문</span>':''} <span style="font-weight:400;color:var(--text-dim);">${groups[author].length}건</span></div>
                 ${groups[author].map(l=>`
                 <div class="log-item">
                   <div class="log-meta-col">
                     <div class="log-date">${escapeHtml(formatDateKr(l.date))}</div>
+                    ${isJoint && l.author?`<div class="log-meta-line">작성: ${escapeHtml(l.author)}</div>`:''}
                     ${l.contactName?`<div class="log-meta-line">성함: ${escapeHtml(l.contactName)}</div>`:''}
                     ${l.owner?`<div class="log-meta-line">소유자: ${escapeHtml(l.owner)}</div>`:''}
                     ${l.unit?`<div class="log-meta-line">동호수: ${escapeHtml(l.unit)}</div>`:''}
@@ -3618,7 +3664,8 @@ const L = (function(){
                     <button class="log-del" data-logid="${l.id}">삭제</button>
                   </div>
                 </div>`).join('')}
-              </div>`).join('');
+              </div>`;
+            }).join('');
           })()}
         </div>`;
       // "전체 데이터 한꺼번에 불러오기"가 가끔 이 현장의 최신 일지를 놓치는 현상이 있어서(원인 불명, 재현 확인됨),
@@ -5552,7 +5599,7 @@ const L = (function(){
           });
         });
         rows.push({
-          site: s.name, office: s.office,
+          id: s.id, site: s.name, office: s.office, reportSpecialNote: s.reportSpecialNote || '',
           manager: authorsUnion.size ? Array.from(authorsUnion).join(' ') : (s.manager || '-'),
           district: s.district || '',
           count: visitDayCount,
@@ -5999,8 +6046,8 @@ const L = (function(){
         : '';
       if(!groupRows.length) return `<div style="color:var(--text-dim);font-size:12px;padding:10px 0;">기록 없음</div>${missedHtml}`;
       const groupDaily = buildDailyGroups(groupRows, range, reportMode);
-      const notes = groupRows.map(r=>({r, note: siteSpecialNote(r)}));
-      const summaryLines = notes.filter(x=>x.note);
+      // 저장된 특이사항이 있으면 그걸 쓰고, 없으면 로그에서 자동으로 뽑은 문장을 "추천 초안"으로 보여준다.
+      const noteOf = r => (r.reportSpecialNote && r.reportSpecialNote.trim()) ? r.reportSpecialNote.trim() : siteSpecialNote(r);
       return `<div class="report-matrix-wrap">
         <table class="report-matrix2">
           <colgroup>
@@ -6015,7 +6062,7 @@ const L = (function(){
           </tr></thead>
           <tbody>
             ${groupRows.map(r=>{
-              const note = siteSpecialNote(r);
+              const note = noteOf(r);
               return `<tr>
                 <th class="report-matrix2-row-head" title="${escapeHtml(r.site)}">${escapeHtml(r.site)}</th>
                 ${groupDaily.map(day=>{
@@ -6030,8 +6077,18 @@ const L = (function(){
         </table>
       </div>
       <div class="report-site-notes-summary">
-        <div class="report-missed-label" style="color:var(--accent);">현장별 특이사항 요약</div>
-        ${summaryLines.length ? summaryLines.map(x=>`<div class="report-site-note-line"><b>${escapeHtml(x.r.site)}</b> ${escapeHtml(x.note)}</div>`).join('') : '<div style="color:var(--text-dim);font-size:11.5px;">이번 기간 특이사항 없음</div>'}
+        <div class="report-missed-label" style="color:var(--accent);margin-bottom:8px;">현장별 특이사항 ${guestMode?'':'<span class="no-print" style="font-weight:400;color:var(--text-dim);">(직접 입력/수정 가능, 입력칸 벗어나면 자동 저장)</span>'}</div>
+        ${groupRows.map(r=>{
+          const saved = r.reportSpecialNote && r.reportSpecialNote.trim();
+          const draft = siteSpecialNote(r);
+          return `<div class="report-site-note-edit">
+            <div class="report-site-note-edit-head"><b>${escapeHtml(r.site)}</b>${(!saved && draft) ? '<span class="report-site-note-hint no-print">추천: '+escapeHtml(draft.length>26?draft.slice(0,26)+'…':draft)+'</span>' : ''}</div>
+            ${guestMode
+              ? `<div class="report-site-note-readonly">${saved ? escapeHtml(saved) : '<span style="color:var(--text-dim);">특이사항 없음</span>'}</div>`
+              : `<textarea class="report-site-note-textarea" data-site-id="${escapeHtml(r.id||'')}" data-office="${escapeHtml(r.office||'')}" rows="1" placeholder="이 현장 특이사항을 입력하세요">${escapeHtml(saved||'')}</textarea>`
+            }
+          </div>`;
+        }).join('')}
       </div>
       ${missedHtml}`;
     }
@@ -6134,6 +6191,19 @@ const L = (function(){
         showRowDetail(parseInt(cell.dataset.idx, 10), cell);
       });
     });
+    body.querySelectorAll('.report-site-note-textarea').forEach(ta=>{
+      // 입력 중엔 줄 수에 맞춰 자동으로 높이가 늘어나게
+      const autoGrow = ()=>{ ta.style.height='auto'; ta.style.height=(ta.scrollHeight)+'px'; };
+      autoGrow();
+      ta.addEventListener('input', autoGrow);
+      let lastSaved = ta.value;
+      ta.addEventListener('blur', async ()=>{
+        const val = ta.value;
+        if(val === lastSaved) return; // 안 바뀌었으면 저장 안 함
+        lastSaved = val;
+        await saveSiteReportNote(ta.dataset.siteId, ta.dataset.office, val);
+      });
+    });
     body.querySelectorAll('.report-site-card').forEach(card=>{
       card.addEventListener('click', ()=>{
         showRowDetail(parseInt(card.dataset.idx, 10), card);
@@ -6204,6 +6274,10 @@ const L = (function(){
         .report-site-notes-summary{ font-size:10px; color:#6f6a5c; padding:6px 8px; border:1px solid #dcd7cc; border-radius:8px; margin:6px 0 12px; break-inside:avoid; }
         .report-site-note-line{ padding:2px 0; border-bottom:1px dotted #dcd7cc; }
         .report-site-note-line b{ color:#0f3d24; margin-right:5px; }
+        .report-site-note-edit{ padding:3px 0; border-bottom:1px dotted #dcd7cc; break-inside:avoid; }
+        .report-site-note-edit-head b{ color:#0f3d24; font-size:9.5px; }
+        .report-site-note-textarea{ border:none !important; background:transparent !important; padding:1px 0 !important; resize:none !important; color:#3a362c !important; font-size:9.5px !important; }
+        .report-site-note-readonly{ font-size:9.5px; color:#3a362c; }
         .report-missed-box{ font-size:10.5px; color:#6f6a5c; padding:6px 8px; border:1px dashed #dcd7cc; border-radius:8px; margin-bottom:12px; }
         .report-missed-label{ font-weight:700; color:#b3261e; margin-bottom:4px; }
         .report-missed-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:3px 8px; }
