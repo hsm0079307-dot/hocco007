@@ -405,6 +405,11 @@
   .modal .row-mini-actions{display:flex;gap:8px;flex-shrink:0;}
   .modal .row-mini-actions .mini-action{font-size:10.5px;}
   .modal .row-mini-actions .mini-action.danger{color:var(--closed);}
+  .modal .row-card{border:1px solid var(--line);border-radius:8px;padding:7px 9px;margin-bottom:6px;background:var(--bg);}
+  .modal .row-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:3px;}
+  .modal .row-card-title{font-size:12.5px;font-weight:700;color:var(--ink);}
+  .modal .row-card-line{font-size:12px;color:var(--ink);margin-bottom:2px;}
+  .modal .row-card-sub{font-size:11px;color:var(--sub);}
   .modal .empty-msg{color:var(--sub);font-size:13px;}
 
   .preview-actions{margin-top:10px;display:flex;align-items:center;gap:6px;border-top:1px solid var(--line);padding-top:8px;}
@@ -2322,19 +2327,28 @@ function openPreview(key){
   const body = document.getElementById("modalBody");
   let html = "";
 
+  function rowCard(icon, danjiHo, timeLine, subLine, kind, idx){
+    return "<div class='row-card'>"+
+      "<div class='row-card-head'><span class='row-card-title'>"+icon+" "+danjiHo+"</span>"+
+      "<span class='row-mini-actions'>"+
+      "<span class='mini-action' onclick=\"editEntry('"+kind+"','"+key+"',"+idx+")\">수정</span>"+
+      "<span class='mini-action danger' onclick=\"deleteEntry('"+kind+"','"+key+"',"+idx+",this)\">삭제</span>"+
+      "</span></div>"+
+      "<div class='row-card-line'>"+timeLine+"</div>"+
+      "<div class='row-card-sub'>"+subLine+"</div>"+
+      "</div>";
+  }
+
   if(GALLERY_CLOSED[key]){
     html += "<div class='block'><span class='note' style='color:#c94f4f;font-weight:700;'>"+CAT_LABEL.gallery+": "+GALLERY_CLOSED[key]+"</span></div>";
   } else if(GALLERY_ROWS[key]){
     html += "<div class='block'><span class='tag gallery'>"+CAT_LABEL.gallery+" "+GALLERY_ROWS[key].length+"팀</span>";
     GALLERY_ROWS[key].forEach((r,idx)=>{
       const [time, danji, ho, name, plus, manager, spot] = r;
-      const danjiHo = (danji||GALLERY_DANJI) + ((ho && ho!=="-") ? " "+ho : "");
-      const nameTxt = name + (plus && plus!=="-" ? " "+plus : "");
-      html += "<div class='row-line'><span>"+time+" · "+danjiHo+" · "+nameTxt+" ("+manager+")</span>"+
-        "<span class='row-mini-actions'>"+
-        "<span class='mini-action' onclick=\"editEntry('gallery','"+key+"',"+idx+")\">수정</span>"+
-        "<span class='mini-action danger' onclick=\"deleteEntry('gallery','"+key+"',"+idx+",this)\">삭제</span>"+
-        "</span></div>";
+      const danjiName = danji||GALLERY_DANJI;
+      const timeLine = time+" "+(ho && ho!=="-" ? ho+" " : "")+name+(plus && plus!=="-" ? " ("+plus+")" : "");
+      const subLine = manager + (spot && spot!=="-" ? " "+spot : "");
+      html += rowCard("🖼", danjiName, timeLine, subLine, "gallery", idx);
     });
     html += "</div>";
   }
@@ -2344,14 +2358,10 @@ function openPreview(key){
   } else if(TOUR_ROWS[key]){
     html += "<div class='block'><span class='tag tour'>"+CAT_LABEL.tour+"</span>";
     TOUR_ROWS[key].forEach((r,idx)=>{
-      const [time, danji, ho, name, plus, manager] = r;
-      const danjiHo = danji + ((ho && ho!=="-") ? " "+ho : "");
-      const nameTxt = name + (plus && plus!=="-" ? " "+plus : "");
-      html += "<div class='row-line'><span>"+time+" · "+danjiHo+" · "+nameTxt+" ("+manager+")</span>"+
-        "<span class='row-mini-actions'>"+
-        "<span class='mini-action' onclick=\"editEntry('tour','"+key+"',"+idx+")\">수정</span>"+
-        "<span class='mini-action danger' onclick=\"deleteEntry('tour','"+key+"',"+idx+",this)\">삭제</span>"+
-        "</span></div>";
+      const [time, danji, ho, name, plus, manager, spot] = r;
+      const timeLine = time+" "+(ho && ho!=="-" ? ho+" " : "")+name+(plus && plus!=="-" ? " ("+plus+")" : "");
+      const subLine = manager + (spot && spot!=="-" ? " "+spot : "");
+      html += rowCard("🚗", danji, timeLine, subLine, "tour", idx);
     });
     html += "</div>";
   }
