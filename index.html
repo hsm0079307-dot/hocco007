@@ -873,7 +873,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v59</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v60</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -2273,6 +2273,8 @@ const L = (function(){
         detailTab = '개요';
         editMode = false;
         renderAll();
+        const freshSiteX = sites.find(s=>s.id===id);
+        if(freshSiteX) renderDetailPanel(freshSiteX);
       });
     });
     // 일정 옆 ✕ : 그 일정만 삭제 (부모의 상세이동 클릭으로 안 번지게 stopPropagation)
@@ -3124,6 +3126,8 @@ const L = (function(){
       detailTab = '개요';
       editMode = false;
       renderAll();
+      const freshSite = sites.find(s=>s.id===id);
+      if(freshSite) renderDetailPanel(freshSite); // 처음 클릭해서 들어갈 때도 헤더(배지 등)를 확실하게 최신으로 그림
     };
     sidebarEl.querySelectorAll('.name-item').forEach(item=>{
       item.addEventListener('click', ()=>{
@@ -5086,6 +5090,8 @@ const L = (function(){
         detailTab = '개요';
         editMode = false;
         renderAll();
+        const freshSiteY = sites.find(s=>s.id===elm.dataset.id);
+        if(freshSiteY) renderDetailPanel(freshSiteY);
       });
     });
   }
@@ -6487,6 +6493,8 @@ const L = (function(){
         detailTab = '개요';
         editMode = false;
         renderAll();
+        const freshSiteX = sites.find(s=>s.id===id);
+        if(freshSiteX) renderDetailPanel(freshSiteX);
       });
     });
   }
