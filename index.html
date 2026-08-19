@@ -148,13 +148,14 @@
   .report-site-note-line b{color:var(--accent);margin-right:6px;}
   .report-site-note-edit{padding:6px 0;border-bottom:1px dotted var(--line);}
   .report-site-note-edit:last-child{border-bottom:none;}
-  .report-site-note-edit-head{display:flex;align-items:baseline;gap:8px;margin-bottom:4px;flex-wrap:wrap;}
+  .report-site-note-edit-head{display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap;}
   .report-site-note-edit-head b{color:var(--accent);font-size:11.5px;}
-  .report-site-note-hint{font-size:10px;color:var(--text-dim);font-style:italic;}
-  .report-site-note-textarea{width:100%;box-sizing:border-box;background:var(--bg-side-2);border:1.5px solid var(--accent);border-radius:8px;padding:7px 9px;color:var(--text-main);font-size:12px;font-family:inherit;resize:vertical;min-height:34px;line-height:1.5;transition:border-color .15s, box-shadow .15s;cursor:text;}
-  .report-site-note-textarea:hover{box-shadow:0 0 0 2px color-mix(in srgb, var(--accent) 15%, transparent);}
+  .report-site-note-pencil{background:none;border:none;cursor:pointer;font-size:12px;padding:1px 4px;border-radius:5px;opacity:.75;transition:opacity .12s, background .12s;}
+  .report-site-note-pencil:hover{opacity:1;background:var(--bg-main,rgba(255,255,255,.06));}
+  .report-site-note-view{font-size:12px;color:var(--text-main);padding:2px;line-height:1.6;white-space:pre-wrap;}
+  .report-site-note-textarea{width:100%;box-sizing:border-box;background:var(--bg-side-2);border:1.5px solid var(--accent);border-radius:8px;padding:7px 9px;color:var(--text-main);font-size:12px;font-family:inherit;resize:vertical;min-height:50px;line-height:1.5;transition:border-color .15s, box-shadow .15s;cursor:text;margin-top:2px;}
   .report-site-note-textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);}
-  .report-site-note-readonly{font-size:12px;color:var(--text-main);padding:4px 2px;}
+  .report-site-note-readonly{font-size:12px;color:var(--text-main);padding:4px 2px;line-height:1.6;white-space:pre-wrap;}
   .report-missed-box{font-size:11px;color:var(--text-dim);padding:8px 10px;border:1px dashed var(--line);border-radius:8px;margin-bottom:14px;}
   .report-missed-label{font-weight:700;color:#e5484d;margin-bottom:5px;}
   .report-missed-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px 8px;}
@@ -872,7 +873,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v57</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v58</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -6041,7 +6042,7 @@ const L = (function(){
       const allText = (r.logs||[]).map(l=>l.text||'').join(' ');
       const sentences = splitSentences(allText);
       const hits = sentences.filter(s=>SPECIAL_KEYWORDS.some(k=>s.includes(k)));
-      return hits.slice(0,3).join(' '); // 최대 3문장까지 이어붙여서 좀 더 자세히 뽑는다
+      return hits.join(' '); // 걸리는 문장 전부 이어붙여서 최대한 자세히 뽑는다
     }
     function buildMatrixTable(groupRows, missedNames){
       const missedHtml = missedNames.length
@@ -6080,17 +6081,19 @@ const L = (function(){
         </table>
       </div>
       <div class="report-site-notes-summary">
-        <div class="report-missed-label" style="color:var(--accent);margin-bottom:8px;">현장별 특이사항 ${guestMode?'':'<span class="no-print" style="font-weight:400;color:var(--text-dim);">(로그에서 자동으로 채워두었어요 · 직접 수정 가능, 입력칸 벗어나면 자동 저장)</span>'}</div>
+        <div class="report-missed-label" style="color:var(--accent);margin-bottom:8px;">현장별 특이사항 ${guestMode?'':'<span class="no-print" style="font-weight:400;color:var(--text-dim);">(로그에서 자동으로 채워두었어요 · ✏️ 눌러서 수정)</span>'}</div>
         ${groupRows.map(r=>{
           const saved = r.reportSpecialNote && r.reportSpecialNote.trim();
           const draft = siteSpecialNote(r);
           const displayValue = saved || draft; // 저장된 값이 없으면 로그에서 뽑은 초안을 그대로 편집 가능한 값으로 채워둔다
+          const sid = escapeHtml(r.id||'');
           return `<div class="report-site-note-edit">
-            <div class="report-site-note-edit-head"><b>${escapeHtml(r.site)}</b>${guestMode?'':'<span class="no-print" style="font-size:9.5px;color:var(--accent);font-weight:400;">✏️ 눌러서 수정</span>'}</div>
-            ${guestMode
-              ? `<div class="report-site-note-readonly">${displayValue ? escapeHtml(displayValue) : '<span style="color:var(--text-dim);">특이사항 없음</span>'}</div>`
-              : `<textarea class="report-site-note-textarea" data-site-id="${escapeHtml(r.id||'')}" data-office="${escapeHtml(r.office||'')}" data-saved="${escapeHtml(saved||'')}" rows="1" placeholder="이 현장 특이사항을 입력하세요">${escapeHtml(displayValue||'')}</textarea>`
-            }
+            <div class="report-site-note-edit-head">
+              <b>${escapeHtml(r.site)}</b>
+              ${guestMode?'':`<button type="button" class="report-site-note-pencil no-print" data-target="${sid}" title="수정">✏️</button>`}
+            </div>
+            <div class="report-site-note-view" data-view-for="${sid}">${displayValue ? escapeHtml(displayValue) : '<span style="color:var(--text-dim);">특이사항 없음</span>'}</div>
+            ${guestMode ? '' : `<textarea class="report-site-note-textarea" style="display:none;" data-site-id="${sid}" data-office="${escapeHtml(r.office||'')}" data-saved="${escapeHtml(saved||'')}" rows="2" placeholder="이 현장 특이사항을 입력하세요">${escapeHtml(displayValue||'')}</textarea>`}
           </div>`;
         }).join('')}
       </div>
@@ -6195,17 +6198,36 @@ const L = (function(){
         showRowDetail(parseInt(cell.dataset.idx, 10), cell);
       });
     });
+    body.querySelectorAll('.report-site-note-pencil').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const sid = btn.dataset.target;
+        const viewEl = body.querySelector(`.report-site-note-view[data-view-for="${CSS.escape(sid)}"]`);
+        const ta = body.querySelector(`.report-site-note-textarea[data-site-id="${CSS.escape(sid)}"]`);
+        if(!ta) return;
+        if(viewEl) viewEl.style.display = 'none';
+        ta.style.display = 'block';
+        ta.style.height = 'auto'; ta.style.height = (ta.scrollHeight) + 'px';
+        ta.focus();
+        ta.setSelectionRange(ta.value.length, ta.value.length);
+      });
+    });
     body.querySelectorAll('.report-site-note-textarea').forEach(ta=>{
       // 입력 중엔 줄 수에 맞춰 자동으로 높이가 늘어나게
       const autoGrow = ()=>{ ta.style.height='auto'; ta.style.height=(ta.scrollHeight)+'px'; };
-      autoGrow();
       ta.addEventListener('input', autoGrow);
       let lastSaved = ta.dataset.saved || '';
       ta.addEventListener('blur', async ()=>{
         const val = ta.value;
-        if(val === lastSaved) return; // 안 바뀌었으면 저장 안 함
-        lastSaved = val;
-        await saveSiteReportNote(ta.dataset.siteId, ta.dataset.office, val);
+        const sid = ta.dataset.siteId;
+        const viewEl = body.querySelector(`.report-site-note-view[data-view-for="${CSS.escape(sid)}"]`);
+        if(val !== lastSaved){
+          lastSaved = val;
+          await saveSiteReportNote(sid, ta.dataset.office, val);
+        }
+        // 다시 일반 텍스트 보기로 되돌리기 (입력창은 숨김)
+        if(viewEl) viewEl.innerHTML = val.trim() ? escapeHtml(val.trim()) : '<span style="color:var(--text-dim);">특이사항 없음</span>';
+        if(viewEl) viewEl.style.display = 'block';
+        ta.style.display = 'none';
       });
     });
     body.querySelectorAll('.report-site-card').forEach(card=>{
@@ -6280,6 +6302,8 @@ const L = (function(){
         .report-site-note-line b{ color:#0f3d24; margin-right:5px; }
         .report-site-note-edit{ padding:3px 0; border-bottom:1px dotted #dcd7cc; break-inside:avoid; }
         .report-site-note-edit-head b{ color:#0f3d24; font-size:9.5px; }
+        .report-site-note-pencil{ display:none !important; }
+        .report-site-note-view{ font-size:9.5px; color:#3a362c; }
         .report-site-note-textarea{ border:none !important; background:transparent !important; padding:1px 0 !important; resize:none !important; color:#3a362c !important; font-size:9.5px !important; }
         .report-site-note-readonly{ font-size:9.5px; color:#3a362c; }
         .report-missed-box{ font-size:10.5px; color:#6f6a5c; padding:6px 8px; border:1px dashed #dcd7cc; border-radius:8px; margin-bottom:12px; }
