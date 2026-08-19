@@ -872,7 +872,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v56</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v57</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -3690,7 +3690,7 @@ const L = (function(){
               const localIdx = officeArr.findIndex(s2=>s2.id===site.id);
               if(localIdx>-1) officeArr[localIdx].logs = site.logs;
               if(currentView==='detail' && currentDetailId===site.id && detailTab==='일지' && !editingLogId){
-                renderDetailBody(site); // 지금도 일지 탭을 보고 있으면 다시 그려서 최신 반영
+                renderDetailPanel(site); // 지금도 일지 탭을 보고 있으면 헤더(개수 배지 포함)까지 다시 그려서 최신 반영
               }
             }
           }catch(e){ console.error('일지 targeted 새로고침 실패', e); }
@@ -3717,7 +3717,7 @@ const L = (function(){
             }
           }
         }catch(e){ console.error('일지 수동 새로고침 실패', e); }
-        renderDetailBody(site);
+        renderDetailPanel(site);
       });
       const logAddBtnEl = document.getElementById('logAddBtn');
       if(logAddBtnEl) logAddBtnEl.addEventListener('click', async ()=>{
@@ -3760,6 +3760,7 @@ const L = (function(){
           }
         }catch(e){ console.error('보고서 저장 클라우드 반영 실패', e); }
         renderAll();
+        renderDetailPanel(site); // 상세 패널 헤더(보고서 개수 배지 등)를 확실하게 다시 그림
       });
       const logEditCancelBtn = document.getElementById('logEditCancelBtn');
       if(logEditCancelBtn) logEditCancelBtn.addEventListener('click', ()=>{
@@ -3788,6 +3789,7 @@ const L = (function(){
           if(editingLogId===logId) editingLogId = null;
           site.lastDate = lastVisit(site);
           renderAll(); // 화면은 바로 반영
+          renderDetailPanel(site); // 상세 패널 헤더(보고서 개수 배지 등)를 확실하게 다시 그림
           // 이 삭제는 복잡한 전체 저장/버전충돌 로직을 거치지 않고, 그 현장의 logs 경로만
           // 클라우드에 곧바로 확정해서 쓴다. (다른 로직에 막혀서 삭제가 유실되는 일이 없도록)
           try{
