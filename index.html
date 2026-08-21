@@ -873,7 +873,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v61</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v62</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -3443,6 +3443,7 @@ const L = (function(){
         editMode = true;
       }
       renderAll();
+      renderDetailPanel(site);
     });
     document.getElementById('editInfoBtn').addEventListener('click', async ()=>{
       if(!(await ensureUnlocked())) return;
@@ -3483,6 +3484,7 @@ const L = (function(){
         site.stage = st.dataset.stage;
         await saveSites();
         renderAll();
+        renderDetailPanel(site);
       });
     });
     panel.querySelectorAll('.dtab').forEach(t=>{
@@ -3945,7 +3947,7 @@ const L = (function(){
         </div>
         <div class="hint">사진은 자동으로 압축해서 올려요. PDF/워드 등은 용량이 크면(대략 5MB 이상) 느려질 수 있어요 — 이미 OneDrive/구글드라이브에 있다면 "링크로 추가"가 훨씬 가벼워요.</div>
       `;
-      const persistDocs = async ()=>{ await saveSites(); renderAll(); };
+      const persistDocs = async ()=>{ await saveSites(); renderAll(); renderDetailPanel(site); };
       const compressImageFile = (file) => new Promise((resolve, reject)=>{
         const reader = new FileReader();
         reader.onerror = reject;
@@ -6472,6 +6474,10 @@ const L = (function(){
     sites = currentOffice===ALL_OFFICE ? OFFICES.flatMap(o=>allOfficesData[o]||[]) : (allOfficesData[currentOffice] || []);
     await saveSites();
     renderAll();
+    if(currentView==='detail' && currentDetailId){
+      const freshSiteUndo = sites.find(s=>s.id===currentDetailId);
+      if(freshSiteUndo) renderDetailPanel(freshSiteUndo);
+    }
     alert('되돌렸습니다.');
   });
 
