@@ -873,7 +873,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v65</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v66</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -6316,12 +6316,10 @@ const L = (function(){
     const periodLabel = reportMode==='week' ? '주간' : '월간';
     const managerLabel = reportManagerFilter ? ` · 담당자 ${reportManagerFilter}` : '';
 
-    // ---- 주요 이슈 및 특이사항 카드 (표에 구겨넣지 않고 별도 섹션으로 강조) ----
     const issueCards = filteredRows
       .map(r=>({site:r.site, note: siteSpecialNotePrint(r)}))
       .filter(x=>x.note);
 
-    // ---- 다가오는 일정 (이번 리포트 대상 현장들의 예정 일정 중, 오늘 이후 것들) ----
     const siteById = {}; allSites.forEach(s=>{ siteById[s.id]=s; });
     const inScopeSiteIds = new Set(filteredRows.map(r=>r.id));
     const today0 = new Date(); const todayKey = today0.getFullYear()+'-'+String(today0.getMonth()+1).padStart(2,'0')+'-'+String(today0.getDate()).padStart(2,'0');
@@ -6333,35 +6331,41 @@ const L = (function(){
       });
     });
     upcoming.sort((a,b)=>a.date.localeCompare(b.date));
-    const upcomingTop = upcoming.slice(0,8);
+    const upcomingTop = upcoming.slice(0,7);
 
+    // ---- 구역 섹션: 요일/주차는 작은 점(히트맵) 한 줄로 압축, 담당자와 총 방문일을 같이 표시 ----
     function districtSectionHtml(name){
       const groupRows = districtGroups[name];
       if(!groupRows.length) return '';
       const groupDaily = groupDailyByDistrict[name];
+      const colHeadHtml = groupDaily.map(day=>{
+        let short = day.label;
+        if(reportMode==='week') short = day.label.replace(/\d+일\(|\)/g,'');
+        else{ const m = day.label.match(/(\d+)주차/); if(m) short = m[1]+'주'; }
+        return `<span class="p-daylabel">${escapeHtml(short)}</span>`;
+      }).join('');
       return `
         <div class="p-district">
           <div class="p-district-title">${escapeHtml(name)} <span>${groupRows.length}곳</span></div>
-          <table class="p-matrix">
-            <colgroup>
-              <col class="p-name-col">
-              ${groupDaily.map(()=>'<col class="p-data-col">').join('')}
-            </colgroup>
-            <thead><tr>
-              <th class="p-corner">현장명</th>
-              ${groupDaily.map(day=>`<th>${escapeHtml(day.label)}</th>`).join('')}
-            </tr></thead>
-            <tbody>
-              ${groupRows.map((r,ri)=>`<tr class="${ri%2?'alt':''}">
-                  <th class="p-row-head">${escapeHtml(r.site)}</th>
-                  ${groupDaily.map(day=>{
-                    const count = day.sites[r.site]||0;
-                    const content = count ? (reportMode==='month' ? `${count}` : '●') : '';
-                    return `<td class="p-cell${count?' on':''}">${content}</td>`;
-                  }).join('')}
-                </tr>`).join('')}
-            </tbody>
-          </table>
+          <div class="p-site-headrow">
+            <span class="p-col-name">현장명</span><span class="p-col-mgr">담당</span>
+            <span class="p-col-days">${colHeadHtml}</span>
+            <span class="p-col-total">방문</span>
+          </div>
+          ${groupRows.map((r,ri)=>{
+            const dots = groupDaily.map(day=>{
+              const count = day.sites[r.site]||0;
+              const cls = count ? 'on' : '';
+              const label = reportMode==='month' && count ? count : '';
+              return `<span class="p-dot ${cls}">${label}</span>`;
+            }).join('');
+            return `<div class="p-site-row ${ri%2?'alt':''}">
+              <span class="p-col-name" title="${escapeHtml(r.site)}">${escapeHtml(r.site)}</span>
+              <span class="p-col-mgr" title="${escapeHtml(r.manager)}">${escapeHtml(r.manager)}</span>
+              <span class="p-col-days">${dots}</span>
+              <span class="p-col-total">${r.count}일</span>
+            </div>`;
+          }).join('')}
           ${districtMissed[name].length ? `<div class="p-missed"><b>미방문</b> ${districtMissed[name].map(escapeHtml).join(', ')}</div>` : ''}
         </div>`;
     }
@@ -6382,45 +6386,47 @@ const L = (function(){
         html,body{ margin:0; padding:0; }
         body{ font-family:'Pretendard','Apple SD Gothic Neo',sans-serif; color:#2b2a27; background:#fff; width:279mm; height:192mm; overflow:hidden; }
         #printRoot{ transform-origin: top left; }
-        .p-header{ display:flex; align-items:center; justify-content:space-between; background:#0f3d24; color:#fff; border-radius:10px; padding:10px 16px; margin-bottom:9px; }
-        .p-title{ font-size:18px; font-weight:800; letter-spacing:-.2px; }
-        .p-sub{ font-size:10.5px; color:#cfe0d4; margin-top:2px; }
+        .p-header{ display:flex; align-items:center; justify-content:space-between; background:#0f3d24; color:#fff; border-radius:10px; padding:11px 18px; margin-bottom:10px; }
+        .p-title{ font-size:19px; font-weight:800; letter-spacing:-.3px; }
+        .p-sub{ font-size:11px; color:#bcd6c4; margin-top:3px; }
         .p-stats{ display:flex; gap:10px; }
-        .p-stat-chip{ background:rgba(255,255,255,.14); border-radius:8px; padding:5px 12px; text-align:center; min-width:56px; }
-        .p-stat-chip .n{ font-size:15px; font-weight:800; color:#f5c344; line-height:1.1; }
-        .p-stat-chip .l{ font-size:8.5px; color:#cfe0d4; margin-top:1px; }
-        .p-cols{ display:flex; gap:10px; align-items:flex-start; }
-        .p-left{ flex:0 0 60%; min-width:0; }
-        .p-right{ flex:1; min-width:0; display:flex; flex-direction:column; gap:8px; }
-        .p-district{ margin-bottom:7px; }
-        .p-district-title{ font-size:11.5px; font-weight:800; color:#0f3d24; margin-bottom:3px; border-left:4px solid #f5c344; padding-left:6px; }
+        .p-stat-chip{ background:rgba(255,255,255,.13); border-radius:8px; padding:6px 14px; text-align:center; min-width:58px; }
+        .p-stat-chip .n{ font-size:17px; font-weight:800; color:#f5c344; line-height:1.1; }
+        .p-stat-chip .l{ font-size:8.5px; color:#bcd6c4; margin-top:1px; }
+        .p-cols{ display:flex; gap:14px; align-items:flex-start; }
+        .p-left{ flex:0 0 58%; min-width:0; }
+        .p-right{ flex:1; min-width:0; display:flex; flex-direction:column; gap:10px; }
+        .p-district{ margin-bottom:11px; }
+        .p-district-title{ font-size:12px; font-weight:800; color:#0f3d24; margin-bottom:4px; border-left:4px solid #f5c344; padding-left:7px; }
         .p-district-title span{ font-weight:400; color:#8a8574; font-size:10px; margin-left:4px; }
-        .p-matrix{ border-collapse:collapse; width:100%; table-layout:fixed; }
-        .p-name-col{ width:100px; }
-        .p-matrix th, .p-matrix td{ border:none; border-bottom:1px solid #ece9e0; padding:3px 5px; font-size:9px; }
-        .p-corner{ text-align:left; font-weight:700; color:#8a8574; font-size:8.5px; }
-        .p-matrix thead th{ text-align:center; font-weight:700; color:#0f3d24; font-size:8.5px; border-bottom:1.5px solid #0f3d24; }
-        .p-row-head{ text-align:left; font-weight:600; color:#2b2a27; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .p-matrix tbody tr.alt{ background:#f7f6f1; }
-        .p-cell{ text-align:center; color:transparent; }
-        .p-cell.on{ color:#0f3d24; font-weight:800; font-size:10px; }
-        .p-missed{ font-size:8.5px; color:#a8442e; margin:2px 0 0 2px; }
+        .p-site-headrow, .p-site-row{ display:flex; align-items:center; gap:6px; padding:3.5px 4px; }
+        .p-site-headrow{ font-size:8px; font-weight:700; color:#8a8574; border-bottom:1.5px solid #0f3d24; }
+        .p-site-row{ font-size:9.5px; border-bottom:1px solid #ece9e0; }
+        .p-site-row.alt{ background:#f8f7f3; }
+        .p-col-name{ flex:0 0 92px; font-weight:700; color:#2b2a27; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .p-col-mgr{ flex:0 0 52px; color:#8a8574; font-size:8.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .p-col-days{ flex:1; display:flex; gap:2px; }
+        .p-daylabel{ flex:1; text-align:center; font-size:7.5px; }
+        .p-dot{ flex:1; height:13px; border-radius:3px; background:#ece9e0; display:flex; align-items:center; justify-content:center; font-size:7px; font-weight:800; color:transparent; }
+        .p-dot.on{ background:#0f3d24; color:#f5c344; }
+        .p-col-total{ flex:0 0 28px; text-align:right; font-weight:700; color:#0f3d24; font-size:9px; }
+        .p-missed{ font-size:8.5px; color:#a8442e; margin:3px 0 0 4px; }
         .p-missed b{ margin-right:4px; }
-        .p-section-title{ font-size:11.5px; font-weight:800; color:#0f3d24; display:flex; align-items:center; gap:5px; margin-bottom:5px; }
+        .p-section-title{ font-size:12px; font-weight:800; color:#0f3d24; display:flex; align-items:center; gap:5px; margin-bottom:5px; }
         .p-section-title .dot{ width:7px; height:7px; border-radius:50%; background:#f5c344; }
-        .p-issues{ background:#fdf8ea; border:1px solid #f0dfa8; border-radius:10px; padding:8px 10px; flex:1; min-height:0; overflow:hidden; }
-        .p-issue-card{ border-bottom:1px dotted #e6d9a8; padding:4px 0; }
+        .p-issues{ background:#fdf8ea; border:1px solid #f0dfa8; border-radius:10px; padding:9px 11px; flex:1; min-height:0; overflow:hidden; }
+        .p-issue-card{ border-bottom:1px dotted #e6d9a8; padding:4.5px 0; }
         .p-issue-card:last-child{ border-bottom:none; }
-        .p-issue-site{ font-size:9.5px; font-weight:800; color:#8a6d1a; }
-        .p-issue-text{ font-size:9px; color:#3a362c; margin-top:1px; line-height:1.4; }
-        .p-events{ background:#f2f6f4; border:1px solid #d7e4de; border-radius:10px; padding:8px 10px; }
-        .p-event-row{ display:flex; gap:7px; align-items:baseline; padding:2.5px 0; border-bottom:1px dotted #d7e4de; font-size:9px; }
+        .p-issue-site{ font-size:10px; font-weight:800; color:#8a6d1a; }
+        .p-issue-text{ font-size:9px; color:#3a362c; margin-top:1.5px; line-height:1.45; }
+        .p-events{ background:#f2f6f4; border:1px solid #d7e4de; border-radius:10px; padding:9px 11px; }
+        .p-event-row{ display:flex; gap:8px; align-items:baseline; padding:3px 0; border-bottom:1px dotted #d7e4de; font-size:9.5px; }
         .p-event-row:last-child{ border-bottom:none; }
-        .p-event-date{ font-weight:800; color:#0f3d24; flex:0 0 32px; }
+        .p-event-date{ font-weight:800; color:#0f3d24; flex:0 0 34px; }
         .p-event-site{ font-weight:700; color:#3a362c; flex:0 0 auto; }
         .p-event-label{ color:#6f6a5c; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .p-empty{ font-size:9.5px; color:#a39d8c; padding:4px 0; }
-        .p-footer{ margin-top:6px; font-size:8px; color:#b3ad9c; text-align:right; }
+        .p-footer{ margin-top:7px; font-size:8px; color:#b3ad9c; text-align:right; }
       </style>
     </head><body>
       <div id="printRoot">
