@@ -873,7 +873,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v62</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v63</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -1581,7 +1581,7 @@ const L = (function(){
 
   // 접촉리포트에서 입력한 "현장 특이사항"을 그 현장 레코드에 직접 저장한다 (현장 하나의 필드 하나만 콕 집어서 반영)
   async function saveSiteReportNote(siteId, officeName, text){
-    if(!siteId || !officeName) return;
+    if(!siteId || !officeName || guestMode) return;
     // 화면(로컬)에 먼저 반영 - 다른 뷰(현장별 카드 등)에서도 바로 최신으로 보이게
     const officeArrLocal = allOfficesData[officeName];
     if(Array.isArray(officeArrLocal)){
