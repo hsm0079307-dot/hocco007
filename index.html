@@ -873,7 +873,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v63</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v64</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -6276,77 +6276,147 @@ const L = (function(){
   document.getElementById('reportPrevBtn').addEventListener('click', ()=>{ shiftReportBaseDate(-1); renderContactReport(); });
   document.getElementById('reportNextBtn').addEventListener('click', ()=>{ shiftReportBaseDate(1); renderContactReport(); });
   document.getElementById('reportPrintBtn').addEventListener('click', ()=>{
-    const {range} = buildContactReportData();
-    const bodyHtml = document.getElementById('contactReportBody').innerHTML;
+    const {range, rows, allSites} = buildContactReportData();
+    const filteredRows = reportManagerFilter
+      ? rows.filter(r => String(r.manager).split(/[,\s]+/).filter(Boolean).includes(reportManagerFilter))
+      : rows;
+    function districtGroupOfPrint(obj){
+      const d = String(obj.district||'');
+      if(d.includes('양천')) return '양천구';
+      if(d.includes('영등포')) return '영등포구';
+      return '그외';
+    }
+    function siteManagerNamesPrint(s){ return String(s.manager||'').split(/[,\s]+/).filter(Boolean); }
+    const districtNames = ['양천구','영등포구','그외'];
+    const districtGroups = {'양천구':[], '영등포구':[], '그외':[]};
+    filteredRows.forEach(r=>{ districtGroups[districtGroupOfPrint(r)].push(r); });
+    const visitedSiteNames = new Set(filteredRows.map(r=>r.site));
+    const districtMissed = {'양천구':[], '영등포구':[], '그외':[]};
+    allSites.forEach(s=>{
+      if(visitedSiteNames.has(s.name)) return;
+      if(reportManagerFilter && !siteManagerNamesPrint(s).includes(reportManagerFilter)) return;
+      districtMissed[districtGroupOfPrint(s)].push(s.name);
+    });
+    function siteSpecialNotePrint(r){
+      const saved = r.reportSpecialNote && r.reportSpecialNote.trim();
+      if(saved) return saved.replace(/\n/g,' / ');
+      const allText = (r.logs||[]).map(l=>l.text||'').join(' ');
+      const sentences = splitSentences(allText);
+      const hits = sentences.filter(s=>SPECIAL_KEYWORDS.some(k=>s.includes(k)));
+      return hits.slice(0,2).join(' / ');
+    }
+    const groupDailyByDistrict = {};
+    districtNames.forEach(name=>{
+      if(districtGroups[name].length) groupDailyByDistrict[name] = buildDailyGroups(districtGroups[name], range, reportMode);
+    });
+    const totalVisitDays = filteredRows.reduce((sum,r)=>sum+r.count,0);
+    const totalSites = filteredRows.length;
+    const totalMissed = districtNames.reduce((sum,n)=>sum+districtMissed[n].length,0);
+    const officeLabel = currentOffice===ALL_OFFICE ? '강서/강남/강북 사업소' : currentOffice;
+    const periodLabel = reportMode==='week' ? '주간' : '월간';
+    const managerLabel = reportManagerFilter ? ` · 담당자: ${reportManagerFilter}` : '';
+
+    function districtSectionHtml(name){
+      const groupRows = districtGroups[name];
+      if(!groupRows.length) return '';
+      const groupDaily = groupDailyByDistrict[name];
+      return `
+        <div class="p-district">
+          <div class="p-district-title">${escapeHtml(name)} <span>${groupRows.length}곳</span></div>
+          <table class="p-matrix">
+            <colgroup>
+              <col class="p-name-col">
+              ${groupDaily.map(()=>'<col class="p-data-col">').join('')}
+              <col class="p-note-col">
+            </colgroup>
+            <thead><tr>
+              <th class="p-corner">현장명</th>
+              ${groupDaily.map(day=>`<th>${escapeHtml(day.label)}</th>`).join('')}
+              <th class="p-note-head">특이사항</th>
+            </tr></thead>
+            <tbody>
+              ${groupRows.map(r=>{
+                const note = siteSpecialNotePrint(r);
+                return `<tr>
+                  <th class="p-row-head">${escapeHtml(r.site)}</th>
+                  ${groupDaily.map(day=>{
+                    const count = day.sites[r.site]||0;
+                    const content = count ? (reportMode==='month' ? `${count}회` : 'O') : '';
+                    return `<td class="p-cell${count?' on':''}">${content}</td>`;
+                  }).join('')}
+                  <td class="p-note">${escapeHtml(note)}</td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+          ${districtMissed[name].length ? `<div class="p-missed"><b>미방문</b> ${districtMissed[name].map(escapeHtml).join(', ')}</div>` : ''}
+        </div>`;
+    }
+    const districtBodyHtml = districtNames.map(districtSectionHtml).join('');
+
     const printWin = window.open('', '_blank', 'width=1200,height=900');
     if(!printWin){ alert('팝업이 차단되어 인쇄 창을 열 수 없습니다. 팝업 차단을 해제해주세요.'); return; }
-    printWin.document.write(`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>접촉 리포트</title>
+    printWin.document.write(`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>접촉 리포트 - ${periodLabel}</title>
       <style>
-        @page{ size: landscape; margin: 12mm; }
+        @page{ size: A4 landscape; margin: 10mm; }
         *{ box-sizing:border-box; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-        body{ font-family:'Pretendard','Apple SD Gothic Neo',sans-serif; margin:0; padding:20px; color:#2b2a27; background:#fff; }
-        h1{ font-size:18px; margin:0 0 4px; }
-        .sub{ font-size:12px; color:#6f6a5c; margin-bottom:14px; }
-        .report-summary-row{ display:none !important; }
-        .report-hint-text{ display:none !important; }
-        .report-summary-chip{ background:#f2f0ea; border:1px solid #dcd7cc; border-radius:20px; padding:5px 12px; font-size:11.5px; }
-        table{ border-collapse:collapse; width:100%; font-size:11.5px; }
-        th, td{ border:1px solid #dcd7cc; padding:7px 9px; text-align:left; vertical-align:top; }
-        th{ background:#f2f0ea; font-weight:700; }
-        .report-note-line{ margin-bottom:2px; white-space:pre-wrap; }
-        .report-log-card{ border:1px solid #dcd7cc !important; border-radius:8px; padding:6px 8px; margin-bottom:6px; break-inside:avoid; }
-        .report-log-card div{ color:#2b2a27; }
-        .report-log-card b{ color:#0f3d24 !important; }
-        .report-chart-cols{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:16px; }
-        .report-matrix-title{ font-size:12.5px; font-weight:700; color:#0f3d24; margin:14px 0 6px; }
-        .report-matrix-wrap{ margin-bottom:6px; border:1px solid #dcd7cc; border-radius:10px; padding:8px; break-inside:avoid; }
-        .report-matrix2{ border-collapse:separate; border-spacing:3px; font-size:10px; table-layout:fixed; width:max-content; }
-        .report-matrix2-name-col{ width:86px; }
-        .report-matrix2-data-col{ width:46px; }
-        .report-matrix2-note-col{ width:130px; }
-        .report-matrix2-corner{ min-width:86px; font-size:9px; font-weight:700; color:#6f6a5c; text-align:left; padding:2px 4px; }
-        .report-matrix2-col-head{ font-weight:700; text-align:center; padding:1px 2px; font-size:8.5px; color:#0f3d24; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .report-matrix2-row-head{ font-weight:700; text-align:left; padding:2px 5px; font-size:9.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:86px; }
-        .report-matrix2-cell{ width:46px; height:20px; padding:1px; text-align:center; vertical-align:middle; border-radius:5px; border:1px solid #dcd7cc; font-size:8.5px; }
-        .report-matrix2-cell.visited{ background:#0f3d24 !important; border-color:#0f3d24; color:#fff; font-weight:700; }
-        .report-matrix2-note-head{ padding:1px 5px; width:130px; text-align:left; font-size:8.5px; font-weight:700; color:#0f3d24; }
-        .report-matrix2-note-cell{ padding:2px 5px; width:130px; text-align:left; font-size:9px; color:#6f6a5c; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; border:1px solid #dcd7cc; border-radius:5px; }
-        .report-site-notes-summary{ font-size:10px; color:#6f6a5c; padding:6px 8px; border:1px solid #dcd7cc; border-radius:8px; margin:6px 0 12px; break-inside:avoid; }
-        .report-site-note-line{ padding:2px 0; border-bottom:1px dotted #dcd7cc; }
-        .report-site-note-line b{ color:#0f3d24; margin-right:5px; }
-        .report-site-note-edit{ padding:3px 0; border-bottom:1px dotted #dcd7cc; break-inside:avoid; }
-        .report-site-note-edit-head b{ color:#0f3d24; font-size:9.5px; }
-        .report-site-note-pencil{ display:none !important; }
-        .report-site-note-view{ font-size:9.5px; color:#3a362c; }
-        .report-site-note-textarea{ border:none !important; background:transparent !important; padding:1px 0 !important; resize:none !important; color:#3a362c !important; font-size:9.5px !important; }
-        .report-site-note-readonly{ font-size:9.5px; color:#3a362c; }
-        .report-missed-box{ font-size:10.5px; color:#6f6a5c; padding:6px 8px; border:1px dashed #dcd7cc; border-radius:8px; margin-bottom:12px; }
-        .report-missed-label{ font-weight:700; color:#b3261e; margin-bottom:4px; }
-        .report-missed-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:3px 8px; }
-        .report-chart-col{ border:1px solid #dcd7cc; border-radius:10px; padding:10px 10px 4px; background:#f2f0ea; break-inside:avoid; }
-        .report-chart-col-head{ font-size:12px; font-weight:700; color:#0f3d24; margin-bottom:8px; display:flex; align-items:baseline; gap:6px; }
-        .report-chart-col-head span{ font-size:10.5px; font-weight:400; color:#6f6a5c; }
-        .report-chart-empty{ font-size:11px; color:#6f6a5c; padding:10px 0; text-align:center; }
-        .report-section-title{ font-size:12.5px; font-weight:700; margin:16px 0 8px; }
-        .report-manager-cards{ display:grid; grid-template-columns:repeat(2,1fr); gap:5px; }
-        .report-manager-card{ border:1px solid #dcd7cc; border-radius:7px; padding:5px 7px; background:#f2f0ea; break-inside:avoid; }
-        .report-manager-card-head{ font-size:9.5px; font-weight:700; margin-bottom:1px; display:flex; justify-content:space-between; gap:4px; }
-        .report-manager-card-head span{ font-size:10.5px; font-weight:400; color:#6f6a5c; }
-        .report-manager-site-line{ display:flex; justify-content:space-between; gap:6px; font-size:9px; padding:0; }
-        .report-detail-panel{ display:none; }
-        table{ margin-top:10px; }
-        /* 화면이 다크모드였어도 인쇄물은 항상 흰 배경이라, 막대/글씨 색을 여기서 강제로 고정한다 */
-        .report-bar-rect{ fill:#0f3d24 !important; opacity:1 !important; }
-        .report-bar-g text{ fill:#2b2a27 !important; }
+        html,body{ margin:0; padding:0; }
+        body{ font-family:'Pretendard','Apple SD Gothic Neo',sans-serif; color:#2b2a27; background:#fff; width:277mm; height:190mm; overflow:hidden; }
+        #printRoot{ transform-origin: top left; }
+        .p-header{ display:flex; align-items:baseline; justify-content:space-between; border-bottom:2px solid #0f3d24; padding-bottom:8px; margin-bottom:10px; }
+        .p-title{ font-size:19px; font-weight:800; color:#0f3d24; }
+        .p-sub{ font-size:11.5px; color:#6f6a5c; margin-top:2px; }
+        .p-stats{ display:flex; gap:16px; font-size:11px; color:#3a362c; }
+        .p-stats b{ color:#0f3d24; font-size:14px; }
+        .p-district{ margin-bottom:9px; }
+        .p-district-title{ font-size:12.5px; font-weight:800; color:#0f3d24; margin-bottom:4px; }
+        .p-district-title span{ font-weight:400; color:#6f6a5c; font-size:10.5px; margin-left:4px; }
+        .p-matrix{ border-collapse:collapse; width:100%; table-layout:fixed; }
+        .p-name-col{ width:110px; }
+        .p-note-col{ width:230px; }
+        .p-matrix th, .p-matrix td{ border:1px solid #d8d3c6; padding:3px 5px; font-size:9.5px; }
+        .p-corner{ background:#f2f0ea; text-align:left; font-weight:700; color:#6f6a5c; }
+        .p-matrix thead th{ background:#f2f0ea; text-align:center; font-weight:700; color:#0f3d24; }
+        .p-row-head{ text-align:left; font-weight:700; background:#faf9f5; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .p-cell{ text-align:center; color:#c8c3b6; }
+        .p-cell.on{ background:#0f3d24; color:#fff; font-weight:700; }
+        .p-note{ text-align:left; color:#3a362c; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .p-missed{ font-size:9.5px; color:#b3261e; margin-top:2px; }
+        .p-missed b{ margin-right:4px; }
       </style>
     </head><body>
-      <h1>접촉 리포트</h1>
-      <div class="sub">${escapeHtml(range.label)} 기준 · ${currentOffice===ALL_OFFICE ? '강서/강남/강북 사업소' : escapeHtml(currentOffice)}</div>
-      ${bodyHtml}
+      <div id="printRoot">
+        <div class="p-header">
+          <div>
+            <div class="p-title">${escapeHtml(officeLabel)} 접촉 리포트</div>
+            <div class="p-sub">${periodLabel} · ${escapeHtml(range.label)}${managerLabel}</div>
+          </div>
+          <div class="p-stats">
+            <div>방문현장 <b>${totalSites}</b>곳</div>
+            <div>총 방문 <b>${totalVisitDays}</b>일</div>
+            <div>미방문 <b>${totalMissed}</b>곳</div>
+          </div>
+        </div>
+        ${districtBodyHtml}
+      </div>
+      <script>
+        window.onload = function(){
+          try{
+            var root = document.getElementById('printRoot');
+            var availH = document.body.clientHeight;
+            var neededH = root.scrollHeight;
+            if(neededH > availH){
+              var scale = Math.max(0.4, availH / neededH);
+              root.style.transform = 'scale(' + scale + ')';
+              root.style.width = (100/scale) + '%';
+            }
+          }catch(e){}
+          setTimeout(function(){ window.print(); }, 200);
+        };
+      <\/script>
     </body></html>`);
     printWin.document.close();
     printWin.focus();
-    setTimeout(()=>{ printWin.print(); }, 300);
   });
 
   // ---------- 인수인계 리포트 ----------
