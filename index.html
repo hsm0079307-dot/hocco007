@@ -911,7 +911,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v77</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v78</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -6649,8 +6649,14 @@ const L = (function(){
   });
   document.getElementById('reportModeWeekBtn').addEventListener('click', ()=>{ reportMode='week'; renderContactReport(); });
   document.getElementById('reportModeMonthBtn').addEventListener('click', ()=>{ reportMode='month'; renderContactReport(); });
-  document.getElementById('reportPrevBtn').addEventListener('click', ()=>{ shiftReportBaseDate(-1); renderContactReport(); });
-  document.getElementById('reportNextBtn').addEventListener('click', ()=>{ shiftReportBaseDate(1); renderContactReport(); });
+  document.getElementById('reportPrevBtn').addEventListener('click', ()=>{
+    shiftReportBaseDate(-1);
+    try{ renderContactReport(); }catch(e){ console.error('리포트 새로고침 실패', e); alert('리포트를 갱신하는 중 오류가 발생했어요: ' + (e && e.message ? e.message : e) + '\n이 메시지를 캡처해서 알려주세요.'); }
+  });
+  document.getElementById('reportNextBtn').addEventListener('click', ()=>{
+    shiftReportBaseDate(1);
+    try{ renderContactReport(); }catch(e){ console.error('리포트 새로고침 실패', e); alert('리포트를 갱신하는 중 오류가 발생했어요: ' + (e && e.message ? e.message : e) + '\n이 메시지를 캡처해서 알려주세요.'); }
+  });
   document.getElementById('reportPrintBtn').addEventListener('click', ()=>{
     const {range, rows, allSites} = buildContactReportData();
     const filteredRows = reportManagerFilter
