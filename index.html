@@ -121,6 +121,11 @@
   .report-table th{background:var(--bg-side-2);font-weight:700;color:var(--text-dim);font-size:11px;}
   .report-table .report-site-name{font-weight:700;color:var(--accent);}
   .report-note-line{margin-bottom:2px;font-size:11.5px;color:var(--text-dim);white-space:pre-wrap;}
+  .contact-role-group{margin-bottom:8px;}
+  .contact-role-label{font-size:10.5px;font-weight:700;color:var(--accent);margin-bottom:4px;}
+  .contact-role-label span{font-weight:400;color:var(--text-dim);margin-left:3px;}
+  .contact-name-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;}
+  .contact-name-chip{background:var(--bg-side-2);border:1px solid var(--line);border-radius:7px;padding:5px 8px;font-size:11.5px;color:var(--text-main);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   #contactReportBody .report-table{display:none;}
   .report-chart-wrap{border:1px solid var(--line);border-radius:10px;padding:12px 14px 4px;background:var(--bg-side-2);}
   .report-manager-chip{cursor:pointer;transition:.12s;}
@@ -903,7 +908,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v70</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v71</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -5931,18 +5936,24 @@ const L = (function(){
     const body = document.getElementById('contactReportBody');
     const flat = getAllLogsFlat();
     // 현장별로 접촉자를 묶는다 (한 사람이 여러 현장에 걸쳐 있으면 각 현장 아래에 따로 나옴)
-    const siteMap = {}; // { 현장명: { 접촉자명: {name,count,logs} } }
+    // "최영희 (선관위원)"처럼 이름에 직책이 붙어있으면 분리해서, 같은 이름은 하나로 합치고 직책은 따로 표시한다
+    function parseContactName(raw){
+      const m = String(raw||'').trim().match(/^(.+?)\s*[\(（]([^\)）]+)[\)）]\s*$/);
+      return { name: (m ? m[1] : raw).trim(), role: m ? m[2].trim() : '' };
+    }
+    const siteMap = {}; // { 현장명: { 접촉자명: {name,role,count,logs} } }
     flat.forEach(l=>{
-      const name = (l.contactName||'').trim();
+      const {name, role} = parseContactName(l.contactName);
       if(!name) return;
       const site = l.__site || '기타';
       if(!siteMap[site]) siteMap[site] = {};
-      if(!siteMap[site][name]) siteMap[site][name] = {name, count:0, logs:[]};
+      if(!siteMap[site][name]) siteMap[site][name] = {name, role:'', count:0, logs:[]};
+      if(role && !siteMap[site][name].role) siteMap[site][name].role = role;
       siteMap[site][name].count++;
       siteMap[site][name].logs.push(l);
     });
     const siteNames = Object.keys(siteMap).sort((a,b)=> Object.keys(siteMap[b]).length - Object.keys(siteMap[a]).length);
-    const totalContacts = new Set(flat.map(l=>(l.contactName||'').trim()).filter(Boolean)).size;
+    const totalContacts = new Set(flat.map(l=>parseContactName(l.contactName).name).filter(Boolean)).size;
 
     body.innerHTML = `
       <div style="margin-bottom:12px;color:var(--text-dim);font-size:12px;">전체 기간 기준 · 접촉자 ${totalContacts}명 · ${siteNames.length}개 현장</div>
@@ -5953,7 +5964,7 @@ const L = (function(){
         <div class="report-manager-cards" style="margin-bottom:14px;">
           ${contacts.map(c=>`
             <div class="report-manager-card report-contact-card" data-site="${escapeHtml(site)}" data-name="${escapeHtml(c.name)}" style="cursor:pointer;">
-              <div class="report-manager-card-head"><span>${escapeHtml(c.name)}</span><span style="flex:none;">${c.count}회</span></div>
+              <div class="report-manager-card-head"><span>${escapeHtml(c.name)}${c.role?` <span style="font-weight:400;color:var(--text-dim);font-size:10px;">(${escapeHtml(c.role)})</span>`:''}</span><span style="flex:none;">${c.count}회</span></div>
             </div>`).join('')}
         </div>`;
       }).join('') : '<div style="color:var(--text-dim);font-size:12px;padding:16px 0;">접촉자 기록이 없습니다.</div>'}
@@ -6417,7 +6428,32 @@ const L = (function(){
         if(highlightEl.classList && highlightEl.classList.contains('report-matrix2-cell')) highlightEl.style.outline = '2px solid var(--accent)';
         if(highlightEl.classList && highlightEl.classList.contains('report-site-card')) highlightEl.style.borderColor = 'var(--accent)';
       }
-      const contacts = Array.from(new Set((r.logs||[]).map(l=>l.contactName).filter(Boolean).map(n=>n.trim()).filter(Boolean)));
+      const rawContacts = Array.from(new Set((r.logs||[]).map(l=>l.contactName).filter(Boolean).map(n=>n.trim()).filter(Boolean)));
+      // "최영희 (선관위원)", "정상수(위원장)" 같은 문자열에서 이름/직책을 분리하고, 같은 이름은 하나로 합친다
+      const contactMap = new Map(); // name -> role (있으면)
+      rawContacts.forEach(raw=>{
+        const m = raw.match(/^(.+?)\s*[\(（]([^\)）]+)[\)）]\s*$/);
+        const name = (m ? m[1] : raw).trim();
+        const role = m ? m[2].trim() : '';
+        if(!name) return;
+        if(!contactMap.has(name) || (role && !contactMap.get(name))) contactMap.set(name, role);
+      });
+      // 직책별로 묶고(직책 없는 사람은 "일반"으로), 그룹은 인원 많은 순으로
+      const roleGroups = new Map();
+      contactMap.forEach((role, name)=>{
+        const key = role || '일반';
+        if(!roleGroups.has(key)) roleGroups.set(key, []);
+        roleGroups.get(key).push(name);
+      });
+      const sortedGroupKeys = Array.from(roleGroups.keys()).sort((a,b)=>{
+        if(a==='일반') return 1; if(b==='일반') return -1;
+        return roleGroups.get(b).length - roleGroups.get(a).length;
+      });
+      const contactsHtml = sortedGroupKeys.length ? sortedGroupKeys.map(key=>`
+        <div class="contact-role-group">
+          <div class="contact-role-label">${escapeHtml(key)} <span>${roleGroups.get(key).length}명</span></div>
+          <div class="contact-name-grid">${roleGroups.get(key).map(n=>`<div class="contact-name-chip">${escapeHtml(n)}</div>`).join('')}</div>
+        </div>`).join('') : '<div class="report-note-line">없음</div>';
       // 전체 이력(기간 무관) - 현장 타임라인
       const allHistoryLogs = (reportSiteFullLogs[r.site] || r.logs || []).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
       panel.style.display = 'block';
@@ -6433,8 +6469,8 @@ const L = (function(){
             <div class="report-note-line">${r.count}회</div>
           </div>
           <div class="report-summary-block" style="margin-bottom:14px;">
-            <div style="font-weight:700;font-size:12px;margin-bottom:4px;">이번 기간 접촉자</div>
-            <div class="report-note-line">${contacts.length ? contacts.map(escapeHtml).join(', ') : '없음'}</div>
+            <div style="font-weight:700;font-size:12px;margin-bottom:6px;">이번 기간 접촉자</div>
+            ${contactsHtml}
           </div>
           <div class="report-section-title" style="margin:0 0 8px;"><span style="color:#ffb703;">■</span> 전체 이력 타임라인 <span style="font-weight:400;color:var(--text-dim);">(총 ${allHistoryLogs.length}건)</span></div>
           ${allHistoryLogs.length ? `<div class="report-timeline">${(()=>{ const shownCompetitor=new Set(), shownSpecial=new Set(); return allHistoryLogs.map(l=>buildLogCard(l, shownCompetitor, shownSpecial, {fullDate:true})).join(''); })()}</div>` : '<div class="report-note-line" style="color:var(--text-dim);">상담 기록이 없습니다.</div>'}
