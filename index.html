@@ -911,7 +911,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v76</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v77</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -6505,7 +6505,8 @@ const L = (function(){
           <div class="contact-role-label">${escapeHtml(key)} <span>${roleGroups.get(key).length}명</span></div>
           <div class="contact-name-grid">${roleGroups.get(key).map(n=>`<div class="contact-name-chip" data-jump-contact="${escapeHtml(n)}" title="눌러서 이 사람 상담 기록으로 이동">${escapeHtml(n)}</div>`).join('')}</div>
         </div>`).join('') : '<div class="report-note-line">없음</div>';
-      // 전체 이력(기간 무관) - 현장 타임라인
+      // 이번 기간(선택한 주/달) 로그가 기본, 원하면 전체 이력도 펼쳐볼 수 있게 별도로 준비해둔다
+      const periodLogs = (r.logs||[]).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
       const allHistoryLogs = (reportSiteFullLogs[r.site] || r.logs || []).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
       panel.style.display = 'block';
       panel.innerHTML = `
@@ -6523,9 +6524,21 @@ const L = (function(){
             <div style="font-weight:700;font-size:12px;margin-bottom:6px;">이번 기간 접촉자</div>
             ${contactsHtml}
           </div>
-          <div class="report-section-title" style="margin:0 0 8px;"><span style="color:#ffb703;">■</span> 전체 이력 타임라인 <span style="font-weight:400;color:var(--text-dim);">(총 ${allHistoryLogs.length}건)</span></div>
-          ${allHistoryLogs.length ? `<div class="report-timeline">${(()=>{ const shownCompetitor=new Set(), shownSpecial=new Set(); return allHistoryLogs.map(l=>buildLogCard(l, shownCompetitor, shownSpecial, {fullDate:true})).join(''); })()}</div>` : '<div class="report-note-line" style="color:var(--text-dim);">상담 기록이 없습니다.</div>'}
+          <div class="report-section-title" style="margin:0 0 8px;display:flex;align-items:center;justify-content:space-between;">
+            <span><span style="color:#ffb703;">■</span> 이번 기간 상담 기록 <span style="font-weight:400;color:var(--text-dim);">(${periodLogs.length}건)</span></span>
+            ${allHistoryLogs.length > periodLogs.length ? `<button type="button" id="showFullHistoryBtn" class="btn btn-ghost btn-sm no-print" style="font-size:10px;padding:3px 8px;">전체 이력 보기 (${allHistoryLogs.length}건)</button>` : ''}
+          </div>
+          <div id="reportTimelineArea">
+          ${periodLogs.length ? `<div class="report-timeline">${(()=>{ const shownCompetitor=new Set(), shownSpecial=new Set(); return periodLogs.map(l=>buildLogCard(l, shownCompetitor, shownSpecial, {fullDate:true})).join(''); })()}</div>` : '<div class="report-note-line" style="color:var(--text-dim);">이번 기간 상담 기록이 없습니다.</div>'}
+          </div>
         </div>`;
+      const fullHistoryBtn = document.getElementById('showFullHistoryBtn');
+      if(fullHistoryBtn) fullHistoryBtn.addEventListener('click', ()=>{
+        const area = document.getElementById('reportTimelineArea');
+        const shownCompetitor=new Set(), shownSpecial=new Set();
+        area.innerHTML = `<div class="report-timeline">${allHistoryLogs.map(l=>buildLogCard(l, shownCompetitor, shownSpecial, {fullDate:true})).join('')}</div>`;
+        fullHistoryBtn.style.display = 'none';
+      });
       panel.scrollIntoView({behavior:'smooth', block:'nearest'});
       panel.querySelectorAll('.contact-name-chip[data-jump-contact]').forEach(chip=>{
         chip.addEventListener('click', ()=>{
@@ -6588,6 +6601,29 @@ const L = (function(){
       });
     });
   }
+  // 리포트는 여러 현장의 로그를 한꺼번에 집계하는데, 부팅 때 한 번 불러온 데이터가
+  // 그 사이 다른 곳(텔레그램 봇, 다른 기기 등)에서 추가된 로그를 놓쳤을 수 있다.
+  // 개별 현장은 열 때마다 targeted로 다시 확인하지만, 리포트 전체 집계는 그 혜택을 못 받으므로
+  // 리포트를 열 때 전체 데이터를 한 번 통째로 새로 받아와서 확실하게 맞춘다.
+  async function refreshAllOfficesDataForReport(){
+    try{
+      if(window.storage){
+        const res = await window.storage.get(STORAGE_KEY, false);
+        if(res && res.value){ allOfficesData = JSON.parse(res.value); return true; }
+        return false;
+      }
+      const res = await fetch(FIREBASE_DATA_URL + '?_=' + Date.now(), {cache:'no-store'});
+      if(!res.ok) return false;
+      const data = await res.json();
+      if(data && data.offices && typeof data.offices==='object'){
+        allOfficesData = data.offices;
+        sites = currentOffice===ALL_OFFICE ? OFFICES.flatMap(o=>allOfficesData[o]||[]) : (allOfficesData[currentOffice]||[]);
+        return true;
+      }
+      return false;
+    }catch(e){ console.error('리포트용 전체 데이터 새로고침 실패', e); return false; }
+  }
+
   document.getElementById('contactReportBtn').addEventListener('click', async ()=>{
     // 접촉 리포트는 조회 전용이라 관리자 잠금해제 없이도 게스트가 열람 가능해야 함
     reportMode = 'week';
@@ -6599,8 +6635,10 @@ const L = (function(){
     reportGalleryRows = null;
     reportTourRows = null;
     reportToursSelectedKey = null;
-    renderContactReport();
     document.getElementById('contactReportOverlay').classList.add('show');
+    document.getElementById('contactReportBody').innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-dim);">최신 데이터 확인 중...</div>';
+    await refreshAllOfficesDataForReport();
+    renderContactReport();
   });
   document.getElementById('reportViewTabSites').addEventListener('click', ()=>{ reportViewTab='sites'; renderContactReport(); });
   document.getElementById('reportViewTabContacts').addEventListener('click', ()=>{ reportViewTab='contacts'; renderContactReport(); });
@@ -6901,8 +6939,10 @@ const L = (function(){
   document.getElementById('handoverBtn').addEventListener('click', async ()=>{
     if(!(await ensureUnlocked())) return;
     document.getElementById('handoverManagerSelect').dataset.filled = '';
-    renderHandoverReport();
     document.getElementById('handoverOverlay').classList.add('show');
+    document.getElementById('handoverBody').innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-dim);">최신 데이터 확인 중...</div>';
+    await refreshAllOfficesDataForReport();
+    renderHandoverReport();
   });
   document.getElementById('handoverCloseBtn').addEventListener('click', ()=>{
     document.getElementById('handoverOverlay').classList.remove('show');
