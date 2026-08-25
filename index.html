@@ -911,7 +911,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v74</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v76</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -5865,15 +5865,19 @@ const L = (function(){
     return { name: (m ? m[1] : raw).trim(), role: m ? m[2].trim() : '' };
   }
   // 직책/소속 텍스트가 사람마다 제각각이라(회사명, 특정 호수 등) 그대로 묶으면 그룹이 너무 잘게 쪼개진다.
-  // 자주 나오는 패턴을 큰 카테고리로 먼저 묶고, 못 걸러지는 것만 원문 그대로 소그룹으로 남긴다.
+  // 큰 카테고리 4개로 먼저 묶고(위에서부터 순서대로 검사, 먼저 걸리는 카테고리로), 새 키워드는 여기 배열에 추가하면 된다.
+  const ROLE_CATEGORY_KEYWORDS = [
+    ['직책', ['조합장','이사','감사','대의원','위원장','위원']],
+    ['부동산', ['부동산','대표','실장']],
+    ['그외 직책', ['통장','반장','동대표','회장']],
+    ['일반', ['부인','남편','가족']],
+  ];
   function categorizeRole(role){
-    if(!role) return '일반';
-    if(/부동산|공인중개/.test(role)) return '부동산';
-    if(/위원장|추진위|조합장|이사장|선관위|비대위/.test(role)) return '조합/위원회';
-    if(/대표|사장|팀장|과장|차장|부장|실장/.test(role)) return '업체 관계자';
-    if(/부인|남편|아내|가족|자녀/.test(role)) return '가족';
-    if(/통장|구역장|회장|반장/.test(role)) return '주민 대표';
-    return role;
+    if(!role) return '미상';
+    for(const [category, keywords] of ROLE_CATEGORY_KEYWORDS){
+      if(keywords.some(k=>role.includes(k))) return category;
+    }
+    return role; // 위 4개 카테고리 어디에도 안 걸리면, 나중에 키워드 추가할 때까지는 원문 그대로 소그룹으로 둔다
   }
   function splitSentences(t){
     return t.split(/(?<=[.!?])\s+|\n+/).map(s=>s.trim()).filter(Boolean);
@@ -6493,7 +6497,7 @@ const L = (function(){
         roleGroups.get(key).push(name);
       });
       const sortedGroupKeys = Array.from(roleGroups.keys()).sort((a,b)=>{
-        if(a==='일반') return 1; if(b==='일반') return -1;
+        if(a==='미상') return 1; if(b==='미상') return -1;
         return roleGroups.get(b).length - roleGroups.get(a).length;
       });
       const contactsHtml = sortedGroupKeys.length ? sortedGroupKeys.map(key=>`
