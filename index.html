@@ -911,7 +911,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v78</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v79</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -5861,8 +5861,9 @@ const L = (function(){
   const SPECIAL_KEYWORDS = ['불만','민원','갈등','반대','집회','총회','서명','우려','분쟁','소송','논란','항의'];
   // "최영희 (선관위원)", "문만재 전인자 (동방부동산)" 같은 문자열에서 이름/직책(또는 소속)을 분리한다
   function parseContactName(raw){
-    const m = String(raw||'').trim().match(/^(.+?)\s*[\(（]([^\)）]+)[\)）]\s*$/);
-    return { name: (m ? m[1] : raw).trim(), role: m ? m[2].trim() : '' };
+    const safe = String(raw||'').trim();
+    const m = safe.match(/^(.+?)\s*[\(（]([^\)）]+)[\)）]\s*$/);
+    return { name: (m ? m[1] : safe).trim(), role: m ? m[2].trim() : '' };
   }
   // 직책/소속 텍스트가 사람마다 제각각이라(회사명, 특정 호수 등) 그대로 묶으면 그룹이 너무 잘게 쪼개진다.
   // 큰 카테고리 4개로 먼저 묶고(위에서부터 순서대로 검사, 먼저 걸리는 카테고리로), 새 키워드는 여기 배열에 추가하면 된다.
