@@ -179,6 +179,9 @@
   .report-site-note-edit-head{display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap;}
   .report-site-note-edit-head b{color:var(--accent);font-size:11.5px;}
   .report-site-note-pencil{background:none;border:none;cursor:pointer;font-size:12px;padding:1px 4px;border-radius:5px;opacity:.75;transition:opacity .12s, background .12s;}
+  .report-site-note-ai-btn{background:rgba(59,130,196,.14);border:1px solid rgba(59,130,196,.4);color:#3b82c4;cursor:pointer;font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:9px;margin-left:4px;transition:opacity .12s;}
+  .report-site-note-ai-btn:hover{opacity:.8;}
+  .report-site-note-ai-btn:disabled{opacity:.5;cursor:default;}
   .report-site-note-pencil:hover{opacity:1;background:var(--bg-main,rgba(255,255,255,.06));}
   .report-site-note-view{font-size:12px;color:var(--text-main);padding:2px;line-height:1.6;white-space:pre-wrap;}
   .report-site-note-textarea{width:100%;box-sizing:border-box;background:var(--bg-side-2);border:1.5px solid var(--accent);border-radius:8px;padding:7px 9px;color:var(--text-main);font-size:12px;font-family:inherit;resize:vertical;min-height:50px;line-height:1.5;transition:border-color .15s, box-shadow .15s;cursor:text;margin-top:2px;}
@@ -932,7 +935,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v84</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v85</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -1632,6 +1635,8 @@ const L = (function(){
   // 일반 웹(넷리파이 등)에 배포된 경우엔 window.storage가 없으므로 브라우저 localStorage로 자동 대체
   // 클라우드 동기화용 JSONBin.io 저장소 (여러 PC에서 같은 데이터를 보기 위함)
   const FIREBASE_DB_URL = 'https://add-project-74efc-default-rtdb.asia-southeast1.firebasedatabase.app';
+  // 현장 특이사항 AI 요약용 - 뉴스모니터링 프록시(Netlify)를 재활용. 배포 갱신 전까진 이 기능만 조용히 실패함.
+  const AI_PROXY_URL = 'https://stately-sfogliatella-7ab674.netlify.app/.netlify/functions/proxy';
   const FIREBASE_DATA_URL = `${FIREBASE_DB_URL}/data.json`;
   // ⚠️ Firebase 콘솔 > 프로젝트 설정 > 서비스 계정 > 데이터베이스 비밀(레거시)에서 발급받은 키를 여기에 넣으세요.
   // 이 값이 있어야 write:false 규칙 아래서도 이 앱만 저장할 수 있습니다. 절대 외부에 공유하지 마세요.
@@ -6364,6 +6369,7 @@ const L = (function(){
             <div class="report-site-note-edit-head">
               <b>${escapeHtml(r.site)}</b>
               ${guestMode?'':`<button type="button" class="report-site-note-pencil no-print" data-target="${sid}" title="수정">✏️</button>`}
+              ${guestMode?'':`<button type="button" class="report-site-note-ai-btn no-print" data-ai-target="${sid}" data-ai-office="${escapeHtml(r.office||'')}" title="AI가 로그를 읽고 다시 요약">🤖 AI 요약</button>`}
             </div>
             <div class="report-site-note-view" data-view-for="${sid}">${displayValue ? escapeHtml(displayValue) : '<span style="color:var(--text-dim);">특이사항 없음</span>'}</div>
             ${guestMode ? '' : `<textarea class="report-site-note-textarea" style="display:none;" data-site-id="${sid}" data-office="${escapeHtml(r.office||'')}" data-saved="${escapeHtml(saved||'')}" rows="2" placeholder="이 현장 특이사항을 입력하세요">${escapeHtml(displayValue||'')}</textarea>`}
@@ -6591,6 +6597,44 @@ const L = (function(){
         ta.style.height = 'auto'; ta.style.height = (ta.scrollHeight) + 'px';
         ta.focus();
         ta.setSelectionRange(ta.value.length, ta.value.length);
+      });
+    });
+    body.querySelectorAll('.report-site-note-ai-btn').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const sid = btn.dataset.aiTarget;
+        const officeName = btn.dataset.aiOffice;
+        const row = filteredRows.find(r=>r.id===sid) || rows.find(r=>r.id===sid);
+        if(!row){ alert('현장 정보를 찾을 수 없어요.'); return; }
+        const logsText = (row.logs||[]).map(l=>{
+          const who = l.contactName || l.author || '';
+          const when = l.date || '';
+          return `[${when}${who?' / '+who:''}] ${l.text||''}`;
+        }).join('\n');
+        if(!logsText.trim()){ alert('이 현장은 이번 기간에 기록된 보고서가 없어서 요약할 내용이 없어요.'); return; }
+        const originalLabel = btn.textContent;
+        btn.disabled = true; btn.textContent = '🤖 요약 중...';
+        try{
+          const res = await fetch(`${AI_PROXY_URL}?action=summarize-note`, {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ site: row.site, logsText }),
+          });
+          if(!res.ok) throw new Error('프록시 응답 오류 (' + res.status + ')');
+          const data = await res.json();
+          if(data.error) throw new Error(data.error);
+          const summary = (data.summary||'').trim();
+          if(!summary) throw new Error('빈 응답을 받았어요');
+          const ta = body.querySelector(`.report-site-note-textarea[data-site-id="${CSS.escape(sid)}"]`);
+          const viewEl = body.querySelector(`.report-site-note-view[data-view-for="${CSS.escape(sid)}"]`);
+          if(ta){ ta.value = summary; ta.style.display='block'; ta.style.height='auto'; ta.style.height=(ta.scrollHeight)+'px'; ta.focus(); }
+          if(viewEl) viewEl.style.display = 'none';
+          await saveSiteReportNote(sid, officeName, summary);
+          if(ta) ta.dataset.saved = summary;
+        }catch(e){
+          console.error('AI 요약 실패', e);
+          alert('AI 요약을 가져오지 못했어요: ' + (e && e.message ? e.message : e) + '\n(아직 프록시에 이 기능이 배포 안 됐을 수도 있어요)');
+        }
+        btn.disabled = false; btn.textContent = originalLabel;
       });
     });
     body.querySelectorAll('.report-site-note-textarea').forEach(ta=>{
