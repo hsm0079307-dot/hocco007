@@ -911,7 +911,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v79</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v80</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -1356,6 +1356,7 @@ const L = (function(){
   // ---- 협업 표시: "이 현장 최근에 누가 봤는지" 위해, 이 기기/사용자를 부를 이름을 하나 정해서 재사용한다 ----
   function getMyViewerName(){
     if(guestMode && currentGuest) return currentGuest.name;
+    if(guestMode && !currentGuest) return ''; // 아직 로그인 전(익명으로 그냥 둘러보는 상태)이면 이름을 물어보지 않는다
     let n = localStorage.getItem('viewerDisplayName');
     if(!n){
       n = prompt('협업 표시(누가 이 현장을 봤는지)에 쓰일 이름을 입력해주세요. (한 번만 물어봐요)') || '';
