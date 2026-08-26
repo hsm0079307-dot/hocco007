@@ -421,9 +421,16 @@
   .manager-filter-wrap{position:relative;}
   .topbar-menu-wrap{position:relative;}
   #topbarMenuPanel{width:210px;max-height:80vh;overflow-y:auto;}
-  .menu-section-label{font-size:9.5px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.03em;padding:8px 10px 3px;}
-  .menu-section-label:first-child{padding-top:4px;}
-  .manager-filter-panel hr.menu-sep{border:none;border-top:1px solid var(--line);margin:4px 0;}
+  .menu-accordion{padding:5px;}
+  .menu-section{border-bottom:1px solid var(--line);}
+  .menu-section:last-child{border-bottom:none;}
+  .menu-section-title{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:9px 8px;font-size:11.5px;font-weight:700;color:var(--accent);user-select:none;}
+  .menu-section-title::-webkit-details-marker{display:none;}
+  .menu-section-title::after{content:'▾';font-size:10px;color:var(--text-dim);transition:transform .15s;}
+  .menu-section[open] > .menu-section-title::after{transform:rotate(180deg);}
+  .menu-section-body{display:flex;flex-direction:column;gap:2px;padding:2px 2px 8px;}
+  .menu-item-btn{display:flex;align-items:center;gap:8px;width:100%;background:none;border:none;text-align:left;padding:7px 10px;border-radius:8px;cursor:pointer;font-size:12px;color:var(--text-main);white-space:nowrap;box-sizing:border-box;font-family:inherit;}
+  .menu-item-btn:hover{background:var(--card-hover, rgba(255,255,255,.06));}
   .manager-filter-panel{position:absolute;top:100%;right:0;margin-top:4px;background:var(--bg-side);border:1px solid var(--line);border-radius:10px;padding:6px;width:190px;max-height:320px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.4);z-index:600;}
   .manager-filter-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;cursor:pointer;font-size:12.5px;color:var(--text-main);white-space:nowrap;}
   .manager-filter-item:hover{background:var(--card-hover);}
@@ -786,25 +793,41 @@
     </div>
     <div class="topbar-menu-wrap" id="topbarMenuWrap" style="margin-left:auto;">
       <button class="btn btn-ghost" id="topbarMenuBtn" type="button">⚙ 설정 ▾</button>
-      <div class="manager-filter-panel" id="topbarMenuPanel" style="display:none;right:0;">
-        <div class="menu-section-label">📊 리포트</div>
-        <button class="manager-filter-item" id="contactReportBtn" type="button" style="width:100%;background:none;border:none;text-align:left;">📊 접촉 리포트</button>
-        <button class="manager-filter-item" id="handoverBtn" type="button" style="width:100%;background:none;border:none;text-align:left;">🤝 인수인계 리포트</button>
-        <div class="menu-section-label">🗂 데이터</div>
-        <label class="manager-filter-item file-label" style="cursor:pointer;">
-          엑셀 업로드
-          <input id="excelInput" type="file" accept=".xlsx,.xls,.csv" style="display:none;">
-        </label>
-        <button class="manager-filter-item" id="templateBtn" type="button" style="width:100%;background:none;border:none;text-align:left;">양식 다운로드</button>
-        <button class="manager-filter-item" id="exportBtn" type="button" style="width:100%;background:none;border:none;text-align:left;">엑셀 다운로드</button>
-        <button class="manager-filter-item" id="missingCoordsBtn" type="button" style="width:100%;background:none;border:none;text-align:left;">📍좌표없음</button>
-        <div class="menu-section-label">🛠 관리</div>
-        <button class="manager-filter-item" id="guestManageBtn" type="button" style="width:100%;background:none;border:none;text-align:left;">담당자 계정 관리</button>
-        <button class="manager-filter-item" id="changeLogBtn" type="button" style="width:100%;background:none;border:none;text-align:left;">수정이력</button>
-        <button class="manager-filter-item" id="undoBtn" type="button" style="width:100%;background:none;border:none;text-align:left;">↩️ 실행취소(방금 저장 이전으로)</button>
-        <div class="menu-section-label">🔑 계정</div>
-        <button class="manager-filter-item" id="changeAdminPwBtn" type="button" style="width:100%;background:none;border:none;text-align:left;">🔑 비번변경</button>
-        <button class="manager-filter-item" id="changeEntryPwBtn" type="button" title="첫 화면 입장 비밀번호(자료보호용) 변경" style="width:100%;background:none;border:none;text-align:left;">🚪🔑 입장암호변경</button>
+      <div class="manager-filter-panel menu-accordion" id="topbarMenuPanel" style="display:none;right:0;">
+        <details class="menu-section" open>
+          <summary class="menu-section-title">📊 리포트</summary>
+          <div class="menu-section-body">
+            <button class="menu-item-btn" id="contactReportBtn" type="button">📊 접촉 리포트</button>
+            <button class="menu-item-btn" id="handoverBtn" type="button">🤝 인수인계 리포트</button>
+          </div>
+        </details>
+        <details class="menu-section">
+          <summary class="menu-section-title">🗂 데이터</summary>
+          <div class="menu-section-body">
+            <label class="menu-item-btn file-label" style="cursor:pointer;">
+              📤 엑셀 업로드
+              <input id="excelInput" type="file" accept=".xlsx,.xls,.csv" style="display:none;">
+            </label>
+            <button class="menu-item-btn" id="templateBtn" type="button">📄 양식 다운로드</button>
+            <button class="menu-item-btn" id="exportBtn" type="button">📥 엑셀 다운로드</button>
+            <button class="menu-item-btn" id="missingCoordsBtn" type="button">📍 좌표없음</button>
+          </div>
+        </details>
+        <details class="menu-section">
+          <summary class="menu-section-title">🛠 관리</summary>
+          <div class="menu-section-body">
+            <button class="menu-item-btn" id="guestManageBtn" type="button">👤 담당자 계정 관리</button>
+            <button class="menu-item-btn" id="changeLogBtn" type="button">📜 수정이력</button>
+            <button class="menu-item-btn" id="undoBtn" type="button">↩️ 실행취소(방금 저장 이전으로)</button>
+          </div>
+        </details>
+        <details class="menu-section">
+          <summary class="menu-section-title">🔑 계정</summary>
+          <div class="menu-section-body">
+            <button class="menu-item-btn" id="changeAdminPwBtn" type="button">🔑 비번변경</button>
+            <button class="menu-item-btn" id="changeEntryPwBtn" type="button" title="첫 화면 입장 비밀번호(자료보호용) 변경">🚪 입장암호변경</button>
+          </div>
+        </details>
       </div>
     </div>
     <button class="btn btn-ghost" id="themeToggleBtn" title="다크/라이트 모드 전환">🌙</button>
@@ -909,7 +932,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v83</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v84</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
