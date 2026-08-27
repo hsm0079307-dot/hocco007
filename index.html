@@ -938,7 +938,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v87</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v88</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -1983,8 +1983,9 @@ const L = (function(){
     renderSeoulShapes(); // 현장이 추가/삭제/변경됐을 때만 구 색칠을 다시 그림
     editingGuestDraftKey = null; // 한 번 쓰면 초기화
   }
-  // JSONBin 무료 플랜 기준 bin 하나당 최대 용량(약 1MB)에 비해 지금 저장 중인 데이터가 얼마나 되는지 표시
-  const SYNC_CAPACITY_BYTES = 1000000;
+  // Firebase Realtime Database 무료 플랜 기준(약 1GB)에 비해 지금 저장 중인 데이터가 얼마나 되는지 표시.
+  // (예전 JSONBin 시절엔 bin 하나당 1MB 제한이라 그 기준으로 표시했었는데, Firebase로 옮긴 뒤로는 그 기준이 안 맞아서 갱신함)
+  const SYNC_CAPACITY_BYTES = 1000000000;
   function renderSyncStatus(){
     const el = document.getElementById('syncStatus');
     if(!el) return;
