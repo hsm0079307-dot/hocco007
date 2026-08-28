@@ -620,6 +620,11 @@
   .log-author-heading{font-size:11.5px;font-weight:700;color:var(--accent);margin-bottom:5px;padding-left:2px;}
   .log-joint-tag{display:inline-block;font-size:9.5px;font-weight:700;color:#fff;background:#3b82c4;border-radius:10px;padding:1px 7px;margin-left:2px;vertical-align:middle;}
   .log-item{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin-bottom:7px;display:flex;gap:10px;align-items:flex-start;}
+  .log-item-editing{display:block;border-color:var(--accent);}
+  .log-edit-inline-row{display:flex;gap:5px;width:100%;margin-bottom:5px;}
+  .log-edit-inline-row:first-child input[data-field="date"]{flex:0 0 130px;}
+  .log-inline-field{flex:1;min-width:0;box-sizing:border-box;background:var(--bg-side-2);border:1px solid var(--line);border-radius:8px;padding:5px 7px;color:var(--text-main);font-size:11px;font-family:inherit;}
+  textarea.log-inline-field{width:100%;resize:vertical;min-height:50px;margin-bottom:6px;}
   .log-meta-col{flex:none;width:148px;display:flex;flex-direction:column;gap:2px;}
   .log-date{font-size:11.5px;color:var(--accent);font-weight:700;white-space:nowrap;}
   .log-author-line{font-size:11px;color:var(--text-main);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -788,11 +793,15 @@
      인쇄 버튼을 누르면 이 print-mode 클래스를 먼저 붙여서 카카오맵이 새 크기에 맞춰
      폴리곤(구역 표시)을 다시 그릴 시간을 준 다음에 실제 인쇄 대화상자를 띄웁니다. */
   @media print, screen{
-    body.print-mode .topbar, body.print-mode .tabs, body.print-mode .clear-filter,
+    body.print-mode .tabs, body.print-mode .clear-filter,
     body.print-mode .region-panel, body.print-mode .card-actions, body.print-mode .no-print,
     body.print-mode #editToggle, body.print-mode .site-label,
     body.print-mode .master-list, body.print-mode .sidebar-head,
-    body.print-mode .office-switcher{display:none !important;}
+    body.print-mode .office-switcher, body.print-mode .view-switch-bar,
+    body.print-mode .cal-inline-agenda{display:none !important;}
+    body.print-mode .topbar > *:not(.brand){display:none !important;}
+    body.print-mode .topbar{display:flex !important; padding:4px 0 8px !important; border:none !important; background:none !important;}
+    body.print-mode .brand{font-size:15px !important;}
     body.print-mode .main{flex-direction:row !important; height:180mm !important;}
     body.print-mode .sidebar{width:520px !important; flex:0 0 520px !important; height:auto !important; max-height:none !important; border-right:1px solid var(--line) !important; border-left:none !important; border-bottom:none !important; order:1 !important; overflow:visible !important;}
     body.print-mode .master-detail{flex-direction:column !important; overflow:visible !important;}
@@ -803,9 +812,13 @@
     body.print-mode .rte-toolbar, body.print-mode .quad-edit-btn{display:none !important;}
   }
   @media print{
-    .topbar, .tabs, .clear-filter, .region-panel,
+    .tabs, .clear-filter, .region-panel,
     .card-actions, .no-print, #editToggle, .site-label,
-    .master-list, .sidebar-head, .office-switcher{display:none !important;}
+    .master-list, .sidebar-head, .office-switcher, .view-switch-bar,
+    .cal-inline-agenda{display:none !important;}
+    .topbar > *:not(.brand){display:none !important;}
+    .topbar{display:flex !important; padding:4px 0 8px !important; border:none !important; background:none !important;}
+    .brand{font-size:15px !important;}
     .main{flex-direction:row !important; height:180mm !important;}
     .sidebar{width:520px !important; flex:0 0 520px !important; height:auto !important; max-height:none !important; border-right:1px solid var(--line) !important; border-left:none !important; border-bottom:none !important; order:1 !important; overflow:visible !important;}
     .master-detail{flex-direction:column !important; overflow:visible !important;}
@@ -978,7 +991,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v93</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v94</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -3904,7 +3917,7 @@ const L = (function(){
     }else if(detailTab==='일지'){
       const logs = (site.logs||[]).filter(l=>!isTourBookingLog(l)).slice().sort((a,b)=>b.date.localeCompare(a.date));
       const editingLog = editingLogId ? (site.logs||[]).find(l=>l.id===editingLogId) : null;
-      const showForm = logFormOpen || !!editingLog;
+      const showForm = logFormOpen;
       body.innerHTML = `
         <div class="log-add">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
@@ -3972,7 +3985,35 @@ const L = (function(){
               return `
               <div class="log-author-group">
                 <div class="log-author-heading">${isJoint?'🤝':'👤'} ${escapeHtml(author)}${isJoint?' <span class="log-joint-tag">공동방문</span>':''} <span style="font-weight:400;color:var(--text-dim);">${groups[author].length}건</span></div>
-                ${groups[author].map(l=>`
+                ${groups[author].map(l=>{
+                  if(l.id === editingLogId){
+                    return `
+                <div class="log-item log-item-editing" data-log-id="${escapeHtml(l.id||'')}">
+                  <div class="log-edit-inline-row">
+                    <input type="date" class="log-inline-field" data-field="date" value="${escapeHtml(l.date||'')}">
+                    <input type="text" class="log-inline-field" data-field="author" placeholder="담당자" value="${escapeHtml(l.author||'')}">
+                  </div>
+                  <div class="log-edit-inline-row">
+                    <input type="text" class="log-inline-field" data-field="contactName" placeholder="성함(접촉대상)" value="${escapeHtml(l.contactName||'')}">
+                    <input type="text" class="log-inline-field" data-field="owner" placeholder="소유자" value="${escapeHtml(l.owner||'')}">
+                    <input type="text" class="log-inline-field" data-field="unit" placeholder="동호수" value="${escapeHtml(l.unit||'')}">
+                  </div>
+                  <div class="log-edit-inline-row">
+                    <select class="log-inline-field" data-field="contactMethod">
+                      <option value="">접촉방법</option>
+                      ${['상담','단순','TM','거부','부재','불명'].map(m=>`<option value="${m}" ${l.contactMethod===m?'selected':''}>${m}</option>`).join('')}
+                    </select>
+                    <input type="text" class="log-inline-field" data-field="executiveStance" placeholder="집행부 성향" value="${escapeHtml(l.executiveStance||'')}">
+                    <input type="text" class="log-inline-field" data-field="closeness" placeholder="친밀도" value="${escapeHtml(l.closeness||'')}">
+                  </div>
+                  <textarea class="log-inline-field" data-field="text" placeholder="상담내용을 입력하세요" rows="3">${escapeHtml(l.text||'')}</textarea>
+                  <div class="log-actions">
+                    <button class="log-inline-save btn btn-primary btn-sm" data-logid="${l.id}">저장</button>
+                    <button class="log-inline-cancel btn btn-ghost btn-sm" data-logid="${l.id}">취소</button>
+                  </div>
+                </div>`;
+                  }
+                  return `
                 <div class="log-item" data-log-id="${escapeHtml(l.id||'')}" data-contact-name="${escapeHtml((l.contactName||'').trim())}" data-log-date="${escapeHtml(l.date||'')}">
                   <div class="log-meta-col">
                     <div class="log-date">${escapeHtml(formatDateKr(l.date))}</div>
@@ -3989,7 +4030,8 @@ const L = (function(){
                     <button class="log-edit" data-logid="${l.id}">수정</button>
                     <button class="log-del" data-logid="${l.id}">삭제</button>
                   </div>
-                </div>`).join('')}
+                </div>`;
+                }).join('')}
               </div>`;
             }).join('');
           })()}
@@ -4150,6 +4192,48 @@ const L = (function(){
           if(!(await ensureUnlocked())) return;
           editingLogId = btn.dataset.logid;
           renderDetailBody(site);
+        });
+      });
+      body.querySelectorAll('.log-inline-cancel').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          editingLogId = null;
+          renderDetailBody(site);
+        });
+      });
+      body.querySelectorAll('.log-inline-save').forEach(btn=>{
+        btn.addEventListener('click', async ()=>{
+          if(!(await ensureUnlocked())) return;
+          const logId = btn.dataset.logid;
+          const card = body.querySelector(`.log-item-editing[data-log-id="${CSS.escape(logId)}"]`);
+          if(!card) return;
+          const target = (site.logs||[]).find(l=>l.id===logId);
+          if(!target) return;
+          const getVal = (field)=>{ const el = card.querySelector(`[data-field="${field}"]`); return el ? el.value.trim() : ''; };
+          const newDate = getVal('date'), newText = getVal('text');
+          if(!newDate || !newText){ alert('날짜와 상담내용은 꼭 입력해주세요.'); return; }
+          target.date = newDate;
+          target.author = getVal('author');
+          target.contactName = getVal('contactName');
+          target.owner = getVal('owner');
+          target.unit = getVal('unit');
+          target.contactMethod = getVal('contactMethod');
+          target.executiveStance = getVal('executiveStance');
+          target.closeness = getVal('closeness');
+          target.text = newText;
+          site.lastDate = lastVisit(site);
+          editingLogId = null;
+          renderAll();
+          renderDetailPanel(site);
+          try{
+            const officeName = site.office || currentOffice;
+            const {idx: idxInOffice} = await getFreshIndexInOffice(officeName, site.id);
+            if(idxInOffice>-1){
+              const url = `${FIREBASE_DB_URL}/offices/${encodeURIComponent(officeName)}/${idxInOffice}/logs.json?auth=${encodeURIComponent(FIREBASE_DB_SECRET)}`;
+              const res = await fetch(url, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(site.logs)});
+              if(!res.ok) alert('⚠️ 클라우드 저장 실패 (상태코드 '+res.status+'). 이 화면에서만 수정됐고, 클라우드엔 반영 안 됐을 수 있어요.');
+            }
+          }catch(e){ console.error('보고서 수정 클라우드 반영 실패', e); }
+          await saveSites();
         });
       });
       body.querySelectorAll('.log-del').forEach(btn=>{
