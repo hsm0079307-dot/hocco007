@@ -1286,8 +1286,46 @@
     URL.revokeObjectURL(url);
   });
 
-  aiBtn.addEventListener('click', ()=>{
-    alert('실시간 AI 재분석은 이 환경에서 불안정해서 지금은 지원되지 않아요. 기본으로 표시된 분석 결과를 참고해주세요.');
+  const AI_PROXY_URL = 'https://stately-sfogliatella-7ab674.netlify.app/.netlify/functions/proxy';
+
+  aiBtn.addEventListener('click', async ()=>{
+    if(!parsed){ alert('먼저 카카오톡 대화 파일을 업로드해주세요.'); return; }
+    const dateFilter = document.getElementById('dateFilter');
+    const selected = dateFilter.value;
+    const filtered = (selected && selected!=='__all__') ? parsed.filter(m=>m.date===selected) : parsed;
+    if(!filtered.length){ alert('분석할 메시지가 없어요.'); return; }
+
+    const originalLabel = aiBtn.textContent;
+    aiBtn.disabled = true;
+    aiBtn.textContent = '🤖 AI 분석 중...';
+    try{
+      const res = await fetch(`${AI_PROXY_URL}?action=analyze-chat`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ messages: filtered }),
+      });
+      let data = null;
+      try{ data = await res.json(); }catch(e){}
+      if(!res.ok) throw new Error((data && data.error) ? data.error : ('프록시 응답 오류 (' + res.status + ')'));
+      if(data && data.error) throw new Error(data.error);
+
+      const daily = {
+        keyPoints: data.keyPoints || [],
+        favorable: data.favorable || [],
+        critical: data.critical || [],
+        other: data.other || [],
+      };
+      const a = analyze(filtered);
+      window.__currentDaily = daily;
+      window.__currentTitle = document.getElementById('titleInput').value;
+      window.__currentTitleDate = document.getElementById('titleDate').textContent;
+      content.innerHTML = buildReportHtml(a, daily);
+    }catch(e){
+      console.error('AI 분석 실패', e);
+      alert('AI 분석을 가져오지 못했어요: ' + (e && e.message ? e.message : e));
+    }
+    aiBtn.disabled = false;
+    aiBtn.textContent = originalLabel;
   });
 
   // 페이지를 열자마자, 업로드 없이 지금까지 분석해둔 가장 최근 날짜를 바로 보여줌
