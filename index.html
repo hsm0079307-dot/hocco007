@@ -568,6 +568,44 @@
   .edit-field textarea{min-height:70px;resize:vertical;}
 
   .log-add{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px;}
+  .mgr-breakdown-wrap{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:14px;background:var(--bg-side-2);}
+  .mgr-breakdown-title{font-size:11px;font-weight:700;color:var(--accent);margin:10px 0 5px;}
+  .mgr-breakdown-title:first-child{margin-top:0;}
+  .mgr-breakdown-table{border-collapse:collapse;width:100%;font-size:10.5px;margin-bottom:6px;table-layout:fixed;}
+  .mgr-breakdown-table th, .mgr-breakdown-table td{border:1px solid var(--line);padding:5px 4px;text-align:center;vertical-align:middle;}
+  .mgr-breakdown-table thead th{background:var(--bg-main,rgba(255,255,255,.05));color:var(--accent);font-weight:700;}
+  .mgr-breakdown-table td.mgr-name, .mgr-breakdown-table th:first-child{text-align:left;font-weight:700;color:var(--text-main);width:20%;}
+  .mgr-breakdown-table td:not(.mgr-name){color:var(--accent);font-weight:700;}
+  .mgr-contact-compact{font-size:10px;color:var(--text-dim);}
+  .mgr-contact-line{padding:2px 0;line-height:1.6;}
+  .mgr-contact-line b{color:var(--text-main);margin-right:4px;}
+  .mgr-contact-chip{color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:2px;}
+  .mgr-contact-chip:hover{opacity:.75;}
+  .mgr-filter-row{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
+  .mgr-filter-label{font-size:10.5px;font-weight:700;color:var(--text-dim);margin-right:2px;}
+  .mgr-filter-chip{font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:12px;background:var(--bg-main,rgba(255,255,255,.06));border:1px solid var(--line);color:var(--text-main);cursor:pointer;transition:background .12s,color .12s;}
+  .mgr-filter-chip:hover{border-color:var(--accent);}
+  .mgr-filter-chip.active{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);}
+  .mgr-filter-clear{font-size:10px;color:var(--text-dim);cursor:pointer;text-decoration:underline;margin-left:2px;}
+  .mgr-subtabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:8px;padding-bottom:0;}
+  .mgr-subtab{font-size:10.5px;font-weight:600;padding:5px 10px;cursor:pointer;color:var(--text-dim);border-bottom:2px solid transparent;margin-bottom:-1px;}
+  .mgr-subtab:hover{color:var(--text-main);}
+  .mgr-subtab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:700;}
+  .mgr-subtab-body{min-height:20px;}
+  .mgr-empty{font-size:11px;color:var(--text-dim);padding:10px 0;text-align:center;}
+  .mgr-cal-title{font-size:11.5px;font-weight:700;color:var(--accent);margin-bottom:6px;}
+  .mgr-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
+  .mgr-cal-dayhead{text-align:center;font-size:9.5px;font-weight:700;color:var(--text-dim);padding:3px 0;}
+  .mgr-cal-cell{min-height:44px;border:1px solid var(--line);border-radius:6px;padding:3px 4px;background:var(--bg-main,rgba(255,255,255,.03));}
+  .mgr-cal-cell.mgr-cal-empty{border:none;background:none;}
+  .mgr-cal-cell.has-log{background:color-mix(in srgb, var(--accent) 12%, transparent);border-color:var(--accent);}
+  .mgr-cal-cell.is-today .mgr-cal-daynum{color:var(--accent);text-decoration:underline;}
+  .mgr-cal-daynum{font-size:10px;font-weight:700;color:var(--text-dim);}
+  .mgr-cal-names{font-size:9px;color:var(--text-main);margin-top:2px;line-height:1.35;}
+  .mgr-cal-name-chip{display:block;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .log-contact-filter-banner{display:flex;align-items:center;gap:8px;background:color-mix(in srgb, var(--accent) 14%, transparent);border:1px solid var(--accent);border-radius:8px;padding:7px 10px;margin-bottom:8px;font-size:11px;color:var(--text-main);}
+  .log-contact-filter-clear{margin-left:auto;font-size:10px;color:var(--text-dim);cursor:pointer;text-decoration:underline;white-space:nowrap;}
+  .mgr-owner-table td, .mgr-owner-table th{text-align:center;}
   .log-add-row2{display:flex;gap:5px;width:100%;}
   .log-add-row2 input[type=date]{flex:1 1 50%;min-width:0;}
   .log-add-row2 input[type=text]{flex:1 1 50%;min-width:0;}
@@ -938,7 +976,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v88</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v92</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -1429,6 +1467,8 @@ const L = (function(){
   }
   let editingLogId = null; // 보고서(일지) "수정" 버튼 눌렀을 때, 지금 고치고 있는 항목의 id
   let logFormOpen = false; // "보고서 입력" 버튼을 눌러서 입력 폼을 펼친 상태인지
+  let mgrBreakdownSubTab = '달력'; // 보고서 탭 상단 집계 영역의 하위 탭: 달력 | 주별집계 | 월별집계 | 소유자별
+  let mgrBreakdownManagerFilter = null; // 담당자 이름 클릭시 그 사람 것만 필터링
   const GUEST_KEY = 'realestate-guest-accounts-v1';
   const CHANGELOG_KEY = 'realestate-guest-changelog-v1';
   const ADMIN_PW_KEY = 'realestate-admin-pw-hash-v1';
@@ -3896,6 +3936,7 @@ const L = (function(){
           <button class="btn btn-primary btn-sm no-print" id="logOpenFormBtn" style="width:100%;margin-top:2px;">✏️ 보고서 입력</button>
           `}
         </div>
+        ${buildManagerBreakdownTable(site)}
         <div class="log-list" id="logListArea">
           ${(()=>{
             if(!logs.length) return '<div class="empty">아직 기록된 보고서가 없습니다.</div>';
@@ -3930,7 +3971,7 @@ const L = (function(){
               <div class="log-author-group">
                 <div class="log-author-heading">${isJoint?'🤝':'👤'} ${escapeHtml(author)}${isJoint?' <span class="log-joint-tag">공동방문</span>':''} <span style="font-weight:400;color:var(--text-dim);">${groups[author].length}건</span></div>
                 ${groups[author].map(l=>`
-                <div class="log-item">
+                <div class="log-item" data-log-id="${escapeHtml(l.id||'')}" data-contact-name="${escapeHtml((l.contactName||'').trim())}" data-log-date="${escapeHtml(l.date||'')}">
                   <div class="log-meta-col">
                     <div class="log-date">${escapeHtml(formatDateKr(l.date))}</div>
                     ${isJoint && l.author?`<div class="log-meta-line">작성: ${escapeHtml(l.author)}</div>`:''}
@@ -4027,6 +4068,68 @@ const L = (function(){
       if(logOpenFormBtn) logOpenFormBtn.addEventListener('click', ()=>{
         logFormOpen = true;
         renderDetailBody(site);
+      });
+      body.querySelectorAll('.mgr-contact-chip[data-jump-log]').forEach(chip=>{
+        chip.addEventListener('click', ()=>{
+          const logId = chip.dataset.jumpLog;
+          if(!logId) return;
+          const target = body.querySelector(`.log-item[data-log-id="${CSS.escape(logId)}"]`);
+          if(!target) return;
+          target.style.outline = '2px solid var(--accent)';
+          target.style.transition = 'outline-color .3s';
+          target.scrollIntoView({behavior:'smooth', block:'center'});
+          setTimeout(()=>{ target.style.outline = ''; }, 2500);
+        });
+      });
+      body.querySelectorAll('.mgr-subtab[data-mgr-subtab]').forEach(tab=>{
+        tab.addEventListener('click', ()=>{
+          mgrBreakdownSubTab = tab.dataset.mgrSubtab;
+          renderDetailBody(site);
+        });
+      });
+      body.querySelectorAll('.mgr-filter-chip[data-mgr-filter]').forEach(chip=>{
+        chip.addEventListener('click', ()=>{
+          const name = chip.dataset.mgrFilter;
+          mgrBreakdownManagerFilter = (mgrBreakdownManagerFilter===name) ? null : name;
+          renderDetailBody(site);
+        });
+      });
+      const mgrFilterClearEl = body.querySelector('.mgr-filter-clear[data-mgr-filter-clear]');
+      if(mgrFilterClearEl) mgrFilterClearEl.addEventListener('click', ()=>{
+        mgrBreakdownManagerFilter = null;
+        renderDetailBody(site);
+      });
+      function clearContactLogFilter(){
+        const banner = document.getElementById('logContactFilterBanner');
+        if(banner) banner.remove();
+        body.querySelectorAll('.log-item').forEach(el=>{ el.style.display=''; });
+        body.querySelectorAll('.log-author-group').forEach(el=>{ el.style.display=''; });
+      }
+      function applyContactLogFilter(name){
+        const listArea = document.getElementById('logListArea');
+        if(!listArea) return;
+        clearContactLogFilter();
+        const banner = document.createElement('div');
+        banner.id = 'logContactFilterBanner';
+        banner.className = 'log-contact-filter-banner';
+        banner.innerHTML = `📌 <b>${escapeHtml(name)}</b>님 관련 보고서만 보는 중 <span class="log-contact-filter-clear">전체보기 ✕</span>`;
+        listArea.parentElement.insertBefore(banner, listArea);
+        banner.querySelector('.log-contact-filter-clear').addEventListener('click', clearContactLogFilter);
+        let anyMatch = false;
+        body.querySelectorAll('.log-author-group').forEach(group=>{
+          const items = group.querySelectorAll('.log-item');
+          let groupHasMatch = false;
+          items.forEach(item=>{
+            const match = name==='(성함 미상)' ? !item.dataset.contactName : (item.dataset.contactName === name);
+            item.style.display = match ? '' : 'none';
+            if(match){ groupHasMatch = true; anyMatch = true; }
+          });
+          group.style.display = groupHasMatch ? '' : 'none';
+        });
+        listArea.scrollIntoView({behavior:'smooth', block:'start'});
+      }
+      body.querySelectorAll('.mgr-contact-chip[data-filter-contact]').forEach(chip=>{
+        chip.addEventListener('click', ()=>{ applyContactLogFilter(chip.dataset.filterContact); });
       });
       body.querySelectorAll('.log-edit').forEach(btn=>{
         btn.addEventListener('click', async ()=>{
@@ -5954,6 +6057,191 @@ const L = (function(){
     return sorted.length ? sorted.map(l=>buildLogCard(l, shownC, shownS)).join('') : '<div class="report-note-line" style="color:var(--text-dim);">기록 없음</div>';
   }
   // 주간 모드: 월~일 요일별로, 월간 모드: 1주차~N주차 별로 그날/그주에 어느 현장을 몇 번 방문했는지 묶는다
+  // 사이트 상세 "보고서" 탭에 보여줄 담당자별 집계표(주간/월간 방문 매트릭스 + 요일·주차별 접촉자 목록)
+  function buildManagerBreakdownTable(site){
+    const allLogsRaw = (site.logs||[]).filter(l=>!isTourBookingLog(l));
+    if(!allLogsRaw.length) return '';
+    const managerSet = new Set();
+    String(site.manager||'').split(/[,\s]+/).filter(Boolean).forEach(n=>managerSet.add(n));
+    allLogsRaw.forEach(l=>{ if(l.author) String(l.author).split(/[,\s]+/).filter(Boolean).forEach(n=>managerSet.add(n)); });
+    const managers = Array.from(managerSet);
+    if(!managers.length) return '';
+
+    // 담당자 필터가 걸려있으면 이 뷰 전체가 그 사람 것만 보이게
+    if(mgrBreakdownManagerFilter && !managers.includes(mgrBreakdownManagerFilter)) mgrBreakdownManagerFilter = null;
+    const allLogs = mgrBreakdownManagerFilter
+      ? allLogsRaw.filter(l=>String(l.author||'').split(/[,\s]+/).filter(Boolean).includes(mgrBreakdownManagerFilter))
+      : allLogsRaw;
+
+    function logsForManager(m){
+      return allLogs.filter(l=>{
+        const authorNames = String(l.author||'').split(/[,\s]+/).filter(Boolean);
+        if(authorNames.length) return authorNames.includes(m);
+        return String(site.manager||'').split(/[,\s]+/).filter(Boolean).includes(m); // 작성자 미상 로그는 대표 담당자 몫으로 집계
+      });
+    }
+    const now = new Date();
+    const weekRange = getWeekRange(now);
+    const monthRange = getMonthRange(now);
+    // buildDailyGroups는 "현장별" 집계용으로 만들었지만, 담당자를 현장처럼 취급해서 그대로 재사용한다
+    const managerRows = managers.map(m=>({site:m, logs: logsForManager(m)}));
+    const weekBuckets = buildDailyGroups(managerRows, weekRange, 'week');
+    const monthBuckets = buildDailyGroups(managerRows, monthRange, 'month');
+
+    function weekOfDayNum(dayOfMonth, mondayOffset){ return Math.ceil((dayOfMonth + mondayOffset) / 7); }
+    function logsForWeekBucket(m, bucket){ return logsForManager(m).filter(l=>l.date===bucket.key); }
+    function logsForMonthBucket(m, bucket){
+      const firstDow = new Date(monthRange.start.getFullYear(), monthRange.start.getMonth(), 1).getDay();
+      const mondayOffset = (firstDow + 6) % 7;
+      return logsForManager(m).filter(l=>{
+        const d = parseInt((l.date||'').slice(8,10),10);
+        return d && weekOfDayNum(d, mondayOffset)===bucket.weekNum;
+      });
+    }
+    // 접촉자 칩 - 누르면 아래 해당 로그로 스크롤+강조
+    function contactChip(l){
+      if(!l.contactName) return '';
+      return `<span class="mgr-contact-chip" data-jump-log="${escapeHtml(l.id||'')}">${escapeHtml(l.contactName)}</span>`;
+    }
+
+    // ---- 담당자 헤더 (누르면 그 사람만 필터링) ----
+    const managerHeaderHtml = `
+      <div class="mgr-filter-row">
+        <span class="mgr-filter-label">▣ 담당자</span>
+        ${managers.map(m=>`<span class="mgr-filter-chip${mgrBreakdownManagerFilter===m?' active':''}" data-mgr-filter="${escapeHtml(m)}">${escapeHtml(m)}</span>`).join('')}
+        ${mgrBreakdownManagerFilter ? `<span class="mgr-filter-clear" data-mgr-filter-clear="1">전체보기 ✕</span>` : ''}
+      </div>`;
+
+    // ---- 하위 탭 ----
+    const subTabs = ['달력','주별집계','월별집계','소유자별'];
+    const tabHtml = `<div class="mgr-subtabs">${subTabs.map(t=>`<span class="mgr-subtab${mgrBreakdownSubTab===t?' active':''}" data-mgr-subtab="${t}">${t}</span>`).join('')}</div>`;
+
+    // ---- 달력 뷰 ----
+    function buildCalendarView(){
+      const y = monthRange.start.getFullYear(), mo = monthRange.start.getMonth();
+      const daysInMonth = monthRange.end.getDate();
+      const firstDow = new Date(y, mo, 1).getDay(); // 0=일 ~ 6=토
+      const leadingBlanks = (firstDow===0) ? 6 : firstDow-1; // 월요일 시작 기준
+      const logsByDate = {};
+      allLogs.forEach(l=>{
+        if(!l.date) return;
+        if(!logsByDate[l.date]) logsByDate[l.date] = [];
+        logsByDate[l.date].push(l);
+      });
+      let cells = '';
+      for(let i=0;i<leadingBlanks;i++) cells += `<div class="mgr-cal-cell mgr-cal-empty"></div>`;
+      for(let d=1; d<=daysInMonth; d++){
+        const dateKey = y+'-'+String(mo+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+        const dayLogs = logsByDate[dateKey]||[];
+        const namesOnDay = Array.from(new Set(dayLogs.map(l=>l.author).filter(Boolean).flatMap(a=>String(a).split(/[,\s]+/).filter(Boolean))));
+        const isToday = dateKey === (now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0'));
+        const namesHtml = namesOnDay.map(name=>{
+          const matchLog = dayLogs.find(l=>String(l.author||'').split(/[,\s]+/).filter(Boolean).includes(name));
+          return `<div class="mgr-contact-chip mgr-cal-name-chip" data-jump-log="${escapeHtml(matchLog&&matchLog.id||'')}">${escapeHtml(name)}</div>`;
+        }).join('');
+        cells += `<div class="mgr-cal-cell${dayLogs.length?' has-log':''}${isToday?' is-today':''}">
+          <div class="mgr-cal-daynum">${d}</div>
+          ${namesHtml ? `<div class="mgr-cal-names">${namesHtml}</div>` : ''}
+        </div>`;
+      }
+      const dayHeads = ['월','화','수','목','금','토','일'];
+      return `<div class="mgr-cal-title">${y}년 ${mo+1}월</div>
+        <div class="mgr-cal-grid">
+          ${dayHeads.map(d=>`<div class="mgr-cal-dayhead">${d}</div>`).join('')}
+          ${cells}
+        </div>`;
+    }
+
+    // ---- 주별/월별 집계 표 ----
+    function buildWeekTable(){
+      return `<table class="mgr-breakdown-table">
+        <thead><tr><th>성함</th>${weekBuckets.map(b=>`<th>${escapeHtml(b.label.replace(/\d+일\(|\)/g,''))}</th>`).join('')}</tr></thead>
+        <tbody>
+          ${managers.map(m=>`<tr><td class="mgr-name">${escapeHtml(m)}</td>${weekBuckets.map(b=>{
+            const cnt = b.sites[m]||0;
+            return `<td>${cnt?'○':''}</td>`;
+          }).join('')}</tr>`).join('')}
+        </tbody>
+      </table>
+      <div class="mgr-contact-compact">
+        ${managers.map(m=>{
+          const items = weekBuckets.map(b=>{
+            const logs = logsForWeekBucket(m,b);
+            if(!logs.length) return '';
+            const dayShort = b.label.replace(/\d+일\(|\)/g,'');
+            return `${dayShort} ${logs.map(contactChip).join(', ')}`;
+          }).filter(Boolean);
+          if(!items.length) return '';
+          return `<div class="mgr-contact-line"><b>${escapeHtml(m)}</b> ${items.join(' · ')}</div>`;
+        }).join('')}
+      </div>`;
+    }
+    function buildMonthTable(){
+      return `<table class="mgr-breakdown-table">
+        <thead><tr><th>성함</th>${monthBuckets.map(b=>{ const m=b.label.match(/(\d+)주차/); return `<th>${escapeHtml(m?m[1]+'주차':b.label)}</th>`; }).join('')}</tr></thead>
+        <tbody>
+          ${managers.map(m=>`<tr><td class="mgr-name">${escapeHtml(m)}</td>${monthBuckets.map(b=>{
+            const logs = logsForMonthBucket(m,b);
+            const days = Array.from(new Set(logs.map(l=>parseInt((l.date||'').slice(8,10),10)))).sort((x,y)=>x-y);
+            return `<td>${days.join(', ')}</td>`;
+          }).join('')}</tr>`).join('')}
+        </tbody>
+      </table>
+      <div class="mgr-contact-compact">
+        ${managers.map(m=>{
+          const items = monthBuckets.map(b=>{
+            const logs = logsForMonthBucket(m,b);
+            if(!logs.length) return '';
+            const wm = b.label.match(/(\d+)주차/);
+            return `${wm?wm[1]+'주차':b.label} ${logs.map(contactChip).join(', ')}`;
+          }).filter(Boolean);
+          if(!items.length) return '';
+          return `<div class="mgr-contact-line"><b>${escapeHtml(m)}</b> ${items.join(' · ')}</div>`;
+        }).join('')}
+      </div>`;
+    }
+
+    // ---- 소유자(접촉자)별 접촉현황 ----
+    function buildOwnerView(){
+      const byOwner = {};
+      allLogs.forEach(l=>{
+        const owner = (l.contactName||'').trim() || '(성함 미상)';
+        if(!byOwner[owner]) byOwner[owner] = [];
+        byOwner[owner].push(l);
+      });
+      const owners = Object.keys(byOwner).sort((a,b)=>byOwner[b].length-byOwner[a].length);
+      if(!owners.length) return `<div class="mgr-empty">접촉자 기록이 없습니다.</div>`;
+      return `<table class="mgr-breakdown-table mgr-owner-table">
+        <thead><tr><th style="text-align:left;">접촉자</th><th>횟수</th><th>최근 접촉일</th><th>담당</th></tr></thead>
+        <tbody>
+          ${owners.map(o=>{
+            const logs = byOwner[o];
+            const lastDate = logs.map(l=>l.date).filter(Boolean).sort().slice(-1)[0] || '-';
+            const authors = Array.from(new Set(logs.map(l=>l.author).filter(Boolean)));
+            return `<tr>
+              <td style="text-align:left;"><span class="mgr-contact-chip" data-filter-contact="${escapeHtml(o)}">${escapeHtml(o)}</span></td>
+              <td>${logs.length}</td>
+              <td>${escapeHtml(lastDate)}</td>
+              <td>${escapeHtml(authors.join(', ')||'-')}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
+    }
+
+    let bodyHtml = '';
+    if(mgrBreakdownSubTab==='달력') bodyHtml = buildCalendarView();
+    else if(mgrBreakdownSubTab==='주별집계') bodyHtml = buildWeekTable();
+    else if(mgrBreakdownSubTab==='월별집계') bodyHtml = buildMonthTable();
+    else bodyHtml = buildOwnerView();
+
+    return `<div class="mgr-breakdown-wrap no-print-collapse">
+      ${managerHeaderHtml}
+      ${tabHtml}
+      <div class="mgr-subtab-body">${bodyHtml}</div>
+    </div>`;
+  }
+
   function buildDailyGroups(filteredRows, range, mode){
     const buckets = [];
     // 월요일 시작 기준 실제 달력 주차를 계산 (예: 8월 1일이 토요일이면 1일~2일이 1주차, 3일부터 진짜 한 주가 시작)
