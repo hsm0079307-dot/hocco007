@@ -572,13 +572,14 @@
   .mgr-breakdown-title{font-size:11px;font-weight:700;color:var(--accent);margin:10px 0 5px;}
   .mgr-breakdown-title:first-child{margin-top:0;}
   .mgr-breakdown-table{border-collapse:collapse;width:100%;font-size:10.5px;margin-bottom:6px;table-layout:fixed;}
-  .mgr-breakdown-table th, .mgr-breakdown-table td{border:1px solid var(--line);padding:5px 4px;text-align:center;vertical-align:middle;}
-  .mgr-breakdown-table thead th{background:var(--bg-main,rgba(255,255,255,.05));color:var(--accent);font-weight:700;}
-  .mgr-breakdown-table td.mgr-name, .mgr-breakdown-table th:first-child{text-align:left;font-weight:700;color:var(--text-main);width:20%;}
-  .mgr-breakdown-table td:not(.mgr-name){color:var(--accent);font-weight:700;}
-  .mgr-contact-compact{font-size:10px;color:var(--text-dim);}
-  .mgr-contact-line{padding:2px 0;line-height:1.6;}
-  .mgr-contact-line b{color:var(--text-main);margin-right:4px;}
+  .mgr-breakdown-table th, .mgr-breakdown-table td{border:1px solid var(--line);padding:4px 2px;text-align:center;vertical-align:middle;}
+  .mgr-breakdown-table thead th{background:var(--bg-main,rgba(255,255,255,.05));color:var(--accent);font-weight:700;font-size:9.5px;}
+  .mgr-breakdown-table td.mgr-name, .mgr-breakdown-table th:first-child{text-align:left;font-weight:700;color:var(--text-main);width:22%;padding-left:6px;}
+  .mgr-week-table th:not(:first-child), .mgr-week-table td:not(.mgr-name){width:11%;}
+  .mgr-visit-dot{display:inline-block;width:14px;height:14px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);cursor:pointer;transition:transform .12s;}
+  .mgr-visit-dot:hover{transform:scale(1.15);}
+  .mgr-date-chip{display:inline-block;min-width:18px;padding:1px 5px;margin:1px 2px;border-radius:9px;background:color-mix(in srgb, var(--accent) 16%, transparent);color:var(--accent);font-weight:700;font-size:10px;cursor:pointer;}
+  .mgr-date-chip:hover{background:var(--accent);color:var(--accent-ink);}
   .mgr-contact-chip{color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:2px;}
   .mgr-contact-chip:hover{opacity:.75;}
   .mgr-filter-row{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
@@ -602,7 +603,8 @@
   .mgr-cal-cell.is-today .mgr-cal-daynum{color:var(--accent);text-decoration:underline;}
   .mgr-cal-daynum{font-size:10px;font-weight:700;color:var(--text-dim);}
   .mgr-cal-names{font-size:9px;color:var(--text-main);margin-top:2px;line-height:1.35;}
-  .mgr-cal-name-chip{display:block;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .mgr-cal-name-chip{display:block;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;color:var(--accent);}
+  .mgr-cal-name-chip:hover{text-decoration:underline;}
   .log-contact-filter-banner{display:flex;align-items:center;gap:8px;background:color-mix(in srgb, var(--accent) 14%, transparent);border:1px solid var(--accent);border-radius:8px;padding:7px 10px;margin-bottom:8px;font-size:11px;color:var(--text-main);}
   .log-contact-filter-clear{margin-left:auto;font-size:10px;color:var(--text-dim);cursor:pointer;text-decoration:underline;white-space:nowrap;}
   .mgr-owner-table td, .mgr-owner-table th{text-align:center;}
@@ -976,7 +978,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v92</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v93</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -4099,37 +4101,49 @@ const L = (function(){
         mgrBreakdownManagerFilter = null;
         renderDetailBody(site);
       });
-      function clearContactLogFilter(){
-        const banner = document.getElementById('logContactFilterBanner');
+      function clearLogFilter(){
+        const banner = document.getElementById('logFilterBanner');
         if(banner) banner.remove();
         body.querySelectorAll('.log-item').forEach(el=>{ el.style.display=''; });
         body.querySelectorAll('.log-author-group').forEach(el=>{ el.style.display=''; });
       }
-      function applyContactLogFilter(name){
+      function applyLogFilter(matchFn, label, opts){
+        opts = opts || {};
         const listArea = document.getElementById('logListArea');
         if(!listArea) return;
-        clearContactLogFilter();
+        clearLogFilter();
         const banner = document.createElement('div');
-        banner.id = 'logContactFilterBanner';
+        banner.id = 'logFilterBanner';
         banner.className = 'log-contact-filter-banner';
-        banner.innerHTML = `📌 <b>${escapeHtml(name)}</b>님 관련 보고서만 보는 중 <span class="log-contact-filter-clear">전체보기 ✕</span>`;
+        banner.innerHTML = `📌 <b>${escapeHtml(label)}</b> 관련 보고서만 보는 중 <span class="log-contact-filter-clear">전체보기 ✕</span>`;
         listArea.parentElement.insertBefore(banner, listArea);
-        banner.querySelector('.log-contact-filter-clear').addEventListener('click', clearContactLogFilter);
-        let anyMatch = false;
+        banner.querySelector('.log-contact-filter-clear').addEventListener('click', clearLogFilter);
         body.querySelectorAll('.log-author-group').forEach(group=>{
           const items = group.querySelectorAll('.log-item');
           let groupHasMatch = false;
           items.forEach(item=>{
-            const match = name==='(성함 미상)' ? !item.dataset.contactName : (item.dataset.contactName === name);
+            const match = matchFn(item);
             item.style.display = match ? '' : 'none';
-            if(match){ groupHasMatch = true; anyMatch = true; }
+            if(match) groupHasMatch = true;
           });
           group.style.display = groupHasMatch ? '' : 'none';
         });
-        listArea.scrollIntoView({behavior:'smooth', block:'start'});
+        if(!opts.noScroll) listArea.scrollIntoView({behavior:'smooth', block:'start'});
       }
       body.querySelectorAll('.mgr-contact-chip[data-filter-contact]').forEach(chip=>{
-        chip.addEventListener('click', ()=>{ applyContactLogFilter(chip.dataset.filterContact); });
+        chip.addEventListener('click', ()=>{
+          const name = chip.dataset.filterContact;
+          applyLogFilter(item=> name==='(성함 미상)' ? !item.dataset.contactName : (item.dataset.contactName===name), name+'님');
+        });
+      });
+      body.querySelectorAll('[data-filter-date]').forEach(chip=>{
+        chip.addEventListener('click', ()=>{
+          const dateKey = chip.dataset.filterDate;
+          if(!dateKey) return;
+          const label = formatDateKr(dateKey);
+          const noScroll = chip.classList.contains('mgr-cal-name-chip');
+          applyLogFilter(item=> item.dataset.logDate===dateKey, label, {noScroll});
+        });
       });
       body.querySelectorAll('.log-edit').forEach(btn=>{
         btn.addEventListener('click', async ()=>{
@@ -6135,10 +6149,7 @@ const L = (function(){
         const dayLogs = logsByDate[dateKey]||[];
         const namesOnDay = Array.from(new Set(dayLogs.map(l=>l.author).filter(Boolean).flatMap(a=>String(a).split(/[,\s]+/).filter(Boolean))));
         const isToday = dateKey === (now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0'));
-        const namesHtml = namesOnDay.map(name=>{
-          const matchLog = dayLogs.find(l=>String(l.author||'').split(/[,\s]+/).filter(Boolean).includes(name));
-          return `<div class="mgr-contact-chip mgr-cal-name-chip" data-jump-log="${escapeHtml(matchLog&&matchLog.id||'')}">${escapeHtml(name)}</div>`;
-        }).join('');
+        const namesHtml = namesOnDay.map(name=>`<div class="mgr-cal-name-chip" data-filter-date="${escapeHtml(dateKey)}">${escapeHtml(name)}</div>`).join('');
         cells += `<div class="mgr-cal-cell${dayLogs.length?' has-log':''}${isToday?' is-today':''}">
           <div class="mgr-cal-daynum">${d}</div>
           ${namesHtml ? `<div class="mgr-cal-names">${namesHtml}</div>` : ''}
@@ -6154,51 +6165,33 @@ const L = (function(){
 
     // ---- 주별/월별 집계 표 ----
     function buildWeekTable(){
-      return `<table class="mgr-breakdown-table">
+      return `<table class="mgr-breakdown-table mgr-week-table">
         <thead><tr><th>성함</th>${weekBuckets.map(b=>`<th>${escapeHtml(b.label.replace(/\d+일\(|\)/g,''))}</th>`).join('')}</tr></thead>
         <tbody>
           ${managers.map(m=>`<tr><td class="mgr-name">${escapeHtml(m)}</td>${weekBuckets.map(b=>{
             const cnt = b.sites[m]||0;
-            return `<td>${cnt?'○':''}</td>`;
+            return `<td>${cnt?`<span class="mgr-visit-dot" data-filter-date="${escapeHtml(b.key)}"></span>`:''}</td>`;
           }).join('')}</tr>`).join('')}
         </tbody>
-      </table>
-      <div class="mgr-contact-compact">
-        ${managers.map(m=>{
-          const items = weekBuckets.map(b=>{
-            const logs = logsForWeekBucket(m,b);
-            if(!logs.length) return '';
-            const dayShort = b.label.replace(/\d+일\(|\)/g,'');
-            return `${dayShort} ${logs.map(contactChip).join(', ')}`;
-          }).filter(Boolean);
-          if(!items.length) return '';
-          return `<div class="mgr-contact-line"><b>${escapeHtml(m)}</b> ${items.join(' · ')}</div>`;
-        }).join('')}
-      </div>`;
+      </table>`;
     }
     function buildMonthTable(){
-      return `<table class="mgr-breakdown-table">
+      const firstDow = new Date(monthRange.start.getFullYear(), monthRange.start.getMonth(), 1).getDay();
+      const mondayOffset = (firstDow + 6) % 7;
+      return `<table class="mgr-breakdown-table mgr-month-table">
         <thead><tr><th>성함</th>${monthBuckets.map(b=>{ const m=b.label.match(/(\d+)주차/); return `<th>${escapeHtml(m?m[1]+'주차':b.label)}</th>`; }).join('')}</tr></thead>
         <tbody>
           ${managers.map(m=>`<tr><td class="mgr-name">${escapeHtml(m)}</td>${monthBuckets.map(b=>{
             const logs = logsForMonthBucket(m,b);
-            const days = Array.from(new Set(logs.map(l=>parseInt((l.date||'').slice(8,10),10)))).sort((x,y)=>x-y);
-            return `<td>${days.join(', ')}</td>`;
+            const days = Array.from(new Set(logs.map(l=>parseInt((l.date||'').slice(8,10),10)))).filter(Boolean).sort((x,y)=>x-y);
+            const y2 = monthRange.start.getFullYear(), mo2 = monthRange.start.getMonth();
+            return `<td>${days.map(d=>{
+              const dateKey = y2+'-'+String(mo2+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+              return `<span class="mgr-date-chip" data-filter-date="${escapeHtml(dateKey)}">${d}</span>`;
+            }).join('')}</td>`;
           }).join('')}</tr>`).join('')}
         </tbody>
-      </table>
-      <div class="mgr-contact-compact">
-        ${managers.map(m=>{
-          const items = monthBuckets.map(b=>{
-            const logs = logsForMonthBucket(m,b);
-            if(!logs.length) return '';
-            const wm = b.label.match(/(\d+)주차/);
-            return `${wm?wm[1]+'주차':b.label} ${logs.map(contactChip).join(', ')}`;
-          }).filter(Boolean);
-          if(!items.length) return '';
-          return `<div class="mgr-contact-line"><b>${escapeHtml(m)}</b> ${items.join(' · ')}</div>`;
-        }).join('')}
-      </div>`;
+      </table>`;
     }
 
     // ---- 소유자(접촉자)별 접촉현황 ----
