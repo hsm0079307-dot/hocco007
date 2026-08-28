@@ -1000,7 +1000,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v97</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v98</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -4221,7 +4221,7 @@ const L = (function(){
         (site.logs||[]).forEach(l=>{
           const raw = (l.contactName||'').trim();
           if(!raw) return;
-          const segments = raw.split(',').map(s=>s.trim()).filter(Boolean);
+          const segments = splitMultiNames(raw);
           let touched = false;
           const newSegments = segments.map(seg=>{
             const {name, role} = parseContactName(seg);
@@ -4259,7 +4259,7 @@ const L = (function(){
           (site.logs||[]).forEach(l=>{
             const raw = (l.contactName||'').trim();
             if(!raw) return;
-            const segments = raw.split(',').map(s=>s.trim()).filter(Boolean);
+            const segments = splitMultiNames(raw);
             let touched = false;
             const newSegments = segments.map(seg=>{
               const {name, role} = parseContactName(seg);
@@ -4291,7 +4291,7 @@ const L = (function(){
           applyLogFilter(item=>{
             const raw = item.dataset.contactName || '';
             if(name==='(성함 미상)') return !raw;
-            const segments = raw.split(',').map(s=>s.trim()).filter(Boolean);
+            const segments = splitMultiNames(raw);
             if(!segments.length) return false;
             return segments.some(seg=>parseContactName(seg).name===name);
           }, name+'님');
@@ -6224,6 +6224,22 @@ const L = (function(){
   const COMPETITOR_KEYWORDS = ['현대건설','현대엔지니어링','현산','현건','GS건설','지에스건설','지에스','대우건설','대우','대림','DL이앤씨','DL','롯데건설','롯데','삼성물산','삼성','SK에코플랜트','SK','에스케이','한화건설','한화','코오롱글로벌','코오롱','HDC현대산업개발','HDC','현대산업개발','계룡건설','두산건설','효성중공업','호반건설','금호산업','반도건설','우미건설','타사(','경쟁사'];
   const SPECIAL_KEYWORDS = ['불만','민원','갈등','반대','집회','총회','서명','우려','분쟁','소송','논란','항의'];
   // "최영희 (선관위원)", "문만재 전인자 (동방부동산)" 같은 문자열에서 이름/직책(또는 소속)을 분리한다
+  // "문만재 전인자 문지숙"처럼 쉼표 없이 띄어쓰기로만 여러 명이 적힌 경우도 각자 나눠준다.
+  // 단, "14단지 성당 24구역장"처럼 숫자가 섞인 여러 단어짜리 직책/설명은 사람이 아니므로 나누지 않는다.
+  // 괄호 안 직책/소속은 먼저 떼어두고, 앞부분에 이름이 여러 개면 그 직책을 각자에게 붙여서 나눈다.
+  function splitMultiNames(raw){
+    const trimmed = String(raw||'').trim();
+    if(!trimmed) return [];
+    const m = trimmed.match(/^(.+?)\s*([\(（][^\)）]+[\)）])\s*$/);
+    const namePart = m ? m[1].trim() : trimmed;
+    const roleSuffix = m ? m[2] : '';
+    if(namePart.includes(',')) return namePart.split(',').map(s=>s.trim()).filter(Boolean).map(n=>roleSuffix?n+roleSuffix:n);
+    const tokens = namePart.split(/\s+/).filter(Boolean);
+    if(tokens.length>=2 && tokens.every(t=>/^[가-힣]{2,4}$/.test(t))){
+      return tokens.map(n=>roleSuffix?n+roleSuffix:n);
+    }
+    return [trimmed];
+  }
   function parseContactName(raw){
     const safe = String(raw||'').trim();
     const m = safe.match(/^(.+?)\s*[\(（]([^\)）]+)[\)）]\s*$/);
@@ -6430,7 +6446,7 @@ const L = (function(){
       const byOwner = {}; // name -> {role, logs:[]}
       allLogs.forEach(l=>{
         const raw = (l.contactName||'').trim();
-        const segments = raw ? raw.split(',').map(s=>s.trim()).filter(Boolean) : [];
+        const segments = splitMultiNames(raw);
         if(!segments.length){
           const key = '(성함 미상)';
           if(!byOwner[key]) byOwner[key] = {role:'', logs:[]};
@@ -6457,7 +6473,7 @@ const L = (function(){
           return allLogs.filter(l=>{
             const raw = (l.contactName||'').trim();
             if(!raw) return name==='(성함 미상)';
-            const segments = raw.split(',').map(s=>s.trim()).filter(Boolean);
+            const segments = splitMultiNames(raw);
             return segments.some(seg=>parseContactName(seg).name===name);
           });
         }
