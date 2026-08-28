@@ -991,7 +991,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v94</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v95</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -4019,7 +4019,7 @@ const L = (function(){
                     <div class="log-date">${escapeHtml(formatDateKr(l.date))}</div>
                     ${isJoint && l.author?`<div class="log-meta-line">작성: ${escapeHtml(l.author)}</div>`:''}
                     ${l.contactName?`<div class="log-meta-line">성함: ${escapeHtml(l.contactName)}</div>`:''}
-                    ${l.owner?`<div class="log-meta-line">소유자: ${escapeHtml(l.owner)}</div>`:''}
+                    ${l.owner?`<div class="log-meta-line">소유자: ${escapeHtml(formatOwnerDisplay(l.owner))}</div>`:''}
                     ${l.unit?`<div class="log-meta-line">동호수: ${escapeHtml(l.unit)}</div>`:''}
                     ${l.contactMethod?`<div class="log-meta-line">접촉방법: ${escapeHtml(l.contactMethod)}</div>`:''}
                     ${l.executiveStance?`<div class="log-meta-line">집행부 성향: ${escapeHtml(l.executiveStance)}</div>`:''}
@@ -6073,7 +6073,7 @@ const L = (function(){
           count: visitDayCount,
           logs: logsInRange,
           notes: logsInRange.map(l=>{
-            const meta = [l.contactMethod, l.contactName, l.owner?('소유자 '+l.owner):'', l.unit, l.executiveStance, l.closeness].filter(Boolean).join(' · ');
+            const meta = [l.contactMethod, l.contactName, l.owner?('소유자 '+formatOwnerDisplay(l.owner)):'', l.unit, l.executiveStance, l.closeness].filter(Boolean).join(' · ');
             return `${l.date.slice(5)}${l.author?' ['+l.author+']':''}${meta?' ('+meta+')':''} ${l.text}`;
           })
         });
@@ -6090,6 +6090,13 @@ const L = (function(){
     const safe = String(raw||'').trim();
     const m = safe.match(/^(.+?)\s*[\(（]([^\)）]+)[\)）]\s*$/);
     return { name: (m ? m[1] : safe).trim(), role: m ? m[2].trim() : '' };
+  }
+  // "소유자" 필드는 사람마다 "강선미,송연화(대표)", "강선미, 송연화" 처럼 쉼표 앞뒤 공백이나
+  // 직책 괄호 표기가 제각각이라 지저분해 보인다. 이름들을 나눠서 공백을 통일해 다시 합쳐준다.
+  function formatOwnerDisplay(raw){
+    const safe = String(raw||'').trim();
+    if(!safe) return '';
+    return safe.split(',').map(s=>s.trim()).filter(Boolean).join(', ');
   }
   // 직책/소속 텍스트가 사람마다 제각각이라(회사명, 특정 호수 등) 그대로 묶으면 그룹이 너무 잘게 쪼개진다.
   // 큰 카테고리 4개로 먼저 묶고(위에서부터 순서대로 검사, 먼저 걸리는 카테고리로), 새 키워드는 여기 배열에 추가하면 된다.
