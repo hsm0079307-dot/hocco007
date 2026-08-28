@@ -614,6 +614,8 @@
   .mgr-owner-toggle-btn{font-size:10px;font-weight:600;padding:4px 10px;border-radius:8px;background:var(--bg-main,rgba(255,255,255,.05));border:1px solid var(--line);color:var(--text-dim);cursor:pointer;}
   .mgr-owner-toggle-btn:hover{border-color:var(--accent);}
   .mgr-owner-toggle-btn.active{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:700;}
+  .mgr-merge-bar{display:flex;align-items:center;gap:8px;background:color-mix(in srgb, var(--accent) 12%, transparent);border:1px solid var(--accent);border-radius:8px;padding:6px 10px;margin-bottom:8px;font-size:11px;color:var(--text-main);}
+  .mgr-owner-merge-check{cursor:pointer;}
   .log-add-row2{display:flex;gap:5px;width:100%;}
   .log-add-row2 input[type=date]{flex:1 1 50%;min-width:0;}
   .log-add-row2 input[type=text]{flex:1 1 50%;min-width:0;}
@@ -862,7 +864,6 @@
         <details class="menu-section" open>
           <summary class="menu-section-title">📊 리포트</summary>
           <div class="menu-section-body">
-            <button class="menu-item-btn" id="contactReportBtn" type="button">📊 접촉 리포트</button>
             <button class="menu-item-btn" id="handoverBtn" type="button">🤝 인수인계 리포트</button>
           </div>
         </details>
@@ -904,6 +905,8 @@
 
   <div class="view-switch-bar blueprint-grid">
     <button class="view-switch-btn" id="calendarBtn">📅 일정 캘린더</button>
+    <button class="view-switch-btn" id="contactReportTopBtn">📊 접촉리포트</button>
+    <button class="view-switch-btn" id="tourBookingTopBtn">🚗 투어예약</button>
     <button class="view-switch-btn" id="sheetViewBtn">전체사업지</button>
     <div class="manager-filter-wrap" id="managerFilterWrap">
       <button class="view-switch-btn" id="managerFilterBtn" type="button">👤 담당자 전체 ▾</button>
@@ -997,7 +1000,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v96</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v97</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -4021,7 +4024,7 @@ const L = (function(){
                 </div>`;
                   }
                   return `
-                <div class="log-item" data-log-id="${escapeHtml(l.id||'')}" data-contact-name="${escapeHtml((l.contactName||'').trim())}" data-log-date="${escapeHtml(l.date||'')}">
+                <div class="log-item" data-log-id="${escapeHtml(l.id||'')}" data-contact-name="${escapeHtml((l.contactName||'').trim())}" data-log-date="${escapeHtml(l.date||'')}" data-log-week="${escapeHtml(weekOfMonthKey(l.date))}">
                   <div class="log-meta-col">
                     <div class="log-date">${escapeHtml(formatDateKr(l.date))}</div>
                     ${isJoint && l.author?`<div class="log-meta-line">작성: ${escapeHtml(l.author)}</div>`:''}
@@ -4185,6 +4188,64 @@ const L = (function(){
         });
         if(!opts.noScroll) listArea.scrollIntoView({behavior:'smooth', block:'start'});
       }
+      const mgrMergeBar = document.getElementById('mgrMergeBar');
+      const mgrMergeCount = document.getElementById('mgrMergeCount');
+      function refreshMergeBar(){
+        if(!mgrMergeBar) return;
+        const checked = body.querySelectorAll('.mgr-owner-merge-check:checked');
+        if(checked.length>=2){
+          mgrMergeBar.style.display = 'flex';
+          mgrMergeCount.textContent = `${checked.length}명 선택됨`;
+        }else{
+          mgrMergeBar.style.display = 'none';
+        }
+      }
+      body.querySelectorAll('.mgr-owner-merge-check').forEach(cb=>{
+        cb.addEventListener('change', refreshMergeBar);
+      });
+      const mgrMergeClearBtn = document.getElementById('mgrMergeClearBtn');
+      if(mgrMergeClearBtn) mgrMergeClearBtn.addEventListener('click', ()=>{
+        body.querySelectorAll('.mgr-owner-merge-check:checked').forEach(cb=>{ cb.checked=false; });
+        refreshMergeBar();
+      });
+      const mgrMergeBtn = document.getElementById('mgrMergeBtn');
+      if(mgrMergeBtn) mgrMergeBtn.addEventListener('click', async ()=>{
+        if(!(await ensureUnlocked())) return;
+        const names = Array.from(body.querySelectorAll('.mgr-owner-merge-check:checked')).map(cb=>cb.dataset.ownerName);
+        if(names.length<2) return;
+        const canonical = prompt(`선택한 ${names.length}명(${names.join(', ')})을 하나로 통합합니다.\n통합 후 사용할 이름을 입력하세요 (직책 표시는 자동으로 유지돼요):`, names[0]);
+        if(canonical===null) return;
+        const newName = canonical.trim();
+        if(!newName){ alert('빈 이름으로는 통합할 수 없어요.'); return; }
+        let changedCount = 0;
+        (site.logs||[]).forEach(l=>{
+          const raw = (l.contactName||'').trim();
+          if(!raw) return;
+          const segments = raw.split(',').map(s=>s.trim()).filter(Boolean);
+          let touched = false;
+          const newSegments = segments.map(seg=>{
+            const {name, role} = parseContactName(seg);
+            if(names.includes(name)){ touched = true; return role ? `${newName}(${role})` : newName; }
+            return seg;
+          });
+          if(touched){ l.contactName = newSegments.join(', '); changedCount++; }
+        });
+        if(!changedCount){ alert('해당 이름들이 들어간 보고서를 찾지 못했어요.'); return; }
+        site.lastDate = lastVisit(site);
+        renderAll();
+        renderDetailPanel(site);
+        try{
+          const officeName = site.office || currentOffice;
+          const {idx: idxInOffice} = await getFreshIndexInOffice(officeName, site.id);
+          if(idxInOffice>-1){
+            const url = `${FIREBASE_DB_URL}/offices/${encodeURIComponent(officeName)}/${idxInOffice}/logs.json?auth=${encodeURIComponent(FIREBASE_DB_SECRET)}`;
+            const res = await fetch(url, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(site.logs)});
+            if(!res.ok) alert('⚠️ 클라우드 저장 실패 (상태코드 '+res.status+'). 이 화면에서만 수정됐고, 클라우드엔 반영 안 됐을 수 있어요.');
+            else alert(`✅ 보고서 ${changedCount}건에서 ${names.length}명을 "${newName}"으로 통합했어요.`);
+          }
+        }catch(e){ console.error('접촉자 통합 클라우드 반영 실패', e); }
+        await saveSites();
+      });
       body.querySelectorAll('.mgr-owner-bulk-edit-btn').forEach(btn=>{
         btn.addEventListener('click', async ()=>{
           if(!(await ensureUnlocked())) return;
@@ -4243,6 +4304,15 @@ const L = (function(){
           const label = formatDateKr(dateKey);
           const noScroll = chip.classList.contains('mgr-cal-name-chip');
           applyLogFilter(item=> item.dataset.logDate===dateKey, label, {noScroll});
+        });
+      });
+      body.querySelectorAll('[data-filter-week]').forEach(chip=>{
+        chip.addEventListener('click', ()=>{
+          const weekKey = chip.dataset.filterWeek;
+          if(!weekKey) return;
+          const parts = weekKey.split('-');
+          const label = `${parts[1]}월 ${parts[2]}주차`;
+          applyLogFilter(item=> item.dataset.logWeek===weekKey, label);
         });
       });
       body.querySelectorAll('.log-edit').forEach(btn=>{
@@ -6066,6 +6136,16 @@ const L = (function(){
   let reportGalleryRows = null; // 갤러리 예약 { "M-D": [[시간,단지명,동호수,성함,동반,담당,픽업/자가], ...] }
   let reportTourRows = null;    // 현장 투어 예약 (같은 형식)
   let reportToursSelectedKey = null; // 달력에서 선택된 날짜(M-D)
+  // 어떤 날짜든 "그 달의 몇 번째 주(월요일 시작)"인지 계산해서 "년-월-주차" 형태의 키로 돌려준다
+  function weekOfMonthKey(dateStr){
+    if(!dateStr) return '';
+    const d = new Date(dateStr+'T00:00:00');
+    const y = d.getFullYear(), mo = d.getMonth(), day = d.getDate();
+    const firstDow = new Date(y, mo, 1).getDay();
+    const mondayOffset = (firstDow + 6) % 7;
+    const weekNum = Math.ceil((day + mondayOffset) / 7);
+    return `${y}-${mo+1}-${weekNum}`;
+  }
   function getWeekRange(d){
     const day = d.getDay();
     const mondayOffset = (day===0 ? -6 : 1-day);
@@ -6315,11 +6395,13 @@ const L = (function(){
     // ---- 주별/월별 집계 표 ----
     function buildWeekTable(){
       return `<table class="mgr-breakdown-table mgr-week-table">
-        <thead><tr><th>성함</th>${weekBuckets.map(b=>`<th>${escapeHtml(b.label.replace(/\d+일\(|\)/g,''))}</th>`).join('')}</tr></thead>
+        <thead><tr><th>성함</th>${monthBuckets.map(b=>{ const m=b.label.match(/(\d+)주차/); return `<th>${escapeHtml(m?m[1]+'주차':b.label)}</th>`; }).join('')}</tr></thead>
         <tbody>
-          ${managers.map(m=>`<tr><td class="mgr-name">${escapeHtml(m)}</td>${weekBuckets.map(b=>{
+          ${managers.map(m=>`<tr><td class="mgr-name">${escapeHtml(m)}</td>${monthBuckets.map(b=>{
             const cnt = b.sites[m]||0;
-            return `<td>${cnt?`<span class="mgr-visit-dot" data-filter-date="${escapeHtml(b.key)}"></span>`:''}</td>`;
+            const y = monthRange.start.getFullYear(), mo = monthRange.start.getMonth();
+            const weekKey = `${y}-${mo+1}-${b.weekNum}`;
+            return `<td>${cnt?`<span class="mgr-visit-dot" data-filter-week="${escapeHtml(weekKey)}"></span>`:''}</td>`;
           }).join('')}</tr>`).join('')}
         </tbody>
       </table>`;
@@ -6381,13 +6463,15 @@ const L = (function(){
         }
         const ownerRows = owners.map(o=>({site:o, logs: logsForOwner(o)}));
         if(mgrOwnerSubView==='주별'){
-          const oWeekBuckets = buildDailyGroups(ownerRows, weekRange, 'week');
+          const oMonthBucketsForWeek = buildDailyGroups(ownerRows, monthRange, 'month');
+          const y3 = monthRange.start.getFullYear(), mo3 = monthRange.start.getMonth();
           return toggleHtml + `<table class="mgr-breakdown-table mgr-week-table">
-            <thead><tr><th>접촉자</th>${oWeekBuckets.map(b=>`<th>${escapeHtml(b.label.replace(/\d+일\(|\)/g,''))}</th>`).join('')}</tr></thead>
+            <thead><tr><th>접촉자</th>${oMonthBucketsForWeek.map(b=>{ const m=b.label.match(/(\d+)주차/); return `<th>${escapeHtml(m?m[1]+'주차':b.label)}</th>`; }).join('')}</tr></thead>
             <tbody>
-              ${owners.map(o=>`<tr><td class="mgr-name">${escapeHtml(o)}</td>${oWeekBuckets.map(b=>{
+              ${owners.map(o=>`<tr><td class="mgr-name">${escapeHtml(o)}</td>${oMonthBucketsForWeek.map(b=>{
                 const cnt = b.sites[o]||0;
-                return `<td>${cnt?`<span class="mgr-visit-dot" data-filter-date="${escapeHtml(b.key)}"></span>`:''}</td>`;
+                const weekKey = `${y3}-${mo3+1}-${b.weekNum}`;
+                return `<td>${cnt?`<span class="mgr-visit-dot" data-filter-week="${escapeHtml(weekKey)}"></span>`:''}</td>`;
               }).join('')}</tr>`).join('')}
             </tbody>
           </table>`;
@@ -6416,8 +6500,13 @@ const L = (function(){
         }
       }
 
-      return toggleHtml + `<table class="mgr-breakdown-table mgr-owner-table">
-        <thead><tr><th style="text-align:left;">접촉자</th><th>횟수</th><th>최근 접촉일</th><th>담당</th><th class="no-print">수정</th></tr></thead>
+      const mergeBarHtml = guestMode ? '' : `<div class="mgr-merge-bar no-print" id="mgrMergeBar" style="display:none;">
+        <span id="mgrMergeCount">0명 선택됨</span>
+        <button type="button" class="btn btn-primary btn-sm" id="mgrMergeBtn">선택 항목 통합</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="mgrMergeClearBtn">선택 해제</button>
+      </div>`;
+      return toggleHtml + mergeBarHtml + `<table class="mgr-breakdown-table mgr-owner-table">
+        <thead><tr>${guestMode?'':'<th class="no-print"></th>'}<th style="text-align:left;">접촉자</th><th>횟수</th><th>최근 접촉일</th><th>담당</th><th class="no-print">수정</th></tr></thead>
         <tbody>
           ${owners.map(o=>{
             const logs = byOwner[o].logs;
@@ -6427,6 +6516,7 @@ const L = (function(){
             const displayName = role ? `${o}(${role})` : o;
             const canEdit = o !== '(성함 미상)' && !guestMode;
             return `<tr>
+              ${guestMode?'':`<td class="no-print">${canEdit?`<input type="checkbox" class="mgr-owner-merge-check" data-owner-name="${escapeHtml(o)}">`:''}</td>`}
               <td style="text-align:left;"><span class="mgr-contact-chip" data-filter-contact="${escapeHtml(o)}">${escapeHtml(displayName)}</span></td>
               <td>${logs.length}</td>
               <td>${escapeHtml(lastDate)}</td>
@@ -7218,12 +7308,12 @@ const L = (function(){
     }catch(e){ console.error('리포트용 전체 데이터 새로고침 실패', e); return false; }
   }
 
-  document.getElementById('contactReportBtn').addEventListener('click', async ()=>{
+  async function openContactReport(targetTab){
     // 접촉 리포트는 조회 전용이라 관리자 잠금해제 없이도 게스트가 열람 가능해야 함
     reportMode = 'week';
     reportBaseDate = new Date();
     reportManagerFilter = null;
-    reportViewTab = 'sites';
+    reportViewTab = targetTab || 'sites';
     reportSearchQuery = '';
     reportToursMonth = new Date();
     reportGalleryRows = null;
@@ -7233,7 +7323,9 @@ const L = (function(){
     document.getElementById('contactReportBody').innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-dim);">최신 데이터 확인 중...</div>';
     await refreshAllOfficesDataForReport();
     renderContactReport();
-  });
+  }
+  document.getElementById('contactReportTopBtn').addEventListener('click', ()=> openContactReport('sites'));
+  document.getElementById('tourBookingTopBtn').addEventListener('click', ()=> openContactReport('tours'));
   document.getElementById('reportViewTabSites').addEventListener('click', ()=>{ reportViewTab='sites'; renderContactReport(); });
   document.getElementById('reportViewTabContacts').addEventListener('click', ()=>{ reportViewTab='contacts'; renderContactReport(); });
   document.getElementById('reportViewTabSearch').addEventListener('click', ()=>{ reportViewTab='search'; renderContactReport(); });
