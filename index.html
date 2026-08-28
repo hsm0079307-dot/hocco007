@@ -218,7 +218,7 @@
   .report-timeline{position:relative;padding-left:14px;}
   .report-tour-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:14px;}
   .report-tour-dow{text-align:center;font-size:11px;color:var(--text-dim);padding:4px 0;font-weight:600;}
-  .report-tour-cell{min-height:52px;border:1px solid var(--line);border-radius:8px;padding:4px;background:var(--bg-side-2);cursor:default;transition:box-shadow .15s, border-color .15s;}
+  .report-tour-cell{height:58px;border:1px solid var(--line);border-radius:8px;padding:4px;background:var(--bg-side-2);cursor:default;transition:box-shadow .15s, border-color .15s;overflow:hidden;box-sizing:border-box;}
   .report-tour-cell.empty{border:none;background:transparent;}
   .report-tour-cell.today{border-color:var(--accent);}
   .report-tour-cell.has-entries{cursor:pointer;}
@@ -608,6 +608,12 @@
   .log-contact-filter-banner{display:flex;align-items:center;gap:8px;background:color-mix(in srgb, var(--accent) 14%, transparent);border:1px solid var(--accent);border-radius:8px;padding:7px 10px;margin-bottom:8px;font-size:11px;color:var(--text-main);}
   .log-contact-filter-clear{margin-left:auto;font-size:10px;color:var(--text-dim);cursor:pointer;text-decoration:underline;white-space:nowrap;}
   .mgr-owner-table td, .mgr-owner-table th{text-align:center;}
+  .mgr-owner-bulk-edit-btn{background:none;border:none;cursor:pointer;font-size:12px;padding:2px 5px;border-radius:5px;opacity:.8;}
+  .mgr-owner-bulk-edit-btn:hover{opacity:1;background:var(--card-hover, rgba(255,255,255,.08));}
+  .mgr-owner-toggle{display:flex;gap:4px;margin-bottom:8px;}
+  .mgr-owner-toggle-btn{font-size:10px;font-weight:600;padding:4px 10px;border-radius:8px;background:var(--bg-main,rgba(255,255,255,.05));border:1px solid var(--line);color:var(--text-dim);cursor:pointer;}
+  .mgr-owner-toggle-btn:hover{border-color:var(--accent);}
+  .mgr-owner-toggle-btn.active{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:700;}
   .log-add-row2{display:flex;gap:5px;width:100%;}
   .log-add-row2 input[type=date]{flex:1 1 50%;min-width:0;}
   .log-add-row2 input[type=text]{flex:1 1 50%;min-width:0;}
@@ -991,7 +997,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v95</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v96</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -1484,6 +1490,7 @@ const L = (function(){
   let logFormOpen = false; // "보고서 입력" 버튼을 눌러서 입력 폼을 펼친 상태인지
   let mgrBreakdownSubTab = '달력'; // 보고서 탭 상단 집계 영역의 하위 탭: 달력 | 주별집계 | 월별집계 | 소유자별
   let mgrBreakdownManagerFilter = null; // 담당자 이름 클릭시 그 사람 것만 필터링
+  let mgrOwnerSubView = '전체'; // 소유자별 탭 안의 보기 방식: 전체 | 주별 | 월별
   const GUEST_KEY = 'realestate-guest-accounts-v1';
   const CHANGELOG_KEY = 'realestate-guest-changelog-v1';
   const ADMIN_PW_KEY = 'realestate-admin-pw-hash-v1';
@@ -4027,7 +4034,7 @@ const L = (function(){
                   </div>
                   <div class="log-text" style="white-space:pre-wrap;">${escapeHtml(l.text)}</div>
                   <div class="log-actions">
-                    <button class="log-edit" data-logid="${l.id}">수정</button>
+                    <button class="log-edit" data-logid="${l.id}" title="수정">✏️</button>
                     <button class="log-del" data-logid="${l.id}">삭제</button>
                   </div>
                 </div>`;
@@ -4131,6 +4138,12 @@ const L = (function(){
           renderDetailBody(site);
         });
       });
+      body.querySelectorAll('.mgr-owner-toggle-btn[data-owner-subview]').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          mgrOwnerSubView = btn.dataset.ownerSubview;
+          renderDetailBody(site);
+        });
+      });
       body.querySelectorAll('.mgr-filter-chip[data-mgr-filter]').forEach(chip=>{
         chip.addEventListener('click', ()=>{
           const name = chip.dataset.mgrFilter;
@@ -4172,10 +4185,55 @@ const L = (function(){
         });
         if(!opts.noScroll) listArea.scrollIntoView({behavior:'smooth', block:'start'});
       }
+      body.querySelectorAll('.mgr-owner-bulk-edit-btn').forEach(btn=>{
+        btn.addEventListener('click', async ()=>{
+          if(!(await ensureUnlocked())) return;
+          const oldName = btn.dataset.oldName;
+          const newNameRaw = prompt(`"${oldName}"으로 등장하는 모든 보고서에서 이름을 일괄 수정합니다.\n새 이름을 입력하세요 (직책 표시는 자동으로 유지돼요):`, oldName);
+          if(newNameRaw===null) return;
+          const newName = newNameRaw.trim();
+          if(!newName){ alert('빈 이름으로는 바꿀 수 없어요.'); return; }
+          if(newName===oldName) return;
+          let changedCount = 0;
+          (site.logs||[]).forEach(l=>{
+            const raw = (l.contactName||'').trim();
+            if(!raw) return;
+            const segments = raw.split(',').map(s=>s.trim()).filter(Boolean);
+            let touched = false;
+            const newSegments = segments.map(seg=>{
+              const {name, role} = parseContactName(seg);
+              if(name===oldName){ touched = true; return role ? `${newName}(${role})` : newName; }
+              return seg;
+            });
+            if(touched){ l.contactName = newSegments.join(', '); changedCount++; }
+          });
+          if(!changedCount){ alert('해당 이름이 들어간 보고서를 찾지 못했어요.'); return; }
+          site.lastDate = lastVisit(site);
+          renderAll();
+          renderDetailPanel(site);
+          try{
+            const officeName = site.office || currentOffice;
+            const {idx: idxInOffice} = await getFreshIndexInOffice(officeName, site.id);
+            if(idxInOffice>-1){
+              const url = `${FIREBASE_DB_URL}/offices/${encodeURIComponent(officeName)}/${idxInOffice}/logs.json?auth=${encodeURIComponent(FIREBASE_DB_SECRET)}`;
+              const res = await fetch(url, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(site.logs)});
+              if(!res.ok) alert('⚠️ 클라우드 저장 실패 (상태코드 '+res.status+'). 이 화면에서만 수정됐고, 클라우드엔 반영 안 됐을 수 있어요.');
+              else alert(`✅ 보고서 ${changedCount}건에서 "${oldName}" → "${newName}"으로 일괄 수정했어요.`);
+            }
+          }catch(e){ console.error('접촉자 일괄수정 클라우드 반영 실패', e); }
+          await saveSites();
+        });
+      });
       body.querySelectorAll('.mgr-contact-chip[data-filter-contact]').forEach(chip=>{
         chip.addEventListener('click', ()=>{
           const name = chip.dataset.filterContact;
-          applyLogFilter(item=> name==='(성함 미상)' ? !item.dataset.contactName : (item.dataset.contactName===name), name+'님');
+          applyLogFilter(item=>{
+            const raw = item.dataset.contactName || '';
+            if(name==='(성함 미상)') return !raw;
+            const segments = raw.split(',').map(s=>s.trim()).filter(Boolean);
+            if(!segments.length) return false;
+            return segments.some(seg=>parseContactName(seg).name===name);
+          }, name+'님');
         });
       });
       body.querySelectorAll('[data-filter-date]').forEach(chip=>{
@@ -6287,26 +6345,93 @@ const L = (function(){
 
     // ---- 소유자(접촉자)별 접촉현황 ----
     function buildOwnerView(){
-      const byOwner = {};
+      const byOwner = {}; // name -> {role, logs:[]}
       allLogs.forEach(l=>{
-        const owner = (l.contactName||'').trim() || '(성함 미상)';
-        if(!byOwner[owner]) byOwner[owner] = [];
-        byOwner[owner].push(l);
+        const raw = (l.contactName||'').trim();
+        const segments = raw ? raw.split(',').map(s=>s.trim()).filter(Boolean) : [];
+        if(!segments.length){
+          const key = '(성함 미상)';
+          if(!byOwner[key]) byOwner[key] = {role:'', logs:[]};
+          byOwner[key].logs.push(l);
+          return;
+        }
+        segments.forEach(seg=>{
+          const {name, role} = parseContactName(seg);
+          if(!name) return;
+          if(!byOwner[name]) byOwner[name] = {role:'', logs:[]};
+          if(role && !byOwner[name].role) byOwner[name].role = role;
+          byOwner[name].logs.push(l);
+        });
       });
-      const owners = Object.keys(byOwner).sort((a,b)=>byOwner[b].length-byOwner[a].length);
+      const owners = Object.keys(byOwner).sort((a,b)=>byOwner[b].logs.length-byOwner[a].logs.length);
       if(!owners.length) return `<div class="mgr-empty">접촉자 기록이 없습니다.</div>`;
-      return `<table class="mgr-breakdown-table mgr-owner-table">
-        <thead><tr><th style="text-align:left;">접촉자</th><th>횟수</th><th>최근 접촉일</th><th>담당</th></tr></thead>
+
+      const toggleHtml = `<div class="mgr-owner-toggle no-print">
+        ${['전체','주별','월별'].map(v=>`<span class="mgr-owner-toggle-btn${mgrOwnerSubView===v?' active':''}" data-owner-subview="${v}">${v}</span>`).join('')}
+      </div>`;
+
+      if(mgrOwnerSubView!=='전체'){
+        function logsForOwner(name){
+          return allLogs.filter(l=>{
+            const raw = (l.contactName||'').trim();
+            if(!raw) return name==='(성함 미상)';
+            const segments = raw.split(',').map(s=>s.trim()).filter(Boolean);
+            return segments.some(seg=>parseContactName(seg).name===name);
+          });
+        }
+        const ownerRows = owners.map(o=>({site:o, logs: logsForOwner(o)}));
+        if(mgrOwnerSubView==='주별'){
+          const oWeekBuckets = buildDailyGroups(ownerRows, weekRange, 'week');
+          return toggleHtml + `<table class="mgr-breakdown-table mgr-week-table">
+            <thead><tr><th>접촉자</th>${oWeekBuckets.map(b=>`<th>${escapeHtml(b.label.replace(/\d+일\(|\)/g,''))}</th>`).join('')}</tr></thead>
+            <tbody>
+              ${owners.map(o=>`<tr><td class="mgr-name">${escapeHtml(o)}</td>${oWeekBuckets.map(b=>{
+                const cnt = b.sites[o]||0;
+                return `<td>${cnt?`<span class="mgr-visit-dot" data-filter-date="${escapeHtml(b.key)}"></span>`:''}</td>`;
+              }).join('')}</tr>`).join('')}
+            </tbody>
+          </table>`;
+        }else{
+          const oMonthBuckets = buildDailyGroups(ownerRows, monthRange, 'month');
+          const firstDow2 = new Date(monthRange.start.getFullYear(), monthRange.start.getMonth(), 1).getDay();
+          const mondayOffset2 = (firstDow2 + 6) % 7;
+          function weekOfDayNum2(dayOfMonth){ return Math.ceil((dayOfMonth + mondayOffset2) / 7); }
+          const y2 = monthRange.start.getFullYear(), mo2 = monthRange.start.getMonth();
+          return toggleHtml + `<table class="mgr-breakdown-table mgr-month-table">
+            <thead><tr><th>접촉자</th>${oMonthBuckets.map(b=>{ const m=b.label.match(/(\d+)주차/); return `<th>${escapeHtml(m?m[1]+'주차':b.label)}</th>`; }).join('')}</tr></thead>
+            <tbody>
+              ${owners.map(o=>`<tr><td class="mgr-name">${escapeHtml(o)}</td>${oMonthBuckets.map(b=>{
+                const logs = logsForOwner(o).filter(l=>{
+                  const d = parseInt((l.date||'').slice(8,10),10);
+                  return d && weekOfDayNum2(d)===b.weekNum;
+                });
+                const days = Array.from(new Set(logs.map(l=>parseInt((l.date||'').slice(8,10),10)))).filter(Boolean).sort((x,y)=>x-y);
+                return `<td>${days.map(d=>{
+                  const dateKey = y2+'-'+String(mo2+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+                  return `<span class="mgr-date-chip" data-filter-date="${escapeHtml(dateKey)}">${d}</span>`;
+                }).join('')}</td>`;
+              }).join('')}</tr>`).join('')}
+            </tbody>
+          </table>`;
+        }
+      }
+
+      return toggleHtml + `<table class="mgr-breakdown-table mgr-owner-table">
+        <thead><tr><th style="text-align:left;">접촉자</th><th>횟수</th><th>최근 접촉일</th><th>담당</th><th class="no-print">수정</th></tr></thead>
         <tbody>
           ${owners.map(o=>{
-            const logs = byOwner[o];
+            const logs = byOwner[o].logs;
+            const role = byOwner[o].role;
             const lastDate = logs.map(l=>l.date).filter(Boolean).sort().slice(-1)[0] || '-';
             const authors = Array.from(new Set(logs.map(l=>l.author).filter(Boolean)));
+            const displayName = role ? `${o}(${role})` : o;
+            const canEdit = o !== '(성함 미상)' && !guestMode;
             return `<tr>
-              <td style="text-align:left;"><span class="mgr-contact-chip" data-filter-contact="${escapeHtml(o)}">${escapeHtml(o)}</span></td>
+              <td style="text-align:left;"><span class="mgr-contact-chip" data-filter-contact="${escapeHtml(o)}">${escapeHtml(displayName)}</span></td>
               <td>${logs.length}</td>
               <td>${escapeHtml(lastDate)}</td>
               <td>${escapeHtml(authors.join(', ')||'-')}</td>
+              <td class="no-print">${canEdit?`<button type="button" class="mgr-owner-bulk-edit-btn" data-old-name="${escapeHtml(o)}" title="이 사람이 등장하는 모든 보고서에서 이름 일괄 수정">✏️</button>`:''}</td>
             </tr>`;
           }).join('')}
         </tbody>
