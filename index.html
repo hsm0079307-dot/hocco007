@@ -1011,7 +1011,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v106</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v107</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -4222,8 +4222,9 @@ const L = (function(){
       });
       async function applyOwnerRename(oldNames, newName){
         // 새 이름에 직책이 이미 포함돼 있으면(예: "홍길동(대표)") 그걸 그대로 쓰고,
-        // 안 포함돼 있으면 기존 직책을 유지한다 — 이렇게 안 하면 "(대표)(대표)"처럼 직책이 겹쳐 붙는다.
-        const {name: newBareName, role: newTypedRole} = parseContactName(newName);
+        // 안 포함돼 있으면 기존 직책을 유지한다. 혹시 이미 여러 겹 꼬여있는 값을 그대로 다시 저장해도
+        // fullyStripRoles가 다 벗겨내므로 "(대표)(대표)"처럼 겹쳐 붙는 일이 없다.
+        const {name: newBareName, role: newTypedRole} = fullyStripRoles(newName);
         let changedCount = 0;
         (site.logs||[]).forEach(l=>{
           const raw = (l.contactName||'').trim();
@@ -4231,7 +4232,7 @@ const L = (function(){
           const segments = splitMultiNames(raw);
           let touched = false;
           const newSegments = segments.map(seg=>{
-            const {name, role} = parseContactName(seg);
+            const {name, role} = fullyStripRoles(seg);
             if(oldNames.includes(name)){
               touched = true;
               const finalRole = newTypedRole || role;
@@ -4291,7 +4292,7 @@ const L = (function(){
             if(name==='(성함 미상)') return !raw;
             const segments = splitMultiNames(raw);
             if(!segments.length) return false;
-            return segments.some(seg=>parseContactName(seg).name===name);
+            return segments.some(seg=>fullyStripRoles(seg).name===name);
           }, name+'님');
         });
       });
@@ -6280,6 +6281,19 @@ const L = (function(){
     const m = safe.match(/^(.+?)\s*[\(（]([^\)）]+)[\)）]\s*$/);
     return { name: (m ? m[1] : safe).trim(), role: m ? m[2].trim() : '' };
   }
+  // "우리부동산(대표 강선미)(대표)(대표)"처럼 예전 버그로 직책이 여러 겹 붙어버린 이름을,
+  // 끝에서부터 괄호를 반복해서 다 벗겨내 순수한 이름만 남긴다. (가장 안쪽=원래 직책은 role로 같이 돌려줌)
+  function fullyStripRoles(raw){
+    let cur = String(raw||'').trim();
+    let lastRole = '';
+    for(let i=0;i<10;i++){
+      const {name, role} = parseContactName(cur);
+      if(!role || name===cur) break;
+      lastRole = role; // 가장 안쪽(=마지막으로 남는) 직책을 원래 직책으로 취급
+      cur = name;
+    }
+    return { name: cur, role: lastRole };
+  }
   // "소유자" 필드는 사람마다 "강선미,송연화(대표)", "강선미, 송연화" 처럼 쉼표 앞뒤 공백이나
   // 직책 괄호 표기가 제각각이라 지저분해 보인다. 이름들을 나눠서 공백을 통일해 다시 합쳐준다.
   function formatOwnerDisplay(raw){
@@ -6489,7 +6503,7 @@ const L = (function(){
           return;
         }
         segments.forEach(seg=>{
-          const {name, role} = parseContactName(seg);
+          const {name, role} = fullyStripRoles(seg);
           if(!name) return;
           if(!byOwner[name]) byOwner[name] = {role:'', logs:[]};
           if(role && !byOwner[name].role) byOwner[name].role = role;
@@ -6509,7 +6523,7 @@ const L = (function(){
             const raw = (l.contactName||'').trim();
             if(!raw) return name==='(성함 미상)';
             const segments = splitMultiNames(raw);
-            return segments.some(seg=>parseContactName(seg).name===name);
+            return segments.some(seg=>fullyStripRoles(seg).name===name);
           });
         }
         const ownerRows = owners.map(o=>({site:o, logs: logsForOwner(o)}));
