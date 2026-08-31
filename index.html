@@ -971,6 +971,20 @@
   </div>
 </div>
 
+<div class="overlay" id="ownerRosterModalOverlay">
+  <div class="modal" id="ownerRosterModalBox" style="max-width:480px;width:100%;">
+    <h3 style="margin:0 0 6px;font-size:14px;">📋 소유주 명단 관리</h3>
+    <p style="font-size:11px;color:var(--text-dim);margin:0 0 8px;line-height:1.6;">
+      한 줄에 한 명씩 입력하세요. 직책이 있으면 "이름(직책)" 형식으로요.<br>
+      예) 김철수<br>이영희(대표)<br>박민수(위원장)
+    </p>
+    <textarea id="ownerRosterTextarea" rows="12" style="width:100%;box-sizing:border-box;background:var(--bg-side-2);border:1px solid var(--line);border-radius:8px;padding:8px;color:var(--text-main);font-size:12px;font-family:inherit;resize:vertical;"></textarea>
+    <div style="display:flex;gap:8px;margin-top:10px;">
+      <button type="button" class="btn btn-primary btn-sm" id="ownerRosterSaveBtn" style="flex:1;">저장</button>
+      <button type="button" class="btn btn-ghost btn-sm" id="ownerRosterCancelBtn" style="flex:1;">취소</button>
+    </div>
+  </div>
+</div>
 <div class="overlay" id="logEditModalOverlay">
   <div class="modal" id="logEditModalBox" style="max-width:520px;width:100%;"></div>
 </div>
@@ -1013,7 +1027,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v109</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v110</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -3956,7 +3970,10 @@ const L = (function(){
         <div class="log-add">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
             ${editingLog ? '<span style="font-size:11px;color:var(--accent);font-weight:700;">✏️ 보고서 수정 중</span>' : '<span></span>'}
-            <button class="btn btn-ghost btn-sm no-print" id="logRefreshBtn" style="padding:3px 9px;font-size:10.5px;" title="이 현장 보고서만 다시 최신으로 불러오기">🔄 보고서 새로고침</button>
+            <div style="display:flex;gap:5px;">
+              ${guestMode?'':`<button class="btn btn-ghost btn-sm no-print" id="ownerRosterBtn" style="padding:3px 9px;font-size:10.5px;" title="소유주 명단을 미리 등록해두면 성함 입력할 때 그 목록에서 고를 수 있어요">📋 소유주 명단</button>`}
+              <button class="btn btn-ghost btn-sm no-print" id="logRefreshBtn" style="padding:3px 9px;font-size:10.5px;" title="이 현장 보고서만 다시 최신으로 불러오기">🔄 보고서 새로고침</button>
+            </div>
           </div>
           ${showForm ? `
           <div class="log-add-row3">
@@ -4065,6 +4082,37 @@ const L = (function(){
           }
         }catch(e){ console.error('일지 수동 새로고침 실패', e); }
         renderDetailPanel(site);
+      });
+      const ownerRosterBtn = document.getElementById('ownerRosterBtn');
+      if(ownerRosterBtn) ownerRosterBtn.addEventListener('click', async ()=>{
+        if(!(await ensureUnlocked())) return;
+        const ta = document.getElementById('ownerRosterTextarea');
+        ta.value = (site.ownerRoster||[]).join('\n');
+        document.getElementById('ownerRosterModalOverlay').classList.add('show');
+        ta.focus();
+      });
+      const ownerRosterCancelBtn = document.getElementById('ownerRosterCancelBtn');
+      if(ownerRosterCancelBtn) ownerRosterCancelBtn.addEventListener('click', ()=>{
+        document.getElementById('ownerRosterModalOverlay').classList.remove('show');
+      });
+      const ownerRosterSaveBtn = document.getElementById('ownerRosterSaveBtn');
+      if(ownerRosterSaveBtn) ownerRosterSaveBtn.addEventListener('click', async ()=>{
+        if(!(await ensureUnlocked())) return;
+        const ta = document.getElementById('ownerRosterTextarea');
+        const names = ta.value.split('\n').map(s=>s.trim()).filter(Boolean);
+        site.ownerRoster = names;
+        document.getElementById('ownerRosterModalOverlay').classList.remove('show');
+        renderDetailPanel(site);
+        try{
+          const officeName = site.office || currentOffice;
+          const {idx: idxInOffice} = await getFreshIndexInOffice(officeName, site.id);
+          if(idxInOffice>-1){
+            const url = `${FIREBASE_DB_URL}/offices/${encodeURIComponent(officeName)}/${idxInOffice}/ownerRoster.json?auth=${encodeURIComponent(FIREBASE_DB_SECRET)}`;
+            const res = await fetch(url, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(names)});
+            if(!res.ok) alert('⚠️ 클라우드 저장 실패 (상태코드 '+res.status+'). 이 화면에서만 저장됐고, 클라우드엔 반영 안 됐을 수 있어요.');
+          }
+        }catch(e){ console.error('소유주 명단 클라우드 반영 실패', e); }
+        await saveSites();
       });
       const logAddBtnEl = document.getElementById('logAddBtn');
       if(logAddBtnEl) logAddBtnEl.addEventListener('click', async ()=>{
@@ -6303,6 +6351,8 @@ const L = (function(){
   // (같은 사람을 매번 다르게 타이핑하는 걸 애초에 줄이기 위한 용도)
   function collectKnownContactNames(site){
     const names = new Set();
+    // 미리 등록해둔 소유주 명단이 있으면 그것부터 (오타 없이 정확한 표준 이름)
+    (site.ownerRoster||[]).forEach(n=>{ const t=String(n||'').trim(); if(t) names.add(t); });
     (site.logs||[]).forEach(l=>{
       const raw = (l.contactName||'').trim();
       if(!raw) return;
@@ -7879,6 +7929,9 @@ const L = (function(){
   entryGateBtn.addEventListener('click', tryEntryGateSubmit);
   entryGateInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') tryEntryGateSubmit(); });
 
+  document.getElementById('ownerRosterModalOverlay').addEventListener('click', (e)=>{
+    if(e.target.id==='ownerRosterModalOverlay') e.currentTarget.classList.remove('show');
+  });
   document.getElementById('logEditModalOverlay').addEventListener('click', (e)=>{
     if(e.target.id==='logEditModalOverlay'){
       editingLogId = null;
@@ -7894,6 +7947,8 @@ const L = (function(){
         overlay.classList.remove('show');
         document.getElementById('logEditModalBox').innerHTML = '';
       }
+      const rosterOverlay = document.getElementById('ownerRosterModalOverlay');
+      if(rosterOverlay.classList.contains('show')) rosterOverlay.classList.remove('show');
     }
   });
   // ---------- boot ----------
