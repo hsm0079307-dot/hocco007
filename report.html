@@ -126,6 +126,7 @@
 <script>
 (function(){
   let parsed = null;
+  let aiAnalysisCache = {}; // { dateFilterValue: daily } - 이번 세션 안에서 AI로 이미 분석한 날짜는 다시 안 물어보고 재사용
 
   // 날짜별로 직접 분석해둔 내용 (그 날짜의 파일을 올렸을 때만 표시됨 - 다른 날짜엔 안내문구가 뜸)
   const DAILY_ANALYSIS = {}; // 이제 특정 톡방 예시 데이터 없이 깨끗하게 시작 (업로드한 파일로만 분석)
@@ -839,7 +840,7 @@
     const selected = dateFilter.value;
     const filtered = (selected && selected!=='__all__') ? parsed.filter(m=>m.date===selected) : parsed;
     const a = analyze(filtered);
-    const daily = findDailyAnalysis(a.dates);
+    const daily = aiAnalysisCache[selected] || findDailyAnalysis(a.dates);
     window.__currentDaily = daily;
     window.__currentTitle = document.getElementById('titleInput').value;
     window.__currentTitleDate = document.getElementById('titleDate').textContent;
@@ -927,6 +928,7 @@
     parsed = null;
     fileInput.value = '';
     aiBtn.disabled = true;
+    aiAnalysisCache = {};
     window.__currentDaily = null;
     window.__currentTitle = null;
     window.__currentTitleDate = null;
@@ -940,25 +942,34 @@
     </div>`;
   });
 
+  function refreshDateFilterOptions(){
+    const dateFilter = document.getElementById('dateFilter');
+    if(!parsed) return;
+    const uniqueDates = Array.from(new Set(parsed.map(m=>m.date).filter(Boolean)));
+    const prevSelection = dateFilter.value;
+    if(uniqueDates.length > 1){
+      dateFilter.innerHTML = `<option value="__all__">전체 기간 (${uniqueDates.length}일)</option>` +
+        uniqueDates.map(d=>`<option value="${escapeHtml(d)}">${escapeHtml(d)}${(DAILY_ANALYSIS[d]||aiAnalysisCache[d])?' (분석완료)':''}</option>`).join('');
+      dateFilter.style.display = 'inline-block';
+      if(prevSelection && dateFilter.querySelector(`option[value="${CSS.escape(prevSelection)}"]`)) dateFilter.value = prevSelection;
+    }else{
+      dateFilter.innerHTML = '';
+      dateFilter.style.display = 'none';
+    }
+  }
+
   fileInput.addEventListener('change', (e)=>{
     const file = e.target.files[0];
     if(!file) return;
     const reader = new FileReader();
     reader.onload = (ev)=>{
       parsed = parseKakaoTxt(ev.target.result);
+      aiAnalysisCache = {};
       aiBtn.disabled = false;
 
       // 파일 안에 있는 날짜들을 모아서 필터 드롭다운을 채움 (여러 날짜가 섞인 파일이면 날짜별로 골라볼 수 있게)
       const dateFilter = document.getElementById('dateFilter');
-      const uniqueDates = Array.from(new Set(parsed.map(m=>m.date).filter(Boolean)));
-      if(uniqueDates.length > 1){
-        dateFilter.innerHTML = `<option value="__all__">전체 기간 (${uniqueDates.length}일)</option>` +
-          uniqueDates.map(d=>`<option value="${escapeHtml(d)}">${escapeHtml(d)}${DAILY_ANALYSIS[d]?' (분석완료)':''}</option>`).join('');
-        dateFilter.style.display = 'inline-block';
-      }else{
-        dateFilter.innerHTML = '';
-        dateFilter.style.display = 'none';
-      }
+      refreshDateFilterOptions();
       dateFilter.value = '__all__';
 
       render();
@@ -1057,6 +1068,8 @@
         critical: data.critical || [],
         other: data.other || [],
       };
+      aiAnalysisCache[selected] = daily; // 이 날짜/범위는 다시 눌러도 캐시에서 바로 보여줌 (재분석 전까진 재호출 안 함)
+      refreshDateFilterOptions();
       const a = analyze(filtered);
       window.__currentDaily = daily;
       window.__currentTitle = document.getElementById('titleInput').value;
