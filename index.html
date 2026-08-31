@@ -1011,7 +1011,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v105</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v106</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -4221,6 +4221,9 @@ const L = (function(){
         if(ok) alert(`✅ ${names.length}명을 "${newName}"으로 통합했어요.`);
       });
       async function applyOwnerRename(oldNames, newName){
+        // 새 이름에 직책이 이미 포함돼 있으면(예: "홍길동(대표)") 그걸 그대로 쓰고,
+        // 안 포함돼 있으면 기존 직책을 유지한다 — 이렇게 안 하면 "(대표)(대표)"처럼 직책이 겹쳐 붙는다.
+        const {name: newBareName, role: newTypedRole} = parseContactName(newName);
         let changedCount = 0;
         (site.logs||[]).forEach(l=>{
           const raw = (l.contactName||'').trim();
@@ -4229,7 +4232,11 @@ const L = (function(){
           let touched = false;
           const newSegments = segments.map(seg=>{
             const {name, role} = parseContactName(seg);
-            if(oldNames.includes(name)){ touched = true; return role ? `${newName}(${role})` : newName; }
+            if(oldNames.includes(name)){
+              touched = true;
+              const finalRole = newTypedRole || role;
+              return finalRole ? `${newBareName}(${finalRole})` : newBareName;
+            }
             return seg;
           });
           if(touched){ l.contactName = newSegments.join(', '); changedCount++; }
