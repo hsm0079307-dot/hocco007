@@ -621,6 +621,8 @@
   .mgr-owner-toggle-btn:hover{border-color:var(--accent);}
   .mgr-owner-toggle-btn.active{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:700;}
   .mgr-merge-bar{display:flex;align-items:center;gap:8px;background:color-mix(in srgb, var(--accent) 12%, transparent);border:1px solid var(--accent);border-radius:8px;padding:6px 10px;margin-bottom:8px;font-size:11px;color:var(--text-main);}
+  .mgr-owner-search-row{margin-bottom:8px;}
+  .mgr-owner-search-row input{width:100%;box-sizing:border-box;background:var(--bg-side-2);border:1px solid var(--line);border-radius:8px;padding:6px 10px;color:var(--text-main);font-size:11.5px;font-family:inherit;}
   .mgr-owner-merge-check{cursor:pointer;}
   .log-add-row2{display:flex;gap:5px;width:100%;}
   .log-add-row2 input[type=date]{flex:1 1 50%;min-width:0;}
@@ -967,6 +969,9 @@
   </div>
 </div>
 
+<div class="overlay" id="logEditModalOverlay">
+  <div class="modal" id="logEditModalBox" style="max-width:520px;width:100%;"></div>
+</div>
 <div class="overlay" id="guestAdminOverlay">
   <div class="modal" style="max-width:640px;">
     <h3>담당자(게스트) 계정 관리</h3>
@@ -1006,7 +1011,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v103</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v105</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -4010,33 +4015,6 @@ const L = (function(){
               <div class="log-author-group">
                 <div class="log-author-heading">${isJoint?'🤝':'👤'} ${escapeHtml(author)}${isJoint?' <span class="log-joint-tag">공동방문</span>':''} <span style="font-weight:400;color:var(--text-dim);">${groups[author].length}건</span></div>
                 ${groups[author].map(l=>{
-                  if(l.id === editingLogId){
-                    return `
-                <div class="log-item log-item-editing" data-log-id="${escapeHtml(l.id||'')}">
-                  <div class="log-edit-inline-row">
-                    <input type="date" class="log-inline-field" data-field="date" value="${escapeHtml(l.date||'')}">
-                    <input type="text" class="log-inline-field" data-field="author" placeholder="담당자" value="${escapeHtml(l.author||'')}">
-                  </div>
-                  <div class="log-edit-inline-row">
-                    <input type="text" class="log-inline-field" data-field="contactName" placeholder="성함(접촉대상)" value="${escapeHtml(l.contactName||'')}">
-                    <input type="text" class="log-inline-field" data-field="owner" placeholder="소유자" value="${escapeHtml(l.owner||'')}">
-                    <input type="text" class="log-inline-field" data-field="unit" placeholder="동호수" value="${escapeHtml(l.unit||'')}">
-                  </div>
-                  <div class="log-edit-inline-row">
-                    <select class="log-inline-field" data-field="contactMethod">
-                      <option value="">접촉방법</option>
-                      ${['상담','단순','TM','거부','부재','불명'].map(m=>`<option value="${m}" ${l.contactMethod===m?'selected':''}>${m}</option>`).join('')}
-                    </select>
-                    <input type="text" class="log-inline-field" data-field="executiveStance" placeholder="집행부 성향" value="${escapeHtml(l.executiveStance||'')}">
-                    <input type="text" class="log-inline-field" data-field="closeness" placeholder="친밀도" value="${escapeHtml(l.closeness||'')}">
-                  </div>
-                  <textarea class="log-inline-field" data-field="text" placeholder="상담내용을 입력하세요" rows="3">${escapeHtml(l.text||'')}</textarea>
-                  <div class="log-actions">
-                    <button class="log-inline-save btn btn-primary btn-sm" data-logid="${l.id}">저장</button>
-                    <button class="log-inline-cancel btn btn-ghost btn-sm" data-logid="${l.id}">취소</button>
-                  </div>
-                </div>`;
-                  }
                   return `
                 <div class="log-item" data-log-id="${escapeHtml(l.id||'')}" data-contact-name="${escapeHtml((l.contactName||'').trim())}" data-log-date="${escapeHtml(l.date||'')}" data-log-week="${escapeHtml(weekOfMonthKey(l.date))}">
                   <div class="log-meta-col">
@@ -4200,8 +4178,16 @@ const L = (function(){
           });
           group.style.display = groupHasMatch ? '' : 'none';
         });
-        if(!opts.noScroll) listArea.scrollIntoView({behavior:'smooth', block:'start'});
+        // 필터 걸릴 때 화면이 밑으로 스크롤되는 게 불편하다는 피드백을 받아서, 이제 스크롤은 아예 안 함
       }
+      const mgrOwnerSearchInput = document.getElementById('mgrOwnerSearchInput');
+      if(mgrOwnerSearchInput) mgrOwnerSearchInput.addEventListener('input', ()=>{
+        const q = mgrOwnerSearchInput.value.trim().toLowerCase();
+        document.querySelectorAll('#mgrOwnerTable tr[data-owner-row]').forEach(row=>{
+          const name = (row.dataset.ownerRow||'').toLowerCase();
+          row.style.display = (!q || name.includes(q)) ? '' : 'none';
+        });
+      });
       const mgrMergeBar = document.getElementById('mgrMergeBar');
       const mgrMergeCount = document.getElementById('mgrMergeCount');
       function refreshMergeBar(){
@@ -4231,6 +4217,10 @@ const L = (function(){
         if(canonical===null) return;
         const newName = canonical.trim();
         if(!newName){ alert('빈 이름으로는 통합할 수 없어요.'); return; }
+        const ok = await applyOwnerRename(names, newName);
+        if(ok) alert(`✅ ${names.length}명을 "${newName}"으로 통합했어요.`);
+      });
+      async function applyOwnerRename(oldNames, newName){
         let changedCount = 0;
         (site.logs||[]).forEach(l=>{
           const raw = (l.contactName||'').trim();
@@ -4239,12 +4229,12 @@ const L = (function(){
           let touched = false;
           const newSegments = segments.map(seg=>{
             const {name, role} = parseContactName(seg);
-            if(names.includes(name)){ touched = true; return role ? `${newName}(${role})` : newName; }
+            if(oldNames.includes(name)){ touched = true; return role ? `${newName}(${role})` : newName; }
             return seg;
           });
           if(touched){ l.contactName = newSegments.join(', '); changedCount++; }
         });
-        if(!changedCount){ alert('해당 이름들이 들어간 보고서를 찾지 못했어요.'); return; }
+        if(!changedCount){ alert('해당 이름이 들어간 보고서를 찾지 못했어요.'); return false; }
         site.lastDate = lastVisit(site);
         renderAll();
         renderDetailPanel(site);
@@ -4254,49 +4244,36 @@ const L = (function(){
           if(idxInOffice>-1){
             const url = `${FIREBASE_DB_URL}/offices/${encodeURIComponent(officeName)}/${idxInOffice}/logs.json?auth=${encodeURIComponent(FIREBASE_DB_SECRET)}`;
             const res = await fetch(url, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(site.logs)});
-            if(!res.ok) alert('⚠️ 클라우드 저장 실패 (상태코드 '+res.status+'). 이 화면에서만 수정됐고, 클라우드엔 반영 안 됐을 수 있어요.');
-            else alert(`✅ 보고서 ${changedCount}건에서 ${names.length}명을 "${newName}"으로 통합했어요.`);
+            if(!res.ok){ alert('⚠️ 클라우드 저장 실패 (상태코드 '+res.status+'). 이 화면에서만 수정됐고, 클라우드엔 반영 안 됐을 수 있어요.'); return true; }
           }
-        }catch(e){ console.error('접촉자 통합 클라우드 반영 실패', e); }
+        }catch(e){ console.error('접촉자 수정 클라우드 반영 실패', e); }
         await saveSites();
-      });
+        return true;
+      }
       body.querySelectorAll('.mgr-owner-bulk-edit-btn').forEach(btn=>{
         btn.addEventListener('click', async ()=>{
           if(!(await ensureUnlocked())) return;
           const oldName = btn.dataset.oldName;
-          const newNameRaw = prompt(`"${oldName}"으로 등장하는 모든 보고서에서 이름을 일괄 수정합니다.\n새 이름을 입력하세요 (직책 표시는 자동으로 유지돼요):`, oldName);
-          if(newNameRaw===null) return;
-          const newName = newNameRaw.trim();
-          if(!newName){ alert('빈 이름으로는 바꿀 수 없어요.'); return; }
-          if(newName===oldName) return;
-          let changedCount = 0;
-          (site.logs||[]).forEach(l=>{
-            const raw = (l.contactName||'').trim();
-            if(!raw) return;
-            const segments = splitMultiNames(raw);
-            let touched = false;
-            const newSegments = segments.map(seg=>{
-              const {name, role} = parseContactName(seg);
-              if(name===oldName){ touched = true; return role ? `${newName}(${role})` : newName; }
-              return seg;
-            });
-            if(touched){ l.contactName = newSegments.join(', '); changedCount++; }
+          const row = btn.closest('tr');
+          const nameCell = row.querySelector('.mgr-contact-chip[data-filter-contact]')?.closest('td');
+          if(!nameCell) return;
+          const originalHtml = nameCell.innerHTML;
+          nameCell.innerHTML = `
+            <input type="text" class="mgr-inline-rename-input" value="${escapeHtml(oldName)}" style="width:100px;">
+            <button type="button" class="mgr-inline-rename-save btn btn-primary btn-sm" style="padding:2px 8px;font-size:10px;">저장</button>
+            <button type="button" class="mgr-inline-rename-cancel btn btn-ghost btn-sm" style="padding:2px 8px;font-size:10px;">취소</button>
+          `;
+          const input = nameCell.querySelector('.mgr-inline-rename-input');
+          input.focus(); input.select();
+          const cancel = ()=>{ nameCell.innerHTML = originalHtml; };
+          nameCell.querySelector('.mgr-inline-rename-cancel').addEventListener('click', cancel);
+          input.addEventListener('keydown', (e)=>{ if(e.key==='Escape') cancel(); });
+          nameCell.querySelector('.mgr-inline-rename-save').addEventListener('click', async ()=>{
+            const newName = input.value.trim();
+            if(!newName){ alert('빈 이름으로는 바꿀 수 없어요.'); return; }
+            if(newName===oldName){ cancel(); return; }
+            await applyOwnerRename([oldName], newName);
           });
-          if(!changedCount){ alert('해당 이름이 들어간 보고서를 찾지 못했어요.'); return; }
-          site.lastDate = lastVisit(site);
-          renderAll();
-          renderDetailPanel(site);
-          try{
-            const officeName = site.office || currentOffice;
-            const {idx: idxInOffice} = await getFreshIndexInOffice(officeName, site.id);
-            if(idxInOffice>-1){
-              const url = `${FIREBASE_DB_URL}/offices/${encodeURIComponent(officeName)}/${idxInOffice}/logs.json?auth=${encodeURIComponent(FIREBASE_DB_SECRET)}`;
-              const res = await fetch(url, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(site.logs)});
-              if(!res.ok) alert('⚠️ 클라우드 저장 실패 (상태코드 '+res.status+'). 이 화면에서만 수정됐고, 클라우드엔 반영 안 됐을 수 있어요.');
-              else alert(`✅ 보고서 ${changedCount}건에서 "${oldName}" → "${newName}"으로 일괄 수정했어요.`);
-            }
-          }catch(e){ console.error('접촉자 일괄수정 클라우드 반영 실패', e); }
-          await saveSites();
         });
       });
       body.querySelectorAll('.mgr-contact-chip[data-filter-contact]').forEach(chip=>{
@@ -4329,28 +4306,42 @@ const L = (function(){
           applyLogFilter(item=> item.dataset.logWeek===weekKey, label);
         });
       });
-      body.querySelectorAll('.log-edit').forEach(btn=>{
-        btn.addEventListener('click', async ()=>{
+      function buildLogEditFieldsHtml(l){
+        return `
+          <div class="log-edit-inline-row">
+            <input type="date" class="log-inline-field" data-field="date" value="${escapeHtml(l.date||'')}">
+            <input type="text" class="log-inline-field" data-field="author" placeholder="담당자" value="${escapeHtml(l.author||'')}">
+          </div>
+          <div class="log-edit-inline-row">
+            <input type="text" class="log-inline-field" data-field="contactName" placeholder="성함(접촉대상)" value="${escapeHtml(l.contactName||'')}">
+            <input type="text" class="log-inline-field" data-field="owner" placeholder="소유자" value="${escapeHtml(l.owner||'')}">
+            <input type="text" class="log-inline-field" data-field="unit" placeholder="동호수" value="${escapeHtml(l.unit||'')}">
+          </div>
+          <div class="log-edit-inline-row">
+            <select class="log-inline-field" data-field="contactMethod">
+              <option value="">접촉방법</option>
+              ${['상담','단순','TM','거부','부재','불명'].map(m=>`<option value="${m}" ${l.contactMethod===m?'selected':''}>${m}</option>`).join('')}
+            </select>
+            <input type="text" class="log-inline-field" data-field="executiveStance" placeholder="집행부 성향" value="${escapeHtml(l.executiveStance||'')}">
+            <input type="text" class="log-inline-field" data-field="closeness" placeholder="친밀도" value="${escapeHtml(l.closeness||'')}">
+          </div>
+          <textarea class="log-inline-field" data-field="text" placeholder="상담내용을 입력하세요" rows="4">${escapeHtml(l.text||'')}</textarea>
+          <div class="log-actions" style="margin-top:8px;">
+            <button class="log-inline-save btn btn-primary btn-sm" data-logid="${l.id}" style="flex:1;">저장</button>
+            <button class="log-inline-cancel btn btn-ghost btn-sm" data-logid="${l.id}" style="flex:1;">취소</button>
+          </div>`;
+      }
+      function openLogEditModal(site, logId){
+        const target = (site.logs||[]).find(l=>l.id===logId);
+        if(!target) return;
+        editingLogId = logId; // 수정하는 동안 백그라운드 새로고침이 끼어들지 않게
+        const box = document.getElementById('logEditModalBox');
+        box.innerHTML = `<h3 style="margin:0 0 10px;font-size:14px;">보고서 수정</h3>` + buildLogEditFieldsHtml(target);
+        document.getElementById('logEditModalOverlay').classList.add('show');
+        box.querySelector('.log-inline-cancel').addEventListener('click', closeLogEditModal);
+        box.querySelector('.log-inline-save').addEventListener('click', async ()=>{
           if(!(await ensureUnlocked())) return;
-          editingLogId = btn.dataset.logid;
-          renderDetailBody(site);
-        });
-      });
-      body.querySelectorAll('.log-inline-cancel').forEach(btn=>{
-        btn.addEventListener('click', ()=>{
-          editingLogId = null;
-          renderDetailBody(site);
-        });
-      });
-      body.querySelectorAll('.log-inline-save').forEach(btn=>{
-        btn.addEventListener('click', async ()=>{
-          if(!(await ensureUnlocked())) return;
-          const logId = btn.dataset.logid;
-          const card = body.querySelector(`.log-item-editing[data-log-id="${CSS.escape(logId)}"]`);
-          if(!card) return;
-          const target = (site.logs||[]).find(l=>l.id===logId);
-          if(!target) return;
-          const getVal = (field)=>{ const el = card.querySelector(`[data-field="${field}"]`); return el ? el.value.trim() : ''; };
+          const getVal = (field)=>{ const el = box.querySelector(`[data-field="${field}"]`); return el ? el.value.trim() : ''; };
           const newDate = getVal('date'), newText = getVal('text');
           if(!newDate || !newText){ alert('날짜와 상담내용은 꼭 입력해주세요.'); return; }
           target.date = newDate;
@@ -4363,7 +4354,7 @@ const L = (function(){
           target.closeness = getVal('closeness');
           target.text = newText;
           site.lastDate = lastVisit(site);
-          editingLogId = null;
+          closeLogEditModal();
           renderAll();
           renderDetailPanel(site);
           try{
@@ -4376,6 +4367,17 @@ const L = (function(){
             }
           }catch(e){ console.error('보고서 수정 클라우드 반영 실패', e); }
           await saveSites();
+        });
+      }
+      function closeLogEditModal(){
+        editingLogId = null;
+        document.getElementById('logEditModalOverlay').classList.remove('show');
+        document.getElementById('logEditModalBox').innerHTML = '';
+      }
+      body.querySelectorAll('.log-edit').forEach(btn=>{
+        btn.addEventListener('click', async ()=>{
+          if(!(await ensureUnlocked())) return;
+          openLogEditModal(site, btn.dataset.logid);
         });
       });
       body.querySelectorAll('.log-del').forEach(btn=>{
@@ -6238,12 +6240,24 @@ const L = (function(){
   const COMPETITOR_KEYWORDS = ['현대건설','현대엔지니어링','현산','현건','GS건설','지에스건설','지에스','대우건설','대우','대림','DL이앤씨','DL','롯데건설','롯데','삼성물산','삼성','SK에코플랜트','SK','에스케이','한화건설','한화','코오롱글로벌','코오롱','HDC현대산업개발','HDC','현대산업개발','계룡건설','두산건설','효성중공업','호반건설','금호산업','반도건설','우미건설','타사(','경쟁사'];
   const SPECIAL_KEYWORDS = ['불만','민원','갈등','반대','집회','총회','서명','우려','분쟁','소송','논란','항의'];
   // "최영희 (선관위원)", "문만재 전인자 (동방부동산)" 같은 문자열에서 이름/직책(또는 소속)을 분리한다
-  // "문만재 전인자 문지숙"처럼 쉼표 없이 띄어쓰기로만 여러 명이 적힌 경우도 각자 나눠준다.
+  // "문만재 전인자 문지숙"처럼 쉼표 없이 띄어쓰기로만 여러 명이 적힌 경우, "이찬호(이사) 손용운(이사)"처럼
+  // 사람마다 자기 직책을 달고 있는 경우, "강선미,송연화(대표)"처럼 마지막 한 명한테만 직책이 붙고 나머지와 공유되는 경우까지 모두 나눠준다.
   // 단, "14단지 성당 24구역장"처럼 숫자가 섞인 여러 단어짜리 직책/설명은 사람이 아니므로 나누지 않는다.
-  // 괄호 안 직책/소속은 먼저 떼어두고, 앞부분에 이름이 여러 개면 그 직책을 각자에게 붙여서 나눈다.
   function splitMultiNames(raw){
     const trimmed = String(raw||'').trim();
     if(!trimmed) return [];
+
+    // 1) "이름(직책) 이름(직책) ..." 처럼 사람마다 자기 직책을 달고 반복되는 패턴인지 전체 문자열 기준으로 먼저 확인
+    const unitRe = /[가-힣]{2,4}(?:\s*[\(（][^\)）]+[\)）])?/g;
+    const normalizedWhole = trimmed.replace(/[,\s]+/g,'');
+    const rawUnits = trimmed.replace(/,/g,' ').match(unitRe) || [];
+    const rebuiltWhole = rawUnits.join('').replace(/\s+/g,'');
+    if(rawUnits.length>=2 && rebuiltWhole===normalizedWhole){
+      const withOwnRole = rawUnits.filter(u=>/[\(（]/.test(u));
+      if(withOwnRole.length>=2) return rawUnits.map(u=>u.replace(/\s+/g,'').trim());
+    }
+
+    // 2) 그 외엔: 끝에 붙은 직책 하나를 전원이 공유하는 걸로 보고, 쉼표 또는 띄어쓰기로 나눈다
     const m = trimmed.match(/^(.+?)\s*([\(（][^\)）]+[\)）])\s*$/);
     const namePart = m ? m[1].trim() : trimmed;
     const roleSuffix = m ? m[2] : '';
@@ -6535,7 +6549,10 @@ const L = (function(){
         <button type="button" class="btn btn-primary btn-sm" id="mgrMergeBtn">선택 항목 통합</button>
         <button type="button" class="btn btn-ghost btn-sm" id="mgrMergeClearBtn">선택 해제</button>
       </div>`;
-      return toggleHtml + mergeBarHtml + `<table class="mgr-breakdown-table mgr-owner-table">
+      const searchBarHtml = `<div class="mgr-owner-search-row no-print">
+        <input type="text" id="mgrOwnerSearchInput" placeholder="🔍 이름으로 찾기 (동일 인물 찾을 때 편해요)">
+      </div>`;
+      return toggleHtml + searchBarHtml + mergeBarHtml + `<table class="mgr-breakdown-table mgr-owner-table" id="mgrOwnerTable">
         <thead><tr>${guestMode?'':'<th class="no-print"></th>'}<th style="text-align:left;">접촉자</th><th>횟수</th><th>최근 접촉일</th><th>담당</th><th class="no-print">수정</th></tr></thead>
         <tbody>
           ${owners.map(o=>{
@@ -6545,7 +6562,7 @@ const L = (function(){
             const authors = Array.from(new Set(logs.map(l=>l.author).filter(Boolean)));
             const displayName = role ? `${o}(${role})` : o;
             const canEdit = o !== '(성함 미상)' && !guestMode;
-            return `<tr>
+            return `<tr data-owner-row="${escapeHtml(o)}">
               ${guestMode?'':`<td class="no-print">${canEdit?`<input type="checkbox" class="mgr-owner-merge-check" data-owner-name="${escapeHtml(o)}">`:''}</td>`}
               <td style="text-align:left;"><span class="mgr-contact-chip" data-filter-contact="${escapeHtml(o)}">${escapeHtml(displayName)}</span></td>
               <td>${logs.length}</td>
@@ -7820,6 +7837,23 @@ const L = (function(){
   entryGateBtn.addEventListener('click', tryEntryGateSubmit);
   entryGateInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') tryEntryGateSubmit(); });
 
+  document.getElementById('logEditModalOverlay').addEventListener('click', (e)=>{
+    if(e.target.id==='logEditModalOverlay'){
+      editingLogId = null;
+      e.currentTarget.classList.remove('show');
+      document.getElementById('logEditModalBox').innerHTML = '';
+    }
+  });
+  document.addEventListener('keydown', (e)=>{
+    if(e.key==='Escape'){
+      const overlay = document.getElementById('logEditModalOverlay');
+      if(overlay.classList.contains('show')){
+        editingLogId = null;
+        overlay.classList.remove('show');
+        document.getElementById('logEditModalBox').innerHTML = '';
+      }
+    }
+  });
   // ---------- boot ----------
   (async function(){
     try{
