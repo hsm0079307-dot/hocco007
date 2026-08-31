@@ -983,6 +983,13 @@
       <button type="button" class="btn btn-primary btn-sm" id="ownerRosterSaveBtn" style="flex:1;">저장</button>
       <button type="button" class="btn btn-ghost btn-sm" id="ownerRosterCancelBtn" style="flex:1;">취소</button>
     </div>
+    <div style="border-top:1px solid var(--line);margin-top:12px;padding-top:10px;">
+      <p style="font-size:10.5px;color:var(--text-dim);margin:0 0 6px;line-height:1.5;">
+        저장한 명단 기준으로, 기존 보고서(텔레그램봇으로 들어온 것 포함)에 적힌 이름 중 비슷한 걸 자동으로 명단 이름에 맞춰 정리해요. 오타 1~2글자 차이까지만 자동 인식해요.
+      </p>
+      <button type="button" class="btn btn-ghost btn-sm" id="ownerRosterCleanupBtn" style="width:100%;">🔄 명단 기준으로 기존 보고서 정리</button>
+      <div id="ownerRosterCleanupResult" style="font-size:11px;margin-top:8px;line-height:1.6;"></div>
+    </div>
   </div>
 </div>
 <div class="overlay" id="logEditModalOverlay">
@@ -1027,7 +1034,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v110</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v111</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -4114,6 +4121,69 @@ const L = (function(){
         }catch(e){ console.error('소유주 명단 클라우드 반영 실패', e); }
         await saveSites();
       });
+      function findRosterMatch(name, roster){
+        const exact = roster.find(r=>r.name===name);
+        if(exact) return {match: exact, exact: true};
+        let best = null, bestDist = Infinity;
+        roster.forEach(r=>{
+          const d = levenshtein(name, r.name);
+          if(d < bestDist){ bestDist = d; best = r; }
+        });
+        // 이름이 짧을수록 엄격하게(2글자는 완전일치만), 길수록 1~2글자 차이까지 "비슷함"으로 인정
+        const threshold = name.length<=2 ? 0 : (name.length<=4 ? 1 : 2);
+        if(best && bestDist>0 && bestDist<=threshold) return {match: best, exact: false};
+        return null;
+      }
+      const ownerRosterCleanupBtn = document.getElementById('ownerRosterCleanupBtn');
+      if(ownerRosterCleanupBtn) ownerRosterCleanupBtn.addEventListener('click', async ()=>{
+        if(!(await ensureUnlocked())) return;
+        const rawRoster = (site.ownerRoster||[]);
+        if(!rawRoster.length){ alert('먼저 명단을 입력하고 저장해주세요.'); return; }
+        const roster = rawRoster.map(n=>{ const {name, role} = fullyStripRoles(n); return {name, role}; }).filter(r=>r.name);
+        ownerRosterCleanupBtn.disabled = true;
+        ownerRosterCleanupBtn.textContent = '정리하는 중...';
+        let changedCount = 0;
+        const unmatchedNames = new Set();
+        (site.logs||[]).forEach(l=>{
+          const raw = (l.contactName||'').trim();
+          if(!raw) return;
+          const segments = splitMultiNames(raw);
+          let touched = false;
+          const newSegments = segments.map(seg=>{
+            const {name, role} = fullyStripRoles(seg);
+            if(roster.some(r=>r.name===name)) return seg; // 이미 명단이랑 정확히 일치하면 손 안 댐
+            const found = findRosterMatch(name, roster);
+            if(found){
+              touched = true;
+              const finalRole = found.match.role || role;
+              return finalRole ? `${found.match.name}(${finalRole})` : found.match.name;
+            }
+            unmatchedNames.add(name);
+            return seg;
+          });
+          if(touched){ l.contactName = newSegments.join(', '); changedCount++; }
+        });
+        site.lastDate = lastVisit(site);
+        renderAll();
+        renderDetailPanel(site);
+        try{
+          const officeName = site.office || currentOffice;
+          const {idx: idxInOffice} = await getFreshIndexInOffice(officeName, site.id);
+          if(idxInOffice>-1){
+            const url = `${FIREBASE_DB_URL}/offices/${encodeURIComponent(officeName)}/${idxInOffice}/logs.json?auth=${encodeURIComponent(FIREBASE_DB_SECRET)}`;
+            const res = await fetch(url, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(site.logs)});
+            if(!res.ok) alert('⚠️ 클라우드 저장 실패 (상태코드 '+res.status+').');
+          }
+        }catch(e){ console.error('명단 정리 클라우드 반영 실패', e); }
+        await saveSites();
+        const resultEl = document.getElementById('ownerRosterCleanupResult');
+        if(resultEl){
+          const unmatchedList = Array.from(unmatchedNames);
+          resultEl.innerHTML = `✅ <b>${changedCount}건</b> 자동 수정 완료<br>⚠️ 명단에서 비슷한 이름을 못 찾은 미변경 <b>${unmatchedList.length}명</b>${unmatchedList.length?': '+unmatchedList.slice(0,30).map(escapeHtml).join(', ')+(unmatchedList.length>30?' 외 '+(unmatchedList.length-30)+'명':''):''}`;
+        }
+        ownerRosterCleanupBtn.disabled = false;
+        ownerRosterCleanupBtn.textContent = '🔄 명단 기준으로 기존 보고서 정리';
+      });
       const logAddBtnEl = document.getElementById('logAddBtn');
       if(logAddBtnEl) logAddBtnEl.addEventListener('click', async ()=>{
         if(!(await ensureUnlocked())) return;
@@ -6336,6 +6406,20 @@ const L = (function(){
   }
   // "우리부동산(대표 강선미)(대표)(대표)"처럼 예전 버그로 직책이 여러 겹 붙어버린 이름을,
   // 끝에서부터 괄호를 반복해서 다 벗겨내 순수한 이름만 남긴다. (가장 안쪽=원래 직책은 role로 같이 돌려줌)
+  // 두 문자열이 몇 글자 다른지 계산(오타 판별용). 짧은 한글 이름 기준으로 1~2글자 차이면 "비슷한 이름"으로 본다.
+  function levenshtein(a, b){
+    const m = a.length, n = b.length;
+    if(m===0) return n; if(n===0) return m;
+    const dp = Array.from({length:m+1}, ()=>new Array(n+1).fill(0));
+    for(let i=0;i<=m;i++) dp[i][0]=i;
+    for(let j=0;j<=n;j++) dp[0][j]=j;
+    for(let i=1;i<=m;i++){
+      for(let j=1;j<=n;j++){
+        dp[i][j] = a[i-1]===b[j-1] ? dp[i-1][j-1] : 1+Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+      }
+    }
+    return dp[m][n];
+  }
   function fullyStripRoles(raw){
     let cur = String(raw||'').trim();
     let lastRole = '';
