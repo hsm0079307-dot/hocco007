@@ -1011,7 +1011,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v107</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v108</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -6507,7 +6507,9 @@ const L = (function(){
           if(!name) return;
           if(!byOwner[name]) byOwner[name] = {role:'', logs:[]};
           if(role && !byOwner[name].role) byOwner[name].role = role;
-          byOwner[name].logs.push(l);
+          // 한 로그 안에 같은 이름(회사명 등)이 여러 번 나와도(예: "대동부동산(대표 김태화), 대동부동산(실장 백문선)")
+          // 실제로는 방문 1건이므로 같은 로그를 두 번 세지 않는다
+          if(!byOwner[name].logs.includes(l)) byOwner[name].logs.push(l);
         });
       });
       const owners = Object.keys(byOwner).sort((a,b)=>byOwner[b].logs.length-byOwner[a].logs.length);
