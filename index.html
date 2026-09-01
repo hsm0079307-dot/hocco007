@@ -1064,7 +1064,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v122</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v123</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -4257,9 +4257,9 @@ const L = (function(){
           const segments = splitMultiNames(raw);
           let touched = false;
           const newSegments = segments.map(seg=>{
-            const {name} = fullyStripRoles(seg);
+            const coreName = extractCoreName(fullyStripRoles(seg).name);
             // (핵심이름만 같고 표기가 다를 수 있어서, 무조건 findRosterMatch를 거쳐 명단의 정확한 표기로 맞춘다)
-            const found = findRosterMatch(name, roster);
+            const found = findRosterMatch(coreName, roster);
             if(found){
               // 명단의 "이름" 칸에 이미 메모/직책이 다 포함되어 있을 수 있으니(예: "박주열[전상가회장]"),
               // 로그에 원래 있던 직책은 버리고 명단에 적힌 그대로만 쓴다 — 명단이 정답이므로.
@@ -4267,7 +4267,7 @@ const L = (function(){
               if(newSeg !== seg) touched = true;
               return newSeg;
             }
-            unmatchedNames.add(name);
+            unmatchedNames.add(coreName);
             return seg;
           });
           if(touched){ l.contactName = newSegments.join(', '); changedCount++; }
@@ -6504,6 +6504,9 @@ const L = (function(){
   function splitMultiNames(raw){
     const trimmed = String(raw||'').trim();
     if(!trimmed) return [];
+    // 대괄호가 있으면 명단에서 가져온 통짜 표기("이름[메모, 메모]")일 가능성이 높으므로 절대 나누지 않는다.
+    // (대괄호 안의 쉼표까지 "여러 명 구분자"로 착각해서 잘못 쪼개지는 걸 막기 위한 안전장치)
+    if(/[\[\]]/.test(trimmed)) return [trimmed];
 
     // 1) "이름(직책) 이름(직책) ..." 처럼 사람마다 자기 직책을 달고 반복되는 패턴인지 전체 문자열 기준으로 먼저 확인
     const unitRe = /[가-힣]{2,4}(?:\s*[\(（][^\)）]+[\)）])?/g;
