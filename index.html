@@ -588,6 +588,7 @@
   .mgr-breakdown-table{border-collapse:collapse;width:100%;font-size:10.5px;margin-bottom:6px;table-layout:fixed;}
   .mgr-breakdown-table th, .mgr-breakdown-table td{border:1px solid var(--line);padding:4px 2px;text-align:center;vertical-align:middle;}
   .mgr-owner-table td{padding:5px 4px;line-height:1.25;}
+  .mgr-owner-method-breakdown{font-size:9.5px;color:var(--text-dim);margin-top:1px;}
   .mgr-owner-table .mgr-contact-chip{display:inline-block;font-size:10.5px;line-height:1.25;}
   .mgr-breakdown-table thead th{background:var(--bg-main,rgba(255,255,255,.05));color:var(--accent);font-weight:700;font-size:9.5px;}
   .mgr-breakdown-table td.mgr-name, .mgr-breakdown-table th:first-child{text-align:left;font-weight:700;color:var(--text-main);width:22%;padding-left:6px;}
@@ -1069,7 +1070,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v126</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v127</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -6851,6 +6852,17 @@ const L = (function(){
         });
       });
       function uniqueDateCount(logs){ return new Set(logs.map(l=>l.date).filter(Boolean)).size; }
+      const CONTACT_METHOD_ABBR = {'상담':'상','단순':'단','TM':'T','거부':'거','부재':'부','불명':'불'};
+      function contactMethodBreakdown(logs){
+        const counts = {};
+        logs.forEach(l=>{
+          const m = (l.contactMethod||'').trim();
+          if(!m) return;
+          counts[m] = (counts[m]||0) + 1;
+        });
+        const parts = Object.keys(counts).map(m=>`${CONTACT_METHOD_ABBR[m]||m}${counts[m]}`);
+        return parts.length ? `(${parts.join(' ')})` : '';
+      }
       // "이창희, 주현희"처럼 한 로그에 담당자 여러 명이 뭉쳐있는 걸 통째로 비교하면, 같은 사람인데
       // 조합만 다르게 적힌 것끼리 서로 다른 값으로 취급돼 지저분하게 나온다. 이름 단위로 쪼개서 유니크하게 모은다.
       function uniqueAuthorsOf(logs){
@@ -6987,7 +6999,7 @@ const L = (function(){
             return `<tr data-owner-row="${escapeHtml(o)}">
               ${guestMode?'':`<td class="no-print">${canEdit?`<input type="checkbox" class="mgr-owner-merge-check" data-owner-name="${escapeHtml(o)}">`:''}</td>`}
               <td style="text-align:left;"><span class="mgr-contact-chip" data-filter-contact="${escapeHtml(o)}">${escapeHtml(displayName)}</span></td>
-              <td>${uniqueDateCount(logs)}</td>
+              <td>${uniqueDateCount(logs)}<div class="mgr-owner-method-breakdown">${escapeHtml(contactMethodBreakdown(logs))}</div></td>
               <td>${escapeHtml(lastDate)}</td>
               <td>${escapeHtml(authors.join(', ')||'-')}</td>
               <td class="no-print">${canEdit?`<button type="button" class="mgr-owner-bulk-edit-btn" data-old-name="${escapeHtml(o)}" title="이 사람이 등장하는 모든 보고서에서 이름 일괄 수정">✏️</button>`:''}</td>
