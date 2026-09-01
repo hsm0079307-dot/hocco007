@@ -1070,7 +1070,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v127</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v128</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -7799,7 +7799,7 @@ const L = (function(){
     });
     body.querySelectorAll('.rd-bar-clickable').forEach(col=>{
       col.addEventListener('click', ()=>{
-        if(col.dataset.weekNum){
+        if(reportMode==='month' && col.dataset.weekNum){
           // 월간 보기에서 특정 주차 막대를 누르면 그 주간 보기로 드릴다운
           const monthStart = new Date(reportBaseDate.getFullYear(), reportBaseDate.getMonth(), 1);
           const firstDow = monthStart.getDay();
@@ -7810,9 +7810,10 @@ const L = (function(){
           reportMode = 'week';
           reportDayFilter = null;
           renderContactReport();
-        }else if(col.dataset.dayKey){
+        }else if(reportMode==='week' && col.dataset.dayKey){
           // 주간 보기에서 특정 날짜 막대를 누르면 그 날 방문한 현장만 아래 목록에 보여줌 (다시 누르면 해제)
-          reportDayFilter = (reportDayFilter===col.dataset.dayKey) ? null : col.dataset.dayKey;
+          const clickedKey = col.dataset.dayKey;
+          reportDayFilter = (reportDayFilter===clickedKey) ? null : clickedKey;
           renderSitesView();
         }
       });
