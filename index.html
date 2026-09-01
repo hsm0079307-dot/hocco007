@@ -1064,7 +1064,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v123</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v124</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -6687,11 +6687,20 @@ const L = (function(){
     const monthBuckets = buildDailyGroups(managerRows, monthRange, 'month');
 
     function weekOfDayNum(dayOfMonth, mondayOffset){ return Math.ceil((dayOfMonth + mondayOffset) / 7); }
+    // "일(day)" 숫자만 보고 주차를 계산하면, 다른 달인데 일자만 같은 로그가 섞여 들어갈 수 있다.
+    // 반드시 연/월이 지금 보고 있는 달(range)과 같은지 먼저 확인한 다음에 day를 쓴다.
+    function isLogInMonth(l, range){
+      if(!l || !l.date) return false;
+      const logYear = parseInt(l.date.slice(0,4),10);
+      const logMonth = parseInt(l.date.slice(5,7),10);
+      return logYear === range.start.getFullYear() && logMonth === (range.start.getMonth()+1);
+    }
     function logsForWeekBucket(m, bucket){ return logsForManager(m).filter(l=>l.date===bucket.key); }
     function logsForMonthBucket(m, bucket){
       const firstDow = new Date(monthRange.start.getFullYear(), monthRange.start.getMonth(), 1).getDay();
       const mondayOffset = (firstDow + 6) % 7;
       return logsForManager(m).filter(l=>{
+        if(!isLogInMonth(l, monthRange)) return false;
         const d = parseInt((l.date||'').slice(8,10),10);
         return d && weekOfDayNum(d, mondayOffset)===bucket.weekNum;
       });
@@ -6756,6 +6765,7 @@ const L = (function(){
         <tbody>
           ${managers.map(m=>`<tr><td class="mgr-name">${escapeHtml(m)}</td>${monthBuckets.map(b=>{
             const weekLogs = logsForManager(m).filter(l=>{
+              if(!isLogInMonth(l, monthRange)) return false;
               const d = parseInt((l.date||'').slice(8,10),10);
               return d && weekOfDayNumMW(d)===b.weekNum;
             });
@@ -6833,6 +6843,7 @@ const L = (function(){
           const authors = uniqueAuthorsOf(logs);
           const weekGroups = {};
           logs.forEach(l=>{
+            if(!isLogInMonth(l, monthRange)) return;
             const d = parseInt((l.date||'').slice(8,10),10);
             if(!d) return;
             const wk = weekOfDayNumC(d);
@@ -6843,7 +6854,7 @@ const L = (function(){
             const days = Array.from(weekGroups[wk]).sort((a,b)=>a-b);
             return `<div class="mgr-owner-card-weekline"><b>${wk}주차:</b> ${days.join(', ')} — <span class="mgr-owner-card-weekcnt">${days.length}회</span></div>`;
           }).join('');
-          const monthTotal = uniqueDateCount(logs);
+          const monthTotal = uniqueDateCount(logs.filter(l=>isLogInMonth(l, monthRange)));
           const specialSentences = [];
           logs.forEach(l=>{
             splitSentences(l.text||'').forEach(s=>{
@@ -6887,6 +6898,7 @@ const L = (function(){
             <tbody>
               ${owners.map(o=>`<tr><td class="mgr-name">${escapeHtml(o)}</td>${oMonthBucketsForWeek.map(b=>{
                 const weekLogs = logsForOwner(o).filter(l=>{
+                  if(!isLogInMonth(l, monthRange)) return false;
                   const d = parseInt((l.date||'').slice(8,10),10);
                   return d && weekOfDayNumW(d)===b.weekNum;
                 });
@@ -6907,6 +6919,7 @@ const L = (function(){
             <tbody>
               ${owners.map(o=>`<tr><td class="mgr-name">${escapeHtml(o)}</td>${oMonthBuckets.map(b=>{
                 const logs = logsForOwner(o).filter(l=>{
+                  if(!isLogInMonth(l, monthRange)) return false;
                   const d = parseInt((l.date||'').slice(8,10),10);
                   return d && weekOfDayNum2(d)===b.weekNum;
                 });
@@ -7007,6 +7020,11 @@ const L = (function(){
         if(mode==='week'){
           bucket = bucketByKey[l.date];
         }else{
+          // 로그의 연/월이 지금 보고 있는 달(range)과 다르면 무시한다.
+          // (예전엔 "일" 숫자만 보고 주차를 계산해서, 다른 달인데 일자만 같으면 잘못 섞여 들어갔음)
+          const logYear = parseInt(l.date.slice(0,4),10);
+          const logMonth = parseInt(l.date.slice(5,7),10);
+          if(logYear !== range.start.getFullYear() || logMonth !== (range.start.getMonth()+1)) return;
           const dayOfMonth = parseInt(l.date.slice(8,10),10);
           const firstDow = new Date(range.start.getFullYear(), range.start.getMonth(), 1).getDay();
           const mondayOffset = (firstDow + 6) % 7;
