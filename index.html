@@ -498,6 +498,15 @@
   .mobile-section{margin-top:12px;}
   .mobile-section-title{font-size:12px;font-weight:700;color:var(--accent);margin-bottom:4px;}
   .mobile-section-line{font-size:11px;color:var(--text-main);padding:1px 0;line-height:1.4;}
+  .mobile-cal-clickable{cursor:pointer;}
+  .mobile-cal-clickable:active{filter:brightness(1.3);}
+  .mobile-cal-active{border-color:var(--accent);box-shadow:0 0 0 1.5px var(--accent);}
+  .mobile-day-detail{border-top:1px solid var(--line);padding-top:10px;}
+  .mobile-day-site-block{background:var(--bg-side-2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:8px;}
+  .mobile-day-site-head{font-size:12px;font-weight:700;color:var(--text-main);margin-bottom:4px;}
+  .mobile-day-site-mgr{font-size:10.5px;font-weight:400;color:var(--text-dim);}
+  .mobile-day-contact-line{font-size:11.5px;color:var(--text-main);padding-top:4px;font-weight:600;}
+  .mobile-day-contact-note{font-size:10.5px;color:var(--text-dim);padding-left:4px;line-height:1.4;}
   #modeOverlay{background:transparent !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;pointer-events:none;}
   #modeOverlay > *{pointer-events:auto;}
   .overlay.show{display:flex;animation:overlayFadeIn .18s ease-out;}
@@ -1110,7 +1119,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v137</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v138</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -8488,6 +8497,7 @@ const L = (function(){
 
     return {visitedThisMonth, missedSites, dayManagers, weeklySpecial, monthEvents};
   }
+  let mobileSelectedDate = null; // 달력에서 특정 날짜를 눌러서 그날 방문 상세를 보고 있으면 그 날짜키
   function buildMobileCalGrid(y, mo, dayManagers, showManagers){
     const firstDow = new Date(y, mo, 1).getDay();
     const mondayOffset = (firstDow + 6) % 7;
@@ -8498,7 +8508,9 @@ const L = (function(){
       const dateKey = `${y}-${String(mo+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
       const mgrs = dayManagers[dateKey] ? Array.from(dayManagers[dateKey]) : [];
       const holiday = krHolidayName(dateKey);
-      calCells += `<div class="mobile-cal-cell${mgrs.length?' has-visit':''}">
+      const clickable = mgrs.length>0;
+      const active = mobileSelectedDate===dateKey;
+      calCells += `<div class="mobile-cal-cell${mgrs.length?' has-visit':''}${clickable?' mobile-cal-clickable':''}${active?' mobile-cal-active':''}" ${clickable?`data-date-key="${dateKey}"`:''}>
         <div class="mobile-cal-daynum${holiday?' holiday':''}">${d}</div>
         ${(showManagers && mgrs.length)?`<div class="mobile-cal-mgrs">${mgrs.map(m=>`<div>${escapeHtml(m)}</div>`).join('')}</div>`:''}
       </div>`;
@@ -8506,6 +8518,31 @@ const L = (function(){
     return `<div class="mobile-cal-grid" style="margin-top:12px;">
       ${['월','화','수','목','금','토','일'].map(d=>`<div class="mobile-cal-dayhead">${d}</div>`).join('')}
       ${calCells}
+    </div>`;
+  }
+  // 특정 날짜를 눌렀을 때, 그 날 방문한 현장별로 담당/접촉자/상담방법/내용을 정리해서 보여준다
+  function buildMobileDayDetailHtml(dateKey, sitesList){
+    if(!dateKey) return '';
+    const bySite = []; // {siteName, managers:Set, logs:[]}
+    sitesList.forEach(s=>{
+      const dayLogs = (s.logs||[]).filter(l=>l.date===dateKey);
+      if(!dayLogs.length) return;
+      const managers = new Set();
+      dayLogs.forEach(l=>String(l.author||'').split(/[,\s]+/).filter(Boolean).forEach(a=>managers.add(a)));
+      bySite.push({siteName:s.name, managers:Array.from(managers), logs:dayLogs});
+    });
+    if(!bySite.length) return '';
+    return `<div class="mobile-section mobile-day-detail">
+      <div class="mobile-section-title">${escapeHtml(formatDateKr(dateKey))} 방문현장</div>
+      ${bySite.map(b=>`
+        <div class="mobile-day-site-block">
+          <div class="mobile-day-site-head">${escapeHtml(b.siteName)} <span class="mobile-day-site-mgr">담당 ${escapeHtml(b.managers.join(' '))}</span></div>
+          ${b.logs.map(l=>{
+            const {name} = parseContactName(l.contactName||'');
+            return `<div class="mobile-day-contact-line">${name?escapeHtml(name):'-'}${l.contactMethod?' '+escapeHtml(l.contactMethod):''}</div>
+              ${l.text?`<div class="mobile-day-contact-note">비고: ${escapeHtml(l.text)}</div>`:''}`;
+          }).join('')}
+        </div>`).join('')}
     </div>`;
   }
   function specialSectionsHtml(weeklySpecial, monthEvents, showSiteName){
@@ -8560,6 +8597,7 @@ const L = (function(){
       </div>` : ''}
 
       ${buildMobileCalGrid(y, mo, dayManagers, false)}
+      ${buildMobileDayDetailHtml(mobileSelectedDate, allSites)}
       ${specialSectionsHtml(weeklySpecial, monthEvents, true)}
     `;
     document.getElementById('mobileSummaryCloseBtn').addEventListener('click', ()=>{
@@ -8567,14 +8605,17 @@ const L = (function(){
     });
     document.getElementById('mobileSummaryPrevBtn').addEventListener('click', ()=>{
       mobileSummaryNavDate = new Date(mobileSummaryNavDate.getFullYear(), mobileSummaryNavDate.getMonth()-1, 1);
+      mobileSelectedDate = null;
       renderMobileSummary();
     });
     document.getElementById('mobileSummaryNextBtn').addEventListener('click', ()=>{
       mobileSummaryNavDate = new Date(mobileSummaryNavDate.getFullYear(), mobileSummaryNavDate.getMonth()+1, 1);
+      mobileSelectedDate = null;
       renderMobileSummary();
     });
     document.getElementById('mobileSummaryTodayBtn').addEventListener('click', ()=>{
       mobileSummaryNavDate = new Date();
+      mobileSelectedDate = null;
       renderMobileSummary();
     });
     document.getElementById('mobileVisitedToggle').addEventListener('click', ()=>{
@@ -8588,6 +8629,14 @@ const L = (function(){
     box.querySelectorAll('.mobile-site-link').forEach(el=>{
       el.addEventListener('click', ()=>{
         mobileSelectedSite = el.dataset.siteName;
+        mobileSelectedDate = null;
+        renderMobileSummary();
+      });
+    });
+    box.querySelectorAll('.mobile-cal-clickable').forEach(cell=>{
+      cell.addEventListener('click', ()=>{
+        const dk = cell.dataset.dateKey;
+        mobileSelectedDate = (mobileSelectedDate===dk) ? null : dk;
         renderMobileSummary();
       });
     });
@@ -8615,6 +8664,7 @@ const L = (function(){
       </div>
       <div class="mobile-expand-line" style="font-size:13px;font-weight:700;color:var(--accent);padding:6px 2px 10px;">${escapeHtml(siteName)}: 총${visitInfo?visitInfo.count:0}회 방문</div>
       ${buildMobileCalGrid(y, mo, dayManagers, true)}
+      ${buildMobileDayDetailHtml(mobileSelectedDate, [site])}
       ${specialSectionsHtml(weeklySpecial, monthEvents, false)}
     `;
     document.getElementById('mobileSummaryCloseBtn').addEventListener('click', ()=>{
@@ -8622,21 +8672,32 @@ const L = (function(){
     });
     document.getElementById('mobileSiteBackBtn').addEventListener('click', ()=>{
       mobileSelectedSite = null;
+      mobileSelectedDate = null;
       renderMobileSummary();
     });
     document.getElementById('mobileSummaryPrevBtn').addEventListener('click', ()=>{
       mobileSummaryNavDate = new Date(mobileSummaryNavDate.getFullYear(), mobileSummaryNavDate.getMonth()-1, 1);
+      mobileSelectedDate = null;
       renderMobileSiteDetail(siteName);
     });
     document.getElementById('mobileSummaryNextBtn').addEventListener('click', ()=>{
       mobileSummaryNavDate = new Date(mobileSummaryNavDate.getFullYear(), mobileSummaryNavDate.getMonth()+1, 1);
+      mobileSelectedDate = null;
       renderMobileSiteDetail(siteName);
+    });
+    box.querySelectorAll('.mobile-cal-clickable').forEach(cell=>{
+      cell.addEventListener('click', ()=>{
+        const dk = cell.dataset.dateKey;
+        mobileSelectedDate = (mobileSelectedDate===dk) ? null : dk;
+        renderMobileSiteDetail(siteName);
+      });
     });
   }
   const mobileSummaryBtn = document.getElementById('mobileSummaryBtn');
   if(mobileSummaryBtn) mobileSummaryBtn.addEventListener('click', ()=>{
     mobileSummaryNavDate = new Date();
     mobileSelectedSite = null;
+    mobileSelectedDate = null;
     renderMobileSummary();
     document.getElementById('mobileSummaryOverlay').classList.add('show');
   });
