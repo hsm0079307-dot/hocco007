@@ -1110,7 +1110,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v135</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v136</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -7465,11 +7465,26 @@ const L = (function(){
     }
     // 현장의 이번 기간 로그에서 특이사항 키워드가 걸리는 첫 문장을 뽑아 간단한 메모로 보여준다
     function siteSpecialNote(r){
-      const allText = (r.logs||[]).map(l=>l.text||'').join(' ');
-      const sentences = splitSentences(allText);
-      const hits = sentences.filter(s=>SPECIAL_KEYWORDS.some(k=>s.includes(k)));
-      // 너무 길게 이어붙이면 누가 한 얘기인지 헷갈리니, 짧게 2개까지만 골라서 줄바꿈으로 구분해 보여준다
-      return hits.slice(0,2).join('\n');
+      // 문장을 날짜별로 그 달의 몇 주차인지 계산해서, 주차별로 묶어 "1주차: ~~" 형식으로 보여준다.
+      // (주간 보기일 땐 자연히 그 한 주만 나오고, 월간 보기일 땐 여러 주차가 줄바꿈으로 나뉘어 나온다)
+      const firstDow = new Date(range.start.getFullYear(), range.start.getMonth(), 1).getDay();
+      const mondayOffset = (firstDow + 6) % 7;
+      const byWeek = {};
+      (r.logs||[]).forEach(l=>{
+        if(!l.date) return;
+        const sentences = splitSentences(l.text||'');
+        const hits = sentences.filter(s=>SPECIAL_KEYWORDS.some(k=>s.includes(k)));
+        if(!hits.length) return;
+        const dayNum = parseInt(l.date.slice(8,10),10);
+        if(!dayNum) return;
+        const wk = Math.ceil((dayNum + mondayOffset) / 7);
+        if(!byWeek[wk]) byWeek[wk] = [];
+        byWeek[wk].push(...hits);
+      });
+      const weekNums = Object.keys(byWeek).map(Number).sort((a,b)=>a-b);
+      // 주차가 여러 개면 "N주차: 문장" 형식으로, 한 주(주간 보기)뿐이면 그냥 문장만 보여준다
+      if(weekNums.length<=1) return weekNums.length ? byWeek[weekNums[0]].slice(0,2).join('\n') : '';
+      return weekNums.map(wk=>`${wk}주차: ${byWeek[wk].slice(0,2).join(' ')}`).join('\n');
     }
     function buildMatrixTable(groupRows, missedNames){
       const missedHtml = missedNames.length
