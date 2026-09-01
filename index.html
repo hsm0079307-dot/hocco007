@@ -466,6 +466,31 @@
   @media (max-width:820px){
     .mobile-only-btn{display:inline-flex;}
   }
+  .mobile-summary-nav{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+  .mobile-nav-btn{background:var(--bg-side-2);border:1px solid var(--line);color:var(--text-main);width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:11px;}
+  .mobile-nav-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .mobile-nav-label{font-size:13px;font-weight:700;color:var(--accent);min-width:82px;text-align:center;}
+  .mobile-nav-today-btn{margin-left:auto;background:none;border:1px solid var(--line);color:var(--text-dim);font-size:10px;padding:3px 9px;border-radius:8px;cursor:pointer;}
+  .mobile-stat-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px;}
+  .mobile-stat-mini{text-align:center;background:var(--bg-side-2);border:1px solid var(--line);border-radius:8px;padding:6px 2px;}
+  .mobile-stat-num{font-size:15px;font-weight:800;color:var(--accent);}
+  .mobile-stat-lbl{font-size:9px;color:var(--text-dim);}
+  .mobile-expand-row{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:var(--text-main);padding:8px 4px;border-bottom:1px solid var(--line);cursor:pointer;}
+  .mobile-expand-count{color:var(--text-dim);font-weight:400;}
+  .mobile-expand-arrow{margin-left:auto;color:var(--text-dim);font-size:10px;}
+  .mobile-expand-body{padding:6px 4px 8px;max-height:180px;overflow-y:auto;}
+  .mobile-expand-line{font-size:11.5px;color:var(--text-main);padding:2px 0;}
+  .mobile-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;}
+  .mobile-cal-dayhead{text-align:center;font-size:9.5px;color:var(--text-dim);padding:2px 0;}
+  .mobile-cal-cell{min-height:36px;border:1px solid var(--line);border-radius:5px;padding:2px;font-size:9px;}
+  .mobile-cal-cell.empty{border:none;}
+  .mobile-cal-cell.has-visit{background:color-mix(in srgb, var(--accent) 12%, transparent);border-color:var(--accent);}
+  .mobile-cal-daynum{font-size:9.5px;color:var(--text-dim);}
+  .mobile-cal-daynum.holiday{color:#ff7b7b;}
+  .mobile-cal-mgrs{font-size:8px;color:var(--accent);line-height:1.2;margin-top:1px;word-break:keep-all;}
+  .mobile-section{margin-top:12px;}
+  .mobile-section-title{font-size:12px;font-weight:700;color:var(--accent);margin-bottom:4px;}
+  .mobile-section-line{font-size:11px;color:var(--text-main);padding:1px 0;line-height:1.4;}
   #modeOverlay{background:transparent !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;pointer-events:none;}
   #modeOverlay > *{pointer-events:auto;}
   .overlay.show{display:flex;animation:overlayFadeIn .18s ease-out;}
@@ -1078,7 +1103,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v129</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v130</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -8360,72 +8385,156 @@ const L = (function(){
     }
   });
   // ---------- 모바일 전용 간단현황 ----------
+  let mobileSummaryNavDate = new Date();
+  let mobileVisitedExpanded = false;
+  let mobileMissedExpanded = false;
+  const MOBILE_SPECIAL_KEYWORDS = ['불만','민원','갈등','반대','집회','총회','서명','우려','분쟁','소송','논란','항의'];
   function renderMobileSummary(){
     const box = document.getElementById('mobileSummaryModalBox');
     if(!box) return;
-    const now = new Date();
-    const y = now.getFullYear(), mo = now.getMonth();
+    const y = mobileSummaryNavDate.getFullYear(), mo = mobileSummaryNavDate.getMonth();
     const allSites = sites.filter(s=>!s.isRegionZone);
-    const visitedThisMonth = [];
-    let totalVisitDaysThisMonth = 0;
-    const managerCounts = {};
+    const visitedThisMonth = []; // {site, count, dates:Set}
+    const missedSites = [];
+    const dayManagers = {}; // 'YYYY-MM-DD' -> Set(담당자)
+    const monthSpecialSentences = []; // {date, site, text}
     allSites.forEach(s=>{
       const monthDates = new Set();
+      let visitCount = 0;
       (s.logs||[]).forEach(l=>{
         if(!l.date) return;
         const ly = parseInt(l.date.slice(0,4),10), lm = parseInt(l.date.slice(5,7),10);
         if(ly!==y || lm!==(mo+1)) return;
         monthDates.add(l.date);
-        String(l.author||'').split(/[,\s]+/).filter(Boolean).forEach(a=>{
-          managerCounts[a] = (managerCounts[a]||0) + 1;
+        visitCount++;
+        const authors = String(l.author||'').split(/[,\s]+/).filter(Boolean);
+        if(!dayManagers[l.date]) dayManagers[l.date] = new Set();
+        authors.forEach(a=>dayManagers[l.date].add(a));
+        splitSentences(l.text||'').forEach(sen=>{
+          if(MOBILE_SPECIAL_KEYWORDS.some(k=>sen.includes(k))) monthSpecialSentences.push({date:l.date, site:s.name, text:sen});
         });
       });
-      if(monthDates.size>0){ visitedThisMonth.push(s); totalVisitDaysThisMonth += monthDates.size; }
+      if(monthDates.size>0) visitedThisMonth.push({site:s.name, count:visitCount});
+      else missedSites.push(s.name);
     });
-    const missedCount = allSites.length - visitedThisMonth.length;
-    const topManagers = Object.keys(managerCounts).sort((a,b)=>managerCounts[b]-managerCounts[a]).slice(0,3);
-    const recentLogs = [];
-    allSites.forEach(s=>(s.logs||[]).forEach(l=>{ if(l.date) recentLogs.push({date:l.date, site:s.name, author:l.author}); }));
-    recentLogs.sort((a,b)=> b.date.localeCompare(a.date));
-    const recentTop = recentLogs.slice(0,5);
+    visitedThisMonth.sort((a,b)=>b.count-a.count);
+    missedSites.sort((a,b)=>a.localeCompare(b,'ko'));
+
+    // 이번 주(실제 오늘 기준) 특이사항
+    const realNow = new Date();
+    const weekRangeReal = getWeekRange(realNow);
+    const weekStartKey = `${weekRangeReal.start.getFullYear()}-${String(weekRangeReal.start.getMonth()+1).padStart(2,'0')}-${String(weekRangeReal.start.getDate()).padStart(2,'0')}`;
+    const weekEndKey = `${weekRangeReal.end.getFullYear()}-${String(weekRangeReal.end.getMonth()+1).padStart(2,'0')}-${String(weekRangeReal.end.getDate()).padStart(2,'0')}`;
+    const weekSpecial = [];
+    allSites.forEach(s=>{
+      (s.logs||[]).forEach(l=>{
+        if(!l.date) return;
+        if(l.date < weekStartKey || l.date > weekEndKey) return;
+        splitSentences(l.text||'').forEach(sen=>{
+          if(MOBILE_SPECIAL_KEYWORDS.some(k=>sen.includes(k))) weekSpecial.push({date:l.date, site:s.name, text:sen});
+        });
+      });
+    });
+
+    // 이 달의 현장 행사 (일정캘린더 참고)
+    const monthEvents = [];
+    allSites.forEach(s=>{
+      eventsOf(s).forEach(ev=>{
+        if(!ev.date || !ev.label) return;
+        const ey = parseInt(ev.date.slice(0,4),10), em = parseInt(ev.date.slice(5,7),10);
+        if(ey===y && em===(mo+1)) monthEvents.push({date:ev.date, site:s.name, label:ev.label});
+      });
+    });
+    monthEvents.sort((a,b)=>a.date.localeCompare(b.date));
+
+    // 달력 그리드
+    const firstDow = new Date(y, mo, 1).getDay();
+    const mondayOffset = (firstDow + 6) % 7;
+    const daysInMonth = new Date(y, mo+1, 0).getDate();
+    let calCells = '';
+    for(let i=0;i<mondayOffset;i++) calCells += `<div class="mobile-cal-cell empty"></div>`;
+    for(let d=1; d<=daysInMonth; d++){
+      const dateKey = `${y}-${String(mo+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const mgrs = dayManagers[dateKey] ? Array.from(dayManagers[dateKey]) : [];
+      const holiday = krHolidayName(dateKey);
+      calCells += `<div class="mobile-cal-cell${mgrs.length?' has-visit':''}">
+        <div class="mobile-cal-daynum${holiday?' holiday':''}">${d}</div>
+        ${mgrs.length?`<div class="mobile-cal-mgrs">${mgrs.map(m=>escapeHtml(m)).join(', ')}</div>`:''}
+      </div>`;
+    }
 
     box.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-        <h3 style="margin:0;font-size:15px;">📱 간단현황 <span style="font-size:11px;color:var(--text-dim);font-weight:400;">${y}년 ${mo+1}월</span></h3>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <h3 style="margin:0;font-size:14px;">📱 간단현황</h3>
         <button type="button" id="mobileSummaryCloseBtn" style="background:none;border:none;color:var(--text-dim);font-size:18px;cursor:pointer;">✕</button>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;">
-        <div style="text-align:center;background:var(--bg-side-2);border:1px solid var(--line);border-radius:10px;padding:10px 4px;">
-          <div style="font-size:20px;font-weight:800;color:var(--accent);">${allSites.length}</div>
-          <div style="font-size:10px;color:var(--text-dim);">전체 현장</div>
-        </div>
-        <div style="text-align:center;background:var(--bg-side-2);border:1px solid var(--line);border-radius:10px;padding:10px 4px;">
-          <div style="font-size:20px;font-weight:800;color:#7ee787;">${visitedThisMonth.length}</div>
-          <div style="font-size:10px;color:var(--text-dim);">이번달 방문</div>
-        </div>
-        <div style="text-align:center;background:var(--bg-side-2);border:1px solid var(--line);border-radius:10px;padding:10px 4px;">
-          <div style="font-size:20px;font-weight:800;color:#ff7b7b;">${missedCount}</div>
-          <div style="font-size:10px;color:var(--text-dim);">미방문</div>
-        </div>
+      <div class="mobile-summary-nav">
+        <button type="button" class="mobile-nav-btn" id="mobileSummaryPrevBtn">◀</button>
+        <span class="mobile-nav-label">${y}년 ${mo+1}월</span>
+        <button type="button" class="mobile-nav-btn" id="mobileSummaryNextBtn">▶</button>
+        <button type="button" class="mobile-nav-today-btn" id="mobileSummaryTodayBtn">오늘</button>
       </div>
-      <div style="font-size:11.5px;color:var(--text-dim);margin-bottom:14px;">이번달 총 방문일수: <b style="color:var(--text-main);">${totalVisitDaysThisMonth}일</b></div>
-      ${topManagers.length ? `
-      <div style="margin-bottom:14px;">
-        <div style="font-size:12px;font-weight:700;color:var(--accent);margin-bottom:6px;">👤 이번달 담당자 순위</div>
-        ${topManagers.map((m,i)=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;"><span>${i+1}위 ${escapeHtml(m)}</span><span style="color:var(--text-dim);">${managerCounts[m]}건</span></div>`).join('')}
-      </div>`:''}
-      ${recentTop.length ? `
-      <div>
-        <div style="font-size:12px;font-weight:700;color:var(--accent);margin-bottom:6px;">🕐 최근 보고서</div>
-        ${recentTop.map(l=>`<div style="font-size:11.5px;padding:3px 0;color:var(--text-dim);">${escapeHtml(l.date)} · ${escapeHtml(l.site)} ${l.author?'· '+escapeHtml(l.author):''}</div>`).join('')}
-      </div>`:''}
+      <div class="mobile-stat-row">
+        <div class="mobile-stat-mini"><div class="mobile-stat-num">${allSites.length}</div><div class="mobile-stat-lbl">전체</div></div>
+        <div class="mobile-stat-mini"><div class="mobile-stat-num" style="color:#7ee787;">${visitedThisMonth.length}</div><div class="mobile-stat-lbl">방문</div></div>
+        <div class="mobile-stat-mini"><div class="mobile-stat-num" style="color:#ff7b7b;">${missedSites.length}</div><div class="mobile-stat-lbl">미방문</div></div>
+      </div>
+
+      <div class="mobile-expand-row" id="mobileVisitedToggle">방문현장 <span class="mobile-expand-count">(${visitedThisMonth.length})</span> <span class="mobile-expand-arrow">${mobileVisitedExpanded?'▲':'▼'}</span></div>
+      ${mobileVisitedExpanded ? `<div class="mobile-expand-body">
+        ${visitedThisMonth.length ? visitedThisMonth.map(v=>`<div class="mobile-expand-line">${escapeHtml(v.site)}: 총${v.count}회 방문</div>`).join('') : '<div class="mobile-expand-line" style="color:var(--text-dim);">없음</div>'}
+      </div>` : ''}
+
+      <div class="mobile-expand-row" id="mobileMissedToggle">미방문현장 <span class="mobile-expand-count">(${missedSites.length})</span> <span class="mobile-expand-arrow">${mobileMissedExpanded?'▲':'▼'}</span></div>
+      ${mobileMissedExpanded ? `<div class="mobile-expand-body">
+        ${missedSites.length ? missedSites.map(n=>`<div class="mobile-expand-line">${escapeHtml(n)}</div>`).join('') : '<div class="mobile-expand-line" style="color:var(--text-dim);">없음</div>'}
+      </div>` : ''}
+
+      <div class="mobile-cal-grid" style="margin-top:12px;">
+        ${['월','화','수','목','금','토','일'].map(d=>`<div class="mobile-cal-dayhead">${d}</div>`).join('')}
+        ${calCells}
+      </div>
+
+      <div class="mobile-section">
+        <div class="mobile-section-title">주별 특이사항</div>
+        ${weekSpecial.length ? weekSpecial.slice(0,5).map(w=>`<div class="mobile-section-line">- ${escapeHtml(w.site)}: ${escapeHtml(w.text)}</div>`).join('') : '<div class="mobile-section-line" style="color:var(--text-dim);">-</div>'}
+      </div>
+      <div class="mobile-section">
+        <div class="mobile-section-title">월별 특이사항</div>
+        ${monthSpecialSentences.length ? monthSpecialSentences.slice(0,8).map(w=>`<div class="mobile-section-line">- ${escapeHtml(w.site)}: ${escapeHtml(w.text)}</div>`).join('') : '<div class="mobile-section-line" style="color:var(--text-dim);">-</div>'}
+      </div>
+      <div class="mobile-section">
+        <div class="mobile-section-title">현장 행사 (일정캘린더 참고)</div>
+        ${monthEvents.length ? monthEvents.slice(0,8).map(e=>`<div class="mobile-section-line">- ${escapeHtml(e.date.slice(8,10))}일 ${escapeHtml(e.site)}: ${escapeHtml(e.label)}</div>`).join('') : '<div class="mobile-section-line" style="color:var(--text-dim);">-</div>'}
+      </div>
     `;
     document.getElementById('mobileSummaryCloseBtn').addEventListener('click', ()=>{
       document.getElementById('mobileSummaryOverlay').classList.remove('show');
     });
+    document.getElementById('mobileSummaryPrevBtn').addEventListener('click', ()=>{
+      mobileSummaryNavDate = new Date(mobileSummaryNavDate.getFullYear(), mobileSummaryNavDate.getMonth()-1, 1);
+      renderMobileSummary();
+    });
+    document.getElementById('mobileSummaryNextBtn').addEventListener('click', ()=>{
+      mobileSummaryNavDate = new Date(mobileSummaryNavDate.getFullYear(), mobileSummaryNavDate.getMonth()+1, 1);
+      renderMobileSummary();
+    });
+    document.getElementById('mobileSummaryTodayBtn').addEventListener('click', ()=>{
+      mobileSummaryNavDate = new Date();
+      renderMobileSummary();
+    });
+    document.getElementById('mobileVisitedToggle').addEventListener('click', ()=>{
+      mobileVisitedExpanded = !mobileVisitedExpanded;
+      renderMobileSummary();
+    });
+    document.getElementById('mobileMissedToggle').addEventListener('click', ()=>{
+      mobileMissedExpanded = !mobileMissedExpanded;
+      renderMobileSummary();
+    });
   }
   const mobileSummaryBtn = document.getElementById('mobileSummaryBtn');
   if(mobileSummaryBtn) mobileSummaryBtn.addEventListener('click', ()=>{
+    mobileSummaryNavDate = new Date();
     renderMobileSummary();
     document.getElementById('mobileSummaryOverlay').classList.add('show');
   });
