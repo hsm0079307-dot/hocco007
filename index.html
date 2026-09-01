@@ -972,13 +972,24 @@
 </div>
 
 <div class="overlay" id="ownerRosterModalOverlay">
-  <div class="modal" id="ownerRosterModalBox" style="max-width:480px;width:100%;">
+  <div class="modal" id="ownerRosterModalBox" style="max-width:560px;width:100%;">
     <h3 style="margin:0 0 6px;font-size:14px;">📋 소유주 명단 관리</h3>
-    <p style="font-size:11px;color:var(--text-dim);margin:0 0 8px;line-height:1.6;">
-      한 줄에 한 명씩 입력하세요. 직책이 있으면 "이름(직책)" 형식으로요.<br>
-      예) 김철수<br>이영희(대표)<br>박민수(위원장)
-    </p>
-    <textarea id="ownerRosterTextarea" rows="12" style="width:100%;box-sizing:border-box;background:var(--bg-side-2);border:1px solid var(--line);border-radius:8px;padding:8px;color:var(--text-main);font-size:12px;font-family:inherit;resize:vertical;"></textarea>
+    <details style="margin-bottom:8px;">
+      <summary style="font-size:10.5px;color:var(--accent);cursor:pointer;">📥 여러 명 한번에 붙여넣기 (엑셀에서 복사해온 것도 가능)</summary>
+      <p style="font-size:10px;color:var(--text-dim);margin:4px 0;line-height:1.5;">
+        한 줄에 한 명씩, "이름,직책,담당" 형식으로 붙여넣으세요(직책/담당은 없으면 비워둬도 됨). 엑셀에서 3칸을 복사해 붙여넣어도 자동 인식돼요.<br>
+        예) 김철수,,주현희<br>이영희,대표,주현희
+      </p>
+      <textarea id="ownerRosterBulkTextarea" rows="5" placeholder="이름,직책,담당" style="width:100%;box-sizing:border-box;background:var(--bg-side-2);border:1px solid var(--line);border-radius:8px;padding:6px;color:var(--text-main);font-size:11px;font-family:inherit;resize:vertical;"></textarea>
+      <button type="button" class="btn btn-ghost btn-sm" id="ownerRosterBulkApplyBtn" style="width:100%;margin-top:4px;">⬇ 표에 반영</button>
+    </details>
+    <div id="ownerRosterTableWrap" style="max-height:360px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;">
+      <table class="mgr-breakdown-table" style="margin-bottom:0;">
+        <thead><tr><th style="width:40%;">이름</th><th style="width:28%;">직책</th><th style="width:28%;">담당</th><th style="width:4%;"></th></tr></thead>
+        <tbody id="ownerRosterTableBody"></tbody>
+      </table>
+    </div>
+    <button type="button" class="btn btn-ghost btn-sm" id="ownerRosterAddRowBtn" style="width:100%;margin-top:6px;">+ 행 추가</button>
     <div style="display:flex;gap:8px;margin-top:10px;">
       <button type="button" class="btn btn-primary btn-sm" id="ownerRosterSaveBtn" style="flex:1;">저장</button>
       <button type="button" class="btn btn-ghost btn-sm" id="ownerRosterCancelBtn" style="flex:1;">취소</button>
@@ -1034,7 +1045,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v111</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v112</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -4090,13 +4101,59 @@ const L = (function(){
         }catch(e){ console.error('일지 수동 새로고침 실패', e); }
         renderDetailPanel(site);
       });
+      // 예전 버전엔 "이름(직책)" 문자열 배열로 저장했었는데, 이제 {name,role,manager} 객체 배열로 바꿨다.
+      // 예전 데이터를 열 때 자동으로 새 형식으로 변환해준다.
+      function normalizeRosterEntry(entry){
+        if(entry && typeof entry === 'object') return {name: entry.name||'', role: entry.role||'', manager: entry.manager||''};
+        const {name, role} = fullyStripRoles(entry);
+        return {name, role, manager: ''};
+      }
+      function renderOwnerRosterRows(rows){
+        const tbody = document.getElementById('ownerRosterTableBody');
+        tbody.innerHTML = rows.map((r,i)=>`
+          <tr data-row-idx="${i}">
+            <td><input type="text" class="log-inline-field roster-name" value="${escapeHtml(r.name||'')}" style="width:100%;padding:4px 6px;font-size:11px;"></td>
+            <td><input type="text" class="log-inline-field roster-role" value="${escapeHtml(r.role||'')}" style="width:100%;padding:4px 6px;font-size:11px;"></td>
+            <td><input type="text" class="log-inline-field roster-manager" value="${escapeHtml(r.manager||'')}" style="width:100%;padding:4px 6px;font-size:11px;"></td>
+            <td><button type="button" class="roster-row-del no-print" title="삭제" style="background:none;border:none;cursor:pointer;color:var(--text-dim);">✕</button></td>
+          </tr>`).join('');
+        tbody.querySelectorAll('.roster-row-del').forEach(btn=>{
+          btn.addEventListener('click', ()=>{ btn.closest('tr').remove(); });
+        });
+      }
+      function readOwnerRosterRows(){
+        return Array.from(document.querySelectorAll('#ownerRosterTableBody tr')).map(tr=>({
+          name: tr.querySelector('.roster-name').value.trim(),
+          role: tr.querySelector('.roster-role').value.trim(),
+          manager: tr.querySelector('.roster-manager').value.trim(),
+        })).filter(r=>r.name);
+      }
       const ownerRosterBtn = document.getElementById('ownerRosterBtn');
       if(ownerRosterBtn) ownerRosterBtn.addEventListener('click', async ()=>{
         if(!(await ensureUnlocked())) return;
-        const ta = document.getElementById('ownerRosterTextarea');
-        ta.value = (site.ownerRoster||[]).join('\n');
+        const rows = (site.ownerRoster||[]).map(normalizeRosterEntry);
+        renderOwnerRosterRows(rows.length ? rows : [{name:'',role:'',manager:''}]);
+        document.getElementById('ownerRosterBulkTextarea').value = '';
         document.getElementById('ownerRosterModalOverlay').classList.add('show');
-        ta.focus();
+      });
+      const ownerRosterAddRowBtn = document.getElementById('ownerRosterAddRowBtn');
+      if(ownerRosterAddRowBtn) ownerRosterAddRowBtn.addEventListener('click', ()=>{
+        const rows = readOwnerRosterRows();
+        rows.push({name:'',role:'',manager:''});
+        renderOwnerRosterRows(rows);
+      });
+      const ownerRosterBulkApplyBtn = document.getElementById('ownerRosterBulkApplyBtn');
+      if(ownerRosterBulkApplyBtn) ownerRosterBulkApplyBtn.addEventListener('click', ()=>{
+        const bulkTa = document.getElementById('ownerRosterBulkTextarea');
+        const lines = bulkTa.value.split('\n').map(l=>l.trim()).filter(Boolean);
+        if(!lines.length) return;
+        const parsed = lines.map(line=>{
+          const parts = line.split(/\t|,/).map(s=>s.trim());
+          return {name: parts[0]||'', role: parts[1]||'', manager: parts[2]||''};
+        }).filter(r=>r.name);
+        const existing = readOwnerRosterRows();
+        renderOwnerRosterRows(existing.concat(parsed));
+        bulkTa.value = '';
       });
       const ownerRosterCancelBtn = document.getElementById('ownerRosterCancelBtn');
       if(ownerRosterCancelBtn) ownerRosterCancelBtn.addEventListener('click', ()=>{
@@ -4105,9 +4162,8 @@ const L = (function(){
       const ownerRosterSaveBtn = document.getElementById('ownerRosterSaveBtn');
       if(ownerRosterSaveBtn) ownerRosterSaveBtn.addEventListener('click', async ()=>{
         if(!(await ensureUnlocked())) return;
-        const ta = document.getElementById('ownerRosterTextarea');
-        const names = ta.value.split('\n').map(s=>s.trim()).filter(Boolean);
-        site.ownerRoster = names;
+        const rows = readOwnerRosterRows();
+        site.ownerRoster = rows;
         document.getElementById('ownerRosterModalOverlay').classList.remove('show');
         renderDetailPanel(site);
         try{
@@ -4115,7 +4171,7 @@ const L = (function(){
           const {idx: idxInOffice} = await getFreshIndexInOffice(officeName, site.id);
           if(idxInOffice>-1){
             const url = `${FIREBASE_DB_URL}/offices/${encodeURIComponent(officeName)}/${idxInOffice}/ownerRoster.json?auth=${encodeURIComponent(FIREBASE_DB_SECRET)}`;
-            const res = await fetch(url, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(names)});
+            const res = await fetch(url, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(rows)});
             if(!res.ok) alert('⚠️ 클라우드 저장 실패 (상태코드 '+res.status+'). 이 화면에서만 저장됐고, 클라우드엔 반영 안 됐을 수 있어요.');
           }
         }catch(e){ console.error('소유주 명단 클라우드 반영 실패', e); }
@@ -4139,7 +4195,7 @@ const L = (function(){
         if(!(await ensureUnlocked())) return;
         const rawRoster = (site.ownerRoster||[]);
         if(!rawRoster.length){ alert('먼저 명단을 입력하고 저장해주세요.'); return; }
-        const roster = rawRoster.map(n=>{ const {name, role} = fullyStripRoles(n); return {name, role}; }).filter(r=>r.name);
+        const roster = rawRoster.map(normalizeRosterEntry).filter(r=>r.name);
         ownerRosterCleanupBtn.disabled = true;
         ownerRosterCleanupBtn.textContent = '정리하는 중...';
         let changedCount = 0;
@@ -6436,7 +6492,14 @@ const L = (function(){
   function collectKnownContactNames(site){
     const names = new Set();
     // 미리 등록해둔 소유주 명단이 있으면 그것부터 (오타 없이 정확한 표준 이름)
-    (site.ownerRoster||[]).forEach(n=>{ const t=String(n||'').trim(); if(t) names.add(t); });
+    (site.ownerRoster||[]).forEach(entry=>{
+      if(entry && typeof entry === 'object'){
+        const disp = entry.role ? `${entry.name}(${entry.role})` : entry.name;
+        if(entry.name) names.add(disp);
+      }else{
+        const t=String(entry||'').trim(); if(t) names.add(t);
+      }
+    });
     (site.logs||[]).forEach(l=>{
       const raw = (l.contactName||'').trim();
       if(!raw) return;
