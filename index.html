@@ -151,6 +151,9 @@
   .rd-trend-sub{font-weight:400;color:var(--text-dim);font-size:9.5px;}
   .rd-chart{display:flex;gap:6px;align-items:flex-end;flex:1 1 220px;min-width:200px;padding:2px 4px;}
   .rd-bar-col{flex:1;display:flex;flex-direction:column;align-items:center;height:100%;justify-content:flex-end;}
+  .rd-bar-clickable{cursor:pointer;}
+  .rd-bar-clickable:hover .rd-bar{filter:brightness(1.25);}
+  .rd-bar-clickable:hover .rd-bar-label{color:var(--accent);font-weight:700;}
   .rd-bar-track{width:100%;max-width:22px;height:64px;display:flex;align-items:flex-end;}
   .rd-bar{width:100%;background:linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 60%, transparent));border-radius:4px 4px 2px 2px;transition:height .2s;min-height:3px;}
   .rd-bar-val{font-size:9px;color:var(--text-dim);margin-top:2px;height:11px;}
@@ -584,7 +587,16 @@
   .mgr-breakdown-table thead th{background:var(--bg-main,rgba(255,255,255,.05));color:var(--accent);font-weight:700;font-size:9.5px;}
   .mgr-breakdown-table td.mgr-name, .mgr-breakdown-table th:first-child{text-align:left;font-weight:700;color:var(--text-main);width:22%;padding-left:6px;}
   .mgr-week-table th:not(:first-child), .mgr-week-table td:not(.mgr-name){width:11%;}
-  .mgr-visit-dot{display:inline-block;width:14px;height:14px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);cursor:pointer;transition:transform .12s;}
+  .mgr-visit-dot{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 3px;border-radius:9px;background:var(--accent);color:var(--accent-ink);font-size:10px;font-weight:800;box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);cursor:pointer;transition:transform .12s;}
+  .mgr-owner-cards{display:flex;flex-direction:column;gap:8px;}
+  .mgr-owner-card{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--bg-side-2);}
+  .mgr-owner-card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:12px;}
+  .mgr-owner-card-manager{font-size:10.5px;color:var(--text-dim);}
+  .mgr-owner-card-weekline{font-size:11px;color:var(--text-main);padding:1px 0;}
+  .mgr-owner-card-weekcnt{color:var(--accent);font-weight:700;}
+  .mgr-owner-card-monthtotal{font-size:11.5px;font-weight:700;color:var(--accent);margin:6px 0;padding-top:6px;border-top:1px dashed var(--line);}
+  .mgr-owner-card-special{font-size:10.5px;color:var(--text-main);}
+  .mgr-owner-card-specialline{padding:1px 0 1px 4px;color:var(--text-dim);}
   .mgr-visit-dot:hover{transform:scale(1.15);}
   .mgr-date-chip{display:inline-block;min-width:18px;padding:1px 5px;margin:1px 2px;border-radius:9px;background:color-mix(in srgb, var(--accent) 16%, transparent);color:var(--accent);font-weight:700;font-size:10px;cursor:pointer;}
   .mgr-date-chip:hover{background:var(--accent);color:var(--accent-ink);}
@@ -1046,7 +1058,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v119</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v121</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -6712,14 +6724,21 @@ const L = (function(){
 
     // ---- 주별/월별 집계 표 ----
     function buildWeekTable(){
+      const firstDowMW = new Date(monthRange.start.getFullYear(), monthRange.start.getMonth(), 1).getDay();
+      const mondayOffsetMW = (firstDowMW + 6) % 7;
+      function weekOfDayNumMW(dayOfMonth){ return Math.ceil((dayOfMonth + mondayOffsetMW) / 7); }
       return `<table class="mgr-breakdown-table mgr-week-table">
         <thead><tr><th>성함</th>${monthBuckets.map(b=>{ const m=b.label.match(/(\d+)주차/); return `<th>${escapeHtml(m?m[1]+'주차':b.label)}</th>`; }).join('')}</tr></thead>
         <tbody>
           ${managers.map(m=>`<tr><td class="mgr-name">${escapeHtml(m)}</td>${monthBuckets.map(b=>{
-            const cnt = b.sites[m]||0;
+            const weekLogs = logsForManager(m).filter(l=>{
+              const d = parseInt((l.date||'').slice(8,10),10);
+              return d && weekOfDayNumMW(d)===b.weekNum;
+            });
+            const cnt = new Set(weekLogs.map(l=>l.date).filter(Boolean)).size;
             const y = monthRange.start.getFullYear(), mo = monthRange.start.getMonth();
             const weekKey = `${y}-${mo+1}-${b.weekNum}`;
-            return `<td>${cnt?`<span class="mgr-visit-dot" data-filter-week="${escapeHtml(weekKey)}"></span>`:''}</td>`;
+            return `<td>${cnt?`<span class="mgr-visit-dot" data-filter-week="${escapeHtml(weekKey)}" title="${cnt}회 방문">${cnt}</span>`:''}</td>`;
           }).join('')}</tr>`).join('')}
         </tbody>
       </table>`;
@@ -6765,13 +6784,64 @@ const L = (function(){
           if(!byOwner[name].logs.includes(l)) byOwner[name].logs.push(l);
         });
       });
-      const owners = Object.keys(byOwner).sort((a,b)=>byOwner[b].logs.length-byOwner[a].logs.length);
+      function uniqueDateCount(logs){ return new Set(logs.map(l=>l.date).filter(Boolean)).size; }
+      // "이창희, 주현희"처럼 한 로그에 담당자 여러 명이 뭉쳐있는 걸 통째로 비교하면, 같은 사람인데
+      // 조합만 다르게 적힌 것끼리 서로 다른 값으로 취급돼 지저분하게 나온다. 이름 단위로 쪼개서 유니크하게 모은다.
+      function uniqueAuthorsOf(logs){
+        const set = new Set();
+        logs.forEach(l=>{ String(l.author||'').split(/[,\s]+/).filter(Boolean).forEach(a=>set.add(a)); });
+        return Array.from(set);
+      }
+      const owners = Object.keys(byOwner).sort((a,b)=>uniqueDateCount(byOwner[b].logs)-uniqueDateCount(byOwner[a].logs));
       if(!owners.length) return `<div class="mgr-empty">접촉자 기록이 없습니다.</div>`;
 
       const toggleHtml = `<div class="mgr-owner-toggle no-print">
-        ${['전체','주별','월별'].map(v=>`<span class="mgr-owner-toggle-btn${mgrOwnerSubView===v?' active':''}" data-owner-subview="${v}">${v}</span>`).join('')}
+        ${['전체','주별','월별','카드'].map(v=>`<span class="mgr-owner-toggle-btn${mgrOwnerSubView===v?' active':''}" data-owner-subview="${v}">${v}</span>`).join('')}
       </div>`;
 
+      if(mgrOwnerSubView==='카드'){
+        const firstDowC = new Date(monthRange.start.getFullYear(), monthRange.start.getMonth(), 1).getDay();
+        const mondayOffsetC = (firstDowC + 6) % 7;
+        function weekOfDayNumC(dayOfMonth){ return Math.ceil((dayOfMonth + mondayOffsetC) / 7); }
+        const cardsHtml = owners.map(o=>{
+          const logs = byOwner[o].logs;
+          const role = byOwner[o].role;
+          const authors = uniqueAuthorsOf(logs);
+          const weekGroups = {};
+          logs.forEach(l=>{
+            const d = parseInt((l.date||'').slice(8,10),10);
+            if(!d) return;
+            const wk = weekOfDayNumC(d);
+            if(!weekGroups[wk]) weekGroups[wk] = new Set();
+            weekGroups[wk].add(d);
+          });
+          const weekLines = Object.keys(weekGroups).map(Number).sort((a,b)=>a-b).map(wk=>{
+            const days = Array.from(weekGroups[wk]).sort((a,b)=>a-b);
+            return `<div class="mgr-owner-card-weekline"><b>${wk}주차:</b> ${days.join(', ')} — <span class="mgr-owner-card-weekcnt">${days.length}회</span></div>`;
+          }).join('');
+          const monthTotal = uniqueDateCount(logs);
+          const specialSentences = [];
+          logs.forEach(l=>{
+            splitSentences(l.text||'').forEach(s=>{
+              if(SPECIAL_KEYWORDS.some(k=>s.includes(k))) specialSentences.push(s);
+            });
+          });
+          const displayName = role ? `${o}(${role})` : o;
+          return `<div class="mgr-owner-card">
+            <div class="mgr-owner-card-head">
+              <span class="mgr-contact-chip" data-filter-contact="${escapeHtml(o)}">${escapeHtml(displayName)}</span>
+              <span class="mgr-owner-card-manager">담당: ${escapeHtml(authors.join(', ')||'-')}</span>
+            </div>
+            ${weekLines || '<div class="mgr-owner-card-weekline" style="color:var(--text-dim);">이번 달 방문 기록 없음</div>'}
+            <div class="mgr-owner-card-monthtotal">월: <b>${monthTotal}회</b> 접촉</div>
+            <div class="mgr-owner-card-special">
+              <b>특이사항:</b>
+              ${specialSentences.length ? specialSentences.slice(0,4).map(s=>`<div class="mgr-owner-card-specialline">- ${escapeHtml(s)}</div>`).join('') : '<div class="mgr-owner-card-specialline" style="color:var(--text-dim);">- 없음</div>'}
+            </div>
+          </div>`;
+        }).join('');
+        return toggleHtml + `<div class="mgr-owner-cards">${cardsHtml}</div>`;
+      }
       if(mgrOwnerSubView!=='전체'){
         function logsForOwner(name){
           return allLogs.filter(l=>{
@@ -6784,14 +6854,21 @@ const L = (function(){
         const ownerRows = owners.map(o=>({site:o, logs: logsForOwner(o)}));
         if(mgrOwnerSubView==='주별'){
           const oMonthBucketsForWeek = buildDailyGroups(ownerRows, monthRange, 'month');
+          const firstDowW = new Date(monthRange.start.getFullYear(), monthRange.start.getMonth(), 1).getDay();
+          const mondayOffsetW = (firstDowW + 6) % 7;
+          function weekOfDayNumW(dayOfMonth){ return Math.ceil((dayOfMonth + mondayOffsetW) / 7); }
           const y3 = monthRange.start.getFullYear(), mo3 = monthRange.start.getMonth();
           return toggleHtml + `<table class="mgr-breakdown-table mgr-week-table">
             <thead><tr><th>접촉자</th>${oMonthBucketsForWeek.map(b=>{ const m=b.label.match(/(\d+)주차/); return `<th>${escapeHtml(m?m[1]+'주차':b.label)}</th>`; }).join('')}</tr></thead>
             <tbody>
               ${owners.map(o=>`<tr><td class="mgr-name">${escapeHtml(o)}</td>${oMonthBucketsForWeek.map(b=>{
-                const cnt = b.sites[o]||0;
+                const weekLogs = logsForOwner(o).filter(l=>{
+                  const d = parseInt((l.date||'').slice(8,10),10);
+                  return d && weekOfDayNumW(d)===b.weekNum;
+                });
+                const cnt = uniqueDateCount(weekLogs);
                 const weekKey = `${y3}-${mo3+1}-${b.weekNum}`;
-                return `<td>${cnt?`<span class="mgr-visit-dot" data-filter-week="${escapeHtml(weekKey)}"></span>`:''}</td>`;
+                return `<td>${cnt?`<span class="mgr-visit-dot" data-filter-week="${escapeHtml(weekKey)}" title="${cnt}회 방문">${cnt}</span>`:''}</td>`;
               }).join('')}</tr>`).join('')}
             </tbody>
           </table>`;
@@ -6835,13 +6912,13 @@ const L = (function(){
             const logs = byOwner[o].logs;
             const role = byOwner[o].role;
             const lastDate = logs.map(l=>l.date).filter(Boolean).sort().slice(-1)[0] || '-';
-            const authors = Array.from(new Set(logs.map(l=>l.author).filter(Boolean)));
+            const authors = uniqueAuthorsOf(logs);
             const displayName = role ? `${o}(${role})` : o;
             const canEdit = o !== '(성함 미상)' && !guestMode;
             return `<tr data-owner-row="${escapeHtml(o)}">
               ${guestMode?'':`<td class="no-print">${canEdit?`<input type="checkbox" class="mgr-owner-merge-check" data-owner-name="${escapeHtml(o)}">`:''}</td>`}
               <td style="text-align:left;"><span class="mgr-contact-chip" data-filter-contact="${escapeHtml(o)}">${escapeHtml(displayName)}</span></td>
-              <td>${logs.length}</td>
+              <td>${uniqueDateCount(logs)}</td>
               <td>${escapeHtml(lastDate)}</td>
               <td>${escapeHtml(authors.join(', ')||'-')}</td>
               <td class="no-print">${canEdit?`<button type="button" class="mgr-owner-bulk-edit-btn" data-old-name="${escapeHtml(o)}" title="이 사람이 등장하는 모든 보고서에서 이름 일괄 수정">✏️</button>`:''}</td>
@@ -7353,7 +7430,9 @@ const L = (function(){
           ${dashDaily.map((day,i)=>{
             const short = reportMode==='week' ? day.label.replace(/\d+일\(|\)/g,'') : (day.label.match(/(\d+)주차/)||[,''])[1]+'주';
             const h = Math.max(4, Math.round((dashCounts[i]/dashMax)*100));
-            return `<div class="rd-bar-col" title="${escapeHtml(day.label)}: ${dashCounts[i]}건">
+            const clickable = reportMode==='month';
+            const titleText = clickable ? `${day.label}: ${dashCounts[i]}건 (클릭하면 이 주간으로 이동)` : `${day.label}: ${dashCounts[i]}건`;
+            return `<div class="rd-bar-col${clickable?' rd-bar-clickable':''}" ${clickable?`data-week-num="${day.weekNum}"`:''} title="${escapeHtml(titleText)}">
               <div class="rd-bar-track"><div class="rd-bar" style="height:${h}%;"></div></div>
               <div class="rd-bar-val">${dashCounts[i]||''}</div>
               <div class="rd-bar-label">${escapeHtml(short)}</div>
@@ -7608,6 +7687,19 @@ const L = (function(){
     body.querySelectorAll('.report-site-card').forEach(card=>{
       card.addEventListener('click', ()=>{
         showRowDetail(parseInt(card.dataset.idx, 10), card);
+      });
+    });
+    body.querySelectorAll('.rd-bar-clickable').forEach(col=>{
+      col.addEventListener('click', ()=>{
+        // 월간 보기에서 특정 주차 막대를 누르면 그 주간 보기로 드릴다운
+        const monthStart = new Date(reportBaseDate.getFullYear(), reportBaseDate.getMonth(), 1);
+        const firstDow = monthStart.getDay();
+        const mondayOffset = (firstDow + 6) % 7;
+        const weekNum = parseInt(col.dataset.weekNum, 10);
+        const dayNum = (weekNum-1)*7 - mondayOffset + 1;
+        reportBaseDate = new Date(monthStart.getFullYear(), monthStart.getMonth(), dayNum);
+        reportMode = 'week';
+        renderContactReport();
       });
     });
   }
