@@ -1119,7 +1119,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v138</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v139</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -7527,7 +7527,8 @@ const L = (function(){
           const dots = groupDaily.map(day=>{
             const count = day.sites[r.site]||0;
             const label = reportMode==='month' && count ? count : '';
-            return `<span class="report-matrix2-cell${count?' visited':''}" ${count?`data-idx="${r._idx}" title="${escapeHtml(r.site)} ${escapeHtml(day.label)} ${count}회"`:''}>${label}</span>`;
+            const dayKeyAttr = (reportMode==='week' && count) ? ` data-day-key="${escapeHtml(day.key)}"` : '';
+            return `<span class="report-matrix2-cell${count?' visited':''}" ${count?`data-idx="${r._idx}"${dayKeyAttr} title="${escapeHtml(r.site)} ${escapeHtml(day.label)} ${count}회"`:''}>${label}</span>`;
           }).join('');
           return `<div class="rm-siterow ${ri%2?'alt':''}">
             <span class="rm-col-name" title="${escapeHtml(r.site)}">${escapeHtml(r.site)}</span>
@@ -7683,17 +7684,21 @@ const L = (function(){
         </tbody>
       </table>`;
     let reportSelectedIdx = null;
+    let reportSelectedDayKey = null;
     function hideRowDetail(){
       reportSelectedIdx = null;
+      reportSelectedDayKey = null;
       const panel = document.getElementById('reportDetailPanel');
       panel.style.display = 'none';
       panel.innerHTML = '';
       body.querySelectorAll('.report-matrix2-cell.visited').forEach(c=>c.style.outline = '');
       body.querySelectorAll('.report-site-card').forEach(c=>c.style.borderColor = '');
     }
-    function showRowDetail(idx, highlightEl){
-      if(reportSelectedIdx === idx){ hideRowDetail(); return; } // 같은 걸 또 누르면 닫기
+    function showRowDetail(idx, highlightEl, dayKey){
+      dayKey = dayKey || null;
+      if(reportSelectedIdx === idx && reportSelectedDayKey === dayKey){ hideRowDetail(); return; } // 같은 걸 또 누르면 닫기
       reportSelectedIdx = idx;
+      reportSelectedDayKey = dayKey;
       const r = rows[idx];
       if(!r) return;
       const panel = document.getElementById('reportDetailPanel');
@@ -7703,7 +7708,8 @@ const L = (function(){
         if(highlightEl.classList && highlightEl.classList.contains('report-matrix2-cell')) highlightEl.style.outline = '2px solid var(--accent)';
         if(highlightEl.classList && highlightEl.classList.contains('report-site-card')) highlightEl.style.borderColor = 'var(--accent)';
       }
-      const rawContacts = Array.from(new Set((r.logs||[]).map(l=>l.contactName).filter(Boolean).map(n=>n.trim()).filter(Boolean)));
+      const scopedLogsForContacts = dayKey ? (r.logs||[]).filter(l=>l.date===dayKey) : (r.logs||[]);
+      const rawContacts = Array.from(new Set(scopedLogsForContacts.map(l=>l.contactName).filter(Boolean).map(n=>n.trim()).filter(Boolean)));
       // "최영희 (선관위원)", "정상수(위원장)" 같은 문자열에서 이름/직책을 분리하고, 같은 이름은 하나로 합친다
       const contactMap = new Map(); // name -> role (있으면)
       rawContacts.forEach(raw=>{
@@ -7727,23 +7733,25 @@ const L = (function(){
           <div class="contact-role-label">${escapeHtml(key)} <span>${roleGroups.get(key).length}명</span></div>
           <div class="contact-name-grid">${roleGroups.get(key).map(n=>`<div class="contact-name-chip" data-jump-contact="${escapeHtml(n)}" title="눌러서 이 사람 상담 기록으로 이동">${escapeHtml(n)}</div>`).join('')}</div>
         </div>`).join('') : '<div class="report-note-line">없음</div>';
-      // 이번 기간(선택한 주/달) 로그가 기본, 원하면 전체 이력도 펼쳐볼 수 있게 별도로 준비해둔다
-      const periodLogs = (r.logs||[]).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+      // 이번 기간(선택한 주/달) 로그가 기본, 요일 칸을 눌렀으면 그 날짜만, 원하면 전체 이력도 펼쳐볼 수 있게 별도로 준비해둔다
+      const periodLogsAll = (r.logs||[]).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+      const periodLogs = dayKey ? periodLogsAll.filter(l=>l.date===dayKey) : periodLogsAll;
       const allHistoryLogs = (reportSiteFullLogs[r.site] || r.logs || []).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
       panel.style.display = 'block';
       panel.innerHTML = `
         <div class="report-detail-head">
           <b>${escapeHtml(r.site)}</b>
           <span style="color:var(--text-dim);font-size:11.5px;">(${escapeHtml(r.office)} · 담당 ${escapeHtml(r.manager)})</span>
-          <span style="margin-left:auto;font-weight:700;color:var(--accent);">${r.count}회 방문</span>
+          ${dayKey ? `<span style="color:var(--accent);font-size:11.5px;font-weight:700;">📌 ${escapeHtml(formatDateKr(dayKey))}만 보는 중</span>` : ''}
+          <span style="margin-left:auto;font-weight:700;color:var(--accent);">${dayKey ? periodLogs.length+'건' : r.count+'회 방문'}</span>
         </div>
         <div class="report-detail-notes">
           <div class="report-summary-block" style="margin-bottom:10px;">
-            <div style="font-weight:700;font-size:12px;margin-bottom:4px;">이번 기간 현장방문</div>
-            <div class="report-note-line">${r.count}회</div>
+            <div style="font-weight:700;font-size:12px;margin-bottom:4px;">${dayKey ? escapeHtml(formatDateKr(dayKey))+' 방문' : '이번 기간 현장방문'}</div>
+            <div class="report-note-line">${dayKey ? periodLogs.length+'건' : r.count+'회'}</div>
           </div>
           <div class="report-summary-block" style="margin-bottom:14px;">
-            <div style="font-weight:700;font-size:12px;margin-bottom:6px;">이번 기간 접촉자</div>
+            <div style="font-weight:700;font-size:12px;margin-bottom:6px;">${dayKey ? '접촉자' : '이번 기간 접촉자'}</div>
             ${contactsHtml}
           </div>
           <div class="report-section-title" style="margin:0 0 8px;display:flex;align-items:center;justify-content:space-between;">
@@ -7761,7 +7769,7 @@ const L = (function(){
         area.innerHTML = `<div class="report-timeline">${allHistoryLogs.map(l=>buildLogCard(l, shownCompetitor, shownSpecial, {fullDate:true})).join('')}</div>`;
         fullHistoryBtn.style.display = 'none';
       });
-      panel.scrollIntoView({behavior:'smooth', block:'nearest'});
+      // 클릭할 때마다 화면이 스크롤되어 밑으로 내려가면 불편하다는 피드백을 받아서, 이제 스크롤은 안 함
       panel.querySelectorAll('.contact-name-chip[data-jump-contact]').forEach(chip=>{
         chip.addEventListener('click', ()=>{
           const target = chip.dataset.jumpContact;
@@ -7782,7 +7790,7 @@ const L = (function(){
     }
     body.querySelectorAll('.report-matrix2-cell.visited').forEach(cell=>{
       cell.addEventListener('click', ()=>{
-        showRowDetail(parseInt(cell.dataset.idx, 10), cell);
+        showRowDetail(parseInt(cell.dataset.idx, 10), cell, cell.dataset.dayKey);
       });
     });
     body.querySelectorAll('.report-site-note-pencil').forEach(btn=>{
