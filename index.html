@@ -1064,7 +1064,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v124</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v125</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -4076,7 +4076,7 @@ const L = (function(){
                 <div class="log-author-heading">${isJoint?'🤝':'👤'} ${escapeHtml(author)}${isJoint?' <span class="log-joint-tag">공동방문</span>':''} <span style="font-weight:400;color:var(--text-dim);">${groups[author].length}건</span></div>
                 ${groups[author].map(l=>{
                   return `
-                <div class="log-item" data-log-id="${escapeHtml(l.id||'')}" data-contact-name="${escapeHtml((l.contactName||'').trim())}" data-log-date="${escapeHtml(l.date||'')}" data-log-week="${escapeHtml(weekOfMonthKey(l.date))}">
+                <div class="log-item" data-log-id="${escapeHtml(l.id||'')}" data-contact-name="${escapeHtml((l.contactName||'').trim())}" data-log-date="${escapeHtml(l.date||'')}" data-log-week="${escapeHtml(weekOfMonthKey(l.date))}" data-log-author="${escapeHtml((l.author||'').trim())}">
                   <div class="log-meta-col">
                     <div class="log-date">${escapeHtml(formatDateKr(l.date))}</div>
                     ${isJoint && l.author?`<div class="log-meta-line">작성: ${escapeHtml(l.author)}</div>`:''}
@@ -4550,18 +4550,44 @@ const L = (function(){
         chip.addEventListener('click', ()=>{
           const dateKey = chip.dataset.filterDate;
           if(!dateKey) return;
-          const label = formatDateKr(dateKey);
+          const mgrName = chip.dataset.filterManager;
+          const ownerName = chip.dataset.filterOwner;
+          const label = formatDateKr(dateKey) + (mgrName?` · ${mgrName}`:'') + (ownerName?` · ${ownerName}`:'');
           const noScroll = chip.classList.contains('mgr-cal-name-chip');
-          applyLogFilter(item=> item.dataset.logDate===dateKey, label, {noScroll});
+          applyLogFilter(item=>{
+            if(item.dataset.logDate!==dateKey) return false;
+            if(mgrName){
+              const authors = String(item.dataset.logAuthor||'').split(/[,\s]+/).filter(Boolean);
+              if(!authors.includes(mgrName)) return false;
+            }
+            if(ownerName){
+              const segs = splitMultiNames(item.dataset.contactName||'');
+              if(!segs.some(seg=>fullyStripRoles(seg).name===ownerName)) return false;
+            }
+            return true;
+          }, label, {noScroll});
         });
       });
       body.querySelectorAll('[data-filter-week]').forEach(chip=>{
         chip.addEventListener('click', ()=>{
           const weekKey = chip.dataset.filterWeek;
           if(!weekKey) return;
+          const mgrName = chip.dataset.filterManager;
+          const ownerName = chip.dataset.filterOwner;
           const parts = weekKey.split('-');
-          const label = `${parts[1]}월 ${parts[2]}주차`;
-          applyLogFilter(item=> item.dataset.logWeek===weekKey, label);
+          const label = `${parts[1]}월 ${parts[2]}주차` + (mgrName?` · ${mgrName}`:'') + (ownerName?` · ${ownerName}`:'');
+          applyLogFilter(item=>{
+            if(item.dataset.logWeek!==weekKey) return false;
+            if(mgrName){
+              const authors = String(item.dataset.logAuthor||'').split(/[,\s]+/).filter(Boolean);
+              if(!authors.includes(mgrName)) return false;
+            }
+            if(ownerName){
+              const segs = splitMultiNames(item.dataset.contactName||'');
+              if(!segs.some(seg=>fullyStripRoles(seg).name===ownerName)) return false;
+            }
+            return true;
+          }, label);
         });
       });
       function buildLogEditFieldsHtml(l){
@@ -6742,7 +6768,7 @@ const L = (function(){
         const dayLogs = logsByDate[dateKey]||[];
         const namesOnDay = Array.from(new Set(dayLogs.map(l=>l.author).filter(Boolean).flatMap(a=>String(a).split(/[,\s]+/).filter(Boolean))));
         const isToday = dateKey === (now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0'));
-        const namesHtml = namesOnDay.map(name=>`<div class="mgr-cal-name-chip" data-filter-date="${escapeHtml(dateKey)}">${escapeHtml(name)}</div>`).join('');
+        const namesHtml = namesOnDay.map(name=>`<div class="mgr-cal-name-chip" data-filter-date="${escapeHtml(dateKey)}" data-filter-manager="${escapeHtml(name)}">${escapeHtml(name)}</div>`).join('');
         cells += `<div class="mgr-cal-cell${dayLogs.length?' has-log':''}${isToday?' is-today':''}">
           <div class="mgr-cal-daynum">${d}</div>
           ${namesHtml ? `<div class="mgr-cal-names">${namesHtml}</div>` : ''}
@@ -6772,7 +6798,7 @@ const L = (function(){
             const cnt = new Set(weekLogs.map(l=>l.date).filter(Boolean)).size;
             const y = monthRange.start.getFullYear(), mo = monthRange.start.getMonth();
             const weekKey = `${y}-${mo+1}-${b.weekNum}`;
-            return `<td>${cnt?`<span class="mgr-visit-dot" data-filter-week="${escapeHtml(weekKey)}" title="${cnt}회 방문">${cnt}</span>`:''}</td>`;
+            return `<td>${cnt?`<span class="mgr-visit-dot" data-filter-week="${escapeHtml(weekKey)}" data-filter-manager="${escapeHtml(m)}" title="${cnt}회 방문">${cnt}</span>`:''}</td>`;
           }).join('')}</tr>`).join('')}
         </tbody>
       </table>`;
@@ -6789,7 +6815,7 @@ const L = (function(){
             const y2 = monthRange.start.getFullYear(), mo2 = monthRange.start.getMonth();
             return `<td>${days.map(d=>{
               const dateKey = y2+'-'+String(mo2+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
-              return `<span class="mgr-date-chip" data-filter-date="${escapeHtml(dateKey)}">${d}</span>`;
+              return `<span class="mgr-date-chip" data-filter-date="${escapeHtml(dateKey)}" data-filter-manager="${escapeHtml(m)}">${d}</span>`;
             }).join('')}</td>`;
           }).join('')}</tr>`).join('')}
         </tbody>
@@ -6904,7 +6930,7 @@ const L = (function(){
                 });
                 const cnt = uniqueDateCount(weekLogs);
                 const weekKey = `${y3}-${mo3+1}-${b.weekNum}`;
-                return `<td>${cnt?`<span class="mgr-visit-dot" data-filter-week="${escapeHtml(weekKey)}" title="${cnt}회 방문">${cnt}</span>`:''}</td>`;
+                return `<td>${cnt?`<span class="mgr-visit-dot" data-filter-week="${escapeHtml(weekKey)}" data-filter-owner="${escapeHtml(o)}" title="${cnt}회 방문">${cnt}</span>`:''}</td>`;
               }).join('')}</tr>`).join('')}
             </tbody>
           </table>`;
@@ -6926,7 +6952,7 @@ const L = (function(){
                 const days = Array.from(new Set(logs.map(l=>parseInt((l.date||'').slice(8,10),10)))).filter(Boolean).sort((x,y)=>x-y);
                 return `<td>${days.map(d=>{
                   const dateKey = y2+'-'+String(mo2+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
-                  return `<span class="mgr-date-chip" data-filter-date="${escapeHtml(dateKey)}">${d}</span>`;
+                  return `<span class="mgr-date-chip" data-filter-date="${escapeHtml(dateKey)}" data-filter-owner="${escapeHtml(o)}">${d}</span>`;
                 }).join('')}</td>`;
               }).join('')}</tr>`).join('')}
             </tbody>
