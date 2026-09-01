@@ -1110,7 +1110,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v133</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v134</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -8482,17 +8482,18 @@ const L = (function(){
     </div>`;
   }
   function specialSectionsHtml(weeklySpecial, monthEvents){
+    const weekNums = Object.keys(weeklySpecial).map(Number).sort((a,b)=>a-b);
     return `
       <div class="mobile-section">
         <div class="mobile-section-title">주별 특이사항</div>
-        ${weekSpecial.length ? weekSpecial.slice(0,5).map(w=>`<div class="mobile-section-line">- ${escapeHtml(w.site)}: ${escapeHtml(w.text)}</div>`).join('') : '<div class="mobile-section-line" style="color:var(--text-dim);">-</div>'}
+        ${weekNums.length ? weekNums.map(wk=>`
+          <div class="mobile-week-block">
+            <div class="mobile-week-num">${wk}주차</div>
+            ${weeklySpecial[wk].slice(0,5).map(w=>`<div class="mobile-section-line">- ${escapeHtml(w.site)}: ${escapeHtml(w.text)}</div>`).join('')}
+          </div>`).join('') : '<div class="mobile-section-line" style="color:var(--text-dim);">-</div>'}
       </div>
       <div class="mobile-section">
-        <div class="mobile-section-title">월별 특이사항</div>
-        ${monthSpecialSentences.length ? monthSpecialSentences.slice(0,8).map(w=>`<div class="mobile-section-line">- ${escapeHtml(w.site)}: ${escapeHtml(w.text)}</div>`).join('') : '<div class="mobile-section-line" style="color:var(--text-dim);">-</div>'}
-      </div>
-      <div class="mobile-section">
-        <div class="mobile-section-title">현장 행사 (일정캘린더 참고)</div>
+        <div class="mobile-section-title">현장 행사</div>
         ${monthEvents.length ? monthEvents.slice(0,8).map(e=>`<div class="mobile-section-line">- ${escapeHtml(e.date.slice(8,10))}일 ${escapeHtml(e.site)}: ${escapeHtml(e.label)}</div>`).join('') : '<div class="mobile-section-line" style="color:var(--text-dim);">-</div>'}
       </div>`;
   }
