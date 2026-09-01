@@ -483,6 +483,8 @@
   .mobile-expand-arrow{margin-left:auto;color:var(--text-dim);font-size:10px;}
   .mobile-expand-body{padding:6px 4px 8px;max-height:180px;overflow-y:auto;}
   .mobile-expand-line{font-size:11.5px;color:var(--text-main);padding:2px 0;}
+  .mobile-site-link{cursor:pointer;padding:5px 6px;border-radius:6px;}
+  .mobile-site-link:hover, .mobile-site-link:active{background:color-mix(in srgb, var(--accent) 14%, transparent);color:var(--accent);}
   .mobile-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;}
   .mobile-cal-dayhead{text-align:center;font-size:9.5px;color:var(--text-dim);padding:2px 0;}
   .mobile-cal-cell{min-height:36px;border:1px solid var(--line);border-radius:5px;padding:2px;font-size:9px;}
@@ -1106,7 +1108,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v131</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v132</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -8406,17 +8408,15 @@ const L = (function(){
   let mobileSummaryNavDate = new Date();
   let mobileVisitedExpanded = false;
   let mobileMissedExpanded = false;
+  let mobileSelectedSite = null; // 특정 현장 하나를 눌러서 상세보기 중이면 그 현장명
   const MOBILE_SPECIAL_KEYWORDS = ['불만','민원','갈등','반대','집회','총회','서명','우려','분쟁','소송','논란','항의'];
-  function renderMobileSummary(){
-    const box = document.getElementById('mobileSummaryModalBox');
-    if(!box) return;
-    const y = mobileSummaryNavDate.getFullYear(), mo = mobileSummaryNavDate.getMonth();
-    const allSites = sites.filter(s=>!s.isRegionZone);
-    const visitedThisMonth = []; // {site, count, dates:Set}
+  // sitesList(전체 또는 현장 1곳)를 받아서 그 달의 방문/특이사항/행사 데이터를 계산한다. (전체현황/현장상세 공용)
+  function computeMobileMonthData(sitesList, y, mo){
+    const visitedThisMonth = [];
     const missedSites = [];
-    const dayManagers = {}; // 'YYYY-MM-DD' -> Set(담당자)
-    const monthSpecialSentences = []; // {date, site, text}
-    allSites.forEach(s=>{
+    const dayManagers = {};
+    const monthSpecialSentences = [];
+    sitesList.forEach(s=>{
       const monthDates = new Set();
       let visitCount = 0;
       (s.logs||[]).forEach(l=>{
@@ -8438,13 +8438,12 @@ const L = (function(){
     visitedThisMonth.sort((a,b)=>b.count-a.count);
     missedSites.sort((a,b)=>a.localeCompare(b,'ko'));
 
-    // 이번 주(실제 오늘 기준) 특이사항
     const realNow = new Date();
     const weekRangeReal = getWeekRange(realNow);
     const weekStartKey = `${weekRangeReal.start.getFullYear()}-${String(weekRangeReal.start.getMonth()+1).padStart(2,'0')}-${String(weekRangeReal.start.getDate()).padStart(2,'0')}`;
     const weekEndKey = `${weekRangeReal.end.getFullYear()}-${String(weekRangeReal.end.getMonth()+1).padStart(2,'0')}-${String(weekRangeReal.end.getDate()).padStart(2,'0')}`;
     const weekSpecial = [];
-    allSites.forEach(s=>{
+    sitesList.forEach(s=>{
       (s.logs||[]).forEach(l=>{
         if(!l.date) return;
         if(l.date < weekStartKey || l.date > weekEndKey) return;
@@ -8454,9 +8453,8 @@ const L = (function(){
       });
     });
 
-    // 이 달의 현장 행사 (일정캘린더 참고)
     const monthEvents = [];
-    allSites.forEach(s=>{
+    sitesList.forEach(s=>{
       eventsOf(s).forEach(ev=>{
         if(!ev.date || !ev.label) return;
         const ey = parseInt(ev.date.slice(0,4),10), em = parseInt(ev.date.slice(5,7),10);
@@ -8465,7 +8463,9 @@ const L = (function(){
     });
     monthEvents.sort((a,b)=>a.date.localeCompare(b.date));
 
-    // 달력 그리드
+    return {visitedThisMonth, missedSites, dayManagers, monthSpecialSentences, weekSpecial, monthEvents};
+  }
+  function buildMobileCalGrid(y, mo, dayManagers){
     const firstDow = new Date(y, mo, 1).getDay();
     const mondayOffset = (firstDow + 6) % 7;
     const daysInMonth = new Date(y, mo+1, 0).getDate();
@@ -8480,6 +8480,33 @@ const L = (function(){
         ${mgrs.length?`<div class="mobile-cal-mgrs">${mgrs.map(m=>escapeHtml(m)).join(', ')}</div>`:''}
       </div>`;
     }
+    return `<div class="mobile-cal-grid" style="margin-top:12px;">
+      ${['월','화','수','목','금','토','일'].map(d=>`<div class="mobile-cal-dayhead">${d}</div>`).join('')}
+      ${calCells}
+    </div>`;
+  }
+  function specialSectionsHtml(weekSpecial, monthSpecialSentences, monthEvents){
+    return `
+      <div class="mobile-section">
+        <div class="mobile-section-title">주별 특이사항</div>
+        ${weekSpecial.length ? weekSpecial.slice(0,5).map(w=>`<div class="mobile-section-line">- ${escapeHtml(w.site)}: ${escapeHtml(w.text)}</div>`).join('') : '<div class="mobile-section-line" style="color:var(--text-dim);">-</div>'}
+      </div>
+      <div class="mobile-section">
+        <div class="mobile-section-title">월별 특이사항</div>
+        ${monthSpecialSentences.length ? monthSpecialSentences.slice(0,8).map(w=>`<div class="mobile-section-line">- ${escapeHtml(w.site)}: ${escapeHtml(w.text)}</div>`).join('') : '<div class="mobile-section-line" style="color:var(--text-dim);">-</div>'}
+      </div>
+      <div class="mobile-section">
+        <div class="mobile-section-title">현장 행사 (일정캘린더 참고)</div>
+        ${monthEvents.length ? monthEvents.slice(0,8).map(e=>`<div class="mobile-section-line">- ${escapeHtml(e.date.slice(8,10))}일 ${escapeHtml(e.site)}: ${escapeHtml(e.label)}</div>`).join('') : '<div class="mobile-section-line" style="color:var(--text-dim);">-</div>'}
+      </div>`;
+  }
+  function renderMobileSummary(){
+    if(mobileSelectedSite){ renderMobileSiteDetail(mobileSelectedSite); return; }
+    const box = document.getElementById('mobileSummaryModalBox');
+    if(!box) return;
+    const y = mobileSummaryNavDate.getFullYear(), mo = mobileSummaryNavDate.getMonth();
+    const allSites = sites.filter(s=>!s.isRegionZone);
+    const {visitedThisMonth, missedSites, dayManagers, monthSpecialSentences, weekSpecial, monthEvents} = computeMobileMonthData(allSites, y, mo);
 
     box.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
@@ -8500,31 +8527,16 @@ const L = (function(){
 
       <div class="mobile-expand-row" id="mobileVisitedToggle">방문현장 <span class="mobile-expand-count">(${visitedThisMonth.length})</span> <span class="mobile-expand-arrow">${mobileVisitedExpanded?'▲':'▼'}</span></div>
       ${mobileVisitedExpanded ? `<div class="mobile-expand-body">
-        ${visitedThisMonth.length ? visitedThisMonth.map(v=>`<div class="mobile-expand-line">${escapeHtml(v.site)}: 총${v.count}회 방문</div>`).join('') : '<div class="mobile-expand-line" style="color:var(--text-dim);">없음</div>'}
+        ${visitedThisMonth.length ? visitedThisMonth.map(v=>`<div class="mobile-expand-line mobile-site-link" data-site-name="${escapeHtml(v.site)}">${escapeHtml(v.site)}: 총${v.count}회 방문</div>`).join('') : '<div class="mobile-expand-line" style="color:var(--text-dim);">없음</div>'}
       </div>` : ''}
 
       <div class="mobile-expand-row" id="mobileMissedToggle">미방문현장 <span class="mobile-expand-count">(${missedSites.length})</span> <span class="mobile-expand-arrow">${mobileMissedExpanded?'▲':'▼'}</span></div>
       ${mobileMissedExpanded ? `<div class="mobile-expand-body">
-        ${missedSites.length ? missedSites.map(n=>`<div class="mobile-expand-line">${escapeHtml(n)}</div>`).join('') : '<div class="mobile-expand-line" style="color:var(--text-dim);">없음</div>'}
+        ${missedSites.length ? missedSites.map(n=>`<div class="mobile-expand-line mobile-site-link" data-site-name="${escapeHtml(n)}">${escapeHtml(n)}</div>`).join('') : '<div class="mobile-expand-line" style="color:var(--text-dim);">없음</div>'}
       </div>` : ''}
 
-      <div class="mobile-cal-grid" style="margin-top:12px;">
-        ${['월','화','수','목','금','토','일'].map(d=>`<div class="mobile-cal-dayhead">${d}</div>`).join('')}
-        ${calCells}
-      </div>
-
-      <div class="mobile-section">
-        <div class="mobile-section-title">주별 특이사항</div>
-        ${weekSpecial.length ? weekSpecial.slice(0,5).map(w=>`<div class="mobile-section-line">- ${escapeHtml(w.site)}: ${escapeHtml(w.text)}</div>`).join('') : '<div class="mobile-section-line" style="color:var(--text-dim);">-</div>'}
-      </div>
-      <div class="mobile-section">
-        <div class="mobile-section-title">월별 특이사항</div>
-        ${monthSpecialSentences.length ? monthSpecialSentences.slice(0,8).map(w=>`<div class="mobile-section-line">- ${escapeHtml(w.site)}: ${escapeHtml(w.text)}</div>`).join('') : '<div class="mobile-section-line" style="color:var(--text-dim);">-</div>'}
-      </div>
-      <div class="mobile-section">
-        <div class="mobile-section-title">현장 행사 (일정캘린더 참고)</div>
-        ${monthEvents.length ? monthEvents.slice(0,8).map(e=>`<div class="mobile-section-line">- ${escapeHtml(e.date.slice(8,10))}일 ${escapeHtml(e.site)}: ${escapeHtml(e.label)}</div>`).join('') : '<div class="mobile-section-line" style="color:var(--text-dim);">-</div>'}
-      </div>
+      ${buildMobileCalGrid(y, mo, dayManagers)}
+      ${specialSectionsHtml(weekSpecial, monthSpecialSentences, monthEvents)}
     `;
     document.getElementById('mobileSummaryCloseBtn').addEventListener('click', ()=>{
       document.getElementById('mobileSummaryOverlay').classList.remove('show');
@@ -8549,10 +8561,58 @@ const L = (function(){
       mobileMissedExpanded = !mobileMissedExpanded;
       renderMobileSummary();
     });
+    box.querySelectorAll('.mobile-site-link').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        mobileSelectedSite = el.dataset.siteName;
+        renderMobileSummary();
+      });
+    });
+  }
+  // 현장 하나만 골라서 그 현장의 달력·특이사항·행사만 보여주는 상세화면
+  function renderMobileSiteDetail(siteName){
+    const box = document.getElementById('mobileSummaryModalBox');
+    if(!box) return;
+    const site = sites.find(s=>s.name===siteName);
+    if(!site){ mobileSelectedSite = null; renderMobileSummary(); return; }
+    const y = mobileSummaryNavDate.getFullYear(), mo = mobileSummaryNavDate.getMonth();
+    const {visitedThisMonth, dayManagers, monthSpecialSentences, weekSpecial, monthEvents} = computeMobileMonthData([site], y, mo);
+    const visitInfo = visitedThisMonth[0];
+
+    box.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <h3 style="margin:0;font-size:14px;">${escapeHtml(siteName)}</h3>
+        <button type="button" id="mobileSummaryCloseBtn" style="background:none;border:none;color:var(--text-dim);font-size:18px;cursor:pointer;">✕</button>
+      </div>
+      <div class="mobile-summary-nav">
+        <button type="button" id="mobileSiteBackBtn" class="mobile-nav-today-btn" style="margin-left:0;">◀ 전체로</button>
+        <button type="button" class="mobile-nav-btn" id="mobileSummaryPrevBtn">◀</button>
+        <span class="mobile-nav-label">${y}년 ${mo+1}월</span>
+        <button type="button" class="mobile-nav-btn" id="mobileSummaryNextBtn">▶</button>
+      </div>
+      <div class="mobile-expand-line" style="font-size:13px;font-weight:700;color:var(--accent);padding:6px 2px 10px;">${escapeHtml(siteName)}: 총${visitInfo?visitInfo.count:0}회 방문</div>
+      ${buildMobileCalGrid(y, mo, dayManagers)}
+      ${specialSectionsHtml(weekSpecial, monthSpecialSentences, monthEvents)}
+    `;
+    document.getElementById('mobileSummaryCloseBtn').addEventListener('click', ()=>{
+      document.getElementById('mobileSummaryOverlay').classList.remove('show');
+    });
+    document.getElementById('mobileSiteBackBtn').addEventListener('click', ()=>{
+      mobileSelectedSite = null;
+      renderMobileSummary();
+    });
+    document.getElementById('mobileSummaryPrevBtn').addEventListener('click', ()=>{
+      mobileSummaryNavDate = new Date(mobileSummaryNavDate.getFullYear(), mobileSummaryNavDate.getMonth()-1, 1);
+      renderMobileSiteDetail(siteName);
+    });
+    document.getElementById('mobileSummaryNextBtn').addEventListener('click', ()=>{
+      mobileSummaryNavDate = new Date(mobileSummaryNavDate.getFullYear(), mobileSummaryNavDate.getMonth()+1, 1);
+      renderMobileSiteDetail(siteName);
+    });
   }
   const mobileSummaryBtn = document.getElementById('mobileSummaryBtn');
   if(mobileSummaryBtn) mobileSummaryBtn.addEventListener('click', ()=>{
     mobileSummaryNavDate = new Date();
+    mobileSelectedSite = null;
     renderMobileSummary();
     document.getElementById('mobileSummaryOverlay').classList.add('show');
   });
