@@ -165,6 +165,9 @@
   .rd-bar-label{font-size:9px;color:var(--text-dim);margin-top:1px;white-space:nowrap;}
   .report-matrix-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--bg-side-2);padding:10px;margin-bottom:6px;box-shadow:var(--shadow-xs);}
   .report-matrix-title{font-size:12.5px;font-weight:700;color:var(--accent);margin:14px 0 6px;}
+  .report-site-toggle-row{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:var(--text-main);padding:10px 8px;margin-top:6px;border:1px solid var(--line);border-radius:8px;cursor:pointer;background:var(--bg-side-2);}
+  .report-site-toggle-row:hover{border-color:var(--accent);}
+  .report-site-toggle-arrow{margin-left:auto;color:var(--text-dim);font-size:10px;}
   .report-matrix2{border-collapse:separate;border-spacing:3px;font-size:11px;table-layout:fixed;width:max-content;}
   .rm-headrow, .rm-siterow{display:flex;align-items:center;gap:6px;padding:4px 6px;}
   .rm-headrow{font-size:9.5px;font-weight:700;color:var(--text-dim);border-bottom:1.5px solid var(--accent);margin-bottom:2px;}
@@ -1103,7 +1106,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v130</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v131</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -7129,6 +7132,7 @@ const L = (function(){
   }
 
   // ---------- 접촉자 CRM 뷰: 사람 기준으로 접촉 이력을 모아서 보여줌 ----------
+  let expandedContactSites = new Set(); // 접촉자 탭에서 펼쳐진 현장들 (여러 개 동시에 펼칠 수 있음)
   function renderContactsView(){
     const body = document.getElementById('contactReportBody');
     const flat = getAllLogsFlat();
@@ -7152,17 +7156,31 @@ const L = (function(){
       <div style="margin-bottom:12px;color:var(--text-dim);font-size:12px;">전체 기간 기준 · 접촉자 ${totalContacts}명 · ${siteNames.length}개 현장</div>
       ${siteNames.length ? siteNames.map(site=>{
         const contacts = Object.values(siteMap[site]).sort((a,b)=>b.count-a.count);
+        const expanded = expandedContactSites.has(site);
         return `
-        <div class="report-matrix-title">📍 ${escapeHtml(site)} <span style="font-weight:400;color:var(--text-dim);">${contacts.length}명</span></div>
-        <div class="report-manager-cards" style="margin-bottom:14px;">
+        <div class="report-site-toggle-row" data-toggle-site="${escapeHtml(site)}">
+          <span>📍 ${escapeHtml(site)}</span>
+          <span style="color:var(--text-dim);font-weight:400;">${contacts.length}명</span>
+          <span class="report-site-toggle-arrow">${expanded?'▲':'▼'}</span>
+        </div>
+        ${expanded ? `<div class="report-manager-cards" style="margin-bottom:14px;">
           ${contacts.map(c=>`
             <div class="report-manager-card report-contact-card" data-site="${escapeHtml(site)}" data-name="${escapeHtml(c.name)}" style="cursor:pointer;">
               <div class="report-manager-card-head"><span>${escapeHtml(c.name)}${c.role?` <span style="font-weight:400;color:var(--text-dim);font-size:10px;">(${escapeHtml(c.role)})</span>`:''}</span><span style="flex:none;">${c.count}회</span></div>
             </div>`).join('')}
-        </div>`;
+        </div>` : ''}`;
       }).join('') : '<div style="color:var(--text-dim);font-size:12px;padding:16px 0;">접촉자 기록이 없습니다.</div>'}
       <div id="reportContactDetailPanel" class="report-detail-panel" style="display:none;"></div>
     `;
+
+    body.querySelectorAll('.report-site-toggle-row').forEach(row=>{
+      row.addEventListener('click', ()=>{
+        const site = row.dataset.toggleSite;
+        if(expandedContactSites.has(site)) expandedContactSites.delete(site);
+        else expandedContactSites.add(site);
+        renderContactsView();
+      });
+    });
 
     let selectedKey = null;
     function showContactDetail(site, name, highlightEl){
