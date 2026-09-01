@@ -609,6 +609,12 @@
   .mgr-filter-chip.active{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);}
   .mgr-filter-clear{font-size:10px;color:var(--text-dim);cursor:pointer;text-decoration:underline;margin-left:2px;}
   .mgr-subtabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:8px;padding-bottom:0;}
+  .mgr-nav-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+  .mgr-nav-btn{background:var(--bg-main,rgba(255,255,255,.06));border:1px solid var(--line);color:var(--text-main);width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:11px;}
+  .mgr-nav-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .mgr-nav-label{font-size:12.5px;font-weight:700;color:var(--accent);min-width:90px;text-align:center;}
+  .mgr-nav-today-btn{margin-left:auto;background:none;border:1px solid var(--line);color:var(--text-dim);font-size:10.5px;padding:4px 10px;border-radius:8px;cursor:pointer;}
+  .mgr-nav-today-btn:hover{border-color:var(--accent);color:var(--accent);}
   .mgr-subtab{font-size:10.5px;font-weight:600;padding:5px 10px;cursor:pointer;color:var(--text-dim);border-bottom:2px solid transparent;margin-bottom:-1px;}
   .mgr-subtab:hover{color:var(--text-main);}
   .mgr-subtab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:700;}
@@ -1058,7 +1064,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v121</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v122</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -1552,6 +1558,7 @@ const L = (function(){
   let mgrBreakdownSubTab = '달력'; // 보고서 탭 상단 집계 영역의 하위 탭: 달력 | 주별집계 | 월별집계 | 소유자별
   let mgrBreakdownManagerFilter = null; // 담당자 이름 클릭시 그 사람 것만 필터링
   let mgrOwnerSubView = '전체'; // 소유자별 탭 안의 보기 방식: 전체 | 주별 | 월별
+  let mgrBreakdownNavDate = new Date(); // 담당자별/소유자별 집계(달력/주별/월별)에서 기준이 되는 날짜 - 이전/다음으로 넘길 수 있음
   const GUEST_KEY = 'realestate-guest-accounts-v1';
   const CHANGELOG_KEY = 'realestate-guest-changelog-v1';
   const ADMIN_PW_KEY = 'realestate-admin-pw-hash-v1';
@@ -4364,6 +4371,21 @@ const L = (function(){
           renderDetailBody(site);
         });
       });
+      const mgrBreakdownPrevBtn = document.getElementById('mgrBreakdownPrevBtn');
+      if(mgrBreakdownPrevBtn) mgrBreakdownPrevBtn.addEventListener('click', ()=>{
+        mgrBreakdownNavDate = new Date(mgrBreakdownNavDate.getFullYear(), mgrBreakdownNavDate.getMonth()-1, 1);
+        renderDetailBody(site);
+      });
+      const mgrBreakdownNextBtn = document.getElementById('mgrBreakdownNextBtn');
+      if(mgrBreakdownNextBtn) mgrBreakdownNextBtn.addEventListener('click', ()=>{
+        mgrBreakdownNavDate = new Date(mgrBreakdownNavDate.getFullYear(), mgrBreakdownNavDate.getMonth()+1, 1);
+        renderDetailBody(site);
+      });
+      const mgrBreakdownTodayBtn = document.getElementById('mgrBreakdownTodayBtn');
+      if(mgrBreakdownTodayBtn) mgrBreakdownTodayBtn.addEventListener('click', ()=>{
+        mgrBreakdownNavDate = new Date();
+        renderDetailBody(site);
+      });
       body.querySelectorAll('.mgr-filter-chip[data-mgr-filter]').forEach(chip=>{
         chip.addEventListener('click', ()=>{
           const name = chip.dataset.mgrFilter;
@@ -6653,7 +6675,7 @@ const L = (function(){
         return String(site.manager||'').split(/[,\s]+/).filter(Boolean).includes(m); // 작성자 미상 로그는 대표 담당자 몫으로 집계
       });
     }
-    const now = new Date();
+    const now = mgrBreakdownNavDate;
     const weekRange = getWeekRange(now);
     const monthRange = getMonthRange(now);
     // buildDailyGroups는 "현장별" 집계용으로 만들었지만, 담당자를 현장처럼 취급해서 그대로 재사용한다
@@ -6715,8 +6737,7 @@ const L = (function(){
         </div>`;
       }
       const dayHeads = ['월','화','수','목','금','토','일'];
-      return `<div class="mgr-cal-title">${y}년 ${mo+1}월</div>
-        <div class="mgr-cal-grid">
+      return `<div class="mgr-cal-grid">
           ${dayHeads.map(d=>`<div class="mgr-cal-dayhead">${d}</div>`).join('')}
           ${cells}
         </div>`;
@@ -6934,9 +6955,17 @@ const L = (function(){
     else if(mgrBreakdownSubTab==='월별집계') bodyHtml = buildMonthTable();
     else bodyHtml = buildOwnerView();
 
+    const navHtml = `<div class="mgr-nav-row no-print">
+      <button type="button" class="mgr-nav-btn" id="mgrBreakdownPrevBtn">◀</button>
+      <span class="mgr-nav-label">${monthRange.start.getFullYear()}년 ${monthRange.start.getMonth()+1}월</span>
+      <button type="button" class="mgr-nav-btn" id="mgrBreakdownNextBtn">▶</button>
+      <button type="button" class="mgr-nav-today-btn" id="mgrBreakdownTodayBtn">오늘</button>
+    </div>`;
+
     return `<div class="mgr-breakdown-wrap no-print-collapse">
       ${managerHeaderHtml}
       ${tabHtml}
+      ${navHtml}
       <div class="mgr-subtab-body">${bodyHtml}</div>
     </div>`;
   }
