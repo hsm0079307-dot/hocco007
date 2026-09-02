@@ -727,6 +727,22 @@
   .cstat-bar-val{font-size:10.5px;color:var(--text-main);font-weight:700;margin-top:6px;}
   .cstat-bar-single{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:0;}
   .cstat-bar-single-val{font-size:9.5px;color:var(--text-main);font-weight:700;margin-bottom:3px;}
+  .cstat-mgr-cards{display:flex;flex-direction:column;gap:8px;}
+  .cstat-mgr-card{border:1px solid var(--line);border-radius:6px;overflow:hidden;}
+  .cstat-mgr-top{margin-bottom:0;}
+  .cstat-mgr-top th{color:var(--text-main);background:color-mix(in srgb, var(--accent) 12%, transparent);border-bottom:none;}
+  .cstat-mgr-top td{font-weight:700;}
+  .cstat-mgr-sub{margin-bottom:0;}
+  .cstat-mgr-sub th, .cstat-mgr-sub td{font-size:10px;color:var(--text-dim);padding:4px 3px;}
+  .cstat-mgr-sub th:first-child, .cstat-mgr-sub td:first-child{color:var(--text-main);font-weight:700;}
+  .cstat-mobile-only{display:none;}
+  .cstat-expanded-logs{margin-top:12px;padding-top:10px;border-top:1px solid var(--line);}
+  .cstat-expanded-title{font-size:11.5px;font-weight:700;color:var(--accent);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;}
+  .cstat-expanded-close{background:none;border:none;color:var(--text-dim);font-size:14px;cursor:pointer;}
+  @media (max-width:520px){
+    .cstat-desktop-only{display:none;}
+    .cstat-mobile-only{display:block;}
+  }
   @media (max-width:520px){
     #contactStatsModalBox{max-width:100%;padding:12px;}
     .cstat-section{padding:10px 8px;}
@@ -1174,7 +1190,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v164</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v165</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -1666,6 +1682,8 @@ const L = (function(){
   let editingLogId = null; // 보고서(일지) "수정" 버튼 눌렀을 때, 지금 고치고 있는 항목의 id
   let cstatPeriod = 'month'; // 접촉현황 리포트에서 선택한 기간 ('month'|'week'|'day')
   let cstatNavDate = new Date(); // 그 기간 안에서 지금 보고 있는 기준 날짜 (◀▶로 이동 가능)
+  let cstatExpandedWeek = null; // 주차별 그래프에서 펼쳐서 보고 있는 주차
+  let cstatExpandedManager = null; // 담당자별 그래프에서 펼쳐서 보고 있는 담당자
   let logFormOpen = false; // "보고서 입력" 버튼을 눌러서 입력 폼을 펼친 상태인지
   let mgrBreakdownSubTab = '달력'; // 보고서 탭 상단 집계 영역의 하위 탭: 달력 | 주별집계 | 월별집계 | 소유자별
   let mgrBreakdownManagerFilter = null; // 담당자 이름 클릭시 그 사람 것만 필터링
@@ -4186,12 +4204,27 @@ const L = (function(){
               if(!groups[key]){ groups[key] = []; authorOrder.push(key); }
               groups[key].push(l);
             });
+            const shownCompetitorRpt = new Set(), shownSpecialRpt = new Set();
             return authorOrder.map(author=>{
               const isJoint = author.includes(', ');
               return `
               <div class="log-author-group">
                 <div class="log-author-heading">${isJoint?'🤝':'👤'} ${escapeHtml(author)}${isJoint?' <span class="log-joint-tag">공동방문</span>':''} <span style="font-weight:400;color:var(--text-dim);">${groups[author].length}건</span></div>
                 ${groups[author].map(l=>{
+                  const t = (l.text||'').trim();
+                  const sentences = splitSentences(t);
+                  const summarySentence = sentences[0] || t;
+                  const competitorSentence = sentences.find(sen=>COMPETITOR_KEYWORDS.some(k=>sen.includes(k)));
+                  const specialSentence = sentences.find(sen=>SPECIAL_KEYWORDS.some(k=>sen.includes(k)));
+                  function fieldOutRpt(hitSentence, shownSet){
+                    if(!hitSentence) return '없음';
+                    if(hitSentence === summarySentence) return '있음 (상담내용 참고)';
+                    if(shownSet.has(hitSentence)) return '위와 동일';
+                    shownSet.add(hitSentence);
+                    return hitSentence;
+                  }
+                  const competitorOut = fieldOutRpt(competitorSentence, shownCompetitorRpt);
+                  const specialOut = (specialSentence && specialSentence === competitorSentence) ? '타사활동 참고' : fieldOutRpt(specialSentence, shownSpecialRpt);
                   return `
                 <div class="log-item" data-log-id="${escapeHtml(l.id||'')}" data-contact-name="${escapeHtml((l.contactName||'').trim())}" data-log-date="${escapeHtml(l.date||'')}" data-log-week="${escapeHtml(weekOfMonthKey(l.date))}" data-log-author="${escapeHtml((l.author||'').trim())}">
                   <div class="log-card-title">
@@ -4202,13 +4235,15 @@ const L = (function(){
                     </div>
                   </div>
                   ${isJoint && l.author?`<div class="log-field-line"><b>작성:</b> ${escapeHtml(l.author)}</div>`:''}
-                  ${l.contactName?`<div class="log-field-line"><b>성함:</b> ${escapeHtml(l.contactName)}</div>`:''}
+                  ${l.contactName?`<div class="log-field-line"><b>접촉:</b> ${escapeHtml(l.contactName)}</div>`:''}
                   ${l.owner?`<div class="log-field-line"><b>소유자:</b> ${escapeHtml(formatOwnerDisplay(l.owner))}</div>`:''}
                   ${l.unit?`<div class="log-field-line"><b>동호수:</b> ${escapeHtml(l.unit)}</div>`:''}
                   ${l.contactMethod?`<div class="log-field-line"><b>접촉방법:</b> ${escapeHtml(l.contactMethod)}</div>`:''}
                   ${l.executiveStance?`<div class="log-field-line"><b>집행부 성향:</b> ${escapeHtml(l.executiveStance)}</div>`:''}
                   ${l.closeness?`<div class="log-field-line"><b>친밀도:</b> ${escapeHtml(l.closeness)}</div>`:''}
-                  <div class="log-text">${escapeHtml(l.text)}</div>
+                  <div class="log-field-line"><b>상담내용</b> ${escapeHtml(summarySentence)}</div>
+                  <div class="log-field-line"><b>타사활동</b> ${escapeHtml(competitorOut)}</div>
+                  <div class="log-field-line"><b>특이사항</b> ${escapeHtml(specialOut)}</div>
                 </div>`;
                 }).join('')}
               </div>`;
@@ -4338,9 +4373,10 @@ const L = (function(){
         roster.forEach((r,i)=>{
           const mgr = (r.manager||'').trim();
           if(!mgr) return; // 담당 미지정인 사람은 담당별 집계에서 아예 뺀다 (노이즈라서)
-          if(!byManager[mgr]) byManager[mgr] = {total:0, contactedSet:new Set(), logs:[]};
+          if(!byManager[mgr]) byManager[mgr] = {total:0, contactedSet:new Set(), cumulativeContactedSet:new Set(), logs:[]};
           byManager[mgr].total++;
           if(personLogs[i].length>0) byManager[mgr].contactedSet.add(i);
+          if(personLogsAll[i].length>0) byManager[mgr].cumulativeContactedSet.add(i); // 누계는 항상 전체 기간 기준(기간 필터 무관)
           byManager[mgr].logs.push(...personLogs[i]);
         });
         const byRole = {};
@@ -4462,13 +4498,10 @@ const L = (function(){
             <span style="font-size:10.5px;color:var(--text-dim);margin-left:8px;">· 아래 담당별/직책별/상단 요약이 ${periodLabel} 기준으로 나와요</span>
           </div>
           <div class="cstat-nav-row no-print">
-            ${cstatPeriod==='day' ? `
-              <input type="date" id="cstatDateInput" value="${dateInputVal}" class="cstat-date-input">
-            ` : `
-              <button type="button" class="cstat-nav-btn" id="cstatNavPrevBtn">◀</button>
-              <span class="cstat-nav-label">${navLabel}</span>
-              <button type="button" class="cstat-nav-btn" id="cstatNavNextBtn">▶</button>
-            `}
+            <button type="button" class="cstat-nav-btn" id="cstatNavPrevBtn">◀</button>
+            <span class="cstat-nav-label">${navLabel}</span>
+            <button type="button" class="cstat-nav-btn" id="cstatNavNextBtn">▶</button>
+            ${cstatPeriod==='day' ? `<input type="date" id="cstatDateInput" value="${dateInputVal}" class="cstat-date-input" title="원하는 날짜로 바로 이동">` : ''}
             ${!isRealToday ? `<button type="button" class="cstat-nav-today-btn" id="cstatNavTodayBtn">오늘</button>` : ''}
           </div>
           <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0 18px;">
@@ -4480,21 +4513,20 @@ const L = (function(){
 
           <div class="cstat-section">
             <div class="cstat-section-title">① 담당별 접촉현황</div>
-            <div class="cstat-mgr-table-row" style="display:flex;gap:8px;align-items:flex-start;">
-              <table class="cstat-table" style="flex:1;"><thead><tr><th style="width:20%;">담당</th><th style="width:10%;">인원</th><th style="width:10%;">누계접촉</th><th style="width:10%;">접촉률</th><th style="width:10%;">금일</th><th style="width:10%;">상담</th><th style="width:10%;">단순</th><th style="width:10%;">TM</th><th style="width:10%;">미접촉</th></tr></thead>
-              <tbody>${managerNames.length ? managerNames.map(m=>{
+            <div class="cstat-mgr-cards">
+              ${managerNames.length ? managerNames.map(m=>{
                 const d = s.byManager[m];
-                const contacted = d.contactedSet.size;
-                const rate = d.total ? (contacted/d.total*100).toFixed(1) : '0.0';
-                const todayCnt = new Set(d.logs.filter(l=>l.date===s.todayKey).map(l=>l.id||l)).size;
+                const cumContacted = d.cumulativeContactedSet.size;
+                const cumRate = d.total ? (cumContacted/d.total*100).toFixed(1) : '0.0';
+                const periodContacted = d.contactedSet.size;
                 const c = managerMethodCounts[m];
-                return `<tr><td>${escapeHtml(m)}</td><td>${d.total}</td><td>${contacted}</td><td>${rate}%</td><td>${todayCnt}</td><td>${c['상담']}</td><td>${c['단순']}</td><td>${c['TM']}</td><td>${d.total-contacted}</td></tr>`;
-              }).join('') : `<tr><td colspan="9" style="color:var(--text-dim);">명단에 담당이 기재된 사람이 없어요.</td></tr>`}</tbody></table>
-              ${managerNames.length ? `<table class="cstat-table" style="flex:none;width:110px;"><thead><tr><th style="width:33.3%;">거부</th><th style="width:33.3%;">부재</th><th style="width:33.4%;">불명</th></tr></thead>
-              <tbody>${managerNames.map(m=>{
-                const c = managerMethodCounts[m];
-                return `<tr><td>${c['거부']||'-'}</td><td>${c['부재']||'-'}</td><td>${c['불명']||'-'}</td></tr>`;
-              }).join('')}</tbody></table>` : ''}
+                return `<div class="cstat-mgr-card">
+                  <table class="cstat-table cstat-mgr-top"><thead><tr><th style="width:22%;">담당</th><th style="width:19.5%;">인원</th><th style="width:19.5%;">누계접촉</th><th style="width:19.5%;">접촉률</th><th style="width:19.5%;">미접촉</th></tr></thead>
+                  <tbody><tr><td>${escapeHtml(m)}</td><td>${d.total}</td><td>${cumContacted}</td><td>${cumRate}%</td><td>${d.total-cumContacted}</td></tr></tbody></table>
+                  <table class="cstat-table cstat-mgr-sub"><thead><tr><th>${periodLabel}접촉</th><th>상담</th><th>단순</th><th>TM</th><th>거부</th><th>부재</th><th>불명</th></tr></thead>
+                  <tbody><tr><td>${periodContacted}</td><td>${c['상담']||'-'}</td><td>${c['단순']||'-'}</td><td>${c['TM']||'-'}</td><td>${c['거부']||'-'}</td><td>${c['부재']||'-'}</td><td>${c['불명']||'-'}</td></tr></tbody></table>
+                </div>`;
+              }).join('') : `<div style="color:var(--text-dim);font-size:11.5px;">명단에 담당이 기재된 사람이 없어요.</div>`}
             </div>
           </div>
 
@@ -4510,7 +4542,7 @@ const L = (function(){
           </div>
 
           <div class="cstat-section">
-            <div class="cstat-section-title">③ 주별 접촉현황 (이번 달)</div>
+            <div class="cstat-section-title">③ 주별 접촉현황</div>
             <table class="cstat-table" style="width:auto;min-width:280px;"><thead><tr><th style="width:60px;">주차</th><th style="width:56px;">상담</th><th style="width:56px;">단순</th><th style="width:56px;">TM</th><th style="width:56px;">계</th></tr></thead>
             <tbody>${weekNums.map(wk=>{
               const d = s.byWeek[wk] || {'상담':0,'단순':0,'TM':0};
@@ -4520,13 +4552,15 @@ const L = (function(){
           </div>
 
           <div class="cstat-section">
-            <div class="cstat-section-title">④ 금일 접촉 상세 (${todayRows.length}건)</div>
-            ${todayRows.length ? `<table class="cstat-table"><thead><tr><th style="width:6%;">No</th><th style="width:11%;">담당</th><th style="width:13%;">성함</th><th style="width:10%;">직책</th><th style="width:10%;">접촉횟수</th><th style="width:10%;">접촉방법</th><th style="width:40%;text-align:left;">내용</th></tr></thead>
+            <div class="cstat-section-title">④ ${periodLabel==='일별'?escapeHtml(navLabel):'금일'} 접촉 상세 (${todayRows.length}건)</div>
+            ${todayRows.length ? `
+            <table class="cstat-table cstat-desktop-only"><thead><tr><th style="width:6%;">No</th><th style="width:11%;">담당</th><th style="width:13%;">성함</th><th style="width:10%;">직책</th><th style="width:10%;">접촉횟수</th><th style="width:10%;">접촉방법</th><th style="width:40%;text-align:left;">내용</th></tr></thead>
             <tbody>${todayRows.map((tr,i)=>{
               const l = tr.log;
               return `<tr><td>${i+1}</td><td>${escapeHtml(l.author||'')}</td><td>${escapeHtml(l.contactName||'')}</td><td>${escapeHtml(tr.role||'-')}</td><td>${tr.count||'-'}</td><td>${escapeHtml(l.contactMethod||'')}</td><td style="text-align:left;white-space:pre-wrap;">${escapeHtml(l.text||'')}</td></tr>`;
-            }).join('')}</tbody></table>`
-              : '<div style="color:var(--text-dim);font-size:11.5px;">오늘 등록된 보고서가 없습니다.</div>'}
+            }).join('')}</tbody></table>
+            <div class="cstat-mobile-only">${(()=>{ const sc=new Set(), ss=new Set(); return todayRows.map(tr=>buildLogCard(tr.log, sc, ss, {fullDate:true})).join(''); })()}</div>
+            ` : '<div style="color:var(--text-dim);font-size:11.5px;">등록된 보고서가 없습니다.</div>'}
           </div>
 
           <div class="cstat-section">
@@ -4547,7 +4581,7 @@ const L = (function(){
                 const newC = s.weekNewContact[wk]||0;
                 const hTotal = Math.max(4, Math.round((total/maxWeekTotal)*100));
                 const hNew = Math.max(newC>0?4:0, Math.round((newC/maxWeekTotal)*100));
-                return `<div class="cstat-bar-col">
+                return `<div class="cstat-bar-col cstat-bar-clickable" data-week="${wk}">
                   <div class="cstat-bar-track" style="gap:5px;">
                     <div class="cstat-bar-single">
                       <div class="cstat-bar-single-val">${total}</div>
@@ -4562,6 +4596,31 @@ const L = (function(){
                 </div>`;
               }).join('')}
             </div>
+            ${cstatExpandedWeek ? (()=>{
+              const navY2 = cstatNavDate.getFullYear(), navMo2 = cstatNavDate.getMonth();
+              const firstDow2 = new Date(navY2, navMo2, 1).getDay();
+              const mondayOffset2 = (firstDow2+6)%7;
+              const collected = []; const seen = new Set();
+              s.roster.forEach((r,i)=>{
+                s.personLogsAll[i].forEach(l=>{
+                  if(!l.date) return;
+                  const ly=parseInt(l.date.slice(0,4),10), lm=parseInt(l.date.slice(5,7),10);
+                  if(ly!==navY2 || lm!==(navMo2+1)) return;
+                  const dd = parseInt(l.date.slice(8,10),10);
+                  if(!dd || Math.ceil((dd+mondayOffset2)/7)!==cstatExpandedWeek) return;
+                  const key = l.id||l;
+                  if(seen.has(key)) return;
+                  seen.add(key);
+                  collected.push(l);
+                });
+              });
+              collected.sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+              const sc=new Set(), ss=new Set();
+              return `<div class="cstat-expanded-logs">
+                <div class="cstat-expanded-title">${cstatExpandedWeek}주차 상담 기록 (${collected.length}건) <button type="button" class="cstat-expanded-close no-print">✕</button></div>
+                ${collected.length ? collected.map(l=>buildLogCard(l, sc, ss, {fullDate:true})).join('') : '<div style="color:var(--text-dim);font-size:11px;">기록 없음</div>'}
+              </div>`;
+            })() : ''}
           </div>
 
           <div class="cstat-section">
@@ -4576,7 +4635,7 @@ const L = (function(){
                 const cum = s.byManager[m].contactedSet.size;
                 const hTotal = Math.max(4, Math.round((total/maxMgrTotal)*100));
                 const hCum = Math.max(cum>0?4:0, Math.round((cum/maxMgrTotal)*100));
-                return `<div class="cstat-bar-col">
+                return `<div class="cstat-bar-col cstat-bar-clickable" data-manager="${escapeHtml(m)}">
                   <div class="cstat-bar-track" style="gap:5px;">
                     <div class="cstat-bar-single">
                       <div class="cstat-bar-single-val">${total}</div>
@@ -4591,6 +4650,20 @@ const L = (function(){
                 </div>`;
               }).join('') : '<div style="color:var(--text-dim);font-size:11px;">명단에 담당이 기재된 사람이 없어요.</div>'}
             </div>
+            ${cstatExpandedManager && s.byManager[cstatExpandedManager] ? (()=>{
+              const seen = new Set();
+              const collected = s.byManager[cstatExpandedManager].logs.filter(l=>{
+                const key = l.id||l;
+                if(seen.has(key)) return false;
+                seen.add(key);
+                return true;
+              }).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+              const sc=new Set(), ss=new Set();
+              return `<div class="cstat-expanded-logs">
+                <div class="cstat-expanded-title">${escapeHtml(cstatExpandedManager)} 상담 기록 (${collected.length}건) <button type="button" class="cstat-expanded-close no-print">✕</button></div>
+                ${collected.length ? collected.map(l=>buildLogCard(l, sc, ss, {fullDate:true})).join('') : '<div style="color:var(--text-dim);font-size:11px;">기록 없음</div>'}
+              </div>`;
+            })() : ''}
           </div>
         `;
         document.getElementById('contactStatsCloseBtn').addEventListener('click', ()=>document.getElementById('contactStatsModalOverlay').classList.remove('show'));
@@ -4606,12 +4679,14 @@ const L = (function(){
         if(cstatNavPrevBtn) cstatNavPrevBtn.addEventListener('click', ()=>{
           if(cstatPeriod==='month') cstatNavDate = new Date(cstatNavDate.getFullYear(), cstatNavDate.getMonth()-1, 1);
           else if(cstatPeriod==='week') cstatNavDate = new Date(cstatNavDate.getFullYear(), cstatNavDate.getMonth(), cstatNavDate.getDate()-7);
+          else cstatNavDate = new Date(cstatNavDate.getFullYear(), cstatNavDate.getMonth(), cstatNavDate.getDate()-1);
           renderContactStatsReport();
         });
         const cstatNavNextBtn = document.getElementById('cstatNavNextBtn');
         if(cstatNavNextBtn) cstatNavNextBtn.addEventListener('click', ()=>{
           if(cstatPeriod==='month') cstatNavDate = new Date(cstatNavDate.getFullYear(), cstatNavDate.getMonth()+1, 1);
           else if(cstatPeriod==='week') cstatNavDate = new Date(cstatNavDate.getFullYear(), cstatNavDate.getMonth(), cstatNavDate.getDate()+7);
+          else cstatNavDate = new Date(cstatNavDate.getFullYear(), cstatNavDate.getMonth(), cstatNavDate.getDate()+1);
           renderContactStatsReport();
         });
         const cstatNavTodayBtn = document.getElementById('cstatNavTodayBtn');
@@ -4624,6 +4699,28 @@ const L = (function(){
           const [y,m,d] = cstatDateInput.value.split('-').map(Number);
           if(y && m && d) cstatNavDate = new Date(y, m-1, d);
           renderContactStatsReport();
+        });
+        box.querySelectorAll('.cstat-bar-clickable[data-week]').forEach(col=>{
+          col.addEventListener('click', ()=>{
+            const wk = parseInt(col.dataset.week, 10);
+            cstatExpandedWeek = (cstatExpandedWeek===wk) ? null : wk;
+            renderContactStatsReport();
+          });
+        });
+        box.querySelectorAll('.cstat-bar-clickable[data-manager]').forEach(col=>{
+          col.addEventListener('click', ()=>{
+            const m = col.dataset.manager;
+            cstatExpandedManager = (cstatExpandedManager===m) ? null : m;
+            renderContactStatsReport();
+          });
+        });
+        box.querySelectorAll('.cstat-expanded-close').forEach(btn=>{
+          btn.addEventListener('click', (e)=>{
+            e.stopPropagation();
+            cstatExpandedWeek = null;
+            cstatExpandedManager = null;
+            renderContactStatsReport();
+          });
         });
         document.getElementById('contactStatsNoteSaveBtn').addEventListener('click', async ()=>{
           if(!(await ensureUnlocked())) return;
@@ -9113,26 +9210,17 @@ const L = (function(){
   // 특정 날짜를 눌렀을 때, 그 날 방문한 현장별로 담당/접촉자/상담방법/내용을 정리해서 보여준다
   function buildMobileDayDetailHtml(dateKey, sitesList){
     if(!dateKey) return '';
-    const bySite = []; // {siteName, managers:Set, logs:[]}
+    const bySite = []; // {siteName, logs:[]}
     sitesList.forEach(s=>{
       const dayLogs = (s.logs||[]).filter(l=>l.date===dateKey);
       if(!dayLogs.length) return;
-      const managers = new Set();
-      dayLogs.forEach(l=>String(l.author||'').split(/[,\s]+/).filter(Boolean).forEach(a=>managers.add(a)));
-      bySite.push({siteName:s.name, managers:Array.from(managers), logs:dayLogs});
+      bySite.push({siteName:s.name, logs:dayLogs});
     });
     if(!bySite.length) return '';
+    const sc = new Set(), ss = new Set();
     return `<div class="mobile-section mobile-day-detail">
       <div class="mobile-section-title">${escapeHtml(formatDateKr(dateKey))} 방문현장</div>
-      ${bySite.map(b=>`
-        <div class="mobile-day-site-block">
-          <div class="mobile-day-site-head">${escapeHtml(b.siteName)} <span class="mobile-day-site-mgr">담당 ${escapeHtml(b.managers.join(' '))}</span></div>
-          ${b.logs.map(l=>{
-            const {name} = parseContactName(l.contactName||'');
-            return `<div class="mobile-day-contact-line">${name?escapeHtml(name):'-'}${l.contactMethod?' '+escapeHtml(l.contactMethod):''}</div>
-              ${l.text?`<div class="mobile-day-contact-note">비고: ${escapeHtml(l.text)}</div>`:''}`;
-          }).join('')}
-        </div>`).join('')}
+      ${bySite.map(b=>b.logs.map(l=>buildLogCard(l, sc, ss, {fullDate:true, siteLabel: sitesList.length>1?b.siteName:null})).join('')).join('')}
     </div>`;
   }
   function specialSectionsHtml(weeklySpecial, monthEvents, showSiteName){
