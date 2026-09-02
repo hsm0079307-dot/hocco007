@@ -1125,7 +1125,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v147</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v148</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -4306,6 +4306,15 @@ const L = (function(){
         // "까치부동산"과 "우리부동산"처럼 끝 글자("부동산")만 같은 완전히 다른 이름까지 "비슷하다"고 잘못 판단해버린다.
         const threshold = name.length<=4 ? 0 : (name.length<=9 ? 1 : 2);
         if(best && bestDist>0 && bestDist<=threshold) return {match: best, exact: false};
+        // "롱이부동산"을 "롱이부"처럼 뒷부분을 그냥 생략해서 줄여 쓴 경우는 오타가 아니라서 위 편집거리로 안 잡힌다.
+        // 짧은 쪽이 긴 쪽의 맨 앞부분과 정확히 겹치면(최소 3글자 이상, 오매칭 방지용) 줄임말로 보고 매칭시킨다.
+        if(name.length>=3){
+          const prefixMatches = roster.filter(r=>{
+            const core = extractCoreName(r.name);
+            return core.length>name.length && core.startsWith(name);
+          });
+          if(prefixMatches.length===1) return {match: prefixMatches[0], exact: false};
+        }
         return null;
       }
       const ownerRosterCleanupBtn = document.getElementById('ownerRosterCleanupBtn');
@@ -4317,12 +4326,14 @@ const L = (function(){
         ownerRosterCleanupBtn.disabled = true;
         ownerRosterCleanupBtn.textContent = '정리하는 중...';
         let changedCount = 0;
+        let authorChangedCount = 0;
         const unmatchedNames = new Set();
         (site.logs||[]).forEach(l=>{
           const raw = (l.contactName||'').trim();
           if(!raw) return;
           const segments = splitMultiNames(raw);
           let touched = false;
+          const matchedManagers = new Set();
           const newSegments = segments.map(seg=>{
             const coreName = extractCoreName(fullyStripRoles(seg).name);
             // (핵심이름만 같고 표기가 다를 수 있어서, 무조건 findRosterMatch를 거쳐 명단의 정확한 표기로 맞춘다)
@@ -4332,12 +4343,18 @@ const L = (function(){
               // 로그에 원래 있던 직책은 버리고 명단에 적힌 그대로만 쓴다 — 명단이 정답이므로.
               const newSeg = found.match.role ? `${found.match.name}(${found.match.role})` : found.match.name;
               if(newSeg !== seg) touched = true;
+              if(found.match.manager) matchedManagers.add(found.match.manager);
               return newSeg;
             }
             unmatchedNames.add(coreName);
             return seg;
           });
           if(touched){ l.contactName = newSegments.join(', '); changedCount++; }
+          // 명단의 "담당"도 무조건 기준으로 삼는다 — 보고서에 다른 담당자가 적혀있어도 명단 걸로 덮어쓴다
+          if(matchedManagers.size){
+            const newAuthor = Array.from(matchedManagers).join(', ');
+            if(newAuthor !== (l.author||'').trim()){ l.author = newAuthor; authorChangedCount++; }
+          }
         });
         site.lastDate = lastVisit(site);
         renderAll();
@@ -4355,7 +4372,7 @@ const L = (function(){
         const resultEl = document.getElementById('ownerRosterCleanupResult');
         if(resultEl){
           const unmatchedList = Array.from(unmatchedNames);
-          resultEl.innerHTML = `✅ <b>${changedCount}건</b> 자동 수정 완료<br>⚠️ 명단에서 비슷한 이름을 못 찾은 미변경 <b>${unmatchedList.length}명</b>${unmatchedList.length?': '+unmatchedList.slice(0,30).map(escapeHtml).join(', ')+(unmatchedList.length>30?' 외 '+(unmatchedList.length-30)+'명':''):''}`;
+          resultEl.innerHTML = `✅ 성함/직책 <b>${changedCount}건</b>, 담당 <b>${authorChangedCount}건</b> 자동 수정 완료<br>⚠️ 명단에서 비슷한 이름을 못 찾은 미변경 <b>${unmatchedList.length}명</b>${unmatchedList.length?': '+unmatchedList.slice(0,30).map(escapeHtml).join(', ')+(unmatchedList.length>30?' 외 '+(unmatchedList.length-30)+'명':''):''}`;
         }
         ownerRosterCleanupBtn.disabled = false;
         ownerRosterCleanupBtn.textContent = '🔄 명단 기준으로 기존 보고서 정리';
@@ -4383,7 +4400,7 @@ const L = (function(){
               if(otherName===recordedName) return; // 자기 자신은 제외
               if(otherName.length<2) return; // 너무 짧은 이름은 오탐 위험 높아서 제외
               if(text.replace(/\s+/g,'').includes(otherName.replace(/\s+/g,''))){
-                suspicious.push({logId:l.id, date:l.date, seg, recordedName, otherName, otherFull:r.name, otherRole:r.role, text: text.slice(0,60)});
+                suspicious.push({logId:l.id, date:l.date, seg, recordedName, otherName, otherFull:r.name, otherRole:r.role, otherManager:r.manager, text: text.slice(0,60)});
               }
             });
           });
@@ -4410,6 +4427,7 @@ const L = (function(){
                 return s.otherRole ? `${s.otherName}(${s.otherRole})` : s.otherFull;
               });
               targetLog.contactName = newSegments.join(', ');
+              if(s.otherManager) targetLog.author = s.otherManager;
               btn.disabled = true;
               btn.textContent = '변경 완료 ✓';
               try{
