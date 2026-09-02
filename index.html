@@ -1119,7 +1119,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v142</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v143</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -7730,7 +7730,7 @@ const L = (function(){
       });
       const contactsHtml = sortedGroupKeys.length ? sortedGroupKeys.map(key=>`
         <div class="contact-role-group">
-          <div class="contact-role-label">${escapeHtml(key)} <span>${roleGroups.get(key).length}명</span></div>
+          ${key!=='미상' ? `<div class="contact-role-label">${escapeHtml(key)} <span>${roleGroups.get(key).length}명</span></div>` : ''}
           <div class="contact-name-grid">${roleGroups.get(key).map(n=>`<div class="contact-name-chip" data-jump-contact="${escapeHtml(n)}" title="눌러서 이 사람 상담 기록으로 이동">${escapeHtml(n)}</div>`).join('')}</div>
         </div>`).join('') : '<div class="report-note-line">없음</div>';
       // 이번 기간(선택한 주/달) 로그가 기본, 요일 칸을 눌렀으면 그 날짜만, 원하면 전체 이력도 펼쳐볼 수 있게 별도로 준비해둔다
