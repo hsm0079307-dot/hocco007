@@ -1125,7 +1125,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v150</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v151</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -6631,7 +6631,7 @@ const L = (function(){
   // ---------- 접촉 리포트(현장별/담당별 방문 횟수 + 특이사항) ----------
   let reportMode = 'week'; // 'week' | 'month'
   let reportDayFilter = null; // 주간 보기에서 막대 클릭시 그 날짜로 현장 목록을 좁힘 ('YYYY-MM-DD')
-  let reportSelectedIdx = null; // 현장별 매트릭스에서 지금 펼쳐서 상세보기 중인 행의 idx
+  let reportSelectedSiteId = null; // 현장별 매트릭스에서 지금 펼쳐서 상세보기 중인 현장의 id (배열 위치가 렌더링마다 바뀔 수 있어 위치 대신 고유id로 추적)
   let reportSelectedDayKey = null; // 그 행에서 특정 요일만 골라 보고 있으면 그 날짜
   let reportManagerFilter = null; // 담당자 칩 클릭시 그 담당자 현장만 필터링
   let reportBaseDate = new Date();
@@ -7674,9 +7674,9 @@ const L = (function(){
             const count = day.sites[r.site]||0;
             const label = reportMode==='month' && count ? count : '';
             const dayKeyAttr = (reportMode==='week' && count) ? ` data-day-key="${escapeHtml(day.key)}"` : '';
-            return `<span class="report-matrix2-cell${count?' visited':''}${(reportSelectedIdx===r._idx)?' active':''}" ${count?`data-idx="${r._idx}"${dayKeyAttr} title="${escapeHtml(r.site)} ${escapeHtml(day.label)} ${count}회"`:''}>${label}</span>`;
+            return `<span class="report-matrix2-cell${count?' visited':''}${(reportSelectedSiteId===r.id)?' active':''}" ${count?`data-site-id="${escapeHtml(r.id)}"${dayKeyAttr} title="${escapeHtml(r.site)} ${escapeHtml(day.label)} ${count}회"`:''}>${label}</span>`;
           }).join('');
-          const rowSelected = reportSelectedIdx === r._idx;
+          const rowSelected = reportSelectedSiteId === r.id;
           return `<div class="rm-siterow ${ri%2?'alt':''}${rowSelected?' selected':''}">
             <span class="rm-col-name" title="${escapeHtml(r.site)}">${escapeHtml(r.site)}</span>
             <span class="rm-col-mgr" title="${escapeHtml(r.manager)}">${escapeHtml(r.manager)}</span>
@@ -7710,7 +7710,8 @@ const L = (function(){
       ${missedHtml}`;
     }
     // 상세 패널에서 원래 rows 배열의 인덱스로 찾을 수 있도록 각 항목에 원본 인덱스를 붙여둔다
-    filteredRows.forEach((r,i)=>{ r._idx = rows.indexOf(r); });
+    // (예전엔 filteredRows.forEach로 배열 위치(_idx)를 매겨서 그걸로 선택 상태를 추적했는데,
+    //  렌더링마다 배열 순서가 바뀔 수 있어서 다른 현장이 잘못 열리는 버그가 있었다. 이제 site.id로 직접 추적한다.)
 
     // ---- 핵심 요약 대시보드: 직전 같은 길이의 기간과 비교 + 미니 바차트 ----
     function shiftedBaseDateFor(baseDate, mode, dir){
@@ -7803,7 +7804,7 @@ const L = (function(){
         <div class="report-section-title"><span style="color:#ffb703;">■</span> 현장별${reportDayFilter?` <span class="report-day-filter-banner no-print">📌 ${escapeHtml(formatDateKr(reportDayFilter))} 방문현장만 보는 중 <button type="button" id="reportDayFilterClearBtn">전체보기 ✕</button></span>`:''}</div>
         <div class="report-manager-cards">
           ${(reportDayFilter ? filteredRows.filter(r=>(r.logs||[]).some(l=>l.date===reportDayFilter)) : filteredRows).map(r=>`
-            <div class="report-manager-card report-site-card" data-idx="${r._idx}" style="cursor:pointer;">
+            <div class="report-manager-card report-site-card" data-site-id="${escapeHtml(r.id)}" style="cursor:pointer;">
               <div class="report-manager-card-head"><span>${escapeHtml(r.site)}</span><span style="flex:none;">${r.count}회</span></div>
               <div class="report-manager-site-line" style="color:var(--text-dim);">${escapeHtml(r.manager)}</div>
             </div>`).join('')}
@@ -7830,14 +7831,14 @@ const L = (function(){
         </tbody>
       </table>`;
     function hideRowDetail(){
-      reportSelectedIdx = null;
+      reportSelectedSiteId = null;
       reportSelectedDayKey = null;
       renderSitesView();
     }
-    function showRowDetail(idx, highlightEl, dayKey){
+    function showRowDetail(siteId, highlightEl, dayKey){
       dayKey = dayKey || null;
-      if(reportSelectedIdx === idx && reportSelectedDayKey === dayKey){ hideRowDetail(); return; } // 같은 걸 또 누르면 닫기
-      reportSelectedIdx = idx;
+      if(reportSelectedSiteId === siteId && reportSelectedDayKey === dayKey){ hideRowDetail(); return; } // 같은 걸 또 누르면 닫기
+      reportSelectedSiteId = siteId;
       reportSelectedDayKey = dayKey;
       renderSitesView();
     }
@@ -7893,7 +7894,7 @@ const L = (function(){
             </div>
             <div class="report-section-title" style="margin:0 0 8px;display:flex;align-items:center;justify-content:space-between;">
               <span><span style="color:#ffb703;">■</span> 이번 기간 상담 기록 <span style="font-weight:400;color:var(--text-dim);">(${periodLogs.length}건)</span></span>
-              ${allHistoryLogs.length > periodLogs.length ? `<button type="button" class="show-full-history-btn no-print" style="font-size:10px;padding:3px 8px;" data-idx="${r._idx}">전체 이력 보기 (${allHistoryLogs.length}건)</button>` : ''}
+              ${allHistoryLogs.length > periodLogs.length ? `<button type="button" class="show-full-history-btn no-print" style="font-size:10px;padding:3px 8px;" data-site-id="${escapeHtml(r.id)}">전체 이력 보기 (${allHistoryLogs.length}건)</button>` : ''}
             </div>
             <div class="report-timeline-area">
             ${periodLogs.length ? `<div class="report-timeline">${periodLogs.map(l=>buildLogCard(l, shownCompetitor, shownSpecial, {fullDate:true})).join('')}</div>` : '<div class="report-note-line" style="color:var(--text-dim);">이번 기간 상담 기록이 없습니다.</div>'}
@@ -7910,12 +7911,12 @@ const L = (function(){
     }
     body.querySelectorAll('.report-matrix2-cell.visited').forEach(cell=>{
       cell.addEventListener('click', ()=>{
-        showRowDetail(parseInt(cell.dataset.idx, 10), cell, cell.dataset.dayKey);
+        showRowDetail(cell.dataset.siteId, cell, cell.dataset.dayKey);
       });
     });
     body.querySelectorAll('.report-site-card').forEach(card=>{
       card.addEventListener('click', ()=>{
-        showRowDetail(parseInt(card.dataset.idx, 10), card);
+        showRowDetail(card.dataset.siteId, card);
       });
     });
     const inlineDetailPanel = body.querySelector('#reportDetailPanel');
@@ -7924,8 +7925,7 @@ const L = (function(){
       if(closeBtn) closeBtn.addEventListener('click', hideRowDetail);
       const fullHistoryBtn = inlineDetailPanel.querySelector('.show-full-history-btn');
       if(fullHistoryBtn) fullHistoryBtn.addEventListener('click', ()=>{
-        const idx = parseInt(fullHistoryBtn.dataset.idx, 10);
-        const r = rows[idx];
+        const r = rows.find(row=>row.id===fullHistoryBtn.dataset.siteId);
         if(!r) return;
         const allHistoryLogs = (reportSiteFullLogs[r.site] || r.logs || []).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
         const area = inlineDetailPanel.querySelector('.report-timeline-area');
