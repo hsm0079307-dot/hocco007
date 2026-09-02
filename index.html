@@ -155,6 +155,8 @@
   .rd-bar-active .rd-bar{filter:brightness(1.35);box-shadow:0 0 0 2px var(--accent);}
   .rd-bar-active .rd-bar-label{color:var(--accent);font-weight:800;}
   .report-day-filter-banner{font-size:11px;font-weight:400;color:var(--accent);margin-left:8px;}
+  .report-notes-filter-banner{font-size:11px;color:var(--accent);padding:6px 4px;}
+  .report-notes-filter-banner button{background:none;border:1px solid var(--line);color:var(--text-dim);font-size:10px;padding:2px 8px;border-radius:6px;cursor:pointer;margin-left:4px;}
   .report-day-filter-banner button{background:none;border:1px solid var(--line);color:var(--text-dim);font-size:10px;padding:2px 8px;border-radius:6px;cursor:pointer;margin-left:4px;}
   .report-day-filter-banner button:hover{border-color:var(--accent);color:var(--accent);}
   .rd-bar-clickable:hover .rd-bar{filter:brightness(1.25);}
@@ -1125,7 +1127,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v152</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v154</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -4326,14 +4328,12 @@ const L = (function(){
         ownerRosterCleanupBtn.disabled = true;
         ownerRosterCleanupBtn.textContent = '정리하는 중...';
         let changedCount = 0;
-        let authorChangedCount = 0;
         const unmatchedNames = new Set();
         (site.logs||[]).forEach(l=>{
           const raw = (l.contactName||'').trim();
           if(!raw) return;
           const segments = splitMultiNames(raw);
           let touched = false;
-          const matchedManagers = new Set();
           const newSegments = segments.map(seg=>{
             const coreName = extractCoreName(fullyStripRoles(seg).name);
             // (핵심이름만 같고 표기가 다를 수 있어서, 무조건 findRosterMatch를 거쳐 명단의 정확한 표기로 맞춘다)
@@ -4353,18 +4353,14 @@ const L = (function(){
               // 로그에 원래 있던 직책은 버리고 명단에 적힌 그대로만 쓴다 — 명단이 정답이므로.
               const newSeg = found.match.role ? `${found.match.name}(${found.match.role})` : found.match.name;
               if(newSeg !== seg) touched = true;
-              if(found.match.manager) matchedManagers.add(found.match.manager);
               return newSeg;
             }
             unmatchedNames.add(coreName);
             return seg;
           });
           if(touched){ l.contactName = newSegments.join(', '); changedCount++; }
-          // 명단의 "담당"도 무조건 기준으로 삼는다 — 보고서에 다른 담당자가 적혀있어도 명단 걸로 덮어쓴다
-          if(matchedManagers.size){
-            const newAuthor = Array.from(matchedManagers).join(', ');
-            if(newAuthor !== (l.author||'').trim()){ l.author = newAuthor; authorChangedCount++; }
-          }
+          // 주의: 로그의 "담당(작성자)"은 그 보고서를 실제로 쓴 사람이므로, 명단의 "담당"(그 소유주를 맡은 담당자)으로
+          // 자동으로 덮어쓰지 않는다 — 서로 다른 개념이라, 예전에 이걸 덮어썼다가 실제 작성자가 잘못 바뀌는 문제가 있었다.
         });
         site.lastDate = lastVisit(site);
         renderAll();
@@ -4382,7 +4378,7 @@ const L = (function(){
         const resultEl = document.getElementById('ownerRosterCleanupResult');
         if(resultEl){
           const unmatchedList = Array.from(unmatchedNames);
-          resultEl.innerHTML = `✅ 성함/직책 <b>${changedCount}건</b>, 담당 <b>${authorChangedCount}건</b> 자동 수정 완료<br>⚠️ 명단에서 비슷한 이름을 못 찾은 미변경 <b>${unmatchedList.length}명</b>${unmatchedList.length?': '+unmatchedList.slice(0,30).map(escapeHtml).join(', ')+(unmatchedList.length>30?' 외 '+(unmatchedList.length-30)+'명':''):''}`;
+          resultEl.innerHTML = `✅ 성함/직책 <b>${changedCount}건</b> 자동 수정 완료<br>⚠️ 명단에서 비슷한 이름을 못 찾은 미변경 <b>${unmatchedList.length}명</b>${unmatchedList.length?': '+unmatchedList.slice(0,30).map(escapeHtml).join(', ')+(unmatchedList.length>30?' 외 '+(unmatchedList.length-30)+'명':''):''}`;
         }
         ownerRosterCleanupBtn.disabled = false;
         ownerRosterCleanupBtn.textContent = '🔄 명단 기준으로 기존 보고서 정리';
@@ -4474,7 +4470,7 @@ const L = (function(){
                 return s.otherRole ? `${s.otherName}(${s.otherRole})` : s.otherFull;
               });
               targetLog.contactName = newSegments.join(', ');
-              if(s.otherManager) targetLog.author = s.otherManager;
+              // (담당/작성자는 명단 기준으로 자동으로 안 바꾼다 — 실제 그 보고서를 쓴 사람이라 별개의 정보)
               btn.disabled = true;
               btn.textContent = '변경 완료 ✓';
               try{
@@ -7658,18 +7654,22 @@ const L = (function(){
         ? `<div class="report-missed-box"><div class="report-missed-label">미방문 현장</div><div class="report-missed-grid">${missedNames.map(n=>`<div class="report-missed-item">${escapeHtml(n)}</div>`).join('')}</div></div>`
         : '';
       if(!groupRows.length) return `<div style="color:var(--text-dim);font-size:12px;padding:10px 0;">기록 없음</div>${missedHtml}`;
+      // 특정 현장을 선택해서 상세보기 중이면, 표에도 그 현장 한 줄만 남기고 나머지는 숨긴다 (요일별 집계 자체는 전체 기준 그대로 계산)
+      const isFilteredToOne = reportSelectedSiteId && groupRows.some(r=>r.id===reportSelectedSiteId);
+      const displayRows = isFilteredToOne ? groupRows.filter(r=>r.id===reportSelectedSiteId) : groupRows;
       const groupDaily = buildDailyGroups(groupRows, range, reportMode);
       const colHeadHtml = groupDaily.map(day=>{
         const short = reportMode==='week' ? day.label.replace(/\d+일\(|\)/g,'') : (day.label.match(/(\d+)주차/)||[,''])[1];
         return `<span class="rm-daylabel">${escapeHtml(short)}</span>`;
       }).join('');
       return `<div class="report-matrix-wrap">
+        ${isFilteredToOne ? `<div class="report-notes-filter-banner no-print">📌 선택한 현장만 보는 중 <button type="button" class="report-notes-show-all-btn no-print">전체보기</button></div>` : ''}
         <div class="rm-headrow">
           <span class="rm-col-name">현장명</span><span class="rm-col-mgr">담당</span>
           <span class="rm-col-days">${colHeadHtml}</span>
           <span class="rm-col-total">방문</span>
         </div>
-        ${groupRows.map((r,ri)=>{
+        ${displayRows.map((r,ri)=>{
           const dots = groupDaily.map(day=>{
             const count = day.sites[r.site]||0;
             const label = reportMode==='month' && count ? count : '';
@@ -7801,13 +7801,17 @@ const L = (function(){
       </div>
       ${filteredRows.length ? `
       <div class="report-manager-breakdown">
-        <div class="report-section-title"><span style="color:#ffb703;">■</span> 현장별${reportDayFilter?` <span class="report-day-filter-banner no-print">📌 ${escapeHtml(formatDateKr(reportDayFilter))} 방문현장만 보는 중 <button type="button" id="reportDayFilterClearBtn">전체보기 ✕</button></span>`:''}</div>
+        <div class="report-section-title"><span style="color:#ffb703;">■</span> 현장별${reportDayFilter?` <span class="report-day-filter-banner no-print">📌 ${escapeHtml(formatDateKr(reportDayFilter))} 방문현장만 보는 중 <button type="button" id="reportDayFilterClearBtn">전체보기 ✕</button></span>`:''}${(reportSelectedSiteId && filteredRows.some(r=>r.id===reportSelectedSiteId))?` <span class="report-day-filter-banner no-print">📌 선택한 현장만 보는 중 <button type="button" class="report-notes-show-all-btn">전체보기 ✕</button></span>`:''}</div>
         <div class="report-manager-cards">
-          ${(reportDayFilter ? filteredRows.filter(r=>(r.logs||[]).some(l=>l.date===reportDayFilter)) : filteredRows).map(r=>`
+          ${(()=>{
+            let cardRows = reportDayFilter ? filteredRows.filter(r=>(r.logs||[]).some(l=>l.date===reportDayFilter)) : filteredRows;
+            if(reportSelectedSiteId && cardRows.some(r=>r.id===reportSelectedSiteId)) cardRows = cardRows.filter(r=>r.id===reportSelectedSiteId);
+            return cardRows.map(r=>`
             <div class="report-manager-card report-site-card" data-site-id="${escapeHtml(r.id)}" style="cursor:pointer;">
               <div class="report-manager-card-head"><span>${escapeHtml(r.site)}</span><span style="flex:none;">${r.count}회</span></div>
               <div class="report-manager-site-line" style="color:var(--text-dim);">${escapeHtml(r.manager)}</div>
-            </div>`).join('')}
+            </div>`).join('');
+          })()}
         </div>
       </div>
       ` : ''}
