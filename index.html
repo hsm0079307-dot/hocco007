@@ -1125,7 +1125,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v151</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v152</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -7687,10 +7687,10 @@ const L = (function(){
       </div>
       <div class="report-site-notes-summary">
         <div class="report-missed-label" style="display:flex;align-items:center;justify-content:space-between;color:var(--accent);margin-bottom:8px;">
-          <span>현장별 특이사항</span>
+          <span>현장별 특이사항${reportSelectedSiteId && groupRows.some(r=>r.id===reportSelectedSiteId) ? ` <span style="font-weight:400;color:var(--text-dim);font-size:10.5px;">· 선택한 현장만 보는 중 <button type="button" class="report-notes-show-all-btn no-print" style="background:none;border:1px solid var(--line);color:var(--text-dim);border-radius:6px;padding:1px 7px;font-size:9.5px;cursor:pointer;">전체보기</button></span>` : ''}</span>
           ${(!guestMode && groupRows.length) ? `<button type="button" class="report-site-note-bulk-ai-btn no-print" data-site-ids="${escapeHtml(groupRows.map(r=>r.id).join(','))}" title="이 목록의 현장들을 한 번에 AI로 요약">🤖 전체 AI 요약</button>` : ''}
         </div>
-        ${groupRows.map(r=>{
+        ${(reportSelectedSiteId && groupRows.some(r=>r.id===reportSelectedSiteId) ? groupRows.filter(r=>r.id===reportSelectedSiteId) : groupRows).map(r=>{
           const periodKey = currentReportPeriodKey();
           const saved = r.reportSpecialNotesByPeriod && r.reportSpecialNotesByPeriod[periodKey] && r.reportSpecialNotesByPeriod[periodKey].trim();
           const draft = siteSpecialNote(r);
@@ -7917,6 +7917,12 @@ const L = (function(){
     body.querySelectorAll('.report-site-card').forEach(card=>{
       card.addEventListener('click', ()=>{
         showRowDetail(card.dataset.siteId, card);
+      });
+    });
+    body.querySelectorAll('.report-notes-show-all-btn').forEach(btn=>{
+      btn.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        hideRowDetail();
       });
     });
     const inlineDetailPanel = body.querySelector('#reportDetailPanel');
