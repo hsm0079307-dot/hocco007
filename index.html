@@ -1125,7 +1125,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v146</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v147</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -4383,16 +4383,51 @@ const L = (function(){
               if(otherName===recordedName) return; // 자기 자신은 제외
               if(otherName.length<2) return; // 너무 짧은 이름은 오탐 위험 높아서 제외
               if(text.replace(/\s+/g,'').includes(otherName.replace(/\s+/g,''))){
-                suspicious.push({date:l.date, recordedName, otherName, text: text.slice(0,60)});
+                suspicious.push({logId:l.id, date:l.date, seg, recordedName, otherName, otherFull:r.name, otherRole:r.role, text: text.slice(0,60)});
               }
             });
           });
         });
-        resultEl.innerHTML = suspicious.length
-          ? `⚠️ <b>${suspicious.length}건</b> 의심스러운 항목 발견:<br>` + suspicious.map(s=>
-              `<div style="border-top:1px solid var(--line);padding:4px 0;">${escapeHtml(s.date||'')} · 성함: <b style="color:var(--accent);">${escapeHtml(s.recordedName)}</b> 인데 내용엔 "<b>${escapeHtml(s.otherName)}</b>" 언급<br><span style="color:var(--text-dim);">${escapeHtml(s.text)}...</span></div>`
-            ).join('')
-          : '✅ 의심스러운 항목을 못 찾았어요.';
+        function renderSuspiciousList(){
+          resultEl.innerHTML = suspicious.length
+            ? `⚠️ <b>${suspicious.length}건</b> 의심스러운 항목 발견 (내용 확인 후 맞으면 "이걸로 변경" 눌러주세요):<br>` + suspicious.map((s,i)=>`
+              <div class="owner-roster-suspicious-item" style="border-top:1px solid var(--line);padding:6px 0;" data-sidx="${i}">
+                <div>${escapeHtml(s.date||'')} · 성함: <b style="color:var(--accent);">${escapeHtml(s.recordedName)}</b> 인데 내용엔 "<b>${escapeHtml(s.otherName)}</b>" 언급</div>
+                <div style="color:var(--text-dim);">${escapeHtml(s.text)}...</div>
+                <button type="button" class="owner-roster-suspicious-fix-btn" data-sidx="${i}" style="margin-top:4px;background:var(--accent);color:var(--accent-ink);border:none;border-radius:6px;padding:3px 9px;font-size:10px;cursor:pointer;">✔ "${escapeHtml(s.otherName)}"(으)로 변경</button>
+              </div>`).join('')
+            : '✅ 의심스러운 항목을 못 찾았어요.';
+          resultEl.querySelectorAll('.owner-roster-suspicious-fix-btn').forEach(btn=>{
+            btn.addEventListener('click', async ()=>{
+              const s = suspicious[parseInt(btn.dataset.sidx,10)];
+              if(!s) return;
+              if(!(await ensureUnlocked())) return;
+              const targetLog = (site.logs||[]).find(l=>l.id===s.logId);
+              if(!targetLog){ alert('해당 보고서를 찾지 못했어요.'); return; }
+              const segments = splitMultiNames((targetLog.contactName||'').trim());
+              const newSegments = segments.map(seg2=>{
+                if(seg2!==s.seg) return seg2;
+                return s.otherRole ? `${s.otherName}(${s.otherRole})` : s.otherFull;
+              });
+              targetLog.contactName = newSegments.join(', ');
+              btn.disabled = true;
+              btn.textContent = '변경 완료 ✓';
+              try{
+                const officeName = site.office || currentOffice;
+                const {idx: idxInOffice} = await getFreshIndexInOffice(officeName, site.id);
+                if(idxInOffice>-1){
+                  const url = `${FIREBASE_DB_URL}/offices/${encodeURIComponent(officeName)}/${idxInOffice}/logs.json?auth=${encodeURIComponent(FIREBASE_DB_SECRET)}`;
+                  await fetch(url, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(site.logs)});
+                }
+              }catch(e){ console.error('의심항목 변경 클라우드 반영 실패', e); }
+              await saveSites();
+              site.lastDate = lastVisit(site);
+              renderAll();
+              renderDetailPanel(site);
+            });
+          });
+        }
+        renderSuspiciousList();
         ownerRosterFindSuspiciousBtn.disabled = false;
         ownerRosterFindSuspiciousBtn.textContent = '⚠️ 의심스러운 항목 찾기';
       });
