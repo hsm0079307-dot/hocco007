@@ -1075,6 +1075,11 @@
       </p>
       <button type="button" class="btn btn-ghost btn-sm" id="ownerRosterCleanupBtn" style="width:100%;">🔄 명단 기준으로 기존 보고서 정리</button>
       <div id="ownerRosterCleanupResult" style="font-size:11px;margin-top:8px;line-height:1.6;"></div>
+      <p style="font-size:10.5px;color:var(--text-dim);margin:12px 0 6px;line-height:1.5;">
+        성함은 A로 돼있는데 실제 상담내용엔 다른 명단 이름이 언급된 경우(예전에 잘못 매칭됐을 수 있음)를 찾아줘요.
+      </p>
+      <button type="button" class="btn btn-ghost btn-sm" id="ownerRosterFindSuspiciousBtn" style="width:100%;">⚠️ 의심스러운 항목 찾기</button>
+      <div id="ownerRosterSuspiciousResult" style="font-size:11px;margin-top:8px;line-height:1.6;max-height:240px;overflow-y:auto;"></div>
     </div>
   </div>
 </div>
@@ -1120,7 +1125,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v144</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v146</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -4297,7 +4302,9 @@ const L = (function(){
           if(d < bestDist){ bestDist = d; best = r; }
         });
         // 이름이 짧을수록 엄격하게(2글자는 완전일치만), 길수록 1~2글자 차이까지 "비슷함"으로 인정
-        const threshold = name.length<=2 ? 0 : (name.length<=4 ? 1 : (name.length<=7 ? 2 : 3));
+        // 오타는 거의 항상 1글자 차이라서, 기준을 엄격하게 잡는다. 너무 널널하면
+        // "까치부동산"과 "우리부동산"처럼 끝 글자("부동산")만 같은 완전히 다른 이름까지 "비슷하다"고 잘못 판단해버린다.
+        const threshold = name.length<=4 ? 0 : (name.length<=9 ? 1 : 2);
         if(best && bestDist>0 && bestDist<=threshold) return {match: best, exact: false};
         return null;
       }
@@ -4352,6 +4359,42 @@ const L = (function(){
         }
         ownerRosterCleanupBtn.disabled = false;
         ownerRosterCleanupBtn.textContent = '🔄 명단 기준으로 기존 보고서 정리';
+      });
+      const ownerRosterFindSuspiciousBtn = document.getElementById('ownerRosterFindSuspiciousBtn');
+      if(ownerRosterFindSuspiciousBtn) ownerRosterFindSuspiciousBtn.addEventListener('click', async ()=>{
+        const resultEl = document.getElementById('ownerRosterSuspiciousResult');
+        const rawRoster = (site.ownerRoster||[]);
+        if(!rawRoster.length){ resultEl.innerHTML = '먼저 명단을 입력하고 저장해주세요.'; return; }
+        const roster = rawRoster.map(normalizeRosterEntry).filter(r=>r.name);
+        ownerRosterFindSuspiciousBtn.disabled = true;
+        ownerRosterFindSuspiciousBtn.textContent = '찾는 중...';
+        const suspicious = [];
+        (site.logs||[]).forEach(l=>{
+          const raw = (l.contactName||'').trim();
+          if(!raw) return;
+          const segments = splitMultiNames(raw);
+          segments.forEach(seg=>{
+            const recordedName = extractCoreName(fullyStripRoles(seg).name);
+            const recordedEntry = roster.find(r=>extractCoreName(r.name)===recordedName);
+            if(!recordedEntry) return; // 명단에 있는 이름일 때만 체크 (명단에 없으면 애초에 비교 대상 아님)
+            const text = l.text||'';
+            roster.forEach(r=>{
+              const otherName = extractCoreName(r.name);
+              if(otherName===recordedName) return; // 자기 자신은 제외
+              if(otherName.length<2) return; // 너무 짧은 이름은 오탐 위험 높아서 제외
+              if(text.replace(/\s+/g,'').includes(otherName.replace(/\s+/g,''))){
+                suspicious.push({date:l.date, recordedName, otherName, text: text.slice(0,60)});
+              }
+            });
+          });
+        });
+        resultEl.innerHTML = suspicious.length
+          ? `⚠️ <b>${suspicious.length}건</b> 의심스러운 항목 발견:<br>` + suspicious.map(s=>
+              `<div style="border-top:1px solid var(--line);padding:4px 0;">${escapeHtml(s.date||'')} · 성함: <b style="color:var(--accent);">${escapeHtml(s.recordedName)}</b> 인데 내용엔 "<b>${escapeHtml(s.otherName)}</b>" 언급<br><span style="color:var(--text-dim);">${escapeHtml(s.text)}...</span></div>`
+            ).join('')
+          : '✅ 의심스러운 항목을 못 찾았어요.';
+        ownerRosterFindSuspiciousBtn.disabled = false;
+        ownerRosterFindSuspiciousBtn.textContent = '⚠️ 의심스러운 항목 찾기';
       });
       const logAddBtnEl = document.getElementById('logAddBtn');
       if(logAddBtnEl) logAddBtnEl.addEventListener('click', async ()=>{
