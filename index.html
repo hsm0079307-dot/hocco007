@@ -1213,7 +1213,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-03-v180</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-03-v181</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -5957,6 +5957,70 @@ const L = (function(){
     }
   }
 
+  // 아래 6개는 원래 renderDetailPanel 안에서만 쓰던 명단/담당 매칭 도우미인데, buildLogCard·buildRowDetailHtml처럼
+  // 그 밖에서도 "담당 불일치" 표시를 하려면 전역에서 접근 가능해야 해서 여기 전역 스코프에도 똑같이 둔다.
+  function normalizeRosterEntry(entry){
+    if(entry && typeof entry === 'object') return {name: entry.name||'', role: entry.role||'', manager: entry.manager||''};
+    const {name, role} = fullyStripRoles(entry);
+    return {name, role, manager: ''};
+  }
+  function extractCoreName(raw){
+    const s = String(raw||'').trim();
+    const m = s.match(/^[^\(\)\[\]（）,，]+/);
+    return m ? m[0].trim() : s;
+  }
+  function findRosterMatch(name, roster){
+    const exact = roster.find(r=>extractCoreName(r.name)===name);
+    if(exact) return {match: exact, exact: true};
+    let best = null, bestDist = Infinity;
+    roster.forEach(r=>{
+      const core = extractCoreName(r.name);
+      const d = levenshtein(name, core);
+      if(d < bestDist){ bestDist = d; best = r; }
+    });
+    const threshold = name.length<=2 ? 0 : (name.length<=9 ? 1 : 2);
+    if(best && bestDist>0 && bestDist<=threshold) return {match: best, exact: false};
+    if(name.length>=3){
+      const prefixMatches = roster.filter(r=>{
+        const core = extractCoreName(r.name);
+        return core.length>name.length && core.startsWith(name);
+      });
+      if(prefixMatches.length===1) return {match: prefixMatches[0], exact: false};
+    }
+    return null;
+  }
+  function matchLogToRoster(seg, roster){
+    const coreName = extractCoreName(fullyStripRoles(seg).name);
+    let found = findRosterMatch(coreName, roster);
+    if(!found){
+      const normalizedSeg = seg.replace(/\s+/g,'');
+      const containedMatches = roster.filter(r=>{
+        const core = extractCoreName(r.name).replace(/\s+/g,'');
+        return core.length>=3 && normalizedSeg.includes(core);
+      });
+      if(containedMatches.length===1) found = {match: containedMatches[0]};
+    }
+    return found ? found.match : null;
+  }
+  function logManagerMatch(log, roster){
+    if(!roster || !roster.length) return null;
+    const raw = (log.contactName||'').trim();
+    if(!raw) return false;
+    const author = (log.author||'').trim();
+    const segs = splitMultiNames(raw);
+    if(!segs.length) return false;
+    return segs.every(seg=>{
+      const m = matchLogToRoster(seg, roster);
+      const mgr = (m && m.manager || '').trim();
+      return !!mgr && mgr === author;
+    });
+  }
+  function contactCountLabel(logs, roster){
+    const total = logs.length;
+    if(!total || !roster || !roster.length) return `${total}건`;
+    const matched = logs.filter(l=>logManagerMatch(l, roster)===true).length;
+    return `${total}건중 담당: ${matched}건`;
+  }
   function escapeHtml(str){
     return String(str).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
