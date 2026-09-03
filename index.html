@@ -1149,7 +1149,7 @@
     </div>
     <div style="border-top:1px solid var(--line);margin-top:12px;padding-top:10px;">
       <p style="font-size:10.5px;color:var(--text-dim);margin:0 0 6px;line-height:1.5;">
-        저장한 명단 기준으로, 기존 보고서(텔레그램봇으로 들어온 것 포함)에 적힌 이름 중 비슷한 걸 자동으로 명단 이름에 맞춰 정리해요. 오타 1~2글자 차이까지만 자동 인식해요. 그래도 못 찾은 이름은 아래에 하나씩 나오는데, 그 이름을 눌러 일지를 확인하고 "명단에 추가"하거나 "기존 이름으로 매칭"할 수 있어요.
+        저장한 명단 기준으로, 기존 보고서(텔레그램봇으로 들어온 것 포함)에 적힌 이름 중 비슷한 걸 자동으로 명단 이름에 맞춰 정리해요. 오타 1~2글자 차이까지만 자동 인식해요. 그래도 못 찾은 이름은 아래 표에 나오는데, "건수 보기"로 일지를 확인하고 "➕ 추가"(명단에 새로 등록)나 "매칭"(기존 이름과 같은 사람으로 연결)을 누르면 되고, 앞으로도 명단에 넣을 필요 없는 이름이면 "✕"로 무시하면 다음부턴 안 나와요.
       </p>
       <button type="button" class="btn btn-ghost btn-sm" id="ownerRosterCleanupBtn" style="width:100%;">🔄 명단 기준으로 기존 보고서 정리</button>
       <div id="ownerRosterCleanupResult" style="font-size:11px;margin-top:8px;line-height:1.6;"></div>
@@ -1203,7 +1203,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-03-v175</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-03-v176</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -4999,6 +4999,7 @@ const L = (function(){
       async function runOwnerRosterCleanup(){
         const roster = (site.ownerRoster||[]).map(normalizeRosterEntry).filter(r=>r.name);
         if(!roster.length) return;
+        const dismissedSet = new Set(site.dismissedUnmatchedNames||[]);
         let changedCount = 0;
         const unmatchedMap = new Map(); // coreName -> 그 이름이 나온 로그들
         (site.logs||[]).forEach(l=>{
@@ -5027,8 +5028,11 @@ const L = (function(){
               if(newSeg !== seg) touched = true;
               return newSeg;
             }
-            if(!unmatchedMap.has(coreName)) unmatchedMap.set(coreName, []);
-            if(!unmatchedMap.get(coreName).includes(l)) unmatchedMap.get(coreName).push(l);
+            // "무시"로 처리한 이름은 다시 목록에 안 띄운다 (예: 앞으로도 명단에 등록 안 할 일회성 세입자 등)
+            if(!dismissedSet.has(coreName)){
+              if(!unmatchedMap.has(coreName)) unmatchedMap.set(coreName, []);
+              if(!unmatchedMap.get(coreName).includes(l)) unmatchedMap.get(coreName).push(l);
+            }
             return seg;
           });
           if(touched){ l.contactName = newSegments.join(', '); changedCount++; }
@@ -5038,6 +5042,8 @@ const L = (function(){
         await persistRosterAndLogs();
         renderOwnerRosterCleanupResult(changedCount, unmatchedMap, roster);
       }
+      // 못 찾은 이름 목록을 "소유주 명단" 표처럼 단순한 표 형태(이름 | 건수 | 버튼들)로 보여준다.
+      // 카드형으로 여러 줄에 걸쳐 있던 예전 모습보다 한눈에 훑어보기 쉽게 하기 위함.
       function renderOwnerRosterCleanupResult(changedCount, unmatchedMap, roster){
         const resultEl = document.getElementById('ownerRosterCleanupResult');
         if(!resultEl) return;
@@ -5047,36 +5053,42 @@ const L = (function(){
         resultEl.innerHTML = `
           ✅ 성함/직책 <b>${changedCount}건</b> 자동 수정 완료<br>
           ${unmatchedNames.length
-            ? `⚠️ 명단에서 비슷한 이름을 못 찾은 미변경 <b>${unmatchedNames.length}명</b> — 아래에서 확인 후 명단에 추가하거나 기존 이름과 매칭해주세요.`
+            ? `⚠️ 명단에서 못 찾은 이름 <b>${unmatchedNames.length}명</b> — 아래 표에서 확인 후 처리해주세요.`
             : '✅ 명단에서 못 찾은 이름 없음'}
-          <div class="owner-roster-unmatched-list">
-            ${unmatchedNames.map((name,i)=>{
-              const logsForName = unmatchedMap.get(name) || [];
-              return `<div class="owner-roster-unmatched-item" style="border-top:1px solid var(--line);padding:6px 0;">
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
-                  <b>${escapeHtml(name)}</b>
-                  <span style="color:var(--text-dim);font-size:10px;">${logsForName.length}건</span>
-                </div>
-                <div class="owner-roster-unmatched-logs" data-uidx="${i}" style="display:none;color:var(--text-dim);margin:4px 0 0;font-size:10.5px;line-height:1.5;">
-                  ${logsForName.slice(0,10).map(l=>`<div>· ${escapeHtml(l.date||'')} (${escapeHtml(l.author||'-')}) ${escapeHtml((l.text||'').slice(0,40))}${(l.text||'').length>40?'...':''}</div>`).join('')}
-                  ${logsForName.length>10?`<div>외 ${logsForName.length-10}건</div>`:''}
-                </div>
-                <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:5px;align-items:center;">
-                  <button type="button" class="owner-roster-unmatched-toggle-btn" data-uidx="${i}" style="background:none;border:1px solid var(--line);color:var(--text-dim);border-radius:6px;padding:2px 7px;font-size:10px;cursor:pointer;">📄 일지 보기</button>
-                  <button type="button" class="owner-roster-unmatched-addnew-btn" data-uidx="${i}" style="background:var(--accent);color:var(--accent-ink);border:none;border-radius:6px;padding:2px 8px;font-size:10px;cursor:pointer;">➕ 명단에 새로 추가</button>
-                  <select class="owner-roster-unmatched-matchselect" data-uidx="${i}" style="background:var(--bg-side-2);border:1px solid var(--line);color:var(--text-main);border-radius:6px;font-size:10px;padding:2px 4px;max-width:140px;">
-                    <option value="">🔗 기존 이름으로 매칭…</option>
-                    ${rosterOptionsHtml}
-                  </select>
-                </div>
-              </div>`;
-            }).join('')}
-          </div>
+          ${unmatchedNames.length ? `
+          <table class="mgr-breakdown-table owner-roster-unmatched-table" style="margin-top:8px;table-layout:fixed;">
+            <thead><tr><th style="width:26%;">이름</th><th style="width:16%;">건수</th><th></th></tr></thead>
+            <tbody>
+              ${unmatchedNames.map((name,i)=>{
+                const logsForName = unmatchedMap.get(name) || [];
+                return `<tr>
+                  <td style="font-weight:700;">${escapeHtml(name)}</td>
+                  <td><button type="button" class="owner-roster-unmatched-toggle-btn" data-uidx="${i}" style="background:none;border:1px solid var(--line);color:var(--text-dim);border-radius:6px;padding:1px 6px;font-size:10px;cursor:pointer;">${logsForName.length}건 보기</button></td>
+                  <td>
+                    <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;justify-content:flex-end;">
+                      <button type="button" class="owner-roster-unmatched-addnew-btn" data-uidx="${i}" title="이 이름 그대로 소유주 명단에 새로 추가" style="background:var(--accent);color:var(--accent-ink);border:none;border-radius:6px;padding:2px 7px;font-size:10px;cursor:pointer;">➕ 추가</button>
+                      <select class="owner-roster-unmatched-matchselect" data-uidx="${i}" title="기존 명단의 다른 이름과 같은 사람으로 매칭" style="background:var(--bg-side-2);border:1px solid var(--line);color:var(--text-main);border-radius:6px;font-size:10px;padding:1px 3px;max-width:90px;">
+                        <option value="">매칭…</option>
+                        ${rosterOptionsHtml}
+                      </select>
+                      <button type="button" class="owner-roster-unmatched-dismiss-btn" data-uidx="${i}" title="이 이름은 무시하고 다음부턴 목록에 안 보이게" style="background:none;border:none;color:var(--text-dim);font-size:14px;cursor:pointer;padding:0 2px;">✕</button>
+                    </div>
+                  </td>
+                </tr>
+                <tr class="owner-roster-unmatched-logs-row" data-uidx="${i}" style="display:none;">
+                  <td colspan="3" style="color:var(--text-dim);font-size:10.5px;line-height:1.5;background:var(--bg-side-2);">
+                    ${logsForName.slice(0,10).map(l=>`<div>· ${escapeHtml(l.date||'')} (${escapeHtml(l.author||'-')}) ${escapeHtml((l.text||'').slice(0,40))}${(l.text||'').length>40?'...':''}</div>`).join('')}
+                    ${logsForName.length>10?`<div>외 ${logsForName.length-10}건</div>`:''}
+                  </td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>` : ''}
         `;
         resultEl.querySelectorAll('.owner-roster-unmatched-toggle-btn').forEach(btn=>{
           btn.addEventListener('click', ()=>{
-            const box = resultEl.querySelector(`.owner-roster-unmatched-logs[data-uidx="${btn.dataset.uidx}"]`);
-            if(box) box.style.display = box.style.display==='none' ? 'block' : 'none';
+            const row = resultEl.querySelector(`.owner-roster-unmatched-logs-row[data-uidx="${btn.dataset.uidx}"]`);
+            if(row) row.style.display = row.style.display==='none' ? '' : 'none';
           });
         });
         resultEl.querySelectorAll('.owner-roster-unmatched-addnew-btn').forEach(btn=>{
@@ -5117,6 +5129,16 @@ const L = (function(){
               l.contactName = newSegments.join(', ');
             });
             await runOwnerRosterCleanup(); // 매칭 반영 후 다시 정리해서 목록을 최신으로 갱신
+          });
+        });
+        resultEl.querySelectorAll('.owner-roster-unmatched-dismiss-btn').forEach(btn=>{
+          btn.addEventListener('click', async ()=>{
+            if(!(await ensureUnlocked())) return;
+            const name = unmatchedNames[parseInt(btn.dataset.uidx,10)];
+            if(!name) return;
+            if(!site.dismissedUnmatchedNames) site.dismissedUnmatchedNames = [];
+            if(!site.dismissedUnmatchedNames.includes(name)) site.dismissedUnmatchedNames.push(name);
+            await runOwnerRosterCleanup(); // 무시 목록 반영해서 다시 정리 (이 이름은 이제 안 뜸)
           });
         });
       }
