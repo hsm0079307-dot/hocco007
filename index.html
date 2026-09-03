@@ -755,8 +755,13 @@
     .cstat-desktop-only{display:none;}
     .cstat-mobile-only{display:block;}
   }
+  .cstat-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;row-gap:6px;}
+  .cstat-header h3{margin:0;font-size:15px;min-width:0;}
+  .cstat-header-btns{display:flex;gap:6px;flex-shrink:0;}
   @media (max-width:520px){
     #contactStatsModalBox{max-width:100%;padding:12px;}
+    .cstat-header h3{flex:1 1 100%;font-size:13px;}
+    .cstat-header-btns{margin-left:auto;}
     .cstat-section{padding:10px 8px;}
     .cstat-mgr-table-row{flex-direction:column;}
     .cstat-mgr-table-row table{width:100% !important;}
@@ -1208,7 +1213,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-03-v178</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-03-v179</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -4605,9 +4610,9 @@ const L = (function(){
         const noManagerContactedToday = s.roster.filter((r,i)=> !(r.manager||'').trim() && (s.personLogsAll[i]||[]).some(l=>l.date===s.todayKey)).map(r=>r.name);
         const noManagerContactedTotal = s.roster.filter((r,i)=> !(r.manager||'').trim() && (s.personLogsAll[i]||[]).length>0).map(r=>r.name);
         box.innerHTML = `
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-            <h3 style="margin:0;font-size:15px;">📊 ${escapeHtml(site.name)} 접촉현황 <span style="font-size:11px;color:var(--text-dim);font-weight:400;">${now.getFullYear()}년 ${now.getMonth()+1}월 ${now.getDate()}일</span></h3>
-            <div style="display:flex;gap:6px;">
+          <div class="cstat-header">
+            <h3>📊 ${escapeHtml(site.name)} 접촉현황 <span style="font-size:11px;color:var(--text-dim);font-weight:400;">${now.getFullYear()}년 ${now.getMonth()+1}월 ${now.getDate()}일</span></h3>
+            <div class="cstat-header-btns">
               <button type="button" id="contactStatsPrintBtn" style="background:none;border:1px solid var(--line);color:var(--text-dim);border-radius:6px;padding:3px 9px;font-size:10.5px;cursor:pointer;">🖨 인쇄</button>
               <button type="button" id="contactStatsCloseBtn" style="background:none;border:none;color:var(--text-dim);font-size:18px;cursor:pointer;">✕</button>
             </div>
@@ -4632,9 +4637,9 @@ const L = (function(){
 
           ${noManagerContactedTotal.length ? `
           <div style="background:rgba(255,183,3,0.12);border:1px solid rgba(255,183,3,0.4);border-radius:8px;padding:8px 10px;margin-bottom:14px;font-size:10.5px;line-height:1.6;color:#ffb703;">
-            ⚠️ 아래 "담당별" 표는 명단에 <b>담당이 채워진 사람만</b> 집계돼서, 담당이 비어있으면 위 상단 요약과 표 합계가 안 맞아 보여요.<br>
-            ${noManagerContactedToday.length ? `· ${escapeHtml(navLabel)} 기준 접촉했지만 담당 미지정: <b>${noManagerContactedToday.map(escapeHtml).join(', ')}</b><br>` : ''}
-            · 누계 기준 담당 미지정 접촉자 <b>${noManagerContactedTotal.length}명</b>${noManagerContactedTotal.length<=15 ? ': '+noManagerContactedTotal.map(escapeHtml).join(', ') : ' (너무 많아 이름은 생략)'} — 소유주 명단에서 이 분들 담당 칸을 채우면 숫자가 맞아떨어져요.
+            ⚠️ <b>담당 미지정 접촉자</b>가 있어서 위 요약과 아래 담당별 합계가 달라요. 소유주 명단에서 담당을 채워주세요.<br>
+            ${noManagerContactedToday.length ? `· ${escapeHtml(navLabel)}: <b>${noManagerContactedToday.map(escapeHtml).join(', ')}</b><br>` : ''}
+            · 누계 <b>${noManagerContactedTotal.length}명</b>${noManagerContactedTotal.length<=15 ? ': '+noManagerContactedTotal.map(escapeHtml).join(', ') : ' (너무 많아 이름은 생략)'}
           </div>` : ''}
 
           <div class="cstat-section">
