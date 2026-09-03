@@ -1168,6 +1168,11 @@
       </p>
       <button type="button" class="btn btn-ghost btn-sm" id="ownerRosterFindSuspiciousBtn" style="width:100%;">⚠️ 의심스러운 항목 찾기</button>
       <div id="ownerRosterSuspiciousResult" style="font-size:11px;margin-top:8px;line-height:1.6;max-height:240px;overflow-y:auto;"></div>
+      <p style="font-size:10.5px;color:var(--text-dim);margin:12px 0 6px;line-height:1.5;">
+        같은 날짜에 같은 담당이 같은 소유주를 상대로 쓴 보고서가 2건 이상이면(중복 입력 의심) 찾아줘요. 확인 후 필요 없는 건은 바로 삭제할 수 있어요.
+      </p>
+      <button type="button" class="btn btn-ghost btn-sm" id="ownerRosterFindDupBtn" style="width:100%;">🔁 중복 보고서 찾기</button>
+      <div id="ownerRosterDupResult" style="font-size:11px;margin-top:8px;line-height:1.6;max-height:320px;overflow-y:auto;"></div>
     </div>
   </div>
 </div>
@@ -1213,7 +1218,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-03-v182</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-03-v183</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -4677,15 +4682,18 @@ const L = (function(){
           </div>
 
           ${(noManagerContactedTotal.length || wrongManagerContactedTotal.length) ? `
-          <div style="background:rgba(255,183,3,0.12);border:1px solid rgba(255,183,3,0.4);border-radius:8px;padding:8px 10px;margin-bottom:14px;font-size:10.5px;line-height:1.6;color:#ffb703;">
-            ⚠️ 아래 담당별 합계는 <b>그 담당이 직접 접촉한 것만</b> 세서 위 요약과 다를 수 있어요.
-            ${noManagerContactedTotal.length ? `<br>· <b>담당 미지정</b> 접촉자
-              ${noManagerContactedToday.length ? `— ${escapeHtml(navLabel)}: <b>${noManagerContactedToday.map(escapeHtml).join(', ')}</b> /` : ''}
-              누계 <b>${noManagerContactedTotal.length}명</b>${noManagerContactedTotal.length<=15 ? ': '+noManagerContactedTotal.map(escapeHtml).join(', ') : ' (너무 많아 이름은 생략)'}` : ''}
-            ${wrongManagerContactedTotal.length ? `<br>· <b>배정된 담당이 아닌 다른 담당이 접촉</b>한 경우
-              ${wrongManagerContactedToday.length ? `— ${escapeHtml(navLabel)}: <b>${wrongManagerContactedToday.map(escapeHtml).join(', ')}</b> /` : ''}
-              누계 <b>${wrongManagerContactedTotal.length}명</b>${wrongManagerContactedTotal.length<=15 ? ': '+wrongManagerContactedTotal.map(escapeHtml).join(', ') : ' (너무 많아 이름은 생략)'}` : ''}
-          </div>` : ''}
+          <details class="no-print" style="background:rgba(255,183,3,0.12);border:1px solid rgba(255,183,3,0.4);border-radius:8px;margin-bottom:14px;font-size:10.5px;line-height:1.6;color:#ffb703;">
+            <summary style="cursor:pointer;padding:8px 10px;font-weight:700;">⚠️ 담당별 합계가 위 요약과 다를 수 있어요 (담당 미지정 ${noManagerContactedTotal.length}명 · 다른 담당 접촉 ${wrongManagerContactedTotal.length}명) — 눌러서 자세히 보기</summary>
+            <div style="padding:0 10px 10px;">
+              아래 담당별 합계는 <b>그 담당이 직접 접촉한 것만</b> 세서 위 요약과 다를 수 있어요.
+              ${noManagerContactedTotal.length ? `<br>· <b>담당 미지정</b> 접촉자
+                ${noManagerContactedToday.length ? `— ${escapeHtml(navLabel)}: <b>${noManagerContactedToday.map(escapeHtml).join(', ')}</b> /` : ''}
+                누계 <b>${noManagerContactedTotal.length}명</b>${noManagerContactedTotal.length<=15 ? ': '+noManagerContactedTotal.map(escapeHtml).join(', ') : ' (너무 많아 이름은 생략)'}` : ''}
+              ${wrongManagerContactedTotal.length ? `<br>· <b>배정된 담당이 아닌 다른 담당이 접촉</b>한 경우
+                ${wrongManagerContactedToday.length ? `— ${escapeHtml(navLabel)}: <b>${wrongManagerContactedToday.map(escapeHtml).join(', ')}</b> /` : ''}
+                누계 <b>${wrongManagerContactedTotal.length}명</b>${wrongManagerContactedTotal.length<=15 ? ': '+wrongManagerContactedTotal.map(escapeHtml).join(', ') : ' (너무 많아 이름은 생략)'}` : ''}
+            </div>
+          </details>` : ''}
 
           <div class="cstat-section">
             <div class="cstat-section-title">① 담당별 접촉현황</div>
@@ -5379,6 +5387,68 @@ const L = (function(){
         ownerRosterFindSuspiciousBtn.disabled = false;
         ownerRosterFindSuspiciousBtn.textContent = '⚠️ 의심스러운 항목 찾기';
       });
+      const ownerRosterFindDupBtn = freshEl('ownerRosterFindDupBtn');
+      if(ownerRosterFindDupBtn) ownerRosterFindDupBtn.addEventListener('click', ()=>{
+        const dupResultEl = document.getElementById('ownerRosterDupResult');
+        const roster = (site.ownerRoster||[]).map(normalizeRosterEntry).filter(r=>r.name);
+        // 같은 날짜 + 같은 담당(작성자) + 같은 소유주 조합으로 보고서가 2건 이상이면 중복 입력 의심.
+        // (명단에 매칭되는 사람이면 명단의 정확한 이름으로, 아니면 원문에서 뽑은 핵심이름으로 묶는다)
+        const groups = new Map(); // "날짜|담당|소유주" -> [log, ...]
+        (site.logs||[]).forEach(l=>{
+          if(!l.date) return;
+          const raw = (l.contactName||'').trim();
+          if(!raw) return;
+          const author = (l.author||'').trim();
+          splitMultiNames(raw).forEach(seg=>{
+            const matched = matchLogToRoster(seg, roster);
+            const personKey = matched ? matched.name : extractCoreName(fullyStripRoles(seg).name);
+            if(!personKey) return;
+            const key = `${l.date}|${author}|${personKey}`;
+            if(!groups.has(key)) groups.set(key, {personKey, logs:[]});
+            const g = groups.get(key);
+            if(!g.logs.some(x=>x.id===l.id)) g.logs.push(l);
+          });
+        });
+        const dupGroups = Array.from(groups.values()).filter(g=>g.logs.length>1);
+        function renderDupList(){
+          dupResultEl.innerHTML = dupGroups.length
+            ? `🔁 <b>${dupGroups.length}건</b>의 중복 의심 그룹을 찾았어요 (같은 날짜·같은 담당·같은 소유주). 내용 확인 후 필요 없는 쪽을 삭제하세요:<br>` + dupGroups.map((g,gi)=>`
+              <div class="owner-roster-dup-group" style="border-top:1px solid var(--line);padding:6px 0;" data-gidx="${gi}">
+                <div style="font-weight:700;color:var(--accent);margin-bottom:4px;">${escapeHtml(g.logs[0].date)} · ${escapeHtml(g.logs[0].author||'(작성자 미상)')} · ${escapeHtml(g.personKey)} (${g.logs.length}건)</div>
+                ${g.logs.map((l,li)=>`
+                  <div class="owner-roster-dup-item" style="background:var(--bg-side-2);border-radius:6px;padding:6px 8px;margin-bottom:4px;">
+                    <div style="color:var(--text-dim);">${escapeHtml((l.text||'').slice(0,80))}${(l.text||'').length>80?'...':''}</div>
+                    <button type="button" class="owner-roster-dup-del-btn" data-gidx="${gi}" data-li="${li}" style="background:none;border:1px solid #ff7b7b;color:#ff7b7b;border-radius:6px;padding:2px 8px;font-size:9.5px;cursor:pointer;margin-top:3px;">🗑 이 건 삭제</button>
+                    <button type="button" class="owner-roster-dup-goto-btn" data-gidx="${gi}" data-li="${li}" style="background:none;border:1px solid var(--line);color:var(--text-dim);border-radius:6px;padding:2px 8px;font-size:9.5px;cursor:pointer;margin-top:3px;margin-left:4px;">📄 수정해서 보기</button>
+                  </div>`).join('')}
+              </div>`).join('')
+            : '✅ 중복 의심 보고서를 못 찾았어요.';
+          dupResultEl.querySelectorAll('.owner-roster-dup-goto-btn').forEach(btn=>{
+            btn.addEventListener('click', ()=>{
+              const g = dupGroups[parseInt(btn.dataset.gidx,10)];
+              const l = g && g.logs[parseInt(btn.dataset.li,10)];
+              if(!l) return;
+              document.getElementById('ownerRosterModalOverlay').classList.remove('show');
+              openLogEditModal(site, l.id);
+            });
+          });
+          dupResultEl.querySelectorAll('.owner-roster-dup-del-btn').forEach(btn=>{
+            btn.addEventListener('click', async ()=>{
+              const gidx = parseInt(btn.dataset.gidx,10), li = parseInt(btn.dataset.li,10);
+              const g = dupGroups[gidx];
+              const l = g && g.logs[li];
+              if(!l) return;
+              if(!(await ensureUnlocked())) return;
+              if(!confirm('이 보고서를 삭제할까요? 되돌릴 수 없어요.')) return;
+              await deleteLogById(l.id);
+              g.logs.splice(li, 1);
+              if(g.logs.length<=1) dupGroups.splice(gidx, 1);
+              renderDupList();
+            });
+          });
+        }
+        renderDupList();
+      });
       const logAddBtnEl = document.getElementById('logAddBtn');
       if(logAddBtnEl) logAddBtnEl.addEventListener('click', async ()=>{
         if(!(await ensureUnlocked())) return;
@@ -5747,6 +5817,48 @@ const L = (function(){
         document.getElementById('logEditModalOverlay').classList.remove('show');
         document.getElementById('logEditModalBox').innerHTML = '';
       }
+      // 보고서 하나를 삭제하는 공통 로직. "일지" 탭의 개별 삭제 버튼뿐 아니라, 아래 "중복 보고서 찾기"에서도
+      // 똑같이 재사용한다 (예전엔 .log-del 버튼 안에만 이 로직이 있어서 다른 화면에서 삭제하려면 코드를 또 써야 했다).
+      async function deleteLogById(logId){
+        deletedLogIds.add(logId);
+        site.logs = (site.logs||[]).filter(l=>l.id!==logId);
+        if(editingLogId===logId) editingLogId = null;
+        site.lastDate = lastVisit(site);
+        renderAll(); // 화면은 바로 반영
+        renderDetailPanel(site); // 상세 패널 헤더(보고서 개수 배지 등)를 확실하게 다시 그림
+        // 이 삭제는 복잡한 전체 저장/버전충돌 로직을 거치지 않고, 그 현장의 logs 경로만
+        // 클라우드에 곧바로 확정해서 쓴다. (다른 로직에 막혀서 삭제가 유실되는 일이 없도록)
+        try{
+          const officeName = site.office || currentOffice;
+          const {idx: idxInOffice} = await getFreshIndexInOffice(officeName, site.id);
+          if(idxInOffice>-1){
+            const url = `${FIREBASE_DB_URL}/offices/${encodeURIComponent(officeName)}/${idxInOffice}/logs.json?auth=${encodeURIComponent(FIREBASE_DB_SECRET)}`;
+            const res = await fetch(url, {
+              method:'PUT',
+              headers:{'Content-Type':'application/json'},
+              body: JSON.stringify(site.logs)
+            });
+            if(!res.ok){
+              alert('⚠️ 클라우드 저장 실패 (상태코드 '+res.status+'). 이 삭제는 이 화면에서만 지워졌고, 클라우드엔 반영 안 됐을 수 있어요.');
+            }else{
+              // 방금 쓴 걸 그대로 다시 읽어와서, 정말 서버에 반영됐는지 확인 (같은 URL, 캐시 무시)
+              const verifyUrl = `${FIREBASE_DB_URL}/offices/${encodeURIComponent(officeName)}/${idxInOffice}/logs.json?_=${Date.now()}`;
+              const vres = await fetch(verifyUrl, {cache:'no-store'});
+              const vdata = vres.ok ? await vres.json() : null;
+              const stillThere = Array.isArray(vdata) && vdata.some(l=>l && l.id===logId);
+              if(stillThere){
+                alert('⚠️ 클라우드에 다시 확인해봤는데 아직 그 로그가 남아있어요. (URL 또는 권한 문제로 보임)');
+              }
+              console.log('[삭제 확인] 서버에 저장된 로그 개수:', Array.isArray(vdata)?vdata.length:'응답 이상함', vdata);
+            }
+          }else{
+            alert('⚠️ 이 현장을 사업소 목록에서 못 찾아서 클라우드에는 반영 못 했어요. (office: '+officeName+')');
+          }
+        }catch(e){
+          alert('⚠️ 클라우드 저장 중 오류: '+e.message);
+          console.error('로그 삭제 클라우드 반영 실패', e);
+        }
+      }
       body.querySelectorAll('.log-edit').forEach(btn=>{
         btn.addEventListener('click', async ()=>{
           if(!(await ensureUnlocked())) return;
@@ -5756,45 +5868,7 @@ const L = (function(){
       body.querySelectorAll('.log-del').forEach(btn=>{
         btn.addEventListener('click', async ()=>{
           if(!(await ensureUnlocked())) return;
-          const logId = btn.dataset.logid;
-          deletedLogIds.add(logId);
-          site.logs = (site.logs||[]).filter(l=>l.id!==logId);
-          if(editingLogId===logId) editingLogId = null;
-          site.lastDate = lastVisit(site);
-          renderAll(); // 화면은 바로 반영
-          renderDetailPanel(site); // 상세 패널 헤더(보고서 개수 배지 등)를 확실하게 다시 그림
-          // 이 삭제는 복잡한 전체 저장/버전충돌 로직을 거치지 않고, 그 현장의 logs 경로만
-          // 클라우드에 곧바로 확정해서 쓴다. (다른 로직에 막혀서 삭제가 유실되는 일이 없도록)
-          try{
-            const officeName = site.office || currentOffice;
-            const {idx: idxInOffice} = await getFreshIndexInOffice(officeName, site.id);
-            if(idxInOffice>-1){
-              const url = `${FIREBASE_DB_URL}/offices/${encodeURIComponent(officeName)}/${idxInOffice}/logs.json?auth=${encodeURIComponent(FIREBASE_DB_SECRET)}`;
-              const res = await fetch(url, {
-                method:'PUT',
-                headers:{'Content-Type':'application/json'},
-                body: JSON.stringify(site.logs)
-              });
-              if(!res.ok){
-                alert('⚠️ 클라우드 저장 실패 (상태코드 '+res.status+'). 이 삭제는 이 화면에서만 지워졌고, 클라우드엔 반영 안 됐을 수 있어요.');
-              }else{
-                // 방금 쓴 걸 그대로 다시 읽어와서, 정말 서버에 반영됐는지 확인 (같은 URL, 캐시 무시)
-                const verifyUrl = `${FIREBASE_DB_URL}/offices/${encodeURIComponent(officeName)}/${idxInOffice}/logs.json?_=${Date.now()}`;
-                const vres = await fetch(verifyUrl, {cache:'no-store'});
-                const vdata = vres.ok ? await vres.json() : null;
-                const stillThere = Array.isArray(vdata) && vdata.some(l=>l && l.id===logId);
-                if(stillThere){
-                  alert('⚠️ 클라우드에 다시 확인해봤는데 아직 그 로그가 남아있어요. (URL 또는 권한 문제로 보임)');
-                }
-                console.log('[삭제 확인] 서버에 저장된 로그 개수:', Array.isArray(vdata)?vdata.length:'응답 이상함', vdata);
-              }
-            }else{
-              alert('⚠️ 이 현장을 사업소 목록에서 못 찾아서 클라우드에는 반영 못 했어요. (office: '+officeName+')');
-            }
-          }catch(e){
-            alert('⚠️ 클라우드 저장 중 오류: '+e.message);
-            console.error('로그 삭제 클라우드 반영 실패', e);
-          }
+          await deleteLogById(btn.dataset.logid);
         });
       });
 
