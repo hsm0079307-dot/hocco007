@@ -1203,7 +1203,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-03-v174</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-03-v175</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -4415,7 +4415,7 @@ const L = (function(){
         roster.forEach((r,i)=>{
           const mgr = (r.manager||'').trim();
           if(!mgr) return; // 담당 미지정인 사람은 담당별 집계에서 아예 뺀다 (노이즈라서)
-          if(!byManager[mgr]) byManager[mgr] = {total:0, contactedSet:new Set(), cumulativeContactedSet:new Set(), logs:[],
+          if(!byManager[mgr]) byManager[mgr] = {total:0, contactedSet:new Set(), cumulativeContactedSet:new Set(), todayContactedSet:new Set(), logs:[],
             cumMethodCounts:{'상담':0,'단순':0,'TM':0,'거부':0,'부재':0,'불명':0},
             todayMethodCounts:{'상담':0,'단순':0,'TM':0,'거부':0,'부재':0,'불명':0}};
           byManager[mgr].total++;
@@ -4428,6 +4428,12 @@ const L = (function(){
           }
           const todayLogsForPerson = personLogsAll[i].filter(l=>l.date===effectiveTodayKey);
           if(todayLogsForPerson.length>0){
+            // 이 사람이 오늘 접촉됐다는 사실 자체는 접촉방법 입력 여부와 상관없이 항상 센다.
+            // (예전엔 이 사람의 오늘 로그에 "접촉방법"이 하나도 안 적혀있으면 dominantMethod가 null을 돌려줘서
+            //  이 사람이 상담/단순/TM/거부/부재 중 어디에도 안 잡히고 통째로 빠져버렸다. 그러면 "담당별 접촉(금일)"
+            //  합계가 상단 요약(소유주 기준 접촉 인원)보다 작게 나와서 숫자가 서로 안 맞아 보이는 문제가 있었다.
+            //  총원은 접촉방법과 무관하게 별도 Set으로 세고, 방법별 세부 집계는 참고용으로만 따로 채운다.)
+            byManager[mgr].todayContactedSet.add(i);
             const dm2 = dominantMethod(todayLogsForPerson);
             if(dm2 && byManager[mgr].todayMethodCounts[dm2]!==undefined) byManager[mgr].todayMethodCounts[dm2]++;
           }
@@ -4589,7 +4595,10 @@ const L = (function(){
             <tbody>${managerNames.length ? managerNames.map(m=>{
               const d = s.byManager[m];
               const c = d.todayMethodCounts;
-              const todayTotal = Object.values(c).reduce((a,b)=>a+b,0);
+              // 예전엔 방법별 칸(상담/단순/TM/거부/부재)을 다 더해서 총원을 구했는데, 그러면 그날 접촉방법을
+              // 아예 안 적어놓은 사람은 어느 칸에도 안 잡혀서 총원에서 통째로 빠져버렸다(상단 요약과 숫자가 안 맞는 원인).
+              // 총원은 접촉방법 입력 여부와 무관하게 센 todayContactedSet을 그대로 쓴다.
+              const todayTotal = d.todayContactedSet.size;
               const cellHtml = (method, val) => val ? `<span class="cstat-clickable-num" data-mgr="${escapeHtml(m)}" data-method="${method}" data-table="today">${val}</span>` : '-';
               return `<tr><td>${escapeHtml(m)}</td><td>${d.total}</td><td>${todayTotal ? `<span class="cstat-clickable-num" data-mgr="${escapeHtml(m)}" data-method="금일" data-table="today">${todayTotal}</span>` : '0'}</td><td>${cellHtml('상담',c['상담'])}</td><td>${cellHtml('단순',c['단순'])}</td><td>${cellHtml('TM',c['TM'])}</td><td>${cellHtml('거부',c['거부'])}</td><td>${cellHtml('부재',c['부재'])}</td></tr>`;
             }).join('') : `<tr><td colspan="8" style="color:var(--text-dim);">명단에 담당이 기재된 사람이 없어요.</td></tr>`}</tbody></table>
@@ -4600,7 +4609,10 @@ const L = (function(){
               const collected = []; const seen = new Set();
               d.cumulativeContactedSet.forEach(idx=>{
                 let logsForPerson = s.personLogsAll[idx];
-                if(table==='today') logsForPerson = logsForPerson.filter(l=>l.date===realTodayKeyForClick);
+                // "금일" 숫자를 클릭했을 때도, 진짜 오늘이 아니라 지금 보고 있는 날짜(일별 조회 중이면 그 날짜) 기준으로
+                // 걸러야 위 표의 숫자와 여기서 펼쳐지는 목록이 서로 맞는다. (예전엔 항상 realTodayKeyForClick=진짜
+                // 오늘로만 걸러서, 과거 날짜를 조회 중일 땐 클릭해도 아무것도 안 나오거나 엉뚱한 날짜가 나왔다.)
+                if(table==='today') logsForPerson = logsForPerson.filter(l=>l.date===s.todayKey);
                 if(method!=='누계' && method!=='금일'){
                   const dm = dominantMethod(logsForPerson);
                   if(dm!==method) return;
