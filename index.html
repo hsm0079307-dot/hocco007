@@ -1137,7 +1137,12 @@
     <input type="text" id="ownerRosterSearchInput" placeholder="🔍 이름으로 찾기" style="width:100%;box-sizing:border-box;background:var(--bg-side-2);border:1px solid var(--line);border-radius:8px;padding:6px 10px;color:var(--text-main);font-size:11.5px;font-family:inherit;margin-bottom:6px;">
     <div id="ownerRosterTableWrap" style="max-height:360px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;">
       <table class="mgr-breakdown-table" style="margin-bottom:0;table-layout:fixed;">
-        <thead><tr><th style="width:40%;">이름</th><th style="width:28%;">직책</th><th style="width:28%;">담당</th><th style="width:4%;"></th></tr></thead>
+        <thead><tr>
+          <th id="ownerRosterSortNameTh" style="width:40%;cursor:pointer;user-select:none;" title="눌러서 이름순 정렬">이름 <span id="ownerRosterSortNameArrow"></span></th>
+          <th id="ownerRosterSortRoleTh" style="width:28%;cursor:pointer;user-select:none;" title="눌러서 직책순 정렬">직책 <span id="ownerRosterSortRoleArrow"></span></th>
+          <th id="ownerRosterSortManagerTh" style="width:28%;cursor:pointer;user-select:none;" title="눌러서 담당순 정렬">담당 <span id="ownerRosterSortManagerArrow"></span></th>
+          <th style="width:4%;"></th>
+        </tr></thead>
         <tbody id="ownerRosterTableBody"></tbody>
       </table>
     </div>
@@ -1203,7 +1208,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-03-v176</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-03-v178</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -1693,6 +1698,8 @@ const L = (function(){
     })();
   }
   let editingLogId = null; // 보고서(일지) "수정" 버튼 눌렀을 때, 지금 고치고 있는 항목의 id
+  let ownerRosterSortKey = null; // 소유주 명단 표에서 지금 정렬 기준 컬럼 ('name'|'role'|'manager'), 안 누르면 null(원래 순서)
+  let ownerRosterSortDir = 1; // 1=오름차순, -1=내림차순 (같은 컬럼 다시 누르면 뒤집힘)
   let cstatPeriod = 'month'; // 접촉현황 리포트에서 선택한 기간 ('month'|'week'|'day')
   let cstatNavDate = new Date(); // 그 기간 안에서 지금 보고 있는 기준 날짜 (◀▶로 이동 가능)
   let cstatExpandedWeek = null; // 주차별 그래프에서 펼쳐서 보고 있는 주차
@@ -4325,14 +4332,58 @@ const L = (function(){
           manager: tr.querySelector('.roster-manager').value.trim(),
         })).filter(r=>r.name);
       }
+      // 정렬할 땐 이름이 아직 안 채워진(막 "+행 추가"로 만든 빈) 줄까지도 그대로 살려서 다시 그려야 하므로,
+      // 이름이 빈 줄을 걸러내는 readOwnerRosterRows()와 달리 지금 화면에 보이는 값을 전부(빈 줄 포함) 읽어온다.
+      function readOwnerRosterRowsKeepBlank(){
+        return Array.from(document.querySelectorAll('#ownerRosterTableBody tr')).map(tr=>({
+          name: tr.querySelector('.roster-name').value,
+          role: tr.querySelector('.roster-role').value,
+          manager: tr.querySelector('.roster-manager').value,
+        }));
+      }
+      function applyOwnerRosterSearchFilter(){
+        const input = document.getElementById('ownerRosterSearchInput');
+        const q = (input ? input.value : '').trim().toLowerCase();
+        document.querySelectorAll('#ownerRosterTableBody tr').forEach(tr=>{
+          const name = (tr.querySelector('.roster-name')?.value||'').toLowerCase();
+          const role = (tr.querySelector('.roster-role')?.value||'').toLowerCase();
+          const manager = (tr.querySelector('.roster-manager')?.value||'').toLowerCase();
+          const hit = !q || name.includes(q) || role.includes(q) || manager.includes(q);
+          tr.style.display = hit ? '' : 'none';
+        });
+      }
+      // 이름/직책/담당 머리글을 누르면 그 칸 기준으로 오름차순, 같은 칸을 또 누르면 내림차순으로 뒤집는다.
+      // 지금 입력 중인 값(아직 "저장" 안 누른 상태) 그대로 정렬해서 다시 그리므로, 정렬해도 입력한 내용은 안 없어진다.
+      function sortOwnerRosterTable(key){
+        ownerRosterSortDir = (ownerRosterSortKey===key) ? -ownerRosterSortDir : 1;
+        ownerRosterSortKey = key;
+        const rows = readOwnerRosterRowsKeepBlank();
+        rows.sort((a,b)=> ownerRosterSortDir * String(a[key]||'').localeCompare(String(b[key]||''), 'ko'));
+        renderOwnerRosterRows(rows);
+        applyOwnerRosterSearchFilter();
+        updateOwnerRosterSortArrows();
+      }
+      function updateOwnerRosterSortArrows(){
+        [['name','ownerRosterSortNameArrow'],['role','ownerRosterSortRoleArrow'],['manager','ownerRosterSortManagerArrow']].forEach(([key,arrowId])=>{
+          const el = document.getElementById(arrowId);
+          if(!el) return;
+          el.textContent = ownerRosterSortKey!==key ? '' : (ownerRosterSortDir>0 ? '▲' : '▼');
+        });
+      }
       const ownerRosterBtn = document.getElementById('ownerRosterBtn');
       if(ownerRosterBtn) ownerRosterBtn.addEventListener('click', async ()=>{
         if(!(await ensureUnlocked())) return;
         const rows = (site.ownerRoster||[]).map(normalizeRosterEntry);
+        ownerRosterSortKey = null; ownerRosterSortDir = 1; // 열 때마다 정렬 표시 초기화(저장된 원래 순서부터 보여줌)
         renderOwnerRosterRows(rows.length ? rows : [{name:'',role:'',manager:''}]);
+        updateOwnerRosterSortArrows();
         document.getElementById('ownerRosterBulkTextarea').value = '';
         document.getElementById('ownerRosterSearchInput').value = '';
         document.getElementById('ownerRosterModalOverlay').classList.add('show');
+      });
+      [['ownerRosterSortNameTh','name'],['ownerRosterSortRoleTh','role'],['ownerRosterSortManagerTh','manager']].forEach(([thId,key])=>{
+        const th = freshEl(thId);
+        if(th) th.addEventListener('click', ()=>sortOwnerRosterTable(key));
       });
       function dominantMethod(logs){
         if(!logs.length) return null;
@@ -4535,6 +4586,9 @@ const L = (function(){
             todayRows.push({log:l, role: m ? m.role : '', count: idx>=0 ? s.personLogsAll[idx].length : 0});
           });
         });
+        // 담당(작성자) 기준으로 묶어서 보여줘야 같은 담당자가 쓴 보고서끼리, 같은 사람이 여러 번 나온 것도
+        // 붙어서 보이니까 비교하기 편하다. (원래 기록 순서는 그냥 시간순이라 뒤섞여 보였음)
+        todayRows.sort((a,b)=> (a.log.author||'').localeCompare((b.log.author||''), 'ko'));
         const maxWeekTotal = Math.max(1, ...weekNums.map(wk=>(s.weekTotalContact[wk]||0)));
         const maxMgrTotal = Math.max(1, ...managerNames.map(m=>s.byManager[m].total));
         const savedNote = site.contactStatsNote || '';
@@ -4545,6 +4599,11 @@ const L = (function(){
           : cstatPeriod==='week' ? weekLabelFor(cstatNavDate)
           : `${navY}년 ${navMo+1}월 ${navD}일`;
         const isRealToday = dateInputVal === `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+        // "담당별" 표는 명단에 담당이 채워진 사람만 집계해서(담당 미지정은 노이즈라 일부러 뺌), 담당이
+        // 비어있는 사람이 접촉되면 위 상단 요약(소유주 전체 기준)과 아래 담당별 합계가 서로 달라 보인다.
+        // 매번 "왜 숫자가 안 맞냐"고 헷갈리지 않도록, 그 사람이 누군지 바로 알려주는 안내를 띄운다.
+        const noManagerContactedToday = s.roster.filter((r,i)=> !(r.manager||'').trim() && (s.personLogsAll[i]||[]).some(l=>l.date===s.todayKey)).map(r=>r.name);
+        const noManagerContactedTotal = s.roster.filter((r,i)=> !(r.manager||'').trim() && (s.personLogsAll[i]||[]).length>0).map(r=>r.name);
         box.innerHTML = `
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
             <h3 style="margin:0;font-size:15px;">📊 ${escapeHtml(site.name)} 접촉현황 <span style="font-size:11px;color:var(--text-dim);font-weight:400;">${now.getFullYear()}년 ${now.getMonth()+1}월 ${now.getDate()}일</span></h3>
@@ -4570,6 +4629,13 @@ const L = (function(){
             <div class="cstat-box"><div class="cstat-num" style="color:#ff7b7b;">${s.uncontactedOwners}명</div><div class="cstat-lbl">미접촉</div></div>
             <div class="cstat-box"><div class="cstat-num" style="color:var(--accent);">${s.contactRate}%</div><div class="cstat-lbl">접촉률</div></div>
           </div>
+
+          ${noManagerContactedTotal.length ? `
+          <div style="background:rgba(255,183,3,0.12);border:1px solid rgba(255,183,3,0.4);border-radius:8px;padding:8px 10px;margin-bottom:14px;font-size:10.5px;line-height:1.6;color:#ffb703;">
+            ⚠️ 아래 "담당별" 표는 명단에 <b>담당이 채워진 사람만</b> 집계돼서, 담당이 비어있으면 위 상단 요약과 표 합계가 안 맞아 보여요.<br>
+            ${noManagerContactedToday.length ? `· ${escapeHtml(navLabel)} 기준 접촉했지만 담당 미지정: <b>${noManagerContactedToday.map(escapeHtml).join(', ')}</b><br>` : ''}
+            · 누계 기준 담당 미지정 접촉자 <b>${noManagerContactedTotal.length}명</b>${noManagerContactedTotal.length<=15 ? ': '+noManagerContactedTotal.map(escapeHtml).join(', ') : ' (너무 많아 이름은 생략)'} — 소유주 명단에서 이 분들 담당 칸을 채우면 숫자가 맞아떨어져요.
+          </div>` : ''}
 
           <div class="cstat-section">
             <div class="cstat-section-title">① 담당별 접촉현황</div>
@@ -4873,14 +4939,7 @@ const L = (function(){
       });
       const ownerRosterSearchInput = freshEl('ownerRosterSearchInput');
       if(ownerRosterSearchInput) ownerRosterSearchInput.addEventListener('input', ()=>{
-        const q = ownerRosterSearchInput.value.trim().toLowerCase();
-        document.querySelectorAll('#ownerRosterTableBody tr').forEach(tr=>{
-          const name = (tr.querySelector('.roster-name')?.value||'').toLowerCase();
-          const role = (tr.querySelector('.roster-role')?.value||'').toLowerCase();
-          const manager = (tr.querySelector('.roster-manager')?.value||'').toLowerCase();
-          const hit = !q || name.includes(q) || role.includes(q) || manager.includes(q);
-          tr.style.display = hit ? '' : 'none';
-        });
+        applyOwnerRosterSearchFilter();
       });
       const ownerRosterAddRowBtn = freshEl('ownerRosterAddRowBtn');
       if(ownerRosterAddRowBtn) ownerRosterAddRowBtn.addEventListener('click', ()=>{
