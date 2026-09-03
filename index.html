@@ -1203,7 +1203,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v171</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-03-v172</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -4394,6 +4394,11 @@ const L = (function(){
         const realToday = new Date();
         const todayKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
         const realTodayKey = `${realToday.getFullYear()}-${String(realToday.getMonth()+1).padStart(2,'0')}-${String(realToday.getDate()).padStart(2,'0')}`;
+        // "일별" 보기에서 다른 날짜로 이동하면, 상단 요약/담당별 표는 전부 "지금 보고 있는 그 날"(todayKey) 기준으로 나와야
+        // 맞다. 그런데 "담당별 접촉(금일) 방법" 표만 realTodayKey(진짜 오늘)로 계산되고 있어서, 예전 날짜를 조회하면
+        // 상단 요약엔 그 날짜의 접촉 인원이 나오는데 이 표만 0으로 어긋나 보이는 문제가 있었다. 아래에서 전부
+        // effectiveTodayKey(일별일 땐 조회 중인 날짜, 그 외엔 실제 오늘)로 통일한다.
+        const effectiveTodayKey = period==='day' ? todayKey : realTodayKey;
         const periodRange = getPeriodRange(period, now);
         const personLogsAll = roster.map(()=>[]); // 전체 기간(신규 접촉 판단용)
         logs.forEach(l=>{
@@ -4421,7 +4426,7 @@ const L = (function(){
             const dm = dominantMethod(personLogsAll[i]);
             if(dm && byManager[mgr].cumMethodCounts[dm]!==undefined) byManager[mgr].cumMethodCounts[dm]++;
           }
-          const todayLogsForPerson = personLogsAll[i].filter(l=>l.date===realTodayKey);
+          const todayLogsForPerson = personLogsAll[i].filter(l=>l.date===effectiveTodayKey);
           if(todayLogsForPerson.length>0){
             const dm2 = dominantMethod(todayLogsForPerson);
             if(dm2 && byManager[mgr].todayMethodCounts[dm2]!==undefined) byManager[mgr].todayMethodCounts[dm2]++;
@@ -4473,7 +4478,6 @@ const L = (function(){
             if(fd){ const wk = Math.ceil((fd+mondayOffset)/7); weekNewContact[wk] = (weekNewContact[wk]||0)+1; }
           }
         });
-        const effectiveTodayKey = period==='day' ? todayKey : realTodayKey;
         const todayLogs = logs.filter(l=>l.date===effectiveTodayKey);
         const totalOwners = roster.length;
         const contactedOwners = roster.filter((r,i)=>personLogs[i].length>0).length;
@@ -5016,8 +5020,13 @@ const L = (function(){
           const unmatchedList = Array.from(unmatchedNames);
           resultEl.innerHTML = `✅ 성함/직책 <b>${changedCount}건</b> 자동 수정 완료<br>⚠️ 명단에서 비슷한 이름을 못 찾은 미변경 <b>${unmatchedList.length}명</b>${unmatchedList.length?': '+unmatchedList.slice(0,30).map(escapeHtml).join(', ')+(unmatchedList.length>30?' 외 '+(unmatchedList.length-30)+'명':''):''}`;
         }
-        ownerRosterCleanupBtn.disabled = false;
-        ownerRosterCleanupBtn.textContent = '🔄 명단 기준으로 기존 보고서 정리';
+        // 주의: 위의 renderDetailPanel(site) 호출이 이 버튼(freshEl로 얻은 clone)을 다시 clone+교체해버려서,
+        // 여기서 클로저로 들고 있던 ownerRosterCleanupBtn은 이미 화면에서 빠진(detached) 옛 엘리먼트가 될 수 있다.
+        // 그 옛 엘리먼트만 갱신하면 화면엔 여전히 "정리하는 중..."이 그대로 남아 안 넘어가는 것처럼 보이므로,
+        // 지금 실제로 화면에 붙어있는 최신 버튼을 다시 찾아서 그걸 갱신한다.
+        const liveCleanupBtn = document.getElementById('ownerRosterCleanupBtn') || ownerRosterCleanupBtn;
+        liveCleanupBtn.disabled = false;
+        liveCleanupBtn.textContent = '🔄 명단 기준으로 기존 보고서 정리';
       });
       const ownerRosterFindSuspiciousBtn = freshEl('ownerRosterFindSuspiciousBtn');
       if(ownerRosterFindSuspiciousBtn) ownerRosterFindSuspiciousBtn.addEventListener('click', async ()=>{
@@ -5266,8 +5275,11 @@ const L = (function(){
       if(mgrOwnerSearchInput) mgrOwnerSearchInput.addEventListener('input', ()=>{
         const q = mgrOwnerSearchInput.value.trim().toLowerCase();
         document.querySelectorAll('#mgrOwnerTable tr[data-owner-row]').forEach(row=>{
-          const name = (row.dataset.ownerRow||'').toLowerCase();
-          row.style.display = (!q || name.includes(q)) ? '' : 'none';
+          // data-owner-row엔 순수 이름만 들어있어서(예: "백정순"), "선일부동산"처럼 이름 옆 괄호 안에만
+          // 적힌 회사명/직책으로 검색하면 아무 것도 안 걸리는 문제가 있었다. 화면에 보이는 행 전체 텍스트
+          // (이름+직책+담당 등)를 기준으로 찾도록 바꿔서, 중간에 있는 값으로 검색해도 잡히게 한다.
+          const text = (row.textContent||'').toLowerCase();
+          row.style.display = (!q || text.includes(q)) ? '' : 'none';
         });
       });
       const mgrMergeBar = document.getElementById('mgrMergeBar');
@@ -7502,7 +7514,9 @@ const L = (function(){
       specialOut = fieldOut(specialSentence, shownSpecial);
     }
     const siteLine = (opts.siteLabel && !opts.hideSiteAndContact) ? `<div style="font-size:11.5px;margin-bottom:4px;color:var(--accent);font-weight:700;">📍 ${escapeHtml(opts.siteLabel)}</div>` : '';
-    const contactKey = parseContactName(l.contactName).name;
+    // 괄호가 겹으로 붙은 경우(예: "백정순(선일부동산)(대표)")까지 끝까지 벗겨낸 순수 이름으로 맞춰야,
+    // "이번 기간 접촉자" 칩(이제 fullyStripRoles로 정리된 순수 이름을 씀)을 눌렀을 때 이 카드도 정상적으로 매칭된다.
+    const contactKey = fullyStripRoles(l.contactName).name;
     return `<div class="report-log-card" data-contact-name="${escapeHtml(contactKey)}" style="border:1px solid var(--border,rgba(255,255,255,0.15));border-radius:10px;padding:10px 12px;margin-bottom:8px;">
       ${siteLine}
       <div style="font-weight:700;font-size:12.5px;margin-bottom:4px;">${escapeHtml(dateLabel)}</div>
@@ -8487,16 +8501,23 @@ const L = (function(){
     function buildRowDetailHtml(r, dayKey){
       const scopedLogsForContacts = dayKey ? (r.logs||[]).filter(l=>l.date===dayKey) : (r.logs||[]);
       const rawContacts = Array.from(new Set(scopedLogsForContacts.map(l=>l.contactName).filter(Boolean).map(n=>n.trim()).filter(Boolean)));
-      // "최영희 (선관위원)", "정상수(위원장)" 같은 문자열에서 이름/직책을 분리하고, 같은 이름은 하나로 합친다
-      const contactMap = new Map(); // name -> role (있으면)
+      // "최영희 (선관위원)", "정상수(위원장)" 같은 문자열에서 이름/직책을 분리하고, 같은 이름은 하나로 합친다.
+      // 예전엔 parseContactName(괄호 한 겹만 벗김)만 써서, "백정순(선일부동산)(대표)"처럼 예전 버그로 직책이
+      // 겹쳐 붙은 표기는 안쪽 괄호가 이름에 그대로 남아버렸고("백정순(선일부동산)"), 같은 사람이 "백정순(선일부동산)"
+      // / "백정순(선일부동산)(대표)" / "백정순"처럼 표기가 조금만 달라도 서로 다른 사람으로 취급돼 명단에 중복으로
+      // 나왔다. fullyStripRoles로 괄호를 끝까지 다 벗겨낸 순수 이름을 기준(키)으로 합치도록 고친다.
+      const contactMap = new Map(); // coreNameKey -> {name, role}
       rawContacts.forEach(raw=>{
-        const {name, role} = parseContactName(raw);
+        const {name, role} = fullyStripRoles(raw);
         if(!name) return;
-        if(!contactMap.has(name) || (role && !contactMap.get(name))) contactMap.set(name, role);
+        const key = name.replace(/\s+/g,'');
+        const existing = contactMap.get(key);
+        if(!existing) contactMap.set(key, {name, role});
+        else if(role && !existing.role) existing.role = role;
       });
       // 직책/소속을 큰 카테고리로 묶고(직책 없는 사람은 "일반"으로), 그룹은 인원 많은 순으로
       const roleGroups = new Map();
-      contactMap.forEach((role, name)=>{
+      contactMap.forEach(({name, role})=>{
         const key = categorizeRole(role);
         if(!roleGroups.has(key)) roleGroups.set(key, []);
         roleGroups.get(key).push(name);
