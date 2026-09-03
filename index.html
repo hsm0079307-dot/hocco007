@@ -744,6 +744,9 @@
   .cstat-names-expand{margin-top:8px;padding:10px 12px;background:var(--bg-side-2);border:1px solid var(--line);border-radius:8px;}
   .cstat-names-grid{display:flex;flex-wrap:wrap;gap:5px;}
   .cstat-name-chip{background:var(--bg-main,rgba(255,255,255,.05));border:1px solid var(--line);border-radius:6px;padding:3px 8px;font-size:10.5px;color:var(--text-main);}
+  .cstat-contact-group{border:1.5px solid var(--accent);border-radius:10px;padding:8px 10px 2px;margin-bottom:8px;}
+  .cstat-contact-group-head{font-size:12px;font-weight:800;color:var(--accent);margin-bottom:6px;}
+  .cstat-contact-group .report-log-card{border-color:var(--line);}
   @media (max-width:520px){
     .cstat-desktop-only{display:none;}
     .cstat-mobile-only{display:block;}
@@ -1195,7 +1198,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v167</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v168</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -4240,7 +4243,7 @@ const L = (function(){
                       <button class="log-del" data-logid="${l.id}">삭제</button>
                     </div>
                   </div>
-                  ${isJoint && l.author?`<div class="log-field-line"><b>작성:</b> ${escapeHtml(l.author)}</div>`:''}
+                  ${l.author?`<div class="log-field-line"><b>담당:</b> ${escapeHtml(l.author)}</div>`:''}
                   ${l.contactName?`<div class="log-field-line"><b>접촉:</b> ${escapeHtml(l.contactName)}</div>`:''}
                   ${l.owner?`<div class="log-field-line"><b>소유자:</b> ${escapeHtml(formatOwnerDisplay(l.owner))}</div>`:''}
                   ${l.unit?`<div class="log-field-line"><b>동호수:</b> ${escapeHtml(l.unit)}</div>`:''}
@@ -4552,7 +4555,7 @@ const L = (function(){
               return `<tr><td>${escapeHtml(m)}</td><td>${d.total}</td><td><span class="cstat-clickable-num" data-mgr="${escapeHtml(m)}" data-method="누계" data-table="top">${cumContacted}</span></td><td>${cumRate}%</td><td>${d.total-cumContacted}</td></tr>`;
             }).join('') : `<tr><td colspan="5" style="color:var(--text-dim);">명단에 담당이 기재된 사람이 없어요.</td></tr>`}</tbody></table>
 
-            <div class="cstat-section-title" style="margin-top:16px;">담당별 접촉(누계) 방법 <span style="font-weight:400;color:var(--text-dim);font-size:10px;">· 한 사람이 여러 방법으로 접촉됐으면 제일 많이 쓰인 방법 하나로만 셈</span></div>
+            <div class="cstat-section-title" style="margin-top:16px;">담당별 접촉(누계) 방법</div>
             <table class="cstat-table"><thead><tr><th style="width:22%;">담당</th><th style="width:13%;">인원</th><th style="width:13%;">접촉<br>(누계)</th><th style="width:10.4%;">상담</th><th style="width:10.4%;">단순</th><th style="width:10.4%;">TM</th><th style="width:10.4%;">거부</th><th style="width:10.4%;">부재</th></tr></thead>
             <tbody>${managerNames.length ? managerNames.map(m=>{
               const d = s.byManager[m];
@@ -4585,10 +4588,25 @@ const L = (function(){
                 logsForPerson.forEach(l=>{ const key=l.id||l; if(!seen.has(key)){ seen.add(key); collected.push(l); } });
               });
               collected.sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+              // 같은 접촉자가 여러 번 나오면 따로따로 흩어놓지 말고 한 그룹으로 묶어서 보여준다
+              const byContact = {}; const contactOrder = [];
+              collected.forEach(l=>{
+                const key = (l.contactName||'').trim() || '(미상)';
+                if(!byContact[key]){ byContact[key] = []; contactOrder.push(key); }
+                byContact[key].push(l);
+              });
               const sc=new Set(), ss=new Set();
+              const groupsHtml = contactOrder.map(name=>{
+                const logsForName = byContact[name];
+                if(logsForName.length===1) return buildLogCard(logsForName[0], sc, ss, {fullDate:true});
+                return `<div class="cstat-contact-group">
+                  <div class="cstat-contact-group-head">${escapeHtml(name)} <span style="font-weight:400;color:var(--text-dim);">${logsForName.length}건</span></div>
+                  ${logsForName.map(l=>buildLogCard(l, sc, ss, {fullDate:true, hideSiteAndContact:true})).join('')}
+                </div>`;
+              }).join('');
               return `<div class="cstat-expanded-logs">
                 <div class="cstat-expanded-title">${escapeHtml(mgr)} · ${escapeHtml(method)} (${collected.length}건) <button type="button" class="cstat-expanded-close no-print">✕</button></div>
-                ${collected.length ? collected.map(l=>buildLogCard(l, sc, ss, {fullDate:true})).join('') : '<div style="color:var(--text-dim);font-size:11px;">기록 없음</div>'}
+                ${collected.length ? groupsHtml : '<div style="color:var(--text-dim);font-size:11px;">기록 없음</div>'}
               </div>`;
             })() : ''}
           </div>
@@ -4813,6 +4831,11 @@ const L = (function(){
 
       const contactStatsBtn = document.getElementById('contactStatsBtn');
       if(contactStatsBtn) contactStatsBtn.addEventListener('click', ()=>{
+        cstatNavDate = new Date();
+        cstatPeriod = 'month';
+        cstatExpandedWeek = null;
+        cstatExpandedManager = null;
+        cstatExpandedCell = null;
         renderContactStatsReport();
         document.getElementById('contactStatsModalOverlay').classList.add('show');
       });
@@ -7457,13 +7480,13 @@ const L = (function(){
     }else{
       specialOut = fieldOut(specialSentence, shownSpecial);
     }
-    const siteLine = opts.siteLabel ? `<div style="font-size:11.5px;margin-bottom:4px;color:var(--accent);font-weight:700;">📍 ${escapeHtml(opts.siteLabel)}</div>` : '';
+    const siteLine = (opts.siteLabel && !opts.hideSiteAndContact) ? `<div style="font-size:11.5px;margin-bottom:4px;color:var(--accent);font-weight:700;">📍 ${escapeHtml(opts.siteLabel)}</div>` : '';
     const contactKey = parseContactName(l.contactName).name;
     return `<div class="report-log-card" data-contact-name="${escapeHtml(contactKey)}" style="border:1px solid var(--border,rgba(255,255,255,0.15));border-radius:10px;padding:10px 12px;margin-bottom:8px;">
       ${siteLine}
       <div style="font-weight:700;font-size:12.5px;margin-bottom:4px;">${escapeHtml(dateLabel)}</div>
       <div style="font-size:12px;margin-bottom:2px;"><b style="color:var(--accent);">담당:</b> ${escapeHtml(manager)}</div>
-      <div style="font-size:12px;margin-bottom:6px;"><b style="color:var(--accent);">접촉:</b> ${escapeHtml(contact)}</div>
+      ${opts.hideSiteAndContact ? '' : `<div style="font-size:12px;margin-bottom:6px;"><b style="color:var(--accent);">접촉:</b> ${escapeHtml(contact)}</div>`}
       <div style="font-size:12px;margin-bottom:4px;"><b style="color:var(--accent);">상담내용</b> ${escapeHtml(summary)}</div>
       <div style="font-size:12px;margin-bottom:4px;"><b style="color:var(--accent);">타사활동</b> ${escapeHtml(competitorOut)}</div>
       <div style="font-size:12px;"><b style="color:var(--accent);">특이사항</b> ${escapeHtml(specialOut)}</div>
