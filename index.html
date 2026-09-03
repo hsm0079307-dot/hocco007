@@ -1138,6 +1138,7 @@
       </table>
     </div>
     <button type="button" class="btn btn-ghost btn-sm" id="ownerRosterAddRowBtn" style="width:100%;margin-top:6px;">+ 행 추가</button>
+    <button type="button" class="btn btn-ghost btn-sm" id="ownerRosterClearAllBtn" style="width:100%;margin-top:6px;color:#ff7b7b;border-color:#ff7b7b;">🗑 전체삭제</button>
     <div style="display:flex;gap:8px;margin-top:10px;">
       <button type="button" class="btn btn-primary btn-sm" id="ownerRosterSaveBtn" style="flex:1;">저장</button>
       <button type="button" class="btn btn-ghost btn-sm" id="ownerRosterCancelBtn" style="flex:1;">취소</button>
@@ -1198,7 +1199,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v168</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-08-16-v170</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -1931,6 +1932,17 @@ const L = (function(){
   // 그 현장이 지금 이 순간 서버의 실제 배열에서 몇 번째인지 다시 확인해서 반환한다.
   // (allOfficesData 캐시 값을 그대로 믿으면, 그 사이 다른 곳에서 같은 사업소에 현장을 추가/삭제/순서변경 했을 때
   //  인덱스가 어긋나서 엉뚱한 현장의 로그를 읽거나 써버릴 수 있어서, 로그 읽기/쓰기 직전엔 항상 이걸로 다시 확인한다)
+  // 정적 모달(사이트를 바꿔도 재사용되는 HTML) 안의 버튼은, renderDetailBody가 호출될 때마다
+  // addEventListener로 리스너를 계속 "추가"만 하면 예전 현장의 클로저가 계속 쌓인다.
+  // 그 상태에서 "저장" 등을 누르면 예전 리스너들도 같이 실행되면서 다른 현장에까지 값이 새어 들어간다.
+  // 그래서 매번 요소를 통째로 복제해서 갈아끼워, 이전에 붙어있던 리스너를 전부 제거한 새 요소로 시작한다.
+  function freshEl(id){
+    const old = document.getElementById(id);
+    if(!old) return null;
+    const clone = old.cloneNode(true);
+    old.replaceWith(clone);
+    return clone;
+  }
   async function getFreshIndexInOffice(officeName, siteId){
     try{
       const url = `${FIREBASE_DB_URL}/offices/${encodeURIComponent(officeName)}.json?_=${Date.now()}`;
@@ -4839,7 +4851,7 @@ const L = (function(){
         renderContactStatsReport();
         document.getElementById('contactStatsModalOverlay').classList.add('show');
       });
-      const ownerRosterSearchInput = document.getElementById('ownerRosterSearchInput');
+      const ownerRosterSearchInput = freshEl('ownerRosterSearchInput');
       if(ownerRosterSearchInput) ownerRosterSearchInput.addEventListener('input', ()=>{
         const q = ownerRosterSearchInput.value.trim().toLowerCase();
         document.querySelectorAll('#ownerRosterTableBody tr').forEach(tr=>{
@@ -4850,11 +4862,16 @@ const L = (function(){
           tr.style.display = hit ? '' : 'none';
         });
       });
-      const ownerRosterAddRowBtn = document.getElementById('ownerRosterAddRowBtn');
+      const ownerRosterAddRowBtn = freshEl('ownerRosterAddRowBtn');
       if(ownerRosterAddRowBtn) ownerRosterAddRowBtn.addEventListener('click', ()=>{
         const rows = readOwnerRosterRows();
         rows.push({name:'',role:'',manager:''});
         renderOwnerRosterRows(rows);
+      });
+      const ownerRosterClearAllBtn = freshEl('ownerRosterClearAllBtn');
+      if(ownerRosterClearAllBtn) ownerRosterClearAllBtn.addEventListener('click', ()=>{
+        if(!confirm(`"${site.name}" 명단을 표에서 전부 지울까요? (아직 저장은 안 됐어요 — "저장"을 눌러야 실제로 반영돼요)`)) return;
+        renderOwnerRosterRows([{name:'',role:'',manager:''}]);
       });
       // 괄호/대괄호 안 내용이 직책일 때도 있고 그냥 메모일 때도 있어서, 억지로 분리하지 않고
       // 입력한 이름 칸은 있는 그대로(괄호 포함) 저장한다. 직책이 필요하면 엑셀에서 진짜 별도 칸으로 나눠서 붙여넣으면 됨.
@@ -4873,18 +4890,18 @@ const L = (function(){
         renderOwnerRosterRows(existing.concat(parsed));
         bulkTa.value = '';
       }
-      const ownerRosterBulkApplyBtn = document.getElementById('ownerRosterBulkApplyBtn');
+      const ownerRosterBulkApplyBtn = freshEl('ownerRosterBulkApplyBtn');
       if(ownerRosterBulkApplyBtn) ownerRosterBulkApplyBtn.addEventListener('click', applyBulkPasteToRosterTable);
-      const ownerRosterBulkTa = document.getElementById('ownerRosterBulkTextarea');
+      const ownerRosterBulkTa = freshEl('ownerRosterBulkTextarea');
       if(ownerRosterBulkTa) ownerRosterBulkTa.addEventListener('paste', ()=>{
         // 붙여넣기 직후엔 아직 값이 안 들어와 있을 수 있어서, 한 틱 미뤄서 처리
         setTimeout(applyBulkPasteToRosterTable, 30);
       });
-      const ownerRosterCancelBtn = document.getElementById('ownerRosterCancelBtn');
+      const ownerRosterCancelBtn = freshEl('ownerRosterCancelBtn');
       if(ownerRosterCancelBtn) ownerRosterCancelBtn.addEventListener('click', ()=>{
         document.getElementById('ownerRosterModalOverlay').classList.remove('show');
       });
-      const ownerRosterSaveBtn = document.getElementById('ownerRosterSaveBtn');
+      const ownerRosterSaveBtn = freshEl('ownerRosterSaveBtn');
       if(ownerRosterSaveBtn) ownerRosterSaveBtn.addEventListener('click', async ()=>{
         if(!(await ensureUnlocked())) return;
         const rows = readOwnerRosterRows();
@@ -4934,7 +4951,7 @@ const L = (function(){
         }
         return null;
       }
-      const ownerRosterCleanupBtn = document.getElementById('ownerRosterCleanupBtn');
+      const ownerRosterCleanupBtn = freshEl('ownerRosterCleanupBtn');
       if(ownerRosterCleanupBtn) ownerRosterCleanupBtn.addEventListener('click', async ()=>{
         if(!(await ensureUnlocked())) return;
         const rawRoster = (site.ownerRoster||[]);
@@ -4998,7 +5015,7 @@ const L = (function(){
         ownerRosterCleanupBtn.disabled = false;
         ownerRosterCleanupBtn.textContent = '🔄 명단 기준으로 기존 보고서 정리';
       });
-      const ownerRosterFindSuspiciousBtn = document.getElementById('ownerRosterFindSuspiciousBtn');
+      const ownerRosterFindSuspiciousBtn = freshEl('ownerRosterFindSuspiciousBtn');
       if(ownerRosterFindSuspiciousBtn) ownerRosterFindSuspiciousBtn.addEventListener('click', async ()=>{
         const resultEl = document.getElementById('ownerRosterSuspiciousResult');
         const rawRoster = (site.ownerRoster||[]);
