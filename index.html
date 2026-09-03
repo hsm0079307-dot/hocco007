@@ -1149,7 +1149,7 @@
     </div>
     <div style="border-top:1px solid var(--line);margin-top:12px;padding-top:10px;">
       <p style="font-size:10.5px;color:var(--text-dim);margin:0 0 6px;line-height:1.5;">
-        저장한 명단 기준으로, 기존 보고서(텔레그램봇으로 들어온 것 포함)에 적힌 이름 중 비슷한 걸 자동으로 명단 이름에 맞춰 정리해요. 오타 1~2글자 차이까지만 자동 인식해요.
+        저장한 명단 기준으로, 기존 보고서(텔레그램봇으로 들어온 것 포함)에 적힌 이름 중 비슷한 걸 자동으로 명단 이름에 맞춰 정리해요. 오타 1~2글자 차이까지만 자동 인식해요. 그래도 못 찾은 이름은 아래에 하나씩 나오는데, 그 이름을 눌러 일지를 확인하고 "명단에 추가"하거나 "기존 이름으로 매칭"할 수 있어요.
       </p>
       <button type="button" class="btn btn-ghost btn-sm" id="ownerRosterCleanupBtn" style="width:100%;">🔄 명단 기준으로 기존 보고서 정리</button>
       <div id="ownerRosterCleanupResult" style="font-size:11px;margin-top:8px;line-height:1.6;"></div>
@@ -1203,7 +1203,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-03-v172</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-03-v174</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -4946,7 +4946,10 @@ const L = (function(){
         // 이름이 짧을수록 엄격하게(2글자는 완전일치만), 길수록 1~2글자 차이까지 "비슷함"으로 인정
         // 오타는 거의 항상 1글자 차이라서, 기준을 엄격하게 잡는다. 너무 널널하면
         // "까치부동산"과 "우리부동산"처럼 끝 글자("부동산")만 같은 완전히 다른 이름까지 "비슷하다"고 잘못 판단해버린다.
-        const threshold = name.length<=4 ? 0 : (name.length<=9 ? 1 : 2);
+        // (예전엔 여기 기준이 "4글자 이하는 완전일치만"으로 되어 있었는데, 정작 대부분의 실제 사람 이름이 3~4글자라서
+        //  "황승철"을 "황송철"로 한 글자만 잘못 적어도 절대 매칭이 안 되는 문제가 있었다. 주석에 적힌 원래 의도대로
+        //  "2글자만 완전일치"로 바로잡아서, 3글자 이상 이름은 1글자 오타 정도는 명단과 매칭되게 한다.)
+        const threshold = name.length<=2 ? 0 : (name.length<=9 ? 1 : 2);
         if(best && bestDist>0 && bestDist<=threshold) return {match: best, exact: false};
         // "롱이부동산"을 "롱이부"처럼 뒷부분을 그냥 생략해서 줄여 쓴 경우는 오타가 아니라서 위 편집거리로 안 잡힌다.
         // 짧은 쪽이 긴 쪽의 맨 앞부분과 정확히 겹치면(최소 3글자 이상, 오매칭 방지용) 줄임말로 보고 매칭시킨다.
@@ -4959,16 +4962,33 @@ const L = (function(){
         }
         return null;
       }
-      const ownerRosterCleanupBtn = freshEl('ownerRosterCleanupBtn');
-      if(ownerRosterCleanupBtn) ownerRosterCleanupBtn.addEventListener('click', async ()=>{
-        if(!(await ensureUnlocked())) return;
-        const rawRoster = (site.ownerRoster||[]);
-        if(!rawRoster.length){ alert('먼저 명단을 입력하고 저장해주세요.'); return; }
-        const roster = rawRoster.map(normalizeRosterEntry).filter(r=>r.name);
-        ownerRosterCleanupBtn.disabled = true;
-        ownerRosterCleanupBtn.textContent = '정리하는 중...';
+      // 명단(ownerRoster)과 보고서(logs) 변경사항을 함께 클라우드에 반영하는 공통 함수.
+      // 정리 버튼뿐 아니라, 아래 "명단에 새로 추가"/"기존 이름으로 매칭"에서도 재사용한다.
+      async function persistRosterAndLogs(){
+        site.lastDate = lastVisit(site);
+        renderAll();
+        renderDetailPanel(site);
+        try{
+          const officeName = site.office || currentOffice;
+          const {idx: idxInOffice} = await getFreshIndexInOffice(officeName, site.id);
+          if(idxInOffice>-1){
+            const rosterUrl = `${FIREBASE_DB_URL}/offices/${encodeURIComponent(officeName)}/${idxInOffice}/ownerRoster.json?auth=${encodeURIComponent(FIREBASE_DB_SECRET)}`;
+            await fetch(rosterUrl, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(site.ownerRoster||[])});
+            const logsUrl = `${FIREBASE_DB_URL}/offices/${encodeURIComponent(officeName)}/${idxInOffice}/logs.json?auth=${encodeURIComponent(FIREBASE_DB_SECRET)}`;
+            const res = await fetch(logsUrl, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(site.logs)});
+            if(!res.ok) alert('⚠️ 클라우드 저장 실패 (상태코드 '+res.status+').');
+          }
+        }catch(e){ console.error('명단/보고서 클라우드 반영 실패', e); }
+        await saveSites();
+      }
+      // 명단 기준으로 기존 보고서의 성함 표기를 정리한다. 매칭 못한 이름은 그냥 나열만 하지 않고,
+      // 각 이름별로 "그 이름이 나온 일지 보기" + "명단에 새로 추가" + "기존 이름으로 매칭"을 바로 할 수 있게
+      // 인터랙티브하게 보여준다. (명단에 없는 이름을 찾을 때마다 매번 여기로 와서 확인/처리할 수 있도록)
+      async function runOwnerRosterCleanup(){
+        const roster = (site.ownerRoster||[]).map(normalizeRosterEntry).filter(r=>r.name);
+        if(!roster.length) return;
         let changedCount = 0;
-        const unmatchedNames = new Set();
+        const unmatchedMap = new Map(); // coreName -> 그 이름이 나온 로그들
         (site.logs||[]).forEach(l=>{
           const raw = (l.contactName||'').trim();
           if(!raw) return;
@@ -4995,35 +5015,110 @@ const L = (function(){
               if(newSeg !== seg) touched = true;
               return newSeg;
             }
-            unmatchedNames.add(coreName);
+            if(!unmatchedMap.has(coreName)) unmatchedMap.set(coreName, []);
+            if(!unmatchedMap.get(coreName).includes(l)) unmatchedMap.get(coreName).push(l);
             return seg;
           });
           if(touched){ l.contactName = newSegments.join(', '); changedCount++; }
           // 주의: 로그의 "담당(작성자)"은 그 보고서를 실제로 쓴 사람이므로, 명단의 "담당"(그 소유주를 맡은 담당자)으로
           // 자동으로 덮어쓰지 않는다 — 서로 다른 개념이라, 예전에 이걸 덮어썼다가 실제 작성자가 잘못 바뀌는 문제가 있었다.
         });
-        site.lastDate = lastVisit(site);
-        renderAll();
-        renderDetailPanel(site);
-        try{
-          const officeName = site.office || currentOffice;
-          const {idx: idxInOffice} = await getFreshIndexInOffice(officeName, site.id);
-          if(idxInOffice>-1){
-            const url = `${FIREBASE_DB_URL}/offices/${encodeURIComponent(officeName)}/${idxInOffice}/logs.json?auth=${encodeURIComponent(FIREBASE_DB_SECRET)}`;
-            const res = await fetch(url, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(site.logs)});
-            if(!res.ok) alert('⚠️ 클라우드 저장 실패 (상태코드 '+res.status+').');
-          }
-        }catch(e){ console.error('명단 정리 클라우드 반영 실패', e); }
-        await saveSites();
+        await persistRosterAndLogs();
+        renderOwnerRosterCleanupResult(changedCount, unmatchedMap, roster);
+      }
+      function renderOwnerRosterCleanupResult(changedCount, unmatchedMap, roster){
         const resultEl = document.getElementById('ownerRosterCleanupResult');
-        if(resultEl){
-          const unmatchedList = Array.from(unmatchedNames);
-          resultEl.innerHTML = `✅ 성함/직책 <b>${changedCount}건</b> 자동 수정 완료<br>⚠️ 명단에서 비슷한 이름을 못 찾은 미변경 <b>${unmatchedList.length}명</b>${unmatchedList.length?': '+unmatchedList.slice(0,30).map(escapeHtml).join(', ')+(unmatchedList.length>30?' 외 '+(unmatchedList.length-30)+'명':''):''}`;
-        }
-        // 주의: 위의 renderDetailPanel(site) 호출이 이 버튼(freshEl로 얻은 clone)을 다시 clone+교체해버려서,
-        // 여기서 클로저로 들고 있던 ownerRosterCleanupBtn은 이미 화면에서 빠진(detached) 옛 엘리먼트가 될 수 있다.
-        // 그 옛 엘리먼트만 갱신하면 화면엔 여전히 "정리하는 중..."이 그대로 남아 안 넘어가는 것처럼 보이므로,
-        // 지금 실제로 화면에 붙어있는 최신 버튼을 다시 찾아서 그걸 갱신한다.
+        if(!resultEl) return;
+        const unmatchedNames = Array.from(unmatchedMap.keys());
+        const rosterOptionsHtml = roster.slice().sort((a,b)=>a.name.localeCompare(b.name,'ko'))
+          .map(r=>`<option value="${escapeHtml(r.name)}">${escapeHtml(r.role?`${r.name}(${r.role})`:r.name)}</option>`).join('');
+        resultEl.innerHTML = `
+          ✅ 성함/직책 <b>${changedCount}건</b> 자동 수정 완료<br>
+          ${unmatchedNames.length
+            ? `⚠️ 명단에서 비슷한 이름을 못 찾은 미변경 <b>${unmatchedNames.length}명</b> — 아래에서 확인 후 명단에 추가하거나 기존 이름과 매칭해주세요.`
+            : '✅ 명단에서 못 찾은 이름 없음'}
+          <div class="owner-roster-unmatched-list">
+            ${unmatchedNames.map((name,i)=>{
+              const logsForName = unmatchedMap.get(name) || [];
+              return `<div class="owner-roster-unmatched-item" style="border-top:1px solid var(--line);padding:6px 0;">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+                  <b>${escapeHtml(name)}</b>
+                  <span style="color:var(--text-dim);font-size:10px;">${logsForName.length}건</span>
+                </div>
+                <div class="owner-roster-unmatched-logs" data-uidx="${i}" style="display:none;color:var(--text-dim);margin:4px 0 0;font-size:10.5px;line-height:1.5;">
+                  ${logsForName.slice(0,10).map(l=>`<div>· ${escapeHtml(l.date||'')} (${escapeHtml(l.author||'-')}) ${escapeHtml((l.text||'').slice(0,40))}${(l.text||'').length>40?'...':''}</div>`).join('')}
+                  ${logsForName.length>10?`<div>외 ${logsForName.length-10}건</div>`:''}
+                </div>
+                <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:5px;align-items:center;">
+                  <button type="button" class="owner-roster-unmatched-toggle-btn" data-uidx="${i}" style="background:none;border:1px solid var(--line);color:var(--text-dim);border-radius:6px;padding:2px 7px;font-size:10px;cursor:pointer;">📄 일지 보기</button>
+                  <button type="button" class="owner-roster-unmatched-addnew-btn" data-uidx="${i}" style="background:var(--accent);color:var(--accent-ink);border:none;border-radius:6px;padding:2px 8px;font-size:10px;cursor:pointer;">➕ 명단에 새로 추가</button>
+                  <select class="owner-roster-unmatched-matchselect" data-uidx="${i}" style="background:var(--bg-side-2);border:1px solid var(--line);color:var(--text-main);border-radius:6px;font-size:10px;padding:2px 4px;max-width:140px;">
+                    <option value="">🔗 기존 이름으로 매칭…</option>
+                    ${rosterOptionsHtml}
+                  </select>
+                </div>
+              </div>`;
+            }).join('')}
+          </div>
+        `;
+        resultEl.querySelectorAll('.owner-roster-unmatched-toggle-btn').forEach(btn=>{
+          btn.addEventListener('click', ()=>{
+            const box = resultEl.querySelector(`.owner-roster-unmatched-logs[data-uidx="${btn.dataset.uidx}"]`);
+            if(box) box.style.display = box.style.display==='none' ? 'block' : 'none';
+          });
+        });
+        resultEl.querySelectorAll('.owner-roster-unmatched-addnew-btn').forEach(btn=>{
+          btn.addEventListener('click', async ()=>{
+            if(!(await ensureUnlocked())) return;
+            const name = unmatchedNames[parseInt(btn.dataset.uidx,10)];
+            if(!name) return;
+            if(!site.ownerRoster) site.ownerRoster = [];
+            // 이미 명단에 같은 핵심 이름이 있으면 또 추가하지 않는다 (중복 방지)
+            const already = site.ownerRoster.some(r=>{
+              const n = (r && typeof r==='object') ? r.name : r;
+              return extractCoreName(String(n||'')) === name;
+            });
+            if(!already) site.ownerRoster.push({name, role:'', manager:''});
+            renderOwnerRosterRows((site.ownerRoster||[]).map(normalizeRosterEntry));
+            btn.disabled = true; btn.textContent = '추가됨 ✓';
+            await runOwnerRosterCleanup(); // 방금 추가한 이름 기준으로 다시 정리해서 목록을 최신으로 갱신
+          });
+        });
+        resultEl.querySelectorAll('.owner-roster-unmatched-matchselect').forEach(sel=>{
+          sel.addEventListener('change', async ()=>{
+            const targetName = sel.value;
+            if(!targetName) return;
+            if(!(await ensureUnlocked())) return;
+            const name = unmatchedNames[parseInt(sel.dataset.uidx,10)];
+            const target = roster.find(r=>r.name===targetName);
+            if(!name || !target) return;
+            const logsForName = unmatchedMap.get(name) || [];
+            logsForName.forEach(l=>{
+              const raw = (l.contactName||'').trim();
+              if(!raw) return;
+              const segments = splitMultiNames(raw);
+              const newSegments = segments.map(seg=>{
+                const coreName = extractCoreName(fullyStripRoles(seg).name);
+                if(coreName !== name) return seg;
+                return target.role ? `${target.name}(${target.role})` : target.name;
+              });
+              l.contactName = newSegments.join(', ');
+            });
+            await runOwnerRosterCleanup(); // 매칭 반영 후 다시 정리해서 목록을 최신으로 갱신
+          });
+        });
+      }
+      const ownerRosterCleanupBtn = freshEl('ownerRosterCleanupBtn');
+      if(ownerRosterCleanupBtn) ownerRosterCleanupBtn.addEventListener('click', async ()=>{
+        if(!(await ensureUnlocked())) return;
+        if(!(site.ownerRoster||[]).length){ alert('먼저 명단을 입력하고 저장해주세요.'); return; }
+        ownerRosterCleanupBtn.disabled = true;
+        ownerRosterCleanupBtn.textContent = '정리하는 중...';
+        await runOwnerRosterCleanup();
+        // 주의: persistRosterAndLogs() 안의 renderDetailPanel(site) 호출이 이 버튼(freshEl로 얻은 clone)을
+        // 다시 clone+교체해버려서, 여기서 클로저로 들고 있던 ownerRosterCleanupBtn은 이미 화면에서 빠진
+        // (detached) 옛 엘리먼트가 될 수 있다. 그 옛 엘리먼트만 갱신하면 화면엔 여전히 "정리하는 중..."이
+        // 그대로 남아 안 넘어가는 것처럼 보이므로, 지금 실제로 화면에 붙어있는 최신 버튼을 다시 찾아서 갱신한다.
         const liveCleanupBtn = document.getElementById('ownerRosterCleanupBtn') || ownerRosterCleanupBtn;
         liveCleanupBtn.disabled = false;
         liveCleanupBtn.textContent = '🔄 명단 기준으로 기존 보고서 정리';
