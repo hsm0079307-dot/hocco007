@@ -160,7 +160,7 @@
   .rd-trend.down{color:#e5484d;}
   .rd-trend.flat{color:var(--text-dim);}
   .rd-trend-sub{font-weight:400;color:var(--text-dim);font-size:9.5px;}
-  .rd-chart{display:flex;gap:6px;align-items:flex-end;flex:1 1 220px;min-width:200px;padding:2px 4px;}
+  .rd-chart{display:flex;gap:6px;align-items:flex-end;flex:1 1 220px;min-width:200px;padding:16px 4px 2px;}
   .rd-bar-col{flex:1;display:flex;flex-direction:column;align-items:center;height:100%;justify-content:flex-end;}
   .rd-bar-clickable{cursor:pointer;}
   .rd-bar-active .rd-bar{filter:brightness(1.35);box-shadow:0 0 0 2px var(--accent);}
@@ -173,9 +173,11 @@
   .rd-bar-clickable:hover .rd-bar{filter:brightness(1.25);}
   .rd-bar-clickable:hover .rd-bar-label{color:var(--accent);font-weight:700;}
   .rd-bar-track{width:100%;max-width:22px;height:64px;display:flex;align-items:flex-end;}
-  .rd-bar{width:100%;background:linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 60%, transparent));border-radius:4px 4px 2px 2px;transition:height .2s;min-height:3px;}
+  .rd-bar{position:relative;width:100%;background:linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 60%, transparent));border-radius:4px 4px 2px 2px;transition:height .2s;min-height:3px;}
   .rd-bar-val{font-size:9px;color:var(--text-dim);margin-top:2px;height:11px;}
+  .rd-bar-val-top{position:absolute;top:-13px;left:0;right:0;text-align:center;font-size:9px;font-weight:700;color:var(--accent);white-space:nowrap;}
   .rd-bar-label{font-size:9px;color:var(--text-dim);margin-top:1px;white-space:nowrap;}
+  .rd-bar-subrange{font-size:8px;color:var(--text-dim);white-space:nowrap;opacity:.85;}
   .report-matrix-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--bg-side-2);padding:10px;margin-bottom:6px;box-shadow:var(--shadow-xs);}
   .report-matrix-title{font-size:12.5px;font-weight:700;color:var(--accent);margin:14px 0 6px;}
   .report-site-toggle-row{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:var(--text-main);padding:10px 8px;margin-top:6px;border:1px solid var(--line);border-radius:8px;cursor:pointer;background:var(--bg-side-2);}
@@ -1256,7 +1258,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-03-v188</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-03-v189</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -8917,6 +8919,8 @@ const L = (function(){
         <div class="rd-chart">
           ${dashDaily.map((day,i)=>{
             const short = reportMode==='week' ? day.label.replace(/\d+일\(|\)/g,'') : (day.label.match(/(\d+)주차/)||[,''])[1]+'주';
+            const weekDateNum = reportMode==='week' ? (day.label.match(/^(\d+)일/)||['',''])[1] : '';
+            const monthRangeMatch = reportMode==='month' ? day.label.match(/^(\d+)~(\d+)일/) : null;
             const h = Math.max(4, Math.round((dashCounts[i]/dashMax)*100));
             const isMonthBar = reportMode==='month';
             const isWeekDayBar = reportMode==='week';
@@ -8935,9 +8939,10 @@ const L = (function(){
               dataAttr = '';
             }
             return `<div class="rd-bar-col${clickable?' rd-bar-clickable':''}${(isWeekDayBar && reportDayFilter===day.key)?' rd-bar-active':''}" ${dataAttr} title="${escapeHtml(titleText)}">
-              <div class="rd-bar-track"><div class="rd-bar" style="height:${h}%;"></div></div>
-              <div class="rd-bar-val">${dashCounts[i]||''}</div>
+              <div class="rd-bar-track"><div class="rd-bar" style="height:${h}%;">${isWeekDayBar ? `<span class="rd-bar-val-top">${dashCounts[i]||''}</span>` : ''}</div></div>
+              <div class="rd-bar-val">${isWeekDayBar ? escapeHtml(weekDateNum) : (dashCounts[i]||'')}</div>
               <div class="rd-bar-label">${escapeHtml(short)}</div>
+              ${isMonthBar && monthRangeMatch ? `<div class="rd-bar-subrange">(${monthRangeMatch[1]}~${monthRangeMatch[2]})</div>` : ''}
             </div>`;
           }).join('')}
         </div>
