@@ -1044,6 +1044,7 @@
             <button class="menu-item-btn" id="guestManageBtn" type="button">👤 담당자 계정 관리</button>
             <button class="menu-item-btn" id="changeLogBtn" type="button">📜 수정이력</button>
             <button class="menu-item-btn" id="undoBtn" type="button">↩️ 실행취소(방금 저장 이전으로)</button>
+            <button class="menu-item-btn" id="dupIdCheckBtn" type="button" title="두 현장이 같은 내부ID를 갖고 있으면 저장할 때 서로 데이터가 겹쳐써질 수 있어요">🔍 현장 ID 중복 검사</button>
           </div>
         </details>
         <details class="menu-section">
@@ -1218,7 +1219,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-03-v183</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-03-v184</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -7283,7 +7284,7 @@ const L = (function(){
   });
 
   function applyGuestRestrictions(){
-    const hideIds = ['templateBtn','exportBtn','addBtn','guestManageBtn','changeAdminPwBtn','changeEntryPwBtn','changeLogBtn','undoBtn','handoverBtn','missingCoordsBtn','managerFilterWrap','clearDistrictBtn','labelEditBtn','adminLogoutBtn'];
+    const hideIds = ['templateBtn','exportBtn','addBtn','guestManageBtn','changeAdminPwBtn','changeEntryPwBtn','changeLogBtn','undoBtn','dupIdCheckBtn','handoverBtn','missingCoordsBtn','managerFilterWrap','clearDistrictBtn','labelEditBtn','adminLogoutBtn'];
     hideIds.forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display='none'; });
     const excelLabel = document.querySelector('.file-label'); if(excelLabel) excelLabel.style.display='none';
     // 사업소(전체/강서/강남/강북) 전환은 조회 기능이라 로그인 전(아직 특정 담당자로 지정 안 된 상태)에도 그대로 보여준다.
@@ -7311,7 +7312,7 @@ const L = (function(){
   }
   // 관리자로 로그인 성공 시, 로그인 전 기본으로 걸어둔 게스트 제한을 풀고 원래 관리자 화면으로 복원
   function removeGuestRestrictions(){
-    const showIds = ['templateBtn','exportBtn','addBtn','guestManageBtn','changeAdminPwBtn','changeEntryPwBtn','changeLogBtn','undoBtn','handoverBtn','missingCoordsBtn','managerFilterWrap','labelEditBtn','adminLogoutBtn','sheetViewBtn','calendarBtn','tabs'];
+    const showIds = ['templateBtn','exportBtn','addBtn','guestManageBtn','changeAdminPwBtn','changeEntryPwBtn','changeLogBtn','undoBtn','dupIdCheckBtn','handoverBtn','missingCoordsBtn','managerFilterWrap','labelEditBtn','adminLogoutBtn','sheetViewBtn','calendarBtn','tabs'];
     showIds.forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display=''; });
     const cdBtn = document.getElementById('clearDistrictBtn');
     if(cdBtn) cdBtn.style.display = selectedDistrict ? 'inline-flex' : 'none';
@@ -7634,6 +7635,45 @@ const L = (function(){
   });
   document.getElementById('changeLogCloseBtn').addEventListener('click', ()=>{
     document.getElementById('changeLogOverlay').classList.remove('show');
+  });
+  // 두 현장이 실수로(복사/붙여넣기 등으로) 같은 내부 id를 갖게 되면, 한쪽을 저장할 때 다른 쪽의 이름이 같은
+  // 슬롯을 찾아 써버려서 서로 다른 현장의 명단/보고서가 뒤섞이는 사고가 날 수 있다. 순수 조회용 진단 도구로,
+  // 클라우드 데이터를 아무것도 바꾸지 않고 전체 오피스에서 id가 겹치는 현장이 있는지만 찾아서 보여준다.
+  document.getElementById('dupIdCheckBtn').addEventListener('click', async ()=>{
+    if(!(await ensureUnlocked())) return;
+    const btn = document.getElementById('dupIdCheckBtn');
+    const originalText = btn.textContent;
+    btn.disabled = true; btn.textContent = '검사하는 중...';
+    try{
+      const res = await fetch(`${FIREBASE_DB_URL}/offices.json?_=${Date.now()}`, {cache:'no-store'});
+      const officesData = res.ok ? await res.json() : null;
+      if(!officesData || typeof officesData !== 'object'){
+        alert('클라우드에서 전체 데이터를 못 불러왔어요. 잠시 후 다시 시도해주세요.');
+        return;
+      }
+      const byId = new Map(); // id -> [{office, name}]
+      Object.keys(officesData).forEach(office=>{
+        const arr = officesData[office];
+        if(!Array.isArray(arr)) return;
+        arr.forEach(s=>{
+          if(!s || !s.id) return;
+          if(!byId.has(s.id)) byId.set(s.id, []);
+          byId.get(s.id).push({office, name: s.name||'(이름없음)'});
+        });
+      });
+      const dupes = Array.from(byId.entries()).filter(([id, list])=>list.length>1);
+      if(!dupes.length){
+        alert('✅ 중복 id를 못 찾았어요. 모든 현장이 서로 다른 고유 id를 갖고 있어요.');
+      }else{
+        const lines = dupes.map(([id, list])=>`• ${list.map(x=>`[${x.office}] ${x.name}`).join('  ==  ')}`).join('\n');
+        alert(`⚠️ 같은 id를 공유하는 현장이 ${dupes.length}건 발견됐어요! 이 현장들은 한쪽을 저장하면 다른 쪽 데이터를 덮어쓸 수 있어요:\n\n${lines}\n\n이 화면을 캡처해서 알려주시면 분리하는 걸 도와드릴게요.`);
+      }
+    }catch(e){
+      console.error('id 중복 검사 실패', e);
+      alert('검사 중 오류가 발생했어요: '+e.message);
+    }finally{
+      btn.disabled = false; btn.textContent = originalText;
+    }
   });
   (function initThemeToggle(){
     const btn = document.getElementById('themeToggleBtn');
