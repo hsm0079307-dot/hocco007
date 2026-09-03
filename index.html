@@ -26,6 +26,11 @@
     --shadow-sm:0 2px 8px rgba(20,15,5,.07);
     --shadow-md:0 6px 20px rgba(20,15,5,.10);
     --shadow-accent:0 4px 14px rgba(15,61,36,.22);
+    --pos:#1f7a3d;
+    --neg:#b3261e;
+    --warn-text:#6b3e00;
+    --warn-bg:rgba(255,183,3,0.22);
+    --warn-border:rgba(180,120,0,0.55);
   }
   body.theme-dark{
     --bg-side:#1c3226;
@@ -42,10 +47,16 @@
     --shadow-sm:0 2px 10px rgba(0,0,0,.30);
     --shadow-md:0 8px 24px rgba(0,0,0,.38);
     --shadow-accent:0 4px 16px rgba(211,164,95,.25);
+    --pos:#7ee787;
+    --neg:#ff7b7b;
+    --warn-text:#ffb703;
+    --warn-bg:rgba(255,183,3,0.12);
+    --warn-border:rgba(255,183,3,0.4);
     background:#2a1d12;
   }
   body.theme-dark #app{box-shadow:0 2px 20px rgba(0,0,0,.6);}
   *{box-sizing:border-box;}
+  input::placeholder, textarea::placeholder{color:var(--text-dim);opacity:.9;}
   ::-webkit-scrollbar{width:8px;height:8px;}
   ::-webkit-scrollbar-track{background:transparent;}
   ::-webkit-scrollbar-thumb{background:rgba(15,61,36,.22);border-radius:8px;}
@@ -65,7 +76,7 @@
   .brand{font-family:'Pretendard',var(--font-serif);font-weight:900;font-size:21px;letter-spacing:-.4px;margin-right:6px;white-space:nowrap;color:var(--text-main);}
   .sync-status{display:flex;gap:6px;align-items:center;margin-right:10px;}
   .sync-pill{font-size:10px;font-weight:600;padding:3px 10px;border-radius:20px;white-space:nowrap;letter-spacing:.2px;border:1px solid var(--line);background:var(--bg-side-2);color:var(--text-dim);display:inline-flex;align-items:center;gap:5px;}
-  .sync-pill.ok{color:#7ee787;border-color:rgba(126,231,135,.35);}
+  .sync-pill.ok{color:var(--pos);border-color:rgba(126,231,135,.35);}
   .sync-pill.warn{color:#f0ad4e;border-color:rgba(240,173,78,.4);}
   .sync-pill.bad{color:#ff8a80;border-color:rgba(255,138,128,.4);}
   .search-box{flex:0 1 320px;min-width:160px;display:flex;align-items:center;background:var(--bg-side-2);border:1px solid var(--line);border-radius:8px;padding:6px 10px;transition:border-color .15s, box-shadow .15s;}
@@ -359,6 +370,10 @@
     body.compare-print-mode .compare-modal{width:100% !important;max-height:none !important;box-shadow:none !important;border:none !important;overflow:visible !important;}
     body.compare-print-mode .compare-table-wrap{overflow:visible !important;padding:0 !important;}
     body.compare-print-mode #app{height:auto !important;overflow:visible !important;display:block !important;}
+    body.cstat-print-mode #app{display:none !important;}
+    body.cstat-print-mode #contactStatsModalOverlay{position:static !important;background:none !important;inset:auto !important;padding:0 !important;display:block !important;}
+    body.cstat-print-mode #contactStatsModalBox{width:100% !important;max-width:none !important;max-height:none !important;overflow:visible !important;box-shadow:none !important;border:none !important;}
+    body.cstat-print-mode .cstat-header-btns{display:none !important;}
     body.bulk-report-print-mode #app > *:not(#compareModalRoot){display:none !important;}
     body.bulk-report-print-mode #compareModalRoot{display:block !important;}
     body.bulk-report-print-mode .bulk-report-page{page-break-after:always;padding:10mm;}
@@ -502,7 +517,7 @@
   .mobile-cal-cell.empty{border:none;}
   .mobile-cal-cell.has-visit{background:color-mix(in srgb, var(--accent) 12%, transparent);border-color:var(--accent);}
   .mobile-cal-daynum{font-size:9.5px;color:var(--text-dim);}
-  .mobile-cal-daynum.holiday{color:#ff7b7b;}
+  .mobile-cal-daynum.holiday{color:var(--neg);}
   .mobile-cal-mgrs{font-size:8px;color:var(--accent);line-height:1.25;margin-top:1px;word-break:keep-all;text-align:center;overflow-y:auto;flex:1;min-height:0;}
   .mobile-week-block{margin-bottom:8px;}
   .mobile-week-num{font-size:10.5px;font-weight:700;color:var(--text-main);margin-top:4px;}
@@ -760,6 +775,10 @@
   .cstat-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;row-gap:6px;}
   .cstat-header h3{margin:0;font-size:15px;min-width:0;}
   .cstat-header-btns{display:flex;gap:6px;flex-shrink:0;}
+  .cstat-warn-summary{list-style:none;cursor:pointer;padding:6px 10px;display:flex;align-items:center;min-height:14px;}
+  .cstat-warn-summary::-webkit-details-marker{display:none;}
+  .cstat-warn-summary::after{content:'▶';font-size:10px;color:var(--warn-text);}
+  .cstat-warn[open] > .cstat-warn-summary::after{content:'▼';}
   @media (max-width:520px){
     #contactStatsModalBox{max-width:100%;padding:12px;}
     .cstat-header h3{flex:1 1 100%;font-size:13px;}
@@ -1171,7 +1190,7 @@
       </table>
     </div>
     <button type="button" class="btn btn-ghost btn-sm" id="ownerRosterAddRowBtn" style="width:100%;margin-top:6px;">+ 행 추가</button>
-    <button type="button" class="btn btn-ghost btn-sm" id="ownerRosterClearAllBtn" style="width:100%;margin-top:6px;color:#ff7b7b;border-color:#ff7b7b;">🗑 전체삭제</button>
+    <button type="button" class="btn btn-ghost btn-sm" id="ownerRosterClearAllBtn" style="width:100%;margin-top:6px;color:var(--neg);border-color:var(--neg);">🗑 전체삭제</button>
     <div style="display:flex;gap:8px;margin-top:10px;">
       <button type="button" class="btn btn-primary btn-sm" id="ownerRosterSaveBtn" style="flex:1;">저장</button>
       <button type="button" class="btn btn-ghost btn-sm" id="ownerRosterCancelBtn" style="flex:1;">취소</button>
@@ -1237,7 +1256,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-03-v187</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-03-v188</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -3923,7 +3942,7 @@ const L = (function(){
             `).join('')}
           </div>
         </div>
-        ${site.__officialChanged ? `<div style="background:rgba(255,183,3,.12);border:1px solid #ffb703;border-radius:8px;padding:8px 10px;margin:8px 0;font-size:12px;color:#ffb703;">🔔 관리자가 원본에서 <b>${site.__officialChanged.map(k=>({status:'상태',stage:'단계',manager:'담당자',stageDetail:'진행단계 상세',memo:'비고'}[k]||k)).join(', ')}</b>을(를) 수정했어요. 내 사본과 달라졌으니 확인해보세요.</div>` : ''}
+        ${site.__officialChanged ? `<div style="background:var(--warn-bg);border:1px solid var(--warn-border);border-radius:8px;padding:8px 10px;margin:8px 0;font-size:12px;color:var(--warn-text);">🔔 관리자가 원본에서 <b>${site.__officialChanged.map(k=>({status:'상태',stage:'단계',manager:'담당자',stageDetail:'진행단계 상세',memo:'비고'}[k]||k)).join(', ')}</b>을(를) 수정했어요. 내 사본과 달라졌으니 확인해보세요.</div>` : ''}
 
         <div class="detail-body" id="detailBody"></div>
       </div>`;
@@ -4717,15 +4736,16 @@ const L = (function(){
           </div>
           <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0 18px;">
             <div class="cstat-box"><div class="cstat-num">${s.totalOwners}명</div><div class="cstat-lbl">소유주</div></div>
-            <div class="cstat-box"><div class="cstat-num" style="color:#7ee787;">${s.contactedOwners}명</div><div class="cstat-lbl">접촉</div></div>
-            <div class="cstat-box"><div class="cstat-num" style="color:#ff7b7b;">${s.uncontactedOwners}명</div><div class="cstat-lbl">미접촉</div></div>
+            <div class="cstat-box"><div class="cstat-num" style="color:var(--pos);">${s.contactedOwners}명</div><div class="cstat-lbl">접촉</div></div>
+            <div class="cstat-box"><div class="cstat-num" style="color:var(--neg);">${s.uncontactedOwners}명</div><div class="cstat-lbl">미접촉</div></div>
             <div class="cstat-box"><div class="cstat-num" style="color:var(--accent);">${s.contactRate}%</div><div class="cstat-lbl">접촉률</div></div>
           </div>
 
           ${(noManagerContactedTotal.length || wrongManagerContactedTotal.length) ? `
-          <details class="no-print" style="background:rgba(255,183,3,0.12);border:1px solid rgba(255,183,3,0.4);border-radius:8px;margin-bottom:14px;font-size:10.5px;line-height:1.6;color:#ffb703;">
-            <summary style="cursor:pointer;padding:8px 10px;font-weight:700;">⚠️ 담당별 합계가 위 요약과 다를 수 있어요 (담당 미지정 ${noManagerContactedTotal.length}명 · 다른 담당 접촉 ${wrongManagerContactedTotal.length}명) — 눌러서 자세히 보기</summary>
+          <details class="no-print cstat-warn" style="background:var(--warn-bg);border:1px solid var(--warn-border);border-radius:8px;margin-bottom:14px;font-size:10.5px;line-height:1.6;color:var(--warn-text);">
+            <summary class="cstat-warn-summary" title="담당별 합계가 위 요약과 다를 수 있어요 — 눌러서 자세히 보기"></summary>
             <div style="padding:0 10px 10px;">
+              <b>⚠️ 담당별 합계가 위 요약과 다를 수 있어요</b> (담당 미지정 ${noManagerContactedTotal.length}명 · 다른 담당 접촉 ${wrongManagerContactedTotal.length}명)<br>
               아래 담당별 합계는 <b>그 담당이 직접 접촉한 것만</b> 세서 위 요약과 다를 수 있어요.
               ${noManagerContactedTotal.length ? `<br>· <b>담당 미지정</b> 접촉자
                 ${noManagerContactedToday.length ? `— ${escapeHtml(navLabel)}: <b>${noManagerContactedToday.map(escapeHtml).join(', ')}</b> /` : ''}
@@ -4838,7 +4858,7 @@ const L = (function(){
             <tbody>${todayRows.map((tr,i)=>{
               const l = tr.log;
               const rowStyle = tr.mgrMismatch ? ' style="background:rgba(255,123,123,0.10);"' : '';
-              const mgrCell = tr.mgrMismatch ? `${escapeHtml(l.author||'')} <span style="color:#ff7b7b;" title="명단 담당과 다르거나 담당 미지정">⚠</span>` : escapeHtml(l.author||'');
+              const mgrCell = tr.mgrMismatch ? `${escapeHtml(l.author||'')} <span style="color:var(--neg);" title="명단 담당과 다르거나 담당 미지정">⚠</span>` : escapeHtml(l.author||'');
               return `<tr${rowStyle}><td>${i+1}</td><td>${mgrCell}</td><td>${escapeHtml(l.contactName||'')}</td><td>${escapeHtml(tr.role||'-')}</td><td>${tr.count||'-'}</td><td>${escapeHtml(l.contactMethod||'')}</td><td style="text-align:left;white-space:pre-wrap;">${escapeHtml(l.text||'')}</td></tr>`;
             }).join('')}</tbody></table>
             <div class="cstat-mobile-only">${(()=>{ const sc=new Set(), ss=new Set(); return todayRows.map(tr=>buildLogCard(tr.log, sc, ss, {fullDate:true, roster:s.roster})).join(''); })()}</div>
@@ -4949,7 +4969,11 @@ const L = (function(){
           </div>
         `;
         document.getElementById('contactStatsCloseBtn').addEventListener('click', ()=>document.getElementById('contactStatsModalOverlay').classList.remove('show'));
-        document.getElementById('contactStatsPrintBtn').addEventListener('click', ()=>window.print());
+        document.getElementById('contactStatsPrintBtn').addEventListener('click', ()=>{
+          document.body.classList.add('cstat-print-mode');
+          window.print();
+          setTimeout(()=>document.body.classList.remove('cstat-print-mode'), 1000);
+        });
         box.querySelectorAll('.cstat-period-btn').forEach(btn=>{
           btn.addEventListener('click', ()=>{
             cstatPeriod = btn.dataset.period;
@@ -5459,7 +5483,7 @@ const L = (function(){
                 ${g.logs.map((l,li)=>`
                   <div class="owner-roster-dup-item" style="background:var(--bg-side-2);border-radius:6px;padding:6px 8px;margin-bottom:4px;">
                     <div style="color:var(--text-dim);">${escapeHtml((l.text||'').slice(0,80))}${(l.text||'').length>80?'...':''}</div>
-                    <button type="button" class="owner-roster-dup-del-btn" data-gidx="${gi}" data-li="${li}" style="background:none;border:1px solid #ff7b7b;color:#ff7b7b;border-radius:6px;padding:2px 8px;font-size:9.5px;cursor:pointer;margin-top:3px;">🗑 이 건 삭제</button>
+                    <button type="button" class="owner-roster-dup-del-btn" data-gidx="${gi}" data-li="${li}" style="background:none;border:1px solid var(--neg);color:var(--neg);border-radius:6px;padding:2px 8px;font-size:9.5px;cursor:pointer;margin-top:3px;">🗑 이 건 삭제</button>
                     <button type="button" class="owner-roster-dup-goto-btn" data-gidx="${gi}" data-li="${li}" style="background:none;border:1px solid var(--line);color:var(--text-dim);border-radius:6px;padding:2px 8px;font-size:9.5px;cursor:pointer;margin-top:3px;margin-left:4px;">📄 수정해서 보기</button>
                   </div>`).join('')}
               </div>`).join('')
@@ -7986,7 +8010,7 @@ const L = (function(){
     return `<div class="report-log-card" data-contact-name="${escapeHtml(contactKey)}" style="${cardStyle}">
       ${siteLine}
       <div style="font-weight:700;font-size:12.5px;margin-bottom:4px;">${escapeHtml(dateLabel)}</div>
-      <div style="font-size:12px;margin-bottom:2px;"><b style="color:var(--accent);">담당:</b> ${escapeHtml(manager)}${mgrMatch===false ? ' <span style="color:#ff7b7b;font-weight:700;">⚠ 명단 담당과 다름</span>' : ''}</div>
+      <div style="font-size:12px;margin-bottom:2px;"><b style="color:var(--accent);">담당:</b> ${escapeHtml(manager)}${mgrMatch===false ? ' <span style="color:var(--neg);font-weight:700;">⚠ 명단 담당과 다름</span>' : ''}</div>
       ${opts.hideSiteAndContact ? '' : `<div style="font-size:12px;margin-bottom:6px;"><b style="color:var(--accent);">접촉:</b> ${escapeHtml(contact)}</div>`}
       <div style="font-size:12px;margin-bottom:4px;"><b style="color:var(--accent);">상담내용</b> ${escapeHtml(summary)}</div>
       <div style="font-size:12px;margin-bottom:4px;"><b style="color:var(--accent);">타사활동</b> ${escapeHtml(competitorOut)}</div>
@@ -9883,8 +9907,8 @@ const L = (function(){
       </div>
       <div class="mobile-stat-row">
         <div class="mobile-stat-mini"><div class="mobile-stat-num">${allSites.length}</div><div class="mobile-stat-lbl">전체</div></div>
-        <div class="mobile-stat-mini"><div class="mobile-stat-num" style="color:#7ee787;">${visitedThisMonth.length}</div><div class="mobile-stat-lbl">방문</div></div>
-        <div class="mobile-stat-mini"><div class="mobile-stat-num" style="color:#ff7b7b;">${missedSites.length}</div><div class="mobile-stat-lbl">미방문</div></div>
+        <div class="mobile-stat-mini"><div class="mobile-stat-num" style="color:var(--pos);">${visitedThisMonth.length}</div><div class="mobile-stat-lbl">방문</div></div>
+        <div class="mobile-stat-mini"><div class="mobile-stat-num" style="color:var(--neg);">${missedSites.length}</div><div class="mobile-stat-lbl">미방문</div></div>
       </div>
 
       <div class="mobile-expand-row" id="mobileVisitedToggle">방문현장 <span class="mobile-expand-count">(${visitedThisMonth.length})</span> <span class="mobile-expand-arrow">${mobileVisitedExpanded?'▲':'▼'}</span></div>
