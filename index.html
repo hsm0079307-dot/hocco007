@@ -1213,7 +1213,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-03-v181</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-03-v182</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -4498,14 +4498,19 @@ const L = (function(){
             cumMethodCounts:{'상담':0,'단순':0,'TM':0,'거부':0,'부재':0,'불명':0},
             todayMethodCounts:{'상담':0,'단순':0,'TM':0,'거부':0,'부재':0,'불명':0}};
           byManager[mgr].total++;
-          if(personLogs[i].length>0) byManager[mgr].contactedSet.add(i);
-          if(personLogsAll[i].length>0){
+          // "이 담당자 실적"은 그 담당이 배정된 사람이 접촉됐다는 사실만으론 안 되고, 그 담당 "본인이 직접" 쓴
+          // 보고서여야 한다. (예전엔 배정된 사람이 접촉되기만 하면 무조건 그 담당 실적으로 잡혀서, 다른 담당이
+          // 대신 접촉한 것까지 엉뚱하게 이 담당 실적으로 집계됐다.)
+          const ownLogsInPeriod = personLogs[i].filter(l=>(l.author||'').trim()===mgr);
+          const ownLogsAll = personLogsAll[i].filter(l=>(l.author||'').trim()===mgr);
+          if(ownLogsInPeriod.length>0) byManager[mgr].contactedSet.add(i);
+          if(ownLogsAll.length>0){
             byManager[mgr].cumulativeContactedSet.add(i); // 누계는 항상 전체 기간 기준(기간 필터 무관)
             // 한 사람이 상담/단순/TM 등 여러 방법으로 접촉됐을 수 있으니, 제일 많이 쓰인 방법 하나로만 그 사람을 센다
-            const dm = dominantMethod(personLogsAll[i]);
+            const dm = dominantMethod(ownLogsAll);
             if(dm && byManager[mgr].cumMethodCounts[dm]!==undefined) byManager[mgr].cumMethodCounts[dm]++;
           }
-          const todayLogsForPerson = personLogsAll[i].filter(l=>l.date===effectiveTodayKey);
+          const todayLogsForPerson = ownLogsAll.filter(l=>l.date===effectiveTodayKey);
           if(todayLogsForPerson.length>0){
             // 이 사람이 오늘 접촉됐다는 사실 자체는 접촉방법 입력 여부와 상관없이 항상 센다.
             // (예전엔 이 사람의 오늘 로그에 "접촉방법"이 하나도 안 적혀있으면 dominantMethod가 null을 돌려줘서
@@ -4516,7 +4521,7 @@ const L = (function(){
             const dm2 = dominantMethod(todayLogsForPerson);
             if(dm2 && byManager[mgr].todayMethodCounts[dm2]!==undefined) byManager[mgr].todayMethodCounts[dm2]++;
           }
-          byManager[mgr].logs.push(...personLogs[i]);
+          byManager[mgr].logs.push(...ownLogsInPeriod);
         });
         const byRole = {};
         roster.forEach((r,i)=>{
@@ -4630,11 +4635,21 @@ const L = (function(){
           : cstatPeriod==='week' ? weekLabelFor(cstatNavDate)
           : `${navY}년 ${navMo+1}월 ${navD}일`;
         const isRealToday = dateInputVal === `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-        // "담당별" 표는 명단에 담당이 채워진 사람만 집계해서(담당 미지정은 노이즈라 일부러 뺌), 담당이
-        // 비어있는 사람이 접촉되면 위 상단 요약(소유주 전체 기준)과 아래 담당별 합계가 서로 달라 보인다.
-        // 매번 "왜 숫자가 안 맞냐"고 헷갈리지 않도록, 그 사람이 누군지 바로 알려주는 안내를 띄운다.
+        // "담당별" 표는 ① 담당 미지정인 사람과 ② 배정된 담당이 아니라 다른 담당이 대신 접촉한 건은 그
+        // 담당 실적으로 안 잡아서(노이즈라 일부러 뺌), 위 상단 요약(소유주 전체 기준)과 아래 담당별 합계가
+        // 서로 달라 보일 수 있다. 매번 "왜 숫자가 안 맞냐"고 헷갈리지 않도록, 그 사람이 누군지 바로 알려준다.
         const noManagerContactedToday = s.roster.filter((r,i)=> !(r.manager||'').trim() && (s.personLogsAll[i]||[]).some(l=>l.date===s.todayKey)).map(r=>r.name);
         const noManagerContactedTotal = s.roster.filter((r,i)=> !(r.manager||'').trim() && (s.personLogsAll[i]||[]).length>0).map(r=>r.name);
+        const wrongManagerContactedToday = s.roster.filter((r,i)=>{
+          const mgr=(r.manager||'').trim(); if(!mgr) return false;
+          const todayLogsForR=(s.personLogsAll[i]||[]).filter(l=>l.date===s.todayKey);
+          return todayLogsForR.length>0 && !todayLogsForR.some(l=>(l.author||'').trim()===mgr);
+        }).map(r=>r.name);
+        const wrongManagerContactedTotal = s.roster.filter((r,i)=>{
+          const mgr=(r.manager||'').trim(); if(!mgr) return false;
+          const allLogsForR = s.personLogsAll[i]||[];
+          return allLogsForR.length>0 && !allLogsForR.some(l=>(l.author||'').trim()===mgr);
+        }).map(r=>r.name);
         box.innerHTML = `
           <div class="cstat-header">
             <h3>📊 ${escapeHtml(site.name)} 접촉현황 <span style="font-size:11px;color:var(--text-dim);font-weight:400;">${now.getFullYear()}년 ${now.getMonth()+1}월 ${now.getDate()}일</span></h3>
@@ -4661,11 +4676,15 @@ const L = (function(){
             <div class="cstat-box"><div class="cstat-num" style="color:var(--accent);">${s.contactRate}%</div><div class="cstat-lbl">접촉률</div></div>
           </div>
 
-          ${noManagerContactedTotal.length ? `
+          ${(noManagerContactedTotal.length || wrongManagerContactedTotal.length) ? `
           <div style="background:rgba(255,183,3,0.12);border:1px solid rgba(255,183,3,0.4);border-radius:8px;padding:8px 10px;margin-bottom:14px;font-size:10.5px;line-height:1.6;color:#ffb703;">
-            ⚠️ <b>담당 미지정 접촉자</b>가 있어서 위 요약과 아래 담당별 합계가 달라요. 소유주 명단에서 담당을 채워주세요.<br>
-            ${noManagerContactedToday.length ? `· ${escapeHtml(navLabel)}: <b>${noManagerContactedToday.map(escapeHtml).join(', ')}</b><br>` : ''}
-            · 누계 <b>${noManagerContactedTotal.length}명</b>${noManagerContactedTotal.length<=15 ? ': '+noManagerContactedTotal.map(escapeHtml).join(', ') : ' (너무 많아 이름은 생략)'}
+            ⚠️ 아래 담당별 합계는 <b>그 담당이 직접 접촉한 것만</b> 세서 위 요약과 다를 수 있어요.
+            ${noManagerContactedTotal.length ? `<br>· <b>담당 미지정</b> 접촉자
+              ${noManagerContactedToday.length ? `— ${escapeHtml(navLabel)}: <b>${noManagerContactedToday.map(escapeHtml).join(', ')}</b> /` : ''}
+              누계 <b>${noManagerContactedTotal.length}명</b>${noManagerContactedTotal.length<=15 ? ': '+noManagerContactedTotal.map(escapeHtml).join(', ') : ' (너무 많아 이름은 생략)'}` : ''}
+            ${wrongManagerContactedTotal.length ? `<br>· <b>배정된 담당이 아닌 다른 담당이 접촉</b>한 경우
+              ${wrongManagerContactedToday.length ? `— ${escapeHtml(navLabel)}: <b>${wrongManagerContactedToday.map(escapeHtml).join(', ')}</b> /` : ''}
+              누계 <b>${wrongManagerContactedTotal.length}명</b>${wrongManagerContactedTotal.length<=15 ? ': '+wrongManagerContactedTotal.map(escapeHtml).join(', ') : ' (너무 많아 이름은 생략)'}` : ''}
           </div>` : ''}
 
           <div class="cstat-section">
@@ -4705,7 +4724,9 @@ const L = (function(){
               const d = s.byManager[mgr];
               const collected = []; const seen = new Set();
               d.cumulativeContactedSet.forEach(idx=>{
-                let logsForPerson = s.personLogsAll[idx];
+                // 위 집계가 "이 담당 본인이 직접 쓴 보고서"만 세니까, 펼쳐서 보여줄 때도 그 사람의 전체 로그가
+                // 아니라 이 담당이 직접 쓴 것만 걸러야 표의 숫자와 실제 나열되는 카드 수가 서로 맞는다.
+                let logsForPerson = s.personLogsAll[idx].filter(l=>(l.author||'').trim()===mgr);
                 // "금일" 숫자를 클릭했을 때도, 진짜 오늘이 아니라 지금 보고 있는 날짜(일별 조회 중이면 그 날짜) 기준으로
                 // 걸러야 위 표의 숫자와 여기서 펼쳐지는 목록이 서로 맞는다. (예전엔 항상 realTodayKeyForClick=진짜
                 // 오늘로만 걸러서, 과거 날짜를 조회 중일 땐 클릭해도 아무것도 안 나오거나 엉뚱한 날짜가 나왔다.)
