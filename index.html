@@ -1213,7 +1213,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-03-v179</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-03-v180</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -4415,6 +4415,29 @@ const L = (function(){
         }
         return found ? found.match : null;
       }
+      // 로그에 적힌 접촉자를 명단에서 찾아, 명단상 그 사람의 "담당"과 이 로그를 실제로 쓴 "작성자"가
+      // 같은 사람인지 확인한다. 다르면(엉뚱한 담당이 접촉) 또는 명단에 담당이 비어있으면 false를 반환해서,
+      // 목록에서 다른 색으로 표시해 바로 눈에 띄게 한다. 명단 자체가 없으면(비교 불가) null.
+      function logManagerMatch(log, roster){
+        if(!roster || !roster.length) return null;
+        const raw = (log.contactName||'').trim();
+        if(!raw) return false;
+        const author = (log.author||'').trim();
+        const segs = splitMultiNames(raw);
+        if(!segs.length) return false;
+        return segs.every(seg=>{
+          const m = matchLogToRoster(seg, roster);
+          const mgr = (m && m.manager || '').trim();
+          return !!mgr && mgr === author;
+        });
+      }
+      // 로그 목록 헤더에 "N건중 담당: xx건" 형태로 붙일 라벨. 명단이 없거나 로그가 없으면 그냥 "N건".
+      function contactCountLabel(logs, roster){
+        const total = logs.length;
+        if(!total || !roster || !roster.length) return `${total}건`;
+        const matched = logs.filter(l=>logManagerMatch(l, roster)===true).length;
+        return `${total}건중 담당: ${matched}건`;
+      }
       function getPeriodRange(period, navDate){
         const now = navDate || new Date();
         const y = now.getFullYear(), mo = now.getMonth(), d = now.getDate();
@@ -4584,13 +4607,16 @@ const L = (function(){
         const todayRows = [];
         s.todayLogs.forEach(l=>{
           const raw=(l.contactName||'').trim();
-          if(!raw){ todayRows.push({log:l, role:'', count:0}); return; }
+          if(!raw){ todayRows.push({log:l, role:'', count:0, mgr:''}); return; }
           splitMultiNames(raw).forEach(seg=>{
             const m = matchLogToRoster(seg, s.roster);
             const idx = m ? s.roster.indexOf(m) : -1;
-            todayRows.push({log:l, role: m ? m.role : '', count: idx>=0 ? s.personLogsAll[idx].length : 0});
+            todayRows.push({log:l, role: m ? m.role : '', count: idx>=0 ? s.personLogsAll[idx].length : 0, mgr: m ? (m.manager||'').trim() : ''});
           });
         });
+        // 명단상 그 사람의 담당과 이 글을 실제로 쓴 작성자가 다른 경우(또는 명단에 담당이 비어있는 경우) =
+        // "엉뚱한 담당이 접촉했거나 담당 미지정"인 건이라, 표에서 다른 색으로 표시해 바로 눈에 띄게 한다.
+        todayRows.forEach(tr=>{ tr.mgrMismatch = !tr.mgr || tr.mgr !== (tr.log.author||'').trim(); });
         // 담당(작성자) 기준으로 묶어서 보여줘야 같은 담당자가 쓴 보고서끼리, 같은 사람이 여러 번 나온 것도
         // 붙어서 보이니까 비교하기 편하다. (원래 기록 순서는 그냥 시간순이라 뒤섞여 보였음)
         todayRows.sort((a,b)=> (a.log.author||'').localeCompare((b.log.author||''), 'ko'));
@@ -4701,14 +4727,14 @@ const L = (function(){
               const sc=new Set(), ss=new Set();
               const groupsHtml = contactOrder.map(name=>{
                 const logsForName = byContact[name];
-                if(logsForName.length===1) return buildLogCard(logsForName[0], sc, ss, {fullDate:true});
+                if(logsForName.length===1) return buildLogCard(logsForName[0], sc, ss, {fullDate:true, roster:s.roster});
                 return `<div class="cstat-contact-group">
                   <div class="cstat-contact-group-head">${escapeHtml(name)} <span style="font-weight:400;color:var(--text-dim);">${logsForName.length}건</span></div>
-                  ${logsForName.map(l=>buildLogCard(l, sc, ss, {fullDate:true, hideSiteAndContact:true})).join('')}
+                  ${logsForName.map(l=>buildLogCard(l, sc, ss, {fullDate:true, hideSiteAndContact:true, roster:s.roster})).join('')}
                 </div>`;
               }).join('');
               return `<div class="cstat-expanded-logs">
-                <div class="cstat-expanded-title">${escapeHtml(mgr)} · ${escapeHtml(method)} (${collected.length}건) <button type="button" class="cstat-expanded-close no-print">✕</button></div>
+                <div class="cstat-expanded-title">${escapeHtml(mgr)} · ${escapeHtml(method)} (${contactCountLabel(collected, s.roster)}) <button type="button" class="cstat-expanded-close no-print">✕</button></div>
                 ${collected.length ? groupsHtml : '<div style="color:var(--text-dim);font-size:11px;">기록 없음</div>'}
               </div>`;
             })() : ''}
@@ -4736,14 +4762,16 @@ const L = (function(){
           </div>
 
           <div class="cstat-section">
-            <div class="cstat-section-title">④ ${periodLabel==='일별'?escapeHtml(navLabel):'금일'} 접촉 상세 (${todayRows.length}건)</div>
+            <div class="cstat-section-title">④ ${periodLabel==='일별'?escapeHtml(navLabel):'금일'} 접촉 상세 (${todayRows.length ? todayRows.length+'건중 담당: '+(todayRows.length-todayRows.filter(tr=>tr.mgrMismatch).length)+'건' : '0건'})</div>
             ${todayRows.length ? `
             <table class="cstat-table cstat-desktop-only"><thead><tr><th style="width:6%;">No</th><th style="width:11%;">담당</th><th style="width:13%;">성함</th><th style="width:10%;">직책</th><th style="width:10%;">접촉횟수</th><th style="width:10%;">접촉방법</th><th style="width:40%;text-align:left;">내용</th></tr></thead>
             <tbody>${todayRows.map((tr,i)=>{
               const l = tr.log;
-              return `<tr><td>${i+1}</td><td>${escapeHtml(l.author||'')}</td><td>${escapeHtml(l.contactName||'')}</td><td>${escapeHtml(tr.role||'-')}</td><td>${tr.count||'-'}</td><td>${escapeHtml(l.contactMethod||'')}</td><td style="text-align:left;white-space:pre-wrap;">${escapeHtml(l.text||'')}</td></tr>`;
+              const rowStyle = tr.mgrMismatch ? ' style="background:rgba(255,123,123,0.10);"' : '';
+              const mgrCell = tr.mgrMismatch ? `${escapeHtml(l.author||'')} <span style="color:#ff7b7b;" title="명단 담당과 다르거나 담당 미지정">⚠</span>` : escapeHtml(l.author||'');
+              return `<tr${rowStyle}><td>${i+1}</td><td>${mgrCell}</td><td>${escapeHtml(l.contactName||'')}</td><td>${escapeHtml(tr.role||'-')}</td><td>${tr.count||'-'}</td><td>${escapeHtml(l.contactMethod||'')}</td><td style="text-align:left;white-space:pre-wrap;">${escapeHtml(l.text||'')}</td></tr>`;
             }).join('')}</tbody></table>
-            <div class="cstat-mobile-only">${(()=>{ const sc=new Set(), ss=new Set(); return todayRows.map(tr=>buildLogCard(tr.log, sc, ss, {fullDate:true})).join(''); })()}</div>
+            <div class="cstat-mobile-only">${(()=>{ const sc=new Set(), ss=new Set(); return todayRows.map(tr=>buildLogCard(tr.log, sc, ss, {fullDate:true, roster:s.roster})).join(''); })()}</div>
             ` : '<div style="color:var(--text-dim);font-size:11.5px;">등록된 보고서가 없습니다.</div>'}
           </div>
 
@@ -4801,8 +4829,8 @@ const L = (function(){
               collected.sort((a,b)=>(a.date||'').localeCompare(b.date||''));
               const sc=new Set(), ss=new Set();
               return `<div class="cstat-expanded-logs">
-                <div class="cstat-expanded-title">${cstatExpandedWeek}주차 상담 기록 (${collected.length}건) <button type="button" class="cstat-expanded-close no-print">✕</button></div>
-                ${collected.length ? collected.map(l=>buildLogCard(l, sc, ss, {fullDate:true})).join('') : '<div style="color:var(--text-dim);font-size:11px;">기록 없음</div>'}
+                <div class="cstat-expanded-title">${cstatExpandedWeek}주차 상담 기록 (${contactCountLabel(collected, s.roster)}) <button type="button" class="cstat-expanded-close no-print">✕</button></div>
+                ${collected.length ? collected.map(l=>buildLogCard(l, sc, ss, {fullDate:true, roster:s.roster})).join('') : '<div style="color:var(--text-dim);font-size:11px;">기록 없음</div>'}
               </div>`;
             })() : ''}
           </div>
@@ -4844,8 +4872,8 @@ const L = (function(){
               }).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
               const sc=new Set(), ss=new Set();
               return `<div class="cstat-expanded-logs">
-                <div class="cstat-expanded-title">${escapeHtml(cstatExpandedManager)} 상담 기록 (${collected.length}건) <button type="button" class="cstat-expanded-close no-print">✕</button></div>
-                ${collected.length ? collected.map(l=>buildLogCard(l, sc, ss, {fullDate:true})).join('') : '<div style="color:var(--text-dim);font-size:11px;">기록 없음</div>'}
+                <div class="cstat-expanded-title">${escapeHtml(cstatExpandedManager)} 상담 기록 (${contactCountLabel(collected, s.roster)}) <button type="button" class="cstat-expanded-close no-print">✕</button></div>
+                ${collected.length ? collected.map(l=>buildLogCard(l, sc, ss, {fullDate:true, roster:s.roster})).join('') : '<div style="color:var(--text-dim);font-size:11px;">기록 없음</div>'}
               </div>`;
             })() : ''}
           </div>
@@ -7710,10 +7738,16 @@ const L = (function(){
     // 괄호가 겹으로 붙은 경우(예: "백정순(선일부동산)(대표)")까지 끝까지 벗겨낸 순수 이름으로 맞춰야,
     // "이번 기간 접촉자" 칩(이제 fullyStripRoles로 정리된 순수 이름을 씀)을 눌렀을 때 이 카드도 정상적으로 매칭된다.
     const contactKey = fullyStripRoles(l.contactName).name;
-    return `<div class="report-log-card" data-contact-name="${escapeHtml(contactKey)}" style="border:1px solid var(--border,rgba(255,255,255,0.15));border-radius:10px;padding:10px 12px;margin-bottom:8px;">
+    // opts.roster를 넘겨주면, 명단상 이 접촉자의 담당과 실제 이 글을 쓴 작성자가 다른 경우(또는 명단에
+    // 담당이 비어있는 경우) 카드를 다른 색으로 표시해서 "엉뚱한 담당이 접촉했거나 담당 미지정"인 건을 바로 알아보게 한다.
+    const mgrMatch = opts.roster ? logManagerMatch(l, opts.roster) : null;
+    const cardStyle = mgrMatch===false
+      ? 'border:1px solid rgba(255,123,123,0.5);background:rgba(255,123,123,0.10);border-radius:10px;padding:10px 12px;margin-bottom:8px;'
+      : 'border:1px solid var(--border,rgba(255,255,255,0.15));border-radius:10px;padding:10px 12px;margin-bottom:8px;';
+    return `<div class="report-log-card" data-contact-name="${escapeHtml(contactKey)}" style="${cardStyle}">
       ${siteLine}
       <div style="font-weight:700;font-size:12.5px;margin-bottom:4px;">${escapeHtml(dateLabel)}</div>
-      <div style="font-size:12px;margin-bottom:2px;"><b style="color:var(--accent);">담당:</b> ${escapeHtml(manager)}</div>
+      <div style="font-size:12px;margin-bottom:2px;"><b style="color:var(--accent);">담당:</b> ${escapeHtml(manager)}${mgrMatch===false ? ' <span style="color:#ff7b7b;font-weight:700;">⚠ 명단 담당과 다름</span>' : ''}</div>
       ${opts.hideSiteAndContact ? '' : `<div style="font-size:12px;margin-bottom:6px;"><b style="color:var(--accent);">접촉:</b> ${escapeHtml(contact)}</div>`}
       <div style="font-size:12px;margin-bottom:4px;"><b style="color:var(--accent);">상담내용</b> ${escapeHtml(summary)}</div>
       <div style="font-size:12px;margin-bottom:4px;"><b style="color:var(--accent);">타사활동</b> ${escapeHtml(competitorOut)}</div>
@@ -7722,8 +7756,10 @@ const L = (function(){
   }
   function buildLogCardsForRow(r){
     const shownC = new Set(), shownS = new Set();
+    const rosterSite = sites.find(x=>x.id===r.id);
+    const rowRoster = rosterSite ? (rosterSite.ownerRoster||[]).map(normalizeRosterEntry).filter(x=>x.name) : [];
     const sorted = (r.logs||[]).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
-    return sorted.length ? sorted.map(l=>buildLogCard(l, shownC, shownS)).join('') : '<div class="report-note-line" style="color:var(--text-dim);">기록 없음</div>';
+    return sorted.length ? sorted.map(l=>buildLogCard(l, shownC, shownS, {roster:rowRoster})).join('') : '<div class="report-note-line" style="color:var(--text-dim);">기록 없음</div>';
   }
   // 주간 모드: 월~일 요일별로, 월간 모드: 1주차~N주차 별로 그날/그주에 어느 현장을 몇 번 방문했는지 묶는다
   // 사이트 상세 "보고서" 탭에 보여줄 담당자별 집계표(주간/월간 방문 매트릭스 + 요일·주차별 접촉자 목록)
@@ -8201,6 +8237,8 @@ const L = (function(){
       if(highlightEl) highlightEl.style.borderColor = 'var(--accent)';
       const sortedLogs = c.logs.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
       const shownC = new Set(), shownS = new Set();
+      const rosterSite = sites.find(x=>x.name===site);
+      const cardRoster = rosterSite ? (rosterSite.ownerRoster||[]).map(normalizeRosterEntry).filter(x=>x.name) : [];
       panel.style.display = 'block';
       panel.innerHTML = `
         <div class="report-detail-head">
@@ -8209,7 +8247,7 @@ const L = (function(){
           <span style="margin-left:auto;font-weight:700;color:var(--accent);">${c.count}회 접촉</span>
         </div>
         <div class="report-detail-notes">
-          <div class="report-timeline">${sortedLogs.map(l=>buildLogCard(l, shownC, shownS, {fullDate:true})).join('')}</div>
+          <div class="report-timeline">${sortedLogs.map(l=>buildLogCard(l, shownC, shownS, {fullDate:true, roster:cardRoster})).join('')}</div>
         </div>`;
       panel.scrollIntoView({behavior:'smooth', block:'nearest'});
     }
@@ -8280,7 +8318,15 @@ const L = (function(){
         return;
       }
       const shownC = new Set(), shownS = new Set();
-      const logsHtml = matched.length ? `<div class="report-timeline">${matched.map(l=>buildLogCard(l, shownC, shownS, {siteLabel:l.__site, fullDate:true})).join('')}</div>` : '';
+      const searchRosterCache = {};
+      function rosterForSiteName(name){
+        if(searchRosterCache[name]!==undefined) return searchRosterCache[name];
+        const site = sites.find(x=>x.name===name);
+        const r = site ? (site.ownerRoster||[]).map(normalizeRosterEntry).filter(x=>x.name) : [];
+        searchRosterCache[name] = r;
+        return r;
+      }
+      const logsHtml = matched.length ? `<div class="report-timeline">${matched.map(l=>buildLogCard(l, shownC, shownS, {siteLabel:l.__site, fullDate:true, roster:rosterForSiteName(l.__site)})).join('')}</div>` : '';
       const bookingsHtml = matchedBookings.length ? `
         <div class="report-section-title" style="margin-top:16px;"><span style="color:#ffb703;">■</span> 투어예약 ${matchedBookings.length}건</div>
         ${matchedBookings.map(bookingCardHtml).join('')}
@@ -8692,6 +8738,10 @@ const L = (function(){
     }
     // 클릭한 행 바로 아래에 인라인으로 붙일 상세보기 HTML을 만든다 (별도 팝업/고정박스가 아니라 표 안에 자연스럽게 이어지도록)
     function buildRowDetailHtml(r, dayKey){
+      // 이 현장의 소유주 명단(담당 비교용). 목록 화면은 여러 현장이 섞인 rows를 쓰다 보니 사이트 객체 자체가
+      // 없어서, 전역 sites에서 같은 id를 찾아 명단을 가져온다.
+      const rosterSite = sites.find(x=>x.id===r.id);
+      const rowRoster = rosterSite ? (rosterSite.ownerRoster||[]).map(normalizeRosterEntry).filter(x=>x.name) : [];
       const scopedLogsForContacts = dayKey ? (r.logs||[]).filter(l=>l.date===dayKey) : (r.logs||[]);
       const rawContacts = Array.from(new Set(scopedLogsForContacts.map(l=>l.contactName).filter(Boolean).map(n=>n.trim()).filter(Boolean)));
       // "최영희 (선관위원)", "정상수(위원장)" 같은 문자열에서 이름/직책을 분리하고, 같은 이름은 하나로 합친다.
@@ -8748,11 +8798,11 @@ const L = (function(){
               ${contactsHtml}
             </div>
             <div class="report-section-title" style="margin:0 0 8px;display:flex;align-items:center;justify-content:space-between;">
-              <span><span style="color:#ffb703;">■</span> 이번 기간 상담 기록 <span style="font-weight:400;color:var(--text-dim);">(${periodLogs.length}건)</span></span>
+              <span><span style="color:#ffb703;">■</span> 이번 기간 상담 기록 <span style="font-weight:400;color:var(--text-dim);">(${contactCountLabel(periodLogs, rowRoster)})</span></span>
               ${allHistoryLogs.length > periodLogs.length ? `<button type="button" class="show-full-history-btn no-print" style="font-size:10px;padding:3px 8px;" data-site-id="${escapeHtml(r.id)}">전체 이력 보기 (${allHistoryLogs.length}건)</button>` : ''}
             </div>
             <div class="report-timeline-area">
-            ${periodLogs.length ? `<div class="report-timeline">${periodLogs.map(l=>buildLogCard(l, shownCompetitor, shownSpecial, {fullDate:true})).join('')}</div>` : '<div class="report-note-line" style="color:var(--text-dim);">이번 기간 상담 기록이 없습니다.</div>'}
+            ${periodLogs.length ? `<div class="report-timeline">${periodLogs.map(l=>buildLogCard(l, shownCompetitor, shownSpecial, {fullDate:true, roster:rowRoster})).join('')}</div>` : '<div class="report-note-line" style="color:var(--text-dim);">이번 기간 상담 기록이 없습니다.</div>'}
             </div>
           </div>
         </div>`;
@@ -8791,7 +8841,9 @@ const L = (function(){
         const allHistoryLogs = (reportSiteFullLogs[r.site] || r.logs || []).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
         const area = inlineDetailPanel.querySelector('.report-timeline-area');
         const shownCompetitor=new Set(), shownSpecial=new Set();
-        area.innerHTML = `<div class="report-timeline">${allHistoryLogs.map(l=>buildLogCard(l, shownCompetitor, shownSpecial, {fullDate:true})).join('')}</div>`;
+        const fullHistoryRosterSite = sites.find(x=>x.id===r.id);
+        const fullHistoryRoster = fullHistoryRosterSite ? (fullHistoryRosterSite.ownerRoster||[]).map(normalizeRosterEntry).filter(x=>x.name) : [];
+        area.innerHTML = `<div class="report-timeline">${allHistoryLogs.map(l=>buildLogCard(l, shownCompetitor, shownSpecial, {fullDate:true, roster:fullHistoryRoster})).join('')}</div>`;
         fullHistoryBtn.style.display = 'none';
       });
       inlineDetailPanel.querySelectorAll('.contact-name-chip[data-jump-contact]').forEach(chip=>{
@@ -9542,17 +9594,17 @@ const L = (function(){
   // 특정 날짜를 눌렀을 때, 그 날 방문한 현장별로 담당/접촉자/상담방법/내용을 정리해서 보여준다
   function buildMobileDayDetailHtml(dateKey, sitesList){
     if(!dateKey) return '';
-    const bySite = []; // {siteName, logs:[]}
+    const bySite = []; // {siteName, logs:[], roster:[]}
     sitesList.forEach(s=>{
       const dayLogs = (s.logs||[]).filter(l=>l.date===dateKey);
       if(!dayLogs.length) return;
-      bySite.push({siteName:s.name, logs:dayLogs});
+      bySite.push({siteName:s.name, logs:dayLogs, roster:(s.ownerRoster||[]).map(normalizeRosterEntry).filter(x=>x.name)});
     });
     if(!bySite.length) return '';
     const sc = new Set(), ss = new Set();
     return `<div class="mobile-section mobile-day-detail">
       <div class="mobile-section-title">${escapeHtml(formatDateKr(dateKey))} 방문현장</div>
-      ${bySite.map(b=>b.logs.map(l=>buildLogCard(l, sc, ss, {fullDate:true, siteLabel: sitesList.length>1?b.siteName:null})).join('')).join('')}
+      ${bySite.map(b=>b.logs.map(l=>buildLogCard(l, sc, ss, {fullDate:true, siteLabel: sitesList.length>1?b.siteName:null, roster:b.roster})).join('')).join('')}
     </div>`;
   }
   function specialSectionsHtml(weeklySpecial, monthEvents, showSiteName){
