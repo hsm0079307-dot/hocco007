@@ -744,6 +744,12 @@
   .cstat-table tr:last-child td{border-bottom:none;}
   .cstat-table tr:hover td{background:color-mix(in srgb, var(--accent) 6%, transparent);}
   .cstat-section{background:var(--bg-side-2);border:none;border-radius:6px;padding:16px 18px;margin-bottom:12px;}
+  .roster-tool-card{background:var(--bg-side-2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px;}
+  .roster-tool-head{display:flex;align-items:center;gap:6px;margin-bottom:8px;}
+  .roster-tool-title{font-size:11.5px;font-weight:700;color:var(--text-main);flex:1;}
+  .roster-tool-info{flex:none;width:18px;height:18px;padding:0;border-radius:50%;background:var(--bg-side);border:1px solid var(--line);color:var(--text-dim);font-size:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-family:inherit;}
+  .roster-tool-info:hover{border-color:var(--accent);color:var(--accent);}
+  .roster-tool-desc{font-size:10.5px;color:var(--text-dim);line-height:1.5;margin-bottom:8px;padding:7px 9px;background:var(--bg-side);border-radius:6px;}
   .cstat-chart-legend{display:flex;gap:16px;margin-bottom:10px;flex-wrap:wrap;}
   .cstat-legend-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text-dim);}
   .cstat-legend-dot{width:8px;height:8px;border-radius:50%;flex:none;}
@@ -1173,7 +1179,7 @@
 <div class="overlay" id="ownerRosterModalOverlay">
   <div class="modal" id="ownerRosterModalBox" style="max-width:560px;width:100%;">
     <h3 style="margin:0 0 6px;font-size:14px;">📋 소유주 명단 관리</h3>
-    <details style="margin-bottom:8px;" open>
+    <details style="margin-bottom:8px;">
       <summary style="font-size:10.5px;color:var(--accent);cursor:pointer;">📥 여러 명 한번에 붙여넣기 (엑셀에서 복사해온 것도 가능)</summary>
       <p style="font-size:10px;color:var(--text-dim);margin:4px 0;line-height:1.5;">
         엑셀에서 이름/직책/담당 3칸을 그대로 복사해서 아래에 붙여넣으면(Ctrl+V) <b>자동으로 밑에 표에 한 명씩 세로로 들어가요.</b> 이름 칸에 괄호(메모 등)가 있어도 그대로 통째로 들어가요, 억지로 안 나눠요.<br>
@@ -1201,21 +1207,33 @@
       <button type="button" class="btn btn-ghost btn-sm" id="ownerRosterCancelBtn" style="flex:1;">취소</button>
     </div>
     <div style="border-top:1px solid var(--line);margin-top:12px;padding-top:10px;">
-      <p style="font-size:10.5px;color:var(--text-dim);margin:0 0 6px;line-height:1.5;">
-        저장한 명단 기준으로, 기존 보고서(텔레그램봇으로 들어온 것 포함)에 적힌 이름 중 비슷한 걸 자동으로 명단 이름에 맞춰 정리해요. 오타 1~2글자 차이까지만 자동 인식해요. 그래도 못 찾은 이름은 아래 표에 나오는데, "건수 보기"로 일지를 확인하고 "➕ 추가"(명단에 새로 등록)나 "매칭"(기존 이름과 같은 사람으로 연결)을 누르면 되고, 앞으로도 명단에 넣을 필요 없는 이름이면 "✕"로 무시하면 다음부턴 안 나와요.
-      </p>
-      <button type="button" class="btn btn-ghost btn-sm" id="ownerRosterCleanupBtn" style="width:100%;">🔄 명단 기준으로 기존 보고서 정리</button>
-      <div id="ownerRosterCleanupResult" style="font-size:11px;margin-top:8px;line-height:1.6;"></div>
-      <p style="font-size:10.5px;color:var(--text-dim);margin:12px 0 6px;line-height:1.5;">
-        성함은 A로 돼있는데 실제 상담내용엔 다른 명단 이름이 언급된 경우(예전에 잘못 매칭됐을 수 있음)를 찾아줘요.
-      </p>
-      <button type="button" class="btn btn-ghost btn-sm" id="ownerRosterFindSuspiciousBtn" style="width:100%;">⚠️ 의심스러운 항목 찾기</button>
-      <div id="ownerRosterSuspiciousResult" style="font-size:11px;margin-top:8px;line-height:1.6;max-height:240px;overflow-y:auto;"></div>
-      <p style="font-size:10.5px;color:var(--text-dim);margin:12px 0 6px;line-height:1.5;">
-        같은 날짜에 같은 담당이 같은 소유주를 상대로 쓴 보고서가 2건 이상이면(중복 입력 의심) 찾아줘요. 확인 후 필요 없는 건은 바로 삭제할 수 있어요.
-      </p>
-      <button type="button" class="btn btn-ghost btn-sm" id="ownerRosterFindDupBtn" style="width:100%;">🔁 중복 보고서 찾기</button>
-      <div id="ownerRosterDupResult" style="font-size:11px;margin-top:8px;line-height:1.6;max-height:320px;overflow-y:auto;"></div>
+      <div class="roster-tool-card">
+        <div class="roster-tool-head">
+          <span class="roster-tool-title">🔄 명단 기준으로 기존 보고서 정리</span>
+          <button type="button" class="roster-tool-info" id="ownerRosterCleanupInfoBtn">ⓘ</button>
+        </div>
+        <div class="roster-tool-desc" id="ownerRosterCleanupDesc" style="display:none;">저장한 명단 기준으로, 기존 보고서(텔레그램봇으로 들어온 것 포함)에 적힌 이름 중 비슷한 걸 자동으로 명단 이름에 맞춰 정리해요. 오타 1~2글자 차이까지만 자동 인식해요. 그래도 못 찾은 이름은 아래 표에 나오는데, "건수 보기"로 일지를 확인하고 "➕ 추가"(명단에 새로 등록)나 "매칭"(기존 이름과 같은 사람으로 연결)을 누르면 되고, 앞으로도 명단에 넣을 필요 없는 이름이면 "✕"로 무시하면 다음부턴 안 나와요.</div>
+        <button type="button" class="btn btn-ghost btn-sm" id="ownerRosterCleanupBtn" style="width:100%;">실행</button>
+        <div id="ownerRosterCleanupResult" style="font-size:11px;margin-top:8px;line-height:1.6;"></div>
+      </div>
+      <div class="roster-tool-card">
+        <div class="roster-tool-head">
+          <span class="roster-tool-title">⚠️ 의심스러운 항목 찾기</span>
+          <button type="button" class="roster-tool-info" id="ownerRosterSuspiciousInfoBtn">ⓘ</button>
+        </div>
+        <div class="roster-tool-desc" id="ownerRosterSuspiciousDesc" style="display:none;">성함은 A로 돼있는데 실제 상담내용엔 다른 명단 이름이 언급된 경우(예전에 잘못 매칭됐을 수 있음)를 찾아줘요.</div>
+        <button type="button" class="btn btn-ghost btn-sm" id="ownerRosterFindSuspiciousBtn" style="width:100%;">실행</button>
+        <div id="ownerRosterSuspiciousResult" style="font-size:11px;margin-top:8px;line-height:1.6;max-height:240px;overflow-y:auto;"></div>
+      </div>
+      <div class="roster-tool-card" style="margin-bottom:0;">
+        <div class="roster-tool-head">
+          <span class="roster-tool-title">🔁 중복 보고서 찾기</span>
+          <button type="button" class="roster-tool-info" id="ownerRosterDupInfoBtn">ⓘ</button>
+        </div>
+        <div class="roster-tool-desc" id="ownerRosterDupDesc" style="display:none;">같은 날짜에 같은 담당이 같은 소유주를 상대로 쓴 보고서가 2건 이상이면(중복 입력 의심) 찾아줘요. 확인 후 필요 없는 건은 바로 삭제할 수 있어요.</div>
+        <button type="button" class="btn btn-ghost btn-sm" id="ownerRosterFindDupBtn" style="width:100%;">실행</button>
+        <div id="ownerRosterDupResult" style="font-size:11px;margin-top:8px;line-height:1.6;max-height:320px;overflow-y:auto;"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -1261,7 +1279,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-04-v192</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-04-v193</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -5333,6 +5351,15 @@ const L = (function(){
           });
         });
       }
+      // 명단 관리 하단 도구 3개의 "ⓘ" 버튼 - 누르면 그 아래 설명이 접혔다 펼쳐졌다 함 (평소엔 접어둬서 화면이 덜 지저분하게)
+      [['ownerRosterCleanupInfoBtn','ownerRosterCleanupDesc'],['ownerRosterSuspiciousInfoBtn','ownerRosterSuspiciousDesc'],['ownerRosterDupInfoBtn','ownerRosterDupDesc']].forEach(([btnId, descId])=>{
+        const infoBtn = freshEl(btnId);
+        if(!infoBtn) return;
+        infoBtn.addEventListener('click', ()=>{
+          const desc = document.getElementById(descId);
+          if(desc) desc.style.display = desc.style.display==='none' ? 'block' : 'none';
+        });
+      });
       const ownerRosterCleanupBtn = freshEl('ownerRosterCleanupBtn');
       if(ownerRosterCleanupBtn) ownerRosterCleanupBtn.addEventListener('click', async ()=>{
         if(!(await ensureUnlocked())) return;
@@ -5346,7 +5373,7 @@ const L = (function(){
         // 그대로 남아 안 넘어가는 것처럼 보이므로, 지금 실제로 화면에 붙어있는 최신 버튼을 다시 찾아서 갱신한다.
         const liveCleanupBtn = document.getElementById('ownerRosterCleanupBtn') || ownerRosterCleanupBtn;
         liveCleanupBtn.disabled = false;
-        liveCleanupBtn.textContent = '🔄 명단 기준으로 기존 보고서 정리';
+        liveCleanupBtn.textContent = '실행';
       });
       const ownerRosterFindSuspiciousBtn = freshEl('ownerRosterFindSuspiciousBtn');
       if(ownerRosterFindSuspiciousBtn) ownerRosterFindSuspiciousBtn.addEventListener('click', async ()=>{
@@ -5455,7 +5482,7 @@ const L = (function(){
         }
         renderSuspiciousList();
         ownerRosterFindSuspiciousBtn.disabled = false;
-        ownerRosterFindSuspiciousBtn.textContent = '⚠️ 의심스러운 항목 찾기';
+        ownerRosterFindSuspiciousBtn.textContent = '실행';
       });
       const ownerRosterFindDupBtn = freshEl('ownerRosterFindDupBtn');
       if(ownerRosterFindDupBtn) ownerRosterFindDupBtn.addEventListener('click', ()=>{
