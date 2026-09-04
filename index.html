@@ -736,6 +736,7 @@
   .cstat-num-split{display:flex;flex-direction:column;justify-content:center;gap:1px;font-size:14px;font-weight:800;letter-spacing:-.2px;line-height:1.25;min-height:36px;}
   .cstat-lbl{font-size:10px;color:var(--text-dim);margin-top:3px;letter-spacing:.2px;}
   .cstat-section-title{font-size:12px;font-weight:700;color:var(--text-main);margin:0 0 10px;padding-left:9px;border-left:3px solid var(--accent);letter-spacing:.2px;}
+  .cstat-table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%;}
   .cstat-table{width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed;}
   .cstat-table th{background:none;color:var(--accent);font-weight:700;padding:6px 4px 8px;border:none;border-bottom:1.5px solid var(--accent);text-align:center;letter-spacing:.2px;}
   .cstat-table td{padding:7px 4px;border:none;border-bottom:1px solid var(--line);text-align:center;color:var(--text-main);}
@@ -1206,7 +1207,7 @@
   <div class="modal" id="mobileSummaryModalBox" style="max-width:420px;width:100%;"></div>
 </div>
 <div class="overlay" id="contactStatsModalOverlay">
-  <div class="modal" id="contactStatsModalBox" style="max-width:720px;width:100%;max-height:88vh;overflow-y:auto;"></div>
+  <div class="modal" id="contactStatsModalBox" style="max-width:720px;width:100%;max-height:88vh;overflow-y:auto;overflow-x:hidden;"></div>
 </div>
 <div class="overlay" id="ownerRosterModalOverlay">
   <div class="modal" id="ownerRosterModalBox" style="max-width:560px;width:100%;">
@@ -1310,7 +1311,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉현황</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-04-v220</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-04-v221</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -4796,25 +4797,25 @@ const L = (function(){
 
           <div class="cstat-section">
             <div class="cstat-section-title">① 담당별 집계표</div>
-            <table class="cstat-table" style="width:auto;min-width:280px;"><thead><tr><th style="width:70px;">담당</th><th style="width:56px;">인원</th><th style="width:70px;">접촉<br>(누계)</th><th style="width:56px;">접촉률</th><th style="width:56px;">미접촉</th></tr></thead>
+            <div class="cstat-table-scroll"><table class="cstat-table" style="width:auto;min-width:280px;"><thead><tr><th style="width:70px;">담당</th><th style="width:56px;">인원</th><th style="width:70px;">접촉<br>(누계)</th><th style="width:56px;">접촉률</th><th style="width:56px;">미접촉</th></tr></thead>
             <tbody>${managerNames.length ? managerNames.map(m=>{
               const d = s.byManager[m];
               const cumContacted = d.cumulativeContactedSet.size;
               const cumRate = d.total ? (cumContacted/d.total*100).toFixed(1) : '0.0';
               return `<tr><td>${escapeHtml(m)}</td><td>${d.total}</td><td><span class="cstat-clickable-num" data-mgr="${escapeHtml(m)}" data-method="누계" data-table="top">${cumContacted}</span></td><td>${cumRate}%</td><td>${d.total-cumContacted}</td></tr>`;
-            }).join('') : `<tr><td colspan="5" style="color:var(--text-dim);">명단에 담당이 기재된 사람이 없어요.</td></tr>`}</tbody></table>
+            }).join('') : `<tr><td colspan="5" style="color:var(--text-dim);">명단에 담당이 기재된 사람이 없어요.</td></tr>`}</tbody></table></div>
 
             <div class="cstat-section-title" style="margin-top:16px;">담당별 접촉(누계) 방법</div>
-            <table class="cstat-table" style="width:auto;min-width:480px;"><thead><tr><th style="width:70px;">담당</th><th style="width:50px;">인원</th><th style="width:60px;">접촉<br>(누계)</th><th style="width:50px;">상담</th><th style="width:50px;">단순</th><th style="width:50px;">TM</th><th style="width:50px;">거부</th><th style="width:50px;">부재</th></tr></thead>
+            <div class="cstat-table-scroll"><table class="cstat-table" style="width:auto;min-width:480px;"><thead><tr><th style="width:70px;">담당</th><th style="width:50px;">인원</th><th style="width:60px;">접촉<br>(누계)</th><th style="width:50px;">상담</th><th style="width:50px;">단순</th><th style="width:50px;">TM</th><th style="width:50px;">거부</th><th style="width:50px;">부재</th></tr></thead>
             <tbody>${managerNames.length ? managerNames.map(m=>{
               const d = s.byManager[m];
               const c = d.cumMethodCounts;
               const cellHtml = (method, val) => val ? `<span class="cstat-clickable-num" data-mgr="${escapeHtml(m)}" data-method="${method}" data-table="cum">${val}</span>` : '-';
               return `<tr><td>${escapeHtml(m)}</td><td>${d.total}</td><td><span class="cstat-clickable-num" data-mgr="${escapeHtml(m)}" data-method="누계" data-table="top">${d.cumulativeContactedSet.size}</span></td><td>${cellHtml('상담',c['상담'])}</td><td>${cellHtml('단순',c['단순'])}</td><td>${cellHtml('TM',c['TM'])}</td><td>${cellHtml('거부',c['거부'])}</td><td>${cellHtml('부재',c['부재'])}</td></tr>`;
-            }).join('') : `<tr><td colspan="8" style="color:var(--text-dim);">명단에 담당이 기재된 사람이 없어요.</td></tr>`}</tbody></table>
+            }).join('') : `<tr><td colspan="8" style="color:var(--text-dim);">명단에 담당이 기재된 사람이 없어요.</td></tr>`}</tbody></table></div>
 
             <div class="cstat-section-title" style="margin-top:16px;">담당별 접촉(${escapeHtml(navLabel)}) 방법</div>
-            <table class="cstat-table" style="width:auto;min-width:480px;"><thead><tr><th style="width:70px;">담당</th><th style="width:50px;">인원</th><th style="width:60px;">접촉<br>(기간)</th><th style="width:50px;">상담</th><th style="width:50px;">단순</th><th style="width:50px;">TM</th><th style="width:50px;">거부</th><th style="width:50px;">부재</th></tr></thead>
+            <div class="cstat-table-scroll"><table class="cstat-table" style="width:auto;min-width:480px;"><thead><tr><th style="width:70px;">담당</th><th style="width:50px;">인원</th><th style="width:60px;">접촉<br>(기간)</th><th style="width:50px;">상담</th><th style="width:50px;">단순</th><th style="width:50px;">TM</th><th style="width:50px;">거부</th><th style="width:50px;">부재</th></tr></thead>
             <tbody>${managerNames.length ? managerNames.map(m=>{
               const d = s.byManager[m];
               const c = d.periodMethodCounts;
@@ -4824,7 +4825,7 @@ const L = (function(){
               const periodTotal = d.contactedSet.size;
               const cellHtml = (method, val) => val ? `<span class="cstat-clickable-num" data-mgr="${escapeHtml(m)}" data-method="${method}" data-table="period">${val}</span>` : '-';
               return `<tr><td>${escapeHtml(m)}</td><td>${d.total}</td><td>${periodTotal ? `<span class="cstat-clickable-num" data-mgr="${escapeHtml(m)}" data-method="기간" data-table="period">${periodTotal}</span>` : '0'}</td><td>${cellHtml('상담',c['상담'])}</td><td>${cellHtml('단순',c['단순'])}</td><td>${cellHtml('TM',c['TM'])}</td><td>${cellHtml('거부',c['거부'])}</td><td>${cellHtml('부재',c['부재'])}</td></tr>`;
-            }).join('') : `<tr><td colspan="8" style="color:var(--text-dim);">명단에 담당이 기재된 사람이 없어요.</td></tr>`}</tbody></table>
+            }).join('') : `<tr><td colspan="8" style="color:var(--text-dim);">명단에 담당이 기재된 사람이 없어요.</td></tr>`}</tbody></table></div>
 
             ${cstatExpandedCell && s.byManager[cstatExpandedCell.mgr] ? (()=>{
               const {mgr, method, table} = cstatExpandedCell;
@@ -4870,23 +4871,23 @@ const L = (function(){
 
           <div class="cstat-section">
             <div class="cstat-section-title">② 직책별 집계표</div>
-            <table class="cstat-table" style="width:auto;min-width:280px;"><thead><tr><th style="width:70px;">직책</th><th style="width:56px;">인원</th><th style="width:56px;">접촉</th><th style="width:56px;">미접촉</th><th style="width:56px;">접촉률</th></tr></thead>
+            <div class="cstat-table-scroll"><table class="cstat-table" style="width:auto;min-width:280px;"><thead><tr><th style="width:70px;">직책</th><th style="width:56px;">인원</th><th style="width:56px;">접촉</th><th style="width:56px;">미접촉</th><th style="width:56px;">접촉률</th></tr></thead>
             <tbody>${roleNames.length ? roleNames.map(r=>{
               const d = s.byRole[r];
               const contacted = d.contactedSet.size;
               const rate = d.total ? (contacted/d.total*100).toFixed(1) : '0.0';
               return `<tr><td>${escapeHtml(r)}</td><td>${d.total}</td><td>${contacted}</td><td>${d.total-contacted}</td><td>${rate}%</td></tr>`;
-            }).join('') : `<tr><td colspan="5" style="color:var(--text-dim);">명단에 직책이 기재된 사람이 없어요.</td></tr>`}</tbody></table>
+            }).join('') : `<tr><td colspan="5" style="color:var(--text-dim);">명단에 직책이 기재된 사람이 없어요.</td></tr>`}</tbody></table></div>
           </div>
 
           <div class="cstat-section">
             <div class="cstat-section-title">③ 주별 집계표</div>
-            <table class="cstat-table" style="width:auto;min-width:280px;"><thead><tr><th style="width:60px;">주차</th><th style="width:56px;">상담</th><th style="width:56px;">단순</th><th style="width:56px;">TM</th><th style="width:56px;">계</th></tr></thead>
+            <div class="cstat-table-scroll"><table class="cstat-table" style="width:auto;min-width:280px;"><thead><tr><th style="width:60px;">주차</th><th style="width:56px;">상담</th><th style="width:56px;">단순</th><th style="width:56px;">TM</th><th style="width:56px;">계</th></tr></thead>
             <tbody>${weekNums.map(wk=>{
               const d = s.byWeek[wk] || {'상담':0,'단순':0,'TM':0};
               const total = d['상담']+d['단순']+d['TM'];
               return `<tr><td>${wk}주차</td><td>${d['상담']||'-'}</td><td>${d['단순']||'-'}</td><td>${d['TM']||'-'}</td><td>${total||'-'}</td></tr>`;
-            }).join('')}</tbody></table>
+            }).join('')}</tbody></table></div>
           </div>
 
           <div class="cstat-section cstat-detail-section">
