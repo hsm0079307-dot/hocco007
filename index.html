@@ -1009,7 +1009,7 @@
     body.print-mode .rte-toolbar, body.print-mode .quad-edit-btn{display:none !important;}
   }
 
-  /* 접촉현황 인쇄도 마찬가지로 @media print/screen 둘 다에 적용해서, 인쇄 버튼을 누르는 순간
+  /* 집계표 인쇄도 마찬가지로 @media print/screen 둘 다에 적용해서, 인쇄 버튼을 누르는 순간
      화면에서 먼저 촘촘한 레이아웃으로 바뀌게 한다 — 그래야 JS가 실제 인쇄에 쓰일 높이를 정확히
      재서 1장에 맞게 축소 비율을 계산할 수 있다(그렇지 않으면 화면용 넓은 레이아웃 기준으로 재서
      비율 계산이 틀어진다). */
@@ -1134,7 +1134,7 @@
         <div class="menu-section-body" style="padding:6px 2px 4px;">
           <button class="menu-item-btn" id="mobileNavSummaryBtn" type="button">📱 간단현황</button>
           <button class="menu-item-btn" id="mobileNavCalendarBtn" type="button">📅 일정 캘린더</button>
-          <button class="menu-item-btn" id="mobileNavReportBtn" type="button">📊 접촉리포트</button>
+          <button class="menu-item-btn" id="mobileNavReportBtn" type="button">📊 접촉현황</button>
           <button class="menu-item-btn" id="mobileNavTourBtn" type="button">🚗 투어예약</button>
         </div>
       </div>
@@ -1144,7 +1144,7 @@
   <div class="view-switch-bar blueprint-grid">
     <button class="view-switch-btn mobile-only-btn" id="mobileSummaryBtn">📱 간단현황</button>
     <button class="view-switch-btn" id="calendarBtn">📅 일정 캘린더</button>
-    <button class="view-switch-btn" id="contactReportTopBtn">📊 접촉리포트</button>
+    <button class="view-switch-btn" id="contactReportTopBtn">📊 접촉현황</button>
     <button class="view-switch-btn" id="tourBookingTopBtn">🚗 투어예약</button>
     <div class="manager-filter-wrap" id="managerFilterWrap">
       <button class="view-switch-btn" id="managerFilterBtn" type="button">👤 담당자 전체 ▾</button>
@@ -1307,8 +1307,8 @@
 <div class="overlay" id="contactReportOverlay">
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
-      <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-04-v216</span>
+      <h3 style="margin:0;">접촉현황</h3>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-04-v217</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -1784,7 +1784,7 @@ const L = (function(){
   let editingLogId = null; // 보고서(일지) "수정" 버튼 눌렀을 때, 지금 고치고 있는 항목의 id
   let ownerRosterSortKey = null; // 소유주 명단 표에서 지금 정렬 기준 컬럼 ('name'|'role'|'manager'), 안 누르면 null(원래 순서)
   let ownerRosterSortDir = 1; // 1=오름차순, -1=내림차순 (같은 컬럼 다시 누르면 뒤집힘)
-  let cstatPeriod = 'month'; // 접촉현황 리포트에서 선택한 기간 ('month'|'week'|'day')
+  let cstatPeriod = 'month'; // 집계표에서 선택한 기간 ('month'|'week'|'day')
   let cstatNavDate = new Date(); // 그 기간 안에서 지금 보고 있는 기준 날짜 (◀▶로 이동 가능)
   let cstatExpandedWeek = null; // 주차별 그래프에서 펼쳐서 보고 있는 주차
   let cstatExpandedManager = null; // 담당자별 그래프에서 펼쳐서 보고 있는 담당자
@@ -2054,7 +2054,7 @@ const L = (function(){
   }
   const FIREBASE_DATA_WRITE_URL = `${FIREBASE_DB_URL}/data.json?auth=${encodeURIComponent(FIREBASE_DB_SECRET)}`;
 
-  // 접촉리포트에서 입력한 "현장 특이사항"을 그 현장 레코드에 직접 저장한다. 지금 보고 있는 기간(월/주) 키로
+  // 접촉현황에서 입력한 "현장 특이사항"을 그 현장 레코드에 직접 저장한다. 지금 보고 있는 기간(월/주) 키로
   // 따로 저장해서, 8월에 요약한 내용이 9월에도 그대로 나오는 일이 없게 한다.
   async function saveSiteReportNote(siteId, officeName, text, periodKey){
     if(!siteId || !officeName || guestMode || !periodKey) return;
@@ -2533,7 +2533,7 @@ const L = (function(){
     }
   });
 
-  // ---------- 모바일 전용: 설정 옆 메뉴(간단현황/캘린더/접촉리포트/투어예약 모음) ----------
+  // ---------- 모바일 전용: 설정 옆 메뉴(간단현황/캘린더/접촉현황/투어예약 모음) ----------
   document.getElementById('mobileNavBtn').addEventListener('click', (e)=>{
     e.stopPropagation();
     const panel = document.getElementById('mobileNavPanel');
@@ -4275,7 +4275,7 @@ const L = (function(){
             ${editingLog ? '<span style="font-size:11px;color:var(--accent);font-weight:700;">✏️ 보고서 수정 중</span>' : '<span></span>'}
             <div style="display:flex;gap:5px;">
               ${guestMode?'':`<button class="btn btn-ghost btn-sm no-print" id="ownerRosterBtn" style="padding:3px 9px;font-size:10.5px;" title="소유주 명단을 미리 등록해두면 성함 입력할 때 그 목록에서 고를 수 있어요">📋 소유주 명단</button>`}
-              <button class="btn btn-ghost btn-sm no-print" id="contactStatsBtn" style="padding:3px 9px;font-size:10.5px;" title="명단 기준으로 접촉현황 집계표를 만들어요">📊 접촉현황</button>
+              <button class="btn btn-ghost btn-sm no-print" id="contactStatsBtn" style="padding:3px 9px;font-size:10.5px;" title="명단 기준으로 집계표를 만들어요">📊 집계표</button>
               <button class="btn btn-ghost btn-sm no-print" id="logRefreshBtn" style="padding:3px 9px;font-size:10.5px;" title="이 현장 보고서만 다시 최신으로 불러오기">🔄 보고서 새로고침</button>
             </div>
           </div>
@@ -4344,7 +4344,7 @@ const L = (function(){
                 ${groups[author].map(l=>{
                   const t = (l.text||'').trim();
                   const sentences = splitSentences(t);
-                  // 접촉현황/접촉리포트와 똑같이, "상담내용"엔 첫 문장만이 아니라 원문(요약) 전체를 그대로 보여준다.
+                  // 집계표/접촉현황과 똑같이, "상담내용"엔 첫 문장만이 아니라 원문(요약) 전체를 그대로 보여준다.
                   const summary = t;
                   const competitorSentence = sentences.find(sen=>COMPETITOR_KEYWORDS.some(k=>sen.includes(k)));
                   const specialSentence = sentences.find(sen=>SPECIAL_KEYWORDS.some(k=>sen.includes(k)));
@@ -4651,7 +4651,7 @@ const L = (function(){
           const method = (l.contactMethod||'').trim();
           if(byWeek[wk][method]!==undefined) byWeek[wk][method]++;
         });
-        // 주차별로 "그 주에 접촉된 총 인원"과 "그 주에 처음 접촉된 신규 인원"을 계산 (주차별 접촉현황 그래프용)
+        // 주차별로 "그 주에 접촉된 총 인원"과 "그 주에 처음 접촉된 신규 인원"을 계산 (주차별 집계표 그래프용)
         const weekTotalContact = {};
         const weekNewContact = {};
         roster.forEach((r,i)=>{
@@ -4703,7 +4703,7 @@ const L = (function(){
         const now = new Date();
         const realTodayKeyForClick = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
         if(!s.totalOwners){
-          box.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><h3 style="margin:0;font-size:14px;">📊 접촉현황</h3><button type="button" id="contactStatsCloseBtn" style="background:none;border:none;color:var(--text-dim);font-size:18px;cursor:pointer;">✕</button></div><p style="color:var(--text-dim);font-size:12px;">먼저 "📋 소유주 명단"에 이름/직책/담당을 등록해주세요.</p>`;
+          box.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><h3 style="margin:0;font-size:14px;">📊 집계표</h3><button type="button" id="contactStatsCloseBtn" style="background:none;border:none;color:var(--text-dim);font-size:18px;cursor:pointer;">✕</button></div><p style="color:var(--text-dim);font-size:12px;">먼저 "📋 소유주 명단"에 이름/직책/담당을 등록해주세요.</p>`;
           document.getElementById('contactStatsCloseBtn').addEventListener('click', ()=>document.getElementById('contactStatsModalOverlay').classList.remove('show'));
           return;
         }
@@ -4754,7 +4754,7 @@ const L = (function(){
         const isRealToday = dateInputVal === `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
         box.innerHTML = `
           <div class="cstat-header">
-            <h3>📊 ${escapeHtml(site.name)} 접촉현황 <span style="font-size:11px;color:var(--text-dim);font-weight:400;">${now.getFullYear()}년 ${now.getMonth()+1}월 ${now.getDate()}일</span></h3>
+            <h3>📊 ${escapeHtml(site.name)} 집계표 <span style="font-size:11px;color:var(--text-dim);font-weight:400;">${now.getFullYear()}년 ${now.getMonth()+1}월 ${now.getDate()}일</span></h3>
             <div class="cstat-header-btns">
               <button type="button" id="contactStatsPrintBtn" style="background:none;border:1px solid var(--line);color:var(--text-dim);border-radius:6px;padding:3px 9px;font-size:10.5px;cursor:pointer;">🖨 인쇄</button>
               <button type="button" id="contactStatsCloseBtn" style="background:none;border:none;color:var(--text-dim);font-size:18px;cursor:pointer;">✕</button>
@@ -4782,7 +4782,7 @@ const L = (function(){
           </div>
 
           <div class="cstat-section">
-            <div class="cstat-section-title">① 담당별 접촉현황</div>
+            <div class="cstat-section-title">① 담당별 집계표</div>
             <table class="cstat-table" style="width:auto;min-width:280px;"><thead><tr><th style="width:70px;">담당</th><th style="width:56px;">인원</th><th style="width:70px;">접촉<br>(누계)</th><th style="width:56px;">접촉률</th><th style="width:56px;">미접촉</th></tr></thead>
             <tbody>${managerNames.length ? managerNames.map(m=>{
               const d = s.byManager[m];
@@ -4856,7 +4856,7 @@ const L = (function(){
           </div>
 
           <div class="cstat-section">
-            <div class="cstat-section-title">② 직책별 접촉현황</div>
+            <div class="cstat-section-title">② 직책별 집계표</div>
             <table class="cstat-table" style="width:auto;min-width:280px;"><thead><tr><th style="width:70px;">직책</th><th style="width:56px;">인원</th><th style="width:56px;">접촉</th><th style="width:56px;">미접촉</th><th style="width:56px;">접촉률</th></tr></thead>
             <tbody>${roleNames.length ? roleNames.map(r=>{
               const d = s.byRole[r];
@@ -4867,7 +4867,7 @@ const L = (function(){
           </div>
 
           <div class="cstat-section">
-            <div class="cstat-section-title">③ 주별 접촉현황</div>
+            <div class="cstat-section-title">③ 주별 집계표</div>
             <table class="cstat-table" style="width:auto;min-width:280px;"><thead><tr><th style="width:60px;">주차</th><th style="width:56px;">상담</th><th style="width:56px;">단순</th><th style="width:56px;">TM</th><th style="width:56px;">계</th></tr></thead>
             <tbody>${weekNums.map(wk=>{
               const d = s.byWeek[wk] || {'상담':0,'단순':0,'TM':0};
@@ -4897,7 +4897,7 @@ const L = (function(){
 
           <div class="cstat-chart-row">
           <div class="cstat-section">
-            <div class="cstat-section-title">📈 주차별 접촉현황</div>
+            <div class="cstat-section-title">📈 주차별 집계표</div>
             <div class="cstat-chart-legend">
               <span class="cstat-legend-item"><span class="cstat-legend-dot" style="background:var(--accent);"></span>접촉자</span>
               <span class="cstat-legend-item"><span class="cstat-legend-dot" style="background:#4a90d9;"></span>신규</span>
@@ -4951,7 +4951,7 @@ const L = (function(){
           </div>
 
           <div class="cstat-section">
-            <div class="cstat-section-title">📈 담당자별 접촉현황</div>
+            <div class="cstat-section-title">📈 담당자별 집계표</div>
             <div class="cstat-chart-legend">
               <span class="cstat-legend-item"><span class="cstat-legend-dot" style="background:var(--accent);"></span>담당자</span>
               <span class="cstat-legend-item"><span class="cstat-legend-dot" style="background:#4a90d9;"></span>접촉자</span>
@@ -4996,7 +4996,7 @@ const L = (function(){
         `;
         document.getElementById('contactStatsCloseBtn').addEventListener('click', ()=>document.getElementById('contactStatsModalOverlay').classList.remove('show'));
         document.getElementById('contactStatsPrintBtn').addEventListener('click', ()=>{
-          // 접촉현황은 표/카드가 많아서 그대로 인쇄하면 여러 장으로 나뉘어 버린다. 세로(portrait) 1장에
+          // 집계표는 표/카드가 많아서 그대로 인쇄하면 여러 장으로 나뉘어 버린다. 세로(portrait) 1장에
           // 맞게, 페이지를 세로로 강제하고(임시 <style>로 가로 규격을 덮어씀) 실제 내용 높이를 재서
           // 한 페이지 안에 들어가도록 전체를 비율 그대로 축소한다.
           // (예전엔 CSS transform:scale()을 썼는데, transform은 눈에 보이는 크기만 줄일 뿐 실제
@@ -5949,7 +5949,7 @@ const L = (function(){
             }
           }catch(e){ console.error('보고서 수정 클라우드 반영 실패', e); }
           await saveSites();
-          // 접촉현황 모달처럼 이 일지를 다른 화면에서 열어서 수정한 경우, 그 화면도 최신 내용으로 다시 그려야 한다
+          // 집계표 모달처럼 이 일지를 다른 화면에서 열어서 수정한 경우, 그 화면도 최신 내용으로 다시 그려야 한다
           if(typeof onSaved==='function') onSaved();
         });
       }
@@ -7832,7 +7832,7 @@ const L = (function(){
       try{ localStorage.setItem('themeMode', next); }catch(e){}
     });
   })();
-  // ---------- 접촉 리포트(현장별/담당별 방문 횟수 + 특이사항) ----------
+  // ---------- 접촉현황(현장별/담당별 방문 횟수 + 특이사항) ----------
   let reportMode = 'week'; // 'week' | 'month'
   let reportDayFilter = null; // 주간 보기에서 막대 클릭시 그 날짜로 현장 목록을 좁힘 ('YYYY-MM-DD')
   let reportSelectedSiteId = null; // 현장별 매트릭스에서 지금 펼쳐서 상세보기 중인 현장의 id (배열 위치가 렌더링마다 바뀔 수 있어 위치 대신 고유id로 추적)
@@ -8686,7 +8686,7 @@ const L = (function(){
     if(reportSearchQuery) runSearch();
   }
 
-  // ---------- 접촉 리포트 진입점: 현장별/접촉자/검색 뷰로 분기 ----------
+  // ---------- 접촉현황 진입점: 현장별/접촉자/검색 뷰로 분기 ----------
   function renderContactReport(){
     document.getElementById('reportModeWeekBtn').classList.toggle('active-toggle', reportMode==='week');
     document.getElementById('reportModeMonthBtn').classList.toggle('active-toggle', reportMode==='month');
@@ -9354,7 +9354,7 @@ const L = (function(){
   }
 
   async function openContactReport(targetTab){
-    // 접촉 리포트는 조회 전용이라 관리자 잠금해제 없이도 게스트가 열람 가능해야 함
+    // 접촉현황은 조회 전용이라 관리자 잠금해제 없이도 게스트가 열람 가능해야 함
     reportMode = 'week';
     reportBaseDate = new Date();
     reportManagerFilter = null;
@@ -9503,7 +9503,7 @@ const L = (function(){
 
     const printWin = window.open('', '_blank', 'width=1200,height=900');
     if(!printWin){ alert('팝업이 차단되어 인쇄 창을 열 수 없습니다. 팝업 차단을 해제해주세요.'); return; }
-    printWin.document.write(`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>접촉 리포트 - ${periodLabel}</title>
+    printWin.document.write(`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>접촉현황 - ${periodLabel}</title>
       <style>
         @page{ size: A4 landscape; margin: 9mm; }
         *{ box-sizing:border-box; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
@@ -9556,7 +9556,7 @@ const L = (function(){
       <div id="printRoot">
         <div class="p-header">
           <div>
-            <div class="p-title">${escapeHtml(officeLabel)} 접촉 리포트</div>
+            <div class="p-title">${escapeHtml(officeLabel)} 접촉현황</div>
             <div class="p-sub">${periodLabel} · ${escapeHtml(range.label)}${managerLabel}</div>
           </div>
           <div class="p-stats">
