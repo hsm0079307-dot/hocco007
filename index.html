@@ -1292,7 +1292,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-04-v202</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-04-v203</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -4352,18 +4352,16 @@ const L = (function(){
                 ${groups[author].map(l=>{
                   const t = (l.text||'').trim();
                   const sentences = splitSentences(t);
-                  const summarySentence = sentences[0] || t;
+                  // 접촉현황/접촉리포트와 똑같이, "상담내용"엔 첫 문장만이 아니라 원문(요약) 전체를 그대로 보여준다.
+                  const summary = t;
                   const competitorSentence = sentences.find(sen=>COMPETITOR_KEYWORDS.some(k=>sen.includes(k)));
                   const specialSentence = sentences.find(sen=>SPECIAL_KEYWORDS.some(k=>sen.includes(k)));
-                  function fieldOutRpt(hitSentence, shownSet){
-                    if(!hitSentence) return '없음';
-                    if(hitSentence === summarySentence) return '있음 (상담내용 참고)';
-                    if(shownSet.has(hitSentence)) return '위와 동일';
-                    shownSet.add(hitSentence);
-                    return hitSentence;
+                  // 상담내용에 이미 원문 전체가 나오니, 타사활동/특이사항은 문장을 또 반복하지 않고 있음/없음만 표시
+                  function fieldOutRpt(hitSentence){
+                    return hitSentence ? '있음 (상담내용 참고)' : '없음';
                   }
-                  const competitorOut = fieldOutRpt(competitorSentence, shownCompetitorRpt);
-                  const specialOut = (specialSentence && specialSentence === competitorSentence) ? '타사활동 참고' : fieldOutRpt(specialSentence, shownSpecialRpt);
+                  const competitorOut = fieldOutRpt(competitorSentence);
+                  const specialOut = fieldOutRpt(specialSentence);
                   return `
                 <div class="log-item" data-log-id="${escapeHtml(l.id||'')}" data-contact-name="${escapeHtml((l.contactName||'').trim())}" data-log-date="${escapeHtml(l.date||'')}" data-log-week="${escapeHtml(weekOfMonthKey(l.date))}" data-log-author="${escapeHtml((l.author||'').trim())}">
                   <div class="log-card-title">
@@ -4380,7 +4378,7 @@ const L = (function(){
                   ${l.contactMethod?`<div class="log-field-line"><b>접촉방법:</b> ${escapeHtml(l.contactMethod)}</div>`:''}
                   ${l.executiveStance?`<div class="log-field-line"><b>집행부 성향:</b> ${escapeHtml(l.executiveStance)}</div>`:''}
                   ${l.closeness?`<div class="log-field-line"><b>친밀도:</b> ${escapeHtml(l.closeness)}</div>`:''}
-                  <div class="log-field-line"><b>상담내용</b> ${escapeHtml(summarySentence)}</div>
+                  <div class="log-field-line" style="white-space:pre-wrap;"><b>상담내용</b> ${escapeHtml(summary)}</div>
                   <div class="log-field-line"><b>타사활동</b> ${escapeHtml(competitorOut)}</div>
                   <div class="log-field-line"><b>특이사항</b> ${escapeHtml(specialOut)}</div>
                 </div>`;
@@ -8064,27 +8062,19 @@ const L = (function(){
     const manager = l.author || '-';
     const contact = l.contactName || '-';
     const sentences = splitSentences(t);
-    const summarySentence = sentences[0] || t;
-    const summary = summarySentence; // 문장 중간에서 잘리면 의미가 바뀔 수 있어 글자수로 자르지 않고 문장 통째로 표시
+    // "상담내용"엔 이제 첫 문장만 잘라서 보여주지 않고, 원문(요약) 전체를 그대로 보여준다.
+    // (예전엔 첫 문장만 보여줘서, 정작 중요한 내용이 둘째 문장 이후에 있으면 실제 보고 내용과 완전히
+    // 달라 보이는 문제가 있었다. 텔레그램 봇이 보내는 요약은 줄바꿈으로 문단을 나눠서 오니 그대로 살린다.)
+    const summary = t;
     const competitorSentence = sentences.find(s=>COMPETITOR_KEYWORDS.some(k=>s.includes(k)));
     const specialSentence = sentences.find(s=>SPECIAL_KEYWORDS.some(k=>s.includes(k)));
-    // 상담내용에 이미 나온 문장과 같으면, 또는 앞선 다른 로그에서 이미 보여준 것과 같은 문장이면
-    // 또 반복해서 보여주지 않고 짧게만 표시
-    function fieldOut(hitSentence, shownSet){
-      if(!hitSentence) return '없음';
-      if(hitSentence === summarySentence) return '있음 (상담내용 참고)';
-      if(shownSet.has(hitSentence)) return '위와 동일';
-      shownSet.add(hitSentence);
-      return hitSentence;
+    // 이제 "상담내용"에 원문 전체가 그대로 나오니, 타사활동/특이사항에 해당하는 문장도 이미 위에서
+    // 다 보인다. 그래서 문장을 또 그대로 반복해서 보여주지 않고 "있음/없음"만 짧게 표시한다.
+    function fieldOut(hitSentence){
+      return hitSentence ? '있음 (상담내용 참고)' : '없음';
     }
-    const competitorOut = fieldOut(competitorSentence, shownCompetitor);
-    let specialOut;
-    if(specialSentence && specialSentence === competitorSentence){
-      // 한 문장이 타사활동·특이사항 키워드에 동시에 걸리면 타사활동 쪽에만 보여주고 특이사항엔 중복 표시하지 않는다
-      specialOut = '타사활동 참고';
-    }else{
-      specialOut = fieldOut(specialSentence, shownSpecial);
-    }
+    const competitorOut = fieldOut(competitorSentence);
+    const specialOut = fieldOut(specialSentence);
     const siteLine = (opts.siteLabel && !opts.hideSiteAndContact) ? `<div style="font-size:11.5px;margin-bottom:4px;color:var(--accent);font-weight:700;">📍 ${escapeHtml(opts.siteLabel)}</div>` : '';
     // 괄호가 겹으로 붙은 경우(예: "백정순(선일부동산)(대표)")까지 끝까지 벗겨낸 순수 이름으로 맞춰야,
     // "이번 기간 접촉자" 칩(이제 fullyStripRoles로 정리된 순수 이름을 씀)을 눌렀을 때 이 카드도 정상적으로 매칭된다.
@@ -8114,7 +8104,7 @@ const L = (function(){
       <div style="font-size:12px;margin-bottom:2px;"><b style="color:var(--accent);">담당:</b> ${escapeHtml(manager)}${mgrWarnMark}</div>
       ${opts.hideSiteAndContact ? '' : `<div style="font-size:12px;margin-bottom:6px;"><b style="color:var(--accent);">접촉:</b> ${escapeHtml(contact)}</div>`}
       ${extraFieldsHtml}
-      <div style="font-size:12px;margin-bottom:4px;"><b style="color:var(--accent);">상담내용</b> ${escapeHtml(summary)}</div>
+      <div style="font-size:12px;margin-bottom:4px;white-space:pre-wrap;"><b style="color:var(--accent);">상담내용</b> ${escapeHtml(summary)}</div>
       <div style="font-size:12px;margin-bottom:4px;"><b style="color:var(--accent);">타사활동</b> ${escapeHtml(competitorOut)}</div>
       <div style="font-size:12px;"><b style="color:var(--accent);">특이사항</b> ${escapeHtml(specialOut)}</div>
     </div>`;
