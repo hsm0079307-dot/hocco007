@@ -735,8 +735,8 @@
   .cstat-nav-today-btn:hover{border-color:var(--accent);color:var(--accent);}
   .cstat-date-input{background:var(--bg-side-2);border:1px solid var(--line);color:var(--text-main);border-radius:6px;padding:4px 8px;font-size:11.5px;font-family:inherit;}
   .cstat-box{text-align:center;background:var(--bg-side-2);border-top:2px solid var(--accent);border-radius:2px;padding:12px 6px 10px;}
-  .cstat-num{font-size:22px;font-weight:800;color:var(--text-main);letter-spacing:-.3px;line-height:1.1;}
-  .cstat-num-split{display:flex;flex-direction:column;gap:1px;font-size:14px;font-weight:800;letter-spacing:-.2px;line-height:1.25;}
+  .cstat-num{font-size:22px;font-weight:800;color:var(--text-main);letter-spacing:-.3px;line-height:1.1;min-height:36px;display:flex;align-items:center;justify-content:center;}
+  .cstat-num-split{display:flex;flex-direction:column;justify-content:center;gap:1px;font-size:14px;font-weight:800;letter-spacing:-.2px;line-height:1.25;min-height:36px;}
   .cstat-lbl{font-size:10px;color:var(--text-dim);margin-top:3px;letter-spacing:.2px;}
   .cstat-section-title{font-size:12px;font-weight:700;color:var(--text-main);margin:0 0 10px;padding-left:9px;border-left:3px solid var(--accent);letter-spacing:.2px;}
   .cstat-table{width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed;}
@@ -780,6 +780,7 @@
   .cstat-contact-group{border:1.5px solid var(--accent);border-radius:10px;padding:8px 10px 2px;margin-bottom:8px;}
   .cstat-contact-group-head{font-size:12px;font-weight:800;color:var(--accent);margin-bottom:6px;}
   .cstat-contact-group .report-log-card{border-color:var(--line);}
+  .cstat-detail-cards{margin-top:4px;}
   @media (max-width:520px){
     .cstat-desktop-only{display:none;}
     .cstat-mobile-only{display:block;}
@@ -796,8 +797,8 @@
     .cstat-mgr-table-row table{width:100% !important;}
     .cstat-table{font-size:10px;}
     .cstat-table th, .cstat-table td{padding:4px 2px;}
-    .cstat-num{font-size:18px;}
-    .cstat-num-split{font-size:12px;}
+    .cstat-num{font-size:18px;min-height:31px;}
+    .cstat-num-split{font-size:12px;min-height:31px;}
     .cstat-chart{overflow-x:auto;justify-content:flex-start;}
     .cstat-period-toggle, .cstat-nav-row{flex-wrap:wrap;}
     .cstat-period-toggle span{display:block;width:100%;margin:4px 0 0;}
@@ -1276,7 +1277,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-04-v195</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-04-v196</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -4869,13 +4870,13 @@ const L = (function(){
           <div class="cstat-section">
             <div class="cstat-section-title">④ ${periodLabel==='일별'?escapeHtml(navLabel):'금일'} 접촉 상세 (${todayRows.length}건)</div>
             ${todayRows.length ? `
-            <table class="cstat-table cstat-desktop-only"><thead><tr><th style="width:6%;">No</th><th style="width:11%;">담당</th><th style="width:13%;">성함</th><th style="width:10%;">직책</th><th style="width:10%;">접촉횟수</th><th style="width:10%;">접촉방법</th><th style="width:40%;text-align:left;">내용</th></tr></thead>
-            <tbody>${todayRows.map((tr,i)=>{
-              const l = tr.log;
-              const mgrCell = escapeHtml(l.author||'');
-              return `<tr><td>${i+1}</td><td>${mgrCell}</td><td>${escapeHtml(l.contactName||'')}</td><td>${escapeHtml(tr.role||'-')}</td><td>${tr.count||'-'}</td><td>${escapeHtml(l.contactMethod||'')}</td><td style="text-align:left;white-space:pre-wrap;">${escapeHtml(l.text||'')}</td></tr>`;
-            }).join('')}</tbody></table>
-            <div class="cstat-mobile-only">${(()=>{ const sc=new Set(), ss=new Set(); return todayRows.map(tr=>buildLogCard(tr.log, sc, ss, {fullDate:true, roster:s.roster})).join(''); })()}</div>
+            <div class="cstat-detail-cards">${(()=>{
+              const sc=new Set(), ss=new Set();
+              return todayRows.map(tr=>{
+                const mgrWarn = !tr.mgr || tr.mgr !== (tr.log.author||'').trim();
+                return buildLogCard(tr.log, sc, ss, {fullDate:true, editable:true, mgrWarn});
+              }).join('');
+            })()}</div>
             ` : '<div style="color:var(--text-dim);font-size:11.5px;">등록된 보고서가 없습니다.</div>'}
           </div>
 
@@ -4987,6 +4988,21 @@ const L = (function(){
           document.body.classList.add('cstat-print-mode');
           window.print();
           setTimeout(()=>document.body.classList.remove('cstat-print-mode'), 1000);
+        });
+        // ④ 접촉 상세 카드에서 바로 수정·삭제할 수 있게 (일지 탭과 같은 버튼/로직을 그대로 재사용)
+        box.querySelectorAll('.log-edit').forEach(btn=>{
+          btn.addEventListener('click', async ()=>{
+            if(!(await ensureUnlocked())) return;
+            openLogEditModal(site, btn.dataset.logid, ()=>renderContactStatsReport());
+          });
+        });
+        box.querySelectorAll('.log-del').forEach(btn=>{
+          btn.addEventListener('click', async ()=>{
+            if(!(await ensureUnlocked())) return;
+            if(!confirm('이 보고서를 삭제할까요? 되돌릴 수 없어요.')) return;
+            await deleteLogById(btn.dataset.logid);
+            renderContactStatsReport();
+          });
         });
         box.querySelectorAll('.cstat-period-btn').forEach(btn=>{
           btn.addEventListener('click', ()=>{
@@ -5862,7 +5878,7 @@ const L = (function(){
             <button class="log-inline-cancel btn btn-ghost btn-sm" data-logid="${l.id}" style="flex:1;">취소</button>
           </div>`;
       }
-      function openLogEditModal(site, logId){
+      function openLogEditModal(site, logId, onSaved){
         const target = (site.logs||[]).find(l=>l.id===logId);
         if(!target) return;
         editingLogId = logId; // 수정하는 동안 백그라운드 새로고침이 끼어들지 않게
@@ -5898,6 +5914,8 @@ const L = (function(){
             }
           }catch(e){ console.error('보고서 수정 클라우드 반영 실패', e); }
           await saveSites();
+          // 접촉현황 모달처럼 이 일지를 다른 화면에서 열어서 수정한 경우, 그 화면도 최신 내용으로 다시 그려야 한다
+          if(typeof onSaved==='function') onSaved();
         });
       }
       function closeLogEditModal(){
@@ -8025,11 +8043,30 @@ const L = (function(){
     // "이번 기간 접촉자" 칩(이제 fullyStripRoles로 정리된 순수 이름을 씀)을 눌렀을 때 이 카드도 정상적으로 매칭된다.
     const contactKey = fullyStripRoles(l.contactName).name;
     const cardStyle = 'border:1px solid var(--border,rgba(255,255,255,0.15));border-radius:10px;padding:10px 12px;margin-bottom:8px;';
+    // opts.editable가 true면(현재 이 현장의 실제 일지를 보여주는 화면일 때만) 카드에서 바로 수정·삭제할 수 있게
+    // 연필/삭제 버튼을 붙인다. (읽기 전용 요약 화면, 예: 다른 현장 묶어 보여주는 화면에선 굳이 안 붙임)
+    const titleActions = opts.editable
+      ? `<div class="log-actions" style="margin-top:0;"><button class="log-edit" data-logid="${escapeHtml(l.id||'')}" title="수정">✏️</button><button class="log-del" data-logid="${escapeHtml(l.id||'')}">삭제</button></div>`
+      : '';
+    // opts.mgrWarn이 true면(명단상 담당과 실제 작성자가 다르거나 담당 미지정인 경우) "담당:" 옆에 작은 세모만
+    // 붙여서, 위쪽 집계 숫자와 이 목록이 왜 서로 다르게 보일 수 있는지 바로 짐작할 수 있게 한다.
+    const mgrWarnMark = opts.mgrWarn ? ' <span style="color:var(--neg);" title="명단 담당과 다르거나 담당 미지정">⚠</span>' : '';
+    const extraFieldsHtml = [
+      l.owner ? `<div style="font-size:12px;margin-bottom:2px;"><b style="color:var(--accent);">소유자:</b> ${escapeHtml(formatOwnerDisplay(l.owner))}</div>` : '',
+      l.unit ? `<div style="font-size:12px;margin-bottom:2px;"><b style="color:var(--accent);">동호수:</b> ${escapeHtml(l.unit)}</div>` : '',
+      l.contactMethod ? `<div style="font-size:12px;margin-bottom:2px;"><b style="color:var(--accent);">접촉방법:</b> ${escapeHtml(l.contactMethod)}</div>` : '',
+      l.executiveStance ? `<div style="font-size:12px;margin-bottom:2px;"><b style="color:var(--accent);">집행부 성향:</b> ${escapeHtml(l.executiveStance)}</div>` : '',
+      l.closeness ? `<div style="font-size:12px;margin-bottom:2px;"><b style="color:var(--accent);">친밀도:</b> ${escapeHtml(l.closeness)}</div>` : '',
+    ].join('');
     return `<div class="report-log-card" data-contact-name="${escapeHtml(contactKey)}" style="${cardStyle}">
       ${siteLine}
-      <div style="font-weight:700;font-size:12.5px;margin-bottom:4px;">${escapeHtml(dateLabel)}</div>
-      <div style="font-size:12px;margin-bottom:2px;"><b style="color:var(--accent);">담당:</b> ${escapeHtml(manager)}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+        <span style="font-weight:700;font-size:12.5px;">${escapeHtml(dateLabel)}</span>
+        ${titleActions}
+      </div>
+      <div style="font-size:12px;margin-bottom:2px;"><b style="color:var(--accent);">담당:</b> ${escapeHtml(manager)}${mgrWarnMark}</div>
       ${opts.hideSiteAndContact ? '' : `<div style="font-size:12px;margin-bottom:6px;"><b style="color:var(--accent);">접촉:</b> ${escapeHtml(contact)}</div>`}
+      ${extraFieldsHtml}
       <div style="font-size:12px;margin-bottom:4px;"><b style="color:var(--accent);">상담내용</b> ${escapeHtml(summary)}</div>
       <div style="font-size:12px;margin-bottom:4px;"><b style="color:var(--accent);">타사활동</b> ${escapeHtml(competitorOut)}</div>
       <div style="font-size:12px;"><b style="color:var(--accent);">특이사항</b> ${escapeHtml(specialOut)}</div>
