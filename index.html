@@ -1280,7 +1280,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-04-v197</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-04-v198</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -4675,15 +4675,16 @@ const L = (function(){
         // effectiveTodayKey 하나로만 걸러서, 주별/월별로 과거를 조회하면 "금일 접촉 상세"가 텅 비어 보였다.)
         const todayLogs = logs.filter(l=>l.date && l.date>=periodRange.start && l.date<=periodRange.end);
         const totalOwners = roster.length;
-        // 상단 요약의 "접촉"은 이제 기간(월/주/일) 토글과 무관하게 항상 "누계"(전체 기간 기준)와
-        // "금일"(realTodayKey 기준 = 조회 중인 날짜가 아니라 진짜 오늘)을 같이 보여준다. 명단에 이름이 정확히
-        // 안 걸리는 접촉대상(오타/미등록 등)도 실제 접촉 자체는 있었던 거니 countContactedUnion으로 같이 세서,
-        // 아래 "접촉 상세" 목록의 실제 건수와 상단 숫자가 서로 안 맞아 보이는 문제를 없앤다.
+        // 상단 요약의 "접촉"은 "누계"(전체 기간 기준)와 "금일"을 같이 보여준다. "금일"은 일별 보기에서
+        // 다른 날짜로 이동하면 그 날짜 기준으로, 주별/월별 보기에서는 실제 오늘 기준으로 바뀐다(effectiveTodayKey).
+        // (한때 실제 오늘로 고정시켰더니, 일별 모드에서 날짜를 넘겨도 "금일" 숫자가 하나도 안 바뀌어서 더 헷갈렸다.)
+        // 명단에 이름이 정확히 안 걸리는 접촉대상(오타/미등록 등)도 실제 접촉 자체는 있었던 거니
+        // countContactedUnion으로 같이 세서, 아래 "접촉 상세" 목록의 실제 건수와 상단 숫자가 안 맞아 보이는 문제를 없앤다.
         const contactedOwnersCum = countContactedUnion(personLogsAll, unmatchedPersonLogsAll);
-        const personLogsToday = personLogsAll.map(arr => arr.filter(l=>l.date===realTodayKey));
+        const personLogsToday = personLogsAll.map(arr => arr.filter(l=>l.date===effectiveTodayKey));
         const unmatchedPersonLogsToday = {};
         Object.keys(unmatchedPersonLogsAll).forEach(k=>{
-          unmatchedPersonLogsToday[k] = unmatchedPersonLogsAll[k].filter(l=>l.date===realTodayKey);
+          unmatchedPersonLogsToday[k] = unmatchedPersonLogsAll[k].filter(l=>l.date===effectiveTodayKey);
         });
         const contactedOwnersToday = countContactedUnion(personLogsToday, unmatchedPersonLogsToday);
         const contactedOwners = contactedOwnersCum; // (하위 호환용) 미접촉/접촉률은 누계 기준으로 계산
