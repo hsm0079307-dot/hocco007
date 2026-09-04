@@ -736,6 +736,7 @@
   .cstat-date-input{background:var(--bg-side-2);border:1px solid var(--line);color:var(--text-main);border-radius:6px;padding:4px 8px;font-size:11.5px;font-family:inherit;}
   .cstat-box{text-align:center;background:var(--bg-side-2);border-top:2px solid var(--accent);border-radius:2px;padding:12px 6px 10px;}
   .cstat-num{font-size:22px;font-weight:800;color:var(--text-main);letter-spacing:-.3px;line-height:1.1;}
+  .cstat-num-split{display:flex;flex-direction:column;gap:1px;font-size:14px;font-weight:800;letter-spacing:-.2px;line-height:1.25;}
   .cstat-lbl{font-size:10px;color:var(--text-dim);margin-top:3px;letter-spacing:.2px;}
   .cstat-section-title{font-size:12px;font-weight:700;color:var(--text-main);margin:0 0 10px;padding-left:9px;border-left:3px solid var(--accent);letter-spacing:.2px;}
   .cstat-table{width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed;}
@@ -786,10 +787,6 @@
   .cstat-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;row-gap:6px;}
   .cstat-header h3{margin:0;font-size:15px;min-width:0;}
   .cstat-header-btns{display:flex;gap:6px;flex-shrink:0;}
-  .cstat-warn-summary{list-style:none;cursor:pointer;padding:6px 10px;display:flex;align-items:center;min-height:14px;}
-  .cstat-warn-summary::-webkit-details-marker{display:none;}
-  .cstat-warn-summary::after{content:'▶';font-size:10px;color:var(--warn-text);}
-  .cstat-warn[open] > .cstat-warn-summary::after{content:'▼';}
   @media (max-width:520px){
     #contactStatsModalBox{max-width:100%;padding:12px;}
     .cstat-header h3{flex:1 1 100%;font-size:13px;}
@@ -800,6 +797,7 @@
     .cstat-table{font-size:10px;}
     .cstat-table th, .cstat-table td{padding:4px 2px;}
     .cstat-num{font-size:18px;}
+    .cstat-num-split{font-size:12px;}
     .cstat-chart{overflow-x:auto;justify-content:flex-start;}
     .cstat-period-toggle, .cstat-nav-row{flex-wrap:wrap;}
     .cstat-period-toggle span{display:block;width:100%;margin:4px 0 0;}
@@ -1279,7 +1277,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-04-v193</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-04-v194</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -4568,16 +4566,29 @@ const L = (function(){
         const effectiveTodayKey = period==='day' ? todayKey : realTodayKey;
         const periodRange = getPeriodRange(period, now);
         const personLogsAll = roster.map(()=>[]); // 전체 기간(신규 접촉 판단용)
+        // 접촉대상 이름이 명단(roster)의 어느 소유주와도 안 맞는 경우(오타/미등록 등)에도, 실제 접촉 자체는
+        // 있었던 거니까 상단 "접촉" 인원수에서 통째로 빠지면 안 된다. 명단 매칭 실패한 이름들도 이름 기준으로
+        // 따로 모아뒀다가, 상단 요약 집계 때 명단 매칭된 인원수에 더해준다(중복 이름은 한 명으로만 침).
+        const unmatchedPersonLogsAll = {}; // key: 이름(핵심명), value: logs[]
         logs.forEach(l=>{
           const raw = (l.contactName||'').trim();
           if(!raw) return;
           splitMultiNames(raw).forEach(seg=>{
             const m = matchLogToRoster(seg, roster);
-            if(m){ const idx = roster.indexOf(m); if(idx>=0) personLogsAll[idx].push(l); }
+            if(m){ const idx = roster.indexOf(m); if(idx>=0) personLogsAll[idx].push(l); return; }
+            const key = extractCoreName(fullyStripRoles(seg).name) || seg.trim();
+            if(!key) return;
+            if(!unmatchedPersonLogsAll[key]) unmatchedPersonLogsAll[key] = [];
+            unmatchedPersonLogsAll[key].push(l);
           });
         });
         // "접촉" 여부 판단은 선택한 기간(월/주/일) 안의 로그만으로 (담당별/직책별/상단요약에 쓰임)
         const personLogs = personLogsAll.map(arr => arr.filter(l => l.date && l.date>=periodRange.start && l.date<=periodRange.end));
+        const countContactedUnion = (matchedArr, unmatchedMap) => {
+          const matchedCount = roster.filter((r,i)=>matchedArr[i] && matchedArr[i].length>0).length;
+          const unmatchedCount = Object.keys(unmatchedMap).filter(k=>unmatchedMap[k] && unmatchedMap[k].length>0).length;
+          return matchedCount + unmatchedCount;
+        };
         const byManager = {};
         roster.forEach((r,i)=>{
           const mgr = (r.manager||'').trim();
@@ -4658,12 +4669,24 @@ const L = (function(){
         });
         const todayLogs = logs.filter(l=>l.date===effectiveTodayKey);
         const totalOwners = roster.length;
-        const contactedOwners = roster.filter((r,i)=>personLogs[i].length>0).length;
+        // 상단 요약의 "접촉"은 이제 기간(월/주/일) 토글과 무관하게 항상 "누계"(전체 기간 기준)와
+        // "금일"(effectiveTodayKey 기준)을 같이 보여준다. 명단에 이름이 정확히 안 걸리는 접촉대상(오타/미등록 등)도
+        // 실제 접촉 자체는 있었던 거니 countContactedUnion으로 같이 세서, 아래 "접촉 상세" 목록의 실제 건수와
+        // 상단 숫자가 서로 안 맞아 보이는 문제를 없앤다.
+        const contactedOwnersCum = countContactedUnion(personLogsAll, unmatchedPersonLogsAll);
+        const personLogsToday = personLogsAll.map(arr => arr.filter(l=>l.date===effectiveTodayKey));
+        const unmatchedPersonLogsToday = {};
+        Object.keys(unmatchedPersonLogsAll).forEach(k=>{
+          unmatchedPersonLogsToday[k] = unmatchedPersonLogsAll[k].filter(l=>l.date===effectiveTodayKey);
+        });
+        const contactedOwnersToday = countContactedUnion(personLogsToday, unmatchedPersonLogsToday);
+        const contactedOwners = contactedOwnersCum; // (하위 호환용) 미접촉/접촉률은 누계 기준으로 계산
         const daysInMonth = new Date(y, mo+1, 0).getDate();
         const weeksInMonth = Math.ceil((daysInMonth+mondayOffset)/7);
-        return {roster, personLogs, personLogsAll, byManager, byRole, byWeek, weekTotalContact, weekNewContact, weeksInMonth, todayLogs, totalOwners, contactedOwners,
-          uncontactedOwners: totalOwners-contactedOwners,
-          contactRate: totalOwners ? (contactedOwners/totalOwners*100).toFixed(1) : '0.0', todayKey: effectiveTodayKey};
+        return {roster, personLogs, personLogsAll, byManager, byRole, byWeek, weekTotalContact, weekNewContact, weeksInMonth, todayLogs, totalOwners,
+          contactedOwners, contactedOwnersCum, contactedOwnersToday,
+          uncontactedOwners: Math.max(0, totalOwners-contactedOwnersCum),
+          contactRate: totalOwners ? (contactedOwnersCum/totalOwners*100).toFixed(1) : '0.0', todayKey: effectiveTodayKey};
       }
       function renderContactStatsReport(){
         const box = document.getElementById('contactStatsModalBox');
@@ -4707,9 +4730,6 @@ const L = (function(){
             todayRows.push({log:l, role: m ? m.role : '', count: idx>=0 ? s.personLogsAll[idx].length : 0, mgr: m ? (m.manager||'').trim() : ''});
           });
         });
-        // 명단상 그 사람의 담당과 이 글을 실제로 쓴 작성자가 다른 경우(또는 명단에 담당이 비어있는 경우) =
-        // "엉뚱한 담당이 접촉했거나 담당 미지정"인 건이라, 표에서 다른 색으로 표시해 바로 눈에 띄게 한다.
-        todayRows.forEach(tr=>{ tr.mgrMismatch = !tr.mgr || tr.mgr !== (tr.log.author||'').trim(); });
         // 담당(작성자) 기준으로 묶어서 보여줘야 같은 담당자가 쓴 보고서끼리, 같은 사람이 여러 번 나온 것도
         // 붙어서 보이니까 비교하기 편하다. (원래 기록 순서는 그냥 시간순이라 뒤섞여 보였음)
         todayRows.sort((a,b)=> (a.log.author||'').localeCompare((b.log.author||''), 'ko'));
@@ -4723,21 +4743,6 @@ const L = (function(){
           : cstatPeriod==='week' ? weekLabelFor(cstatNavDate)
           : `${navY}년 ${navMo+1}월 ${navD}일`;
         const isRealToday = dateInputVal === `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-        // "담당별" 표는 ① 담당 미지정인 사람과 ② 배정된 담당이 아니라 다른 담당이 대신 접촉한 건은 그
-        // 담당 실적으로 안 잡아서(노이즈라 일부러 뺌), 위 상단 요약(소유주 전체 기준)과 아래 담당별 합계가
-        // 서로 달라 보일 수 있다. 매번 "왜 숫자가 안 맞냐"고 헷갈리지 않도록, 그 사람이 누군지 바로 알려준다.
-        const noManagerContactedToday = s.roster.filter((r,i)=> !(r.manager||'').trim() && (s.personLogsAll[i]||[]).some(l=>l.date===s.todayKey)).map(r=>r.name);
-        const noManagerContactedTotal = s.roster.filter((r,i)=> !(r.manager||'').trim() && (s.personLogsAll[i]||[]).length>0).map(r=>r.name);
-        const wrongManagerContactedToday = s.roster.filter((r,i)=>{
-          const mgr=(r.manager||'').trim(); if(!mgr) return false;
-          const todayLogsForR=(s.personLogsAll[i]||[]).filter(l=>l.date===s.todayKey);
-          return todayLogsForR.length>0 && !todayLogsForR.some(l=>(l.author||'').trim()===mgr);
-        }).map(r=>r.name);
-        const wrongManagerContactedTotal = s.roster.filter((r,i)=>{
-          const mgr=(r.manager||'').trim(); if(!mgr) return false;
-          const allLogsForR = s.personLogsAll[i]||[];
-          return allLogsForR.length>0 && !allLogsForR.some(l=>(l.author||'').trim()===mgr);
-        }).map(r=>r.name);
         box.innerHTML = `
           <div class="cstat-header">
             <h3>📊 ${escapeHtml(site.name)} 접촉현황 <span style="font-size:11px;color:var(--text-dim);font-weight:400;">${now.getFullYear()}년 ${now.getMonth()+1}월 ${now.getDate()}일</span></h3>
@@ -4748,7 +4753,7 @@ const L = (function(){
           </div>
           <div class="cstat-period-toggle no-print">
             ${['month','week','day'].map(p=>`<button type="button" class="cstat-period-btn${cstatPeriod===p?' active':''}" data-period="${p}">${({month:'월별',week:'주별',day:'일별'})[p]}</button>`).join('')}
-            <span style="font-size:10.5px;color:var(--text-dim);margin-left:8px;">· 아래 담당별/직책별/상단 요약이 ${periodLabel} 기준으로 나와요</span>
+            <span style="font-size:10.5px;color:var(--text-dim);margin-left:8px;">· 아래 담당별/직책별 집계가 ${periodLabel} 기준으로 나와요 (상단 요약은 항상 누계/금일 기준)</span>
           </div>
           <div class="cstat-nav-row no-print">
             <button type="button" class="cstat-nav-btn" id="cstatNavPrevBtn">◀</button>
@@ -4759,25 +4764,13 @@ const L = (function(){
           </div>
           <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0 18px;">
             <div class="cstat-box"><div class="cstat-num">${s.totalOwners}명</div><div class="cstat-lbl">소유주</div></div>
-            <div class="cstat-box"><div class="cstat-num" style="color:var(--pos);">${s.contactedOwners}명</div><div class="cstat-lbl">접촉</div></div>
+            <div class="cstat-box">
+              <div class="cstat-num-split"><span style="color:var(--pos);">누계 ${s.contactedOwnersCum}명</span><span style="color:var(--pos);">금일 ${s.contactedOwnersToday}명</span></div>
+              <div class="cstat-lbl">접촉</div>
+            </div>
             <div class="cstat-box"><div class="cstat-num" style="color:var(--neg);">${s.uncontactedOwners}명</div><div class="cstat-lbl">미접촉</div></div>
             <div class="cstat-box"><div class="cstat-num" style="color:var(--accent);">${s.contactRate}%</div><div class="cstat-lbl">접촉률</div></div>
           </div>
-
-          ${(noManagerContactedTotal.length || wrongManagerContactedTotal.length) ? `
-          <details class="no-print cstat-warn" style="background:var(--warn-bg);border:1px solid var(--warn-border);border-radius:8px;margin-bottom:14px;font-size:10.5px;line-height:1.6;color:var(--warn-text);">
-            <summary class="cstat-warn-summary" title="담당별 합계가 위 요약과 다를 수 있어요 — 눌러서 자세히 보기"></summary>
-            <div style="padding:0 10px 10px;">
-              <b>⚠️ 담당별 합계가 위 요약과 다를 수 있어요</b> (담당 미지정 ${noManagerContactedTotal.length}명 · 다른 담당 접촉 ${wrongManagerContactedTotal.length}명)<br>
-              아래 담당별 합계는 <b>그 담당이 직접 접촉한 것만</b> 세서 위 요약과 다를 수 있어요.
-              ${noManagerContactedTotal.length ? `<br>· <b>담당 미지정</b> 접촉자
-                ${noManagerContactedToday.length ? `— ${escapeHtml(navLabel)}: <b>${noManagerContactedToday.map(escapeHtml).join(', ')}</b> /` : ''}
-                누계 <b>${noManagerContactedTotal.length}명</b>${noManagerContactedTotal.length<=15 ? ': '+noManagerContactedTotal.map(escapeHtml).join(', ') : ' (너무 많아 이름은 생략)'}` : ''}
-              ${wrongManagerContactedTotal.length ? `<br>· <b>배정된 담당이 아닌 다른 담당이 접촉</b>한 경우
-                ${wrongManagerContactedToday.length ? `— ${escapeHtml(navLabel)}: <b>${wrongManagerContactedToday.map(escapeHtml).join(', ')}</b> /` : ''}
-                누계 <b>${wrongManagerContactedTotal.length}명</b>${wrongManagerContactedTotal.length<=15 ? ': '+wrongManagerContactedTotal.map(escapeHtml).join(', ') : ' (너무 많아 이름은 생략)'}` : ''}
-            </div>
-          </details>` : ''}
 
           <div class="cstat-section">
             <div class="cstat-section-title">① 담당별 접촉현황</div>
@@ -4875,14 +4868,13 @@ const L = (function(){
           </div>
 
           <div class="cstat-section">
-            <div class="cstat-section-title">④ ${periodLabel==='일별'?escapeHtml(navLabel):'금일'} 접촉 상세 (${todayRows.length ? todayRows.length+'건중 담당: '+(todayRows.length-todayRows.filter(tr=>tr.mgrMismatch).length)+'건' : '0건'})</div>
+            <div class="cstat-section-title">④ ${periodLabel==='일별'?escapeHtml(navLabel):'금일'} 접촉 상세 (${todayRows.length}건)</div>
             ${todayRows.length ? `
             <table class="cstat-table cstat-desktop-only"><thead><tr><th style="width:6%;">No</th><th style="width:11%;">담당</th><th style="width:13%;">성함</th><th style="width:10%;">직책</th><th style="width:10%;">접촉횟수</th><th style="width:10%;">접촉방법</th><th style="width:40%;text-align:left;">내용</th></tr></thead>
             <tbody>${todayRows.map((tr,i)=>{
               const l = tr.log;
-              const rowStyle = tr.mgrMismatch ? ' style="background:rgba(255,123,123,0.10);"' : '';
-              const mgrCell = tr.mgrMismatch ? `${escapeHtml(l.author||'')} <span style="color:var(--neg);" title="명단 담당과 다르거나 담당 미지정">⚠</span>` : escapeHtml(l.author||'');
-              return `<tr${rowStyle}><td>${i+1}</td><td>${mgrCell}</td><td>${escapeHtml(l.contactName||'')}</td><td>${escapeHtml(tr.role||'-')}</td><td>${tr.count||'-'}</td><td>${escapeHtml(l.contactMethod||'')}</td><td style="text-align:left;white-space:pre-wrap;">${escapeHtml(l.text||'')}</td></tr>`;
+              const mgrCell = escapeHtml(l.author||'');
+              return `<tr><td>${i+1}</td><td>${mgrCell}</td><td>${escapeHtml(l.contactName||'')}</td><td>${escapeHtml(tr.role||'-')}</td><td>${tr.count||'-'}</td><td>${escapeHtml(l.contactMethod||'')}</td><td style="text-align:left;white-space:pre-wrap;">${escapeHtml(l.text||'')}</td></tr>`;
             }).join('')}</tbody></table>
             <div class="cstat-mobile-only">${(()=>{ const sc=new Set(), ss=new Set(); return todayRows.map(tr=>buildLogCard(tr.log, sc, ss, {fullDate:true, roster:s.roster})).join(''); })()}</div>
             ` : '<div style="color:var(--text-dim);font-size:11.5px;">등록된 보고서가 없습니다.</div>'}
@@ -8033,16 +8025,11 @@ const L = (function(){
     // 괄호가 겹으로 붙은 경우(예: "백정순(선일부동산)(대표)")까지 끝까지 벗겨낸 순수 이름으로 맞춰야,
     // "이번 기간 접촉자" 칩(이제 fullyStripRoles로 정리된 순수 이름을 씀)을 눌렀을 때 이 카드도 정상적으로 매칭된다.
     const contactKey = fullyStripRoles(l.contactName).name;
-    // opts.roster를 넘겨주면, 명단상 이 접촉자의 담당과 실제 이 글을 쓴 작성자가 다른 경우(또는 명단에
-    // 담당이 비어있는 경우) 카드를 다른 색으로 표시해서 "엉뚱한 담당이 접촉했거나 담당 미지정"인 건을 바로 알아보게 한다.
-    const mgrMatch = opts.roster ? logManagerMatch(l, opts.roster) : null;
-    const cardStyle = mgrMatch===false
-      ? 'border:1px solid rgba(255,123,123,0.5);background:rgba(255,123,123,0.10);border-radius:10px;padding:10px 12px;margin-bottom:8px;'
-      : 'border:1px solid var(--border,rgba(255,255,255,0.15));border-radius:10px;padding:10px 12px;margin-bottom:8px;';
+    const cardStyle = 'border:1px solid var(--border,rgba(255,255,255,0.15));border-radius:10px;padding:10px 12px;margin-bottom:8px;';
     return `<div class="report-log-card" data-contact-name="${escapeHtml(contactKey)}" style="${cardStyle}">
       ${siteLine}
       <div style="font-weight:700;font-size:12.5px;margin-bottom:4px;">${escapeHtml(dateLabel)}</div>
-      <div style="font-size:12px;margin-bottom:2px;"><b style="color:var(--accent);">담당:</b> ${escapeHtml(manager)}${mgrMatch===false ? ' <span style="color:var(--neg);font-weight:700;">⚠ 명단 담당과 다름</span>' : ''}</div>
+      <div style="font-size:12px;margin-bottom:2px;"><b style="color:var(--accent);">담당:</b> ${escapeHtml(manager)}</div>
       ${opts.hideSiteAndContact ? '' : `<div style="font-size:12px;margin-bottom:6px;"><b style="color:var(--accent);">접촉:</b> ${escapeHtml(contact)}</div>`}
       <div style="font-size:12px;margin-bottom:4px;"><b style="color:var(--accent);">상담내용</b> ${escapeHtml(summary)}</div>
       <div style="font-size:12px;margin-bottom:4px;"><b style="color:var(--accent);">타사활동</b> ${escapeHtml(competitorOut)}</div>
