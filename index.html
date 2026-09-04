@@ -317,10 +317,10 @@
   .cal-inline-label{font-weight:600;color:var(--text-dim);white-space:nowrap;}
   .cal-inline-item{display:flex;align-items:center;gap:5px;cursor:pointer;color:var(--text-main);white-space:nowrap;}
   .cal-inline-item:hover{color:var(--accent);}
-  .tab{flex:none;padding:6px 14px;border-radius:8px;background:var(--bg-side-2);color:var(--text-dim);font-size:12px;cursor:pointer;border:1px solid var(--line);white-space:nowrap;display:flex;gap:6px;align-items:center;transition:background .15s, box-shadow .15s, transform .1s;}
+  .tab{flex:none;padding:9px 16px;border-radius:12px;background:var(--bg-side-2);color:var(--text-dim);font-size:13px;cursor:pointer;border:1px solid var(--line);white-space:nowrap;display:flex;gap:6px;align-items:center;transition:background .15s, box-shadow .15s, transform .1s;box-shadow:var(--shadow-xs);}
   .tab:hover{transform:translateY(-1px);}
   .tab.active{background:var(--accent);color:var(--accent-ink);border-style:solid;font-weight:600;box-shadow:var(--shadow-accent);}
-  .tab .count{opacity:.8;font-size:12px;}
+  .tab .count{opacity:.8;font-size:13px;}
 
   /* 보기 전환줄: 일정 캘린더 / 전체사업지(표) / 담당자 필터 — 위 버튼줄과 분리해서 한 곳에 모아둠 */
   .view-switch-bar{display:flex;gap:8px;align-items:center;padding:9px 14px;border-bottom:1px solid var(--line);background:rgba(0,0,0,.1);}
@@ -934,7 +934,6 @@
     .cal-inline-agenda{display:none;}
     .region-panel{display:none !important;}
     .stats-bar{display:none;}
-    #sheetViewBtn{display:none;}
     .main{flex-direction:column;min-height:0;}
     .sidebar{width:100%;min-width:0;flex:0 0 76%;min-height:0;border-right:none;border-bottom:1px solid var(--line);}
     .map-wrap{flex:0 0 24%;min-height:130px;}
@@ -1057,6 +1056,15 @@
       <button class="btn btn-ghost" id="topbarMenuBtn" type="button">⚙ 설정 ▾</button>
       <div class="manager-filter-panel menu-accordion" id="topbarMenuPanel" style="display:none;right:0;">
         <details class="menu-section" open>
+          <summary class="menu-section-title">🖥 화면</summary>
+          <div class="menu-section-body">
+            <button class="menu-item-btn" id="themeToggleBtn" type="button" title="다크/라이트 모드 전환">🌙 다크/라이트 전환</button>
+            <button class="menu-item-btn" id="refreshDataBtn" type="button" title="클라우드에서 최신 데이터 다시 불러오기">🔄 새로고침</button>
+            <button class="menu-item-btn" id="manualSaveBtn" type="button" title="지금 화면 내용을 클라우드에 바로 저장">💾 저장</button>
+            <button class="menu-item-btn" id="adminLogoutBtn" type="button" title="로그아웃하고 처음 화면으로">🚪 로그아웃</button>
+          </div>
+        </details>
+        <details class="menu-section">
           <summary class="menu-section-title">📊 리포트</summary>
           <div class="menu-section-body">
             <button class="menu-item-btn" id="handoverBtn" type="button">🤝 인수인계 리포트</button>
@@ -1103,11 +1111,6 @@
         </div>
       </div>
     </div>
-    <button class="btn btn-ghost" id="themeToggleBtn" title="다크/라이트 모드 전환">🌙</button>
-    <button class="btn btn-ghost" id="refreshDataBtn" title="클라우드에서 최신 데이터 다시 불러오기">🔄 새로고침</button>
-    <button class="btn btn-ghost" id="manualSaveBtn" title="지금 화면 내용을 클라우드에 바로 저장">💾 저장</button>
-    <button class="btn btn-ghost" id="adminLogoutBtn" title="로그아웃하고 처음 화면으로">🚪 로그아웃</button>
-    <button class="btn btn-primary" id="addBtn">+ 현장 추가</button>
   </div>
 
   <div class="view-switch-bar blueprint-grid">
@@ -1115,11 +1118,11 @@
     <button class="view-switch-btn" id="calendarBtn">📅 일정 캘린더</button>
     <button class="view-switch-btn" id="contactReportTopBtn">📊 접촉리포트</button>
     <button class="view-switch-btn" id="tourBookingTopBtn">🚗 투어예약</button>
-    <button class="view-switch-btn" id="sheetViewBtn">전체사업지</button>
     <div class="manager-filter-wrap" id="managerFilterWrap">
       <button class="view-switch-btn" id="managerFilterBtn" type="button">👤 담당자 전체 ▾</button>
       <div class="manager-filter-panel" id="managerFilterPanel" style="display:none;"></div>
     </div>
+    <button class="btn btn-primary" id="addBtn">+ 현장 추가</button>
   </div>
 
   <div class="cal-inline-agenda" id="calInlineAgenda"></div>
@@ -1277,7 +1280,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-04-v196</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-04-v197</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -3438,7 +3441,8 @@ const L = (function(){
     document.getElementById('sheetView').style.display = 'none';
     closeSheetColFilterPanel();
   }
-  document.getElementById('sheetViewBtn').addEventListener('click', ()=>{
+  const sheetViewBtnEl = document.getElementById('sheetViewBtn');
+  if(sheetViewBtnEl) sheetViewBtnEl.addEventListener('click', ()=>{
     document.getElementById('sheetView').style.display = 'block';
     renderSheetView();
   });
@@ -4593,32 +4597,27 @@ const L = (function(){
         roster.forEach((r,i)=>{
           const mgr = (r.manager||'').trim();
           if(!mgr) return; // 담당 미지정인 사람은 담당별 집계에서 아예 뺀다 (노이즈라서)
-          if(!byManager[mgr]) byManager[mgr] = {total:0, contactedSet:new Set(), cumulativeContactedSet:new Set(), todayContactedSet:new Set(), logs:[],
+          if(!byManager[mgr]) byManager[mgr] = {total:0, contactedSet:new Set(), cumulativeContactedSet:new Set(), logs:[],
             cumMethodCounts:{'상담':0,'단순':0,'TM':0,'거부':0,'부재':0,'불명':0},
-            todayMethodCounts:{'상담':0,'단순':0,'TM':0,'거부':0,'부재':0,'불명':0}};
+            periodMethodCounts:{'상담':0,'단순':0,'TM':0,'거부':0,'부재':0,'불명':0}};
           byManager[mgr].total++;
           // "이 담당자 실적"은 그 담당이 배정된 사람이 접촉됐다는 사실만으론 안 되고, 그 담당 "본인이 직접" 쓴
           // 보고서여야 한다. (예전엔 배정된 사람이 접촉되기만 하면 무조건 그 담당 실적으로 잡혀서, 다른 담당이
           // 대신 접촉한 것까지 엉뚱하게 이 담당 실적으로 집계됐다.)
           const ownLogsInPeriod = personLogs[i].filter(l=>(l.author||'').trim()===mgr);
           const ownLogsAll = personLogsAll[i].filter(l=>(l.author||'').trim()===mgr);
-          if(ownLogsInPeriod.length>0) byManager[mgr].contactedSet.add(i);
+          if(ownLogsInPeriod.length>0){
+            // "담당별 접촉" 표는 항상 현재 조회 중인 기간(월/주/일) 기준으로 나와야 한다. (예전엔 이 칸만
+            // "오늘" 고정이라, 주별/월별로 과거를 조회하면 0으로 나오거나 상단 요약과 안 맞아 보였다.)
+            byManager[mgr].contactedSet.add(i);
+            const dmP = dominantMethod(ownLogsInPeriod);
+            if(dmP && byManager[mgr].periodMethodCounts[dmP]!==undefined) byManager[mgr].periodMethodCounts[dmP]++;
+          }
           if(ownLogsAll.length>0){
             byManager[mgr].cumulativeContactedSet.add(i); // 누계는 항상 전체 기간 기준(기간 필터 무관)
             // 한 사람이 상담/단순/TM 등 여러 방법으로 접촉됐을 수 있으니, 제일 많이 쓰인 방법 하나로만 그 사람을 센다
             const dm = dominantMethod(ownLogsAll);
             if(dm && byManager[mgr].cumMethodCounts[dm]!==undefined) byManager[mgr].cumMethodCounts[dm]++;
-          }
-          const todayLogsForPerson = ownLogsAll.filter(l=>l.date===effectiveTodayKey);
-          if(todayLogsForPerson.length>0){
-            // 이 사람이 오늘 접촉됐다는 사실 자체는 접촉방법 입력 여부와 상관없이 항상 센다.
-            // (예전엔 이 사람의 오늘 로그에 "접촉방법"이 하나도 안 적혀있으면 dominantMethod가 null을 돌려줘서
-            //  이 사람이 상담/단순/TM/거부/부재 중 어디에도 안 잡히고 통째로 빠져버렸다. 그러면 "담당별 접촉(금일)"
-            //  합계가 상단 요약(소유주 기준 접촉 인원)보다 작게 나와서 숫자가 서로 안 맞아 보이는 문제가 있었다.
-            //  총원은 접촉방법과 무관하게 별도 Set으로 세고, 방법별 세부 집계는 참고용으로만 따로 채운다.)
-            byManager[mgr].todayContactedSet.add(i);
-            const dm2 = dominantMethod(todayLogsForPerson);
-            if(dm2 && byManager[mgr].todayMethodCounts[dm2]!==undefined) byManager[mgr].todayMethodCounts[dm2]++;
           }
           byManager[mgr].logs.push(...ownLogsInPeriod);
         });
@@ -4630,7 +4629,12 @@ const L = (function(){
           byRole[roleText].total++;
           if(personLogs[i].length>0) byRole[roleText].contactedSet.add(i);
         });
-        const y = now.getFullYear(), mo = now.getMonth();
+        // 주별 보기에서는 "주차" 번호와 그 주의 월 정보를 weekLabelFor()와 똑같이 "그 주의 월요일이
+        // 속한 달" 기준으로 맞춰야 한다. (예전엔 그냥 now(조회중인 날짜) 자체의 달을 썼는데, 한 주가
+        // 두 달에 걸쳐 있으면(예: 월요일은 8월, 조회중인 날짜는 9월) 라벨은 "8월 6주차"인데 아래
+        // 주차별 차트는 9월 데이터를 보여줘서 서로 안 맞아 보이는 문제가 있었다.)
+        const monthRefDate = period==='week' ? new Date(periodRange.start+'T00:00:00') : now;
+        const y = monthRefDate.getFullYear(), mo = monthRefDate.getMonth();
         const firstDow = new Date(y, mo, 1).getDay();
         const mondayOffset = (firstDow + 6) % 7;
         const byWeek = {};
@@ -4667,24 +4671,26 @@ const L = (function(){
             if(fd){ const wk = Math.ceil((fd+mondayOffset)/7); weekNewContact[wk] = (weekNewContact[wk]||0)+1; }
           }
         });
-        const todayLogs = logs.filter(l=>l.date===effectiveTodayKey);
+        // "접촉 상세" 목록(④)은 지금 조회 중인 기간(월/주/일) 전체를 보여줘야 한다. (예전엔 항상
+        // effectiveTodayKey 하나로만 걸러서, 주별/월별로 과거를 조회하면 "금일 접촉 상세"가 텅 비어 보였다.)
+        const todayLogs = logs.filter(l=>l.date && l.date>=periodRange.start && l.date<=periodRange.end);
         const totalOwners = roster.length;
         // 상단 요약의 "접촉"은 이제 기간(월/주/일) 토글과 무관하게 항상 "누계"(전체 기간 기준)와
-        // "금일"(effectiveTodayKey 기준)을 같이 보여준다. 명단에 이름이 정확히 안 걸리는 접촉대상(오타/미등록 등)도
-        // 실제 접촉 자체는 있었던 거니 countContactedUnion으로 같이 세서, 아래 "접촉 상세" 목록의 실제 건수와
-        // 상단 숫자가 서로 안 맞아 보이는 문제를 없앤다.
+        // "금일"(realTodayKey 기준 = 조회 중인 날짜가 아니라 진짜 오늘)을 같이 보여준다. 명단에 이름이 정확히
+        // 안 걸리는 접촉대상(오타/미등록 등)도 실제 접촉 자체는 있었던 거니 countContactedUnion으로 같이 세서,
+        // 아래 "접촉 상세" 목록의 실제 건수와 상단 숫자가 서로 안 맞아 보이는 문제를 없앤다.
         const contactedOwnersCum = countContactedUnion(personLogsAll, unmatchedPersonLogsAll);
-        const personLogsToday = personLogsAll.map(arr => arr.filter(l=>l.date===effectiveTodayKey));
+        const personLogsToday = personLogsAll.map(arr => arr.filter(l=>l.date===realTodayKey));
         const unmatchedPersonLogsToday = {};
         Object.keys(unmatchedPersonLogsAll).forEach(k=>{
-          unmatchedPersonLogsToday[k] = unmatchedPersonLogsAll[k].filter(l=>l.date===effectiveTodayKey);
+          unmatchedPersonLogsToday[k] = unmatchedPersonLogsAll[k].filter(l=>l.date===realTodayKey);
         });
         const contactedOwnersToday = countContactedUnion(personLogsToday, unmatchedPersonLogsToday);
         const contactedOwners = contactedOwnersCum; // (하위 호환용) 미접촉/접촉률은 누계 기준으로 계산
         const daysInMonth = new Date(y, mo+1, 0).getDate();
         const weeksInMonth = Math.ceil((daysInMonth+mondayOffset)/7);
         return {roster, personLogs, personLogsAll, byManager, byRole, byWeek, weekTotalContact, weekNewContact, weeksInMonth, todayLogs, totalOwners,
-          contactedOwners, contactedOwnersCum, contactedOwnersToday,
+          contactedOwners, contactedOwnersCum, contactedOwnersToday, periodRange,
           uncontactedOwners: Math.max(0, totalOwners-contactedOwnersCum),
           contactRate: totalOwners ? (contactedOwnersCum/totalOwners*100).toFixed(1) : '0.0', todayKey: effectiveTodayKey};
       }
@@ -4774,7 +4780,7 @@ const L = (function(){
 
           <div class="cstat-section">
             <div class="cstat-section-title">① 담당별 접촉현황</div>
-            <table class="cstat-table"><thead><tr><th style="width:26%;">담당</th><th style="width:18%;">인원</th><th style="width:20%;">접촉<br>(누계)</th><th style="width:18%;">접촉률</th><th style="width:18%;">미접촉</th></tr></thead>
+            <table class="cstat-table" style="width:auto;min-width:280px;"><thead><tr><th style="width:70px;">담당</th><th style="width:56px;">인원</th><th style="width:70px;">접촉<br>(누계)</th><th style="width:56px;">접촉률</th><th style="width:56px;">미접촉</th></tr></thead>
             <tbody>${managerNames.length ? managerNames.map(m=>{
               const d = s.byManager[m];
               const cumContacted = d.cumulativeContactedSet.size;
@@ -4783,7 +4789,7 @@ const L = (function(){
             }).join('') : `<tr><td colspan="5" style="color:var(--text-dim);">명단에 담당이 기재된 사람이 없어요.</td></tr>`}</tbody></table>
 
             <div class="cstat-section-title" style="margin-top:16px;">담당별 접촉(누계) 방법</div>
-            <table class="cstat-table"><thead><tr><th style="width:22%;">담당</th><th style="width:13%;">인원</th><th style="width:13%;">접촉<br>(누계)</th><th style="width:10.4%;">상담</th><th style="width:10.4%;">단순</th><th style="width:10.4%;">TM</th><th style="width:10.4%;">거부</th><th style="width:10.4%;">부재</th></tr></thead>
+            <table class="cstat-table" style="width:auto;min-width:480px;"><thead><tr><th style="width:70px;">담당</th><th style="width:50px;">인원</th><th style="width:60px;">접촉<br>(누계)</th><th style="width:50px;">상담</th><th style="width:50px;">단순</th><th style="width:50px;">TM</th><th style="width:50px;">거부</th><th style="width:50px;">부재</th></tr></thead>
             <tbody>${managerNames.length ? managerNames.map(m=>{
               const d = s.byManager[m];
               const c = d.cumMethodCounts;
@@ -4791,17 +4797,17 @@ const L = (function(){
               return `<tr><td>${escapeHtml(m)}</td><td>${d.total}</td><td><span class="cstat-clickable-num" data-mgr="${escapeHtml(m)}" data-method="누계" data-table="top">${d.cumulativeContactedSet.size}</span></td><td>${cellHtml('상담',c['상담'])}</td><td>${cellHtml('단순',c['단순'])}</td><td>${cellHtml('TM',c['TM'])}</td><td>${cellHtml('거부',c['거부'])}</td><td>${cellHtml('부재',c['부재'])}</td></tr>`;
             }).join('') : `<tr><td colspan="8" style="color:var(--text-dim);">명단에 담당이 기재된 사람이 없어요.</td></tr>`}</tbody></table>
 
-            <div class="cstat-section-title" style="margin-top:16px;">담당별 접촉(금일) 방법</div>
-            <table class="cstat-table"><thead><tr><th style="width:22%;">담당</th><th style="width:13%;">인원</th><th style="width:13%;">접촉<br>(금일)</th><th style="width:10.4%;">상담</th><th style="width:10.4%;">단순</th><th style="width:10.4%;">TM</th><th style="width:10.4%;">거부</th><th style="width:10.4%;">부재</th></tr></thead>
+            <div class="cstat-section-title" style="margin-top:16px;">담당별 접촉(${escapeHtml(navLabel)}) 방법</div>
+            <table class="cstat-table" style="width:auto;min-width:480px;"><thead><tr><th style="width:70px;">담당</th><th style="width:50px;">인원</th><th style="width:60px;">접촉<br>(기간)</th><th style="width:50px;">상담</th><th style="width:50px;">단순</th><th style="width:50px;">TM</th><th style="width:50px;">거부</th><th style="width:50px;">부재</th></tr></thead>
             <tbody>${managerNames.length ? managerNames.map(m=>{
               const d = s.byManager[m];
-              const c = d.todayMethodCounts;
-              // 예전엔 방법별 칸(상담/단순/TM/거부/부재)을 다 더해서 총원을 구했는데, 그러면 그날 접촉방법을
+              const c = d.periodMethodCounts;
+              // 예전엔 방법별 칸(상담/단순/TM/거부/부재)을 다 더해서 총원을 구했는데, 그러면 그 기간에 접촉방법을
               // 아예 안 적어놓은 사람은 어느 칸에도 안 잡혀서 총원에서 통째로 빠져버렸다(상단 요약과 숫자가 안 맞는 원인).
-              // 총원은 접촉방법 입력 여부와 무관하게 센 todayContactedSet을 그대로 쓴다.
-              const todayTotal = d.todayContactedSet.size;
-              const cellHtml = (method, val) => val ? `<span class="cstat-clickable-num" data-mgr="${escapeHtml(m)}" data-method="${method}" data-table="today">${val}</span>` : '-';
-              return `<tr><td>${escapeHtml(m)}</td><td>${d.total}</td><td>${todayTotal ? `<span class="cstat-clickable-num" data-mgr="${escapeHtml(m)}" data-method="금일" data-table="today">${todayTotal}</span>` : '0'}</td><td>${cellHtml('상담',c['상담'])}</td><td>${cellHtml('단순',c['단순'])}</td><td>${cellHtml('TM',c['TM'])}</td><td>${cellHtml('거부',c['거부'])}</td><td>${cellHtml('부재',c['부재'])}</td></tr>`;
+              // 총원은 접촉방법 입력 여부와 무관하게 센 contactedSet(현재 조회 기간 기준)을 그대로 쓴다.
+              const periodTotal = d.contactedSet.size;
+              const cellHtml = (method, val) => val ? `<span class="cstat-clickable-num" data-mgr="${escapeHtml(m)}" data-method="${method}" data-table="period">${val}</span>` : '-';
+              return `<tr><td>${escapeHtml(m)}</td><td>${d.total}</td><td>${periodTotal ? `<span class="cstat-clickable-num" data-mgr="${escapeHtml(m)}" data-method="기간" data-table="period">${periodTotal}</span>` : '0'}</td><td>${cellHtml('상담',c['상담'])}</td><td>${cellHtml('단순',c['단순'])}</td><td>${cellHtml('TM',c['TM'])}</td><td>${cellHtml('거부',c['거부'])}</td><td>${cellHtml('부재',c['부재'])}</td></tr>`;
             }).join('') : `<tr><td colspan="8" style="color:var(--text-dim);">명단에 담당이 기재된 사람이 없어요.</td></tr>`}</tbody></table>
 
             ${cstatExpandedCell && s.byManager[cstatExpandedCell.mgr] ? (()=>{
@@ -4812,11 +4818,11 @@ const L = (function(){
                 // 위 집계가 "이 담당 본인이 직접 쓴 보고서"만 세니까, 펼쳐서 보여줄 때도 그 사람의 전체 로그가
                 // 아니라 이 담당이 직접 쓴 것만 걸러야 표의 숫자와 실제 나열되는 카드 수가 서로 맞는다.
                 let logsForPerson = s.personLogsAll[idx].filter(l=>(l.author||'').trim()===mgr);
-                // "금일" 숫자를 클릭했을 때도, 진짜 오늘이 아니라 지금 보고 있는 날짜(일별 조회 중이면 그 날짜) 기준으로
-                // 걸러야 위 표의 숫자와 여기서 펼쳐지는 목록이 서로 맞는다. (예전엔 항상 realTodayKeyForClick=진짜
-                // 오늘로만 걸러서, 과거 날짜를 조회 중일 땐 클릭해도 아무것도 안 나오거나 엉뚱한 날짜가 나왔다.)
-                if(table==='today') logsForPerson = logsForPerson.filter(l=>l.date===s.todayKey);
-                if(method!=='누계' && method!=='금일'){
+                // "기간" 숫자를 클릭했을 땐, 진짜 오늘이 아니라 지금 조회 중인 기간(월/주/일) 범위 안의 로그만
+                // 걸러야 위 표의 숫자와 여기서 펼쳐지는 목록이 서로 맞는다. (예전엔 항상 오늘 하루로만 걸러서,
+                // 주별/월별로 과거를 조회 중일 땐 클릭해도 아무것도 안 나오거나 엉뚱한 날짜가 나왔다.)
+                if(table==='period') logsForPerson = logsForPerson.filter(l=>l.date && l.date>=s.periodRange.start && l.date<=s.periodRange.end);
+                if(method!=='누계' && method!=='기간'){
                   const dm = dominantMethod(logsForPerson);
                   if(dm!==method) return;
                 }
@@ -4868,7 +4874,7 @@ const L = (function(){
           </div>
 
           <div class="cstat-section">
-            <div class="cstat-section-title">④ ${periodLabel==='일별'?escapeHtml(navLabel):'금일'} 접촉 상세 (${todayRows.length}건)</div>
+            <div class="cstat-section-title">④ ${escapeHtml(navLabel)} 접촉 상세 (${todayRows.length}건)</div>
             ${todayRows.length ? `
             <div class="cstat-detail-cards">${(()=>{
               const sc=new Set(), ss=new Set();
