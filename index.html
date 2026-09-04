@@ -10,21 +10,21 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pretendard/1.3.9/static/pretendard.css">
 <style>
   :root{
-    --bg-side:#b0a583;
-    --bg-side-2:#94875e;
-    --line:#77693f;
-    --text-main:#161310;
-    --text-dim:#3a3524;
+    --bg-side:#f4f5f6;
+    --bg-side-2:#e7e9eb;
+    --line:#dcdfe3;
+    --text-main:#181a1c;
+    --text-dim:#68707a;
     --accent:#0f3d24;
     --accent-ink:#ffffff;
-    --card:#e9e2cd;
-    --card-hover:#d6c9a3;
-    --grid-line:rgba(0,0,0,.08);
+    --card:#ffffff;
+    --card-hover:#eef0f2;
+    --grid-line:rgba(0,0,0,.05);
     --font-serif:'Pretendard','Apple SD Gothic Neo',sans-serif;
     --font-mono:'Pretendard','Apple SD Gothic Neo',sans-serif;
-    --shadow-xs:0 1px 2px rgba(20,15,5,.05);
-    --shadow-sm:0 2px 8px rgba(20,15,5,.07);
-    --shadow-md:0 6px 20px rgba(20,15,5,.10);
+    --shadow-xs:0 1px 2px rgba(20,20,25,.06);
+    --shadow-sm:0 2px 8px rgba(20,20,25,.08);
+    --shadow-md:0 6px 20px rgba(20,20,25,.12);
     --shadow-accent:0 4px 14px rgba(15,61,36,.22);
     --pos:#1f7a3d;
     --neg:#b3261e;
@@ -150,7 +150,7 @@
   .report-chart-col-head span{font-size:10.5px;font-weight:400;color:var(--text-dim);}
   .report-chart-empty{font-size:11px;color:var(--text-dim);padding:10px 0;text-align:center;}
   @media (max-width:820px){ .report-chart-cols{grid-template-columns:1fr;} }
-  .report-dashboard{display:flex;flex-direction:column;gap:6px;background:linear-gradient(135deg, var(--bg-side-2), var(--bg-main,rgba(255,255,255,.03)));border:1px solid var(--line);border-radius:14px;padding:12px 16px;margin-bottom:14px;}
+  .report-dashboard{display:flex;flex-direction:column;gap:6px;width:fit-content;max-width:100%;background:linear-gradient(135deg, var(--bg-side-2), var(--bg-main,rgba(255,255,255,.03)));border:1px solid var(--line);border-radius:14px;padding:12px 16px;margin-bottom:14px;}
   .rd-stats{display:flex;gap:10px;flex:1 1 auto;min-width:220px;}
   .rd-stats-mini{font-size:11.5px;color:var(--text-dim);}
   .rd-stats-mini b{color:var(--accent);font-size:13px;}
@@ -163,8 +163,8 @@
   .rd-trend.down{color:#e5484d;}
   .rd-trend.flat{color:var(--text-dim);}
   .rd-trend-sub{font-weight:400;color:var(--text-dim);font-size:9.5px;}
-  .rd-chart{display:flex;gap:6px;align-items:flex-end;flex:none;padding:16px 4px 2px;}
-  .rd-bar-col{flex:1;display:flex;flex-direction:column;align-items:center;height:100%;justify-content:flex-end;}
+  .rd-chart{display:flex;gap:10px;align-items:flex-end;flex:none;align-self:flex-start;padding:16px 4px 2px;}
+  .rd-bar-col{flex:0 0 40px;display:flex;flex-direction:column;align-items:center;height:100%;justify-content:flex-end;}
   .rd-bar-clickable{cursor:pointer;}
   .rd-bar-active .rd-bar{filter:brightness(1.35);box-shadow:0 0 0 2px var(--accent);}
   .rd-bar-active .rd-bar-label{color:var(--accent);font-weight:800;}
@@ -181,7 +181,7 @@
   .rd-bar-val-top{position:absolute;top:-13px;left:0;right:0;text-align:center;font-size:9px;font-weight:700;color:var(--accent);white-space:nowrap;}
   .rd-bar-label{font-size:9px;color:var(--text-dim);margin-top:1px;white-space:nowrap;}
   .rd-bar-subrange{font-size:8px;color:var(--text-dim);white-space:nowrap;opacity:.85;}
-  .report-matrix-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--bg-side-2);padding:10px;margin-bottom:6px;box-shadow:var(--shadow-xs);}
+  .report-matrix-wrap{overflow-x:auto;width:fit-content;max-width:100%;border:1px solid var(--line);border-radius:12px;background:var(--bg-side-2);padding:10px;margin-bottom:6px;box-shadow:var(--shadow-xs);}
   .report-matrix-title{font-size:12.5px;font-weight:700;color:var(--accent);margin:14px 0 6px;}
   .report-site-toggle-row{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:var(--text-main);padding:10px 8px;margin-top:6px;border:1px solid var(--line);border-radius:8px;cursor:pointer;background:var(--bg-side-2);}
   .report-site-toggle-row:hover{border-color:var(--accent);}
@@ -193,12 +193,12 @@
   .rm-siterow.alt{background:var(--bg-main,rgba(255,255,255,.03));}
   .rm-siterow.selected{background:color-mix(in srgb, var(--accent) 12%, transparent);}
   .rm-col-name{flex:0 0 84px;font-weight:700;color:var(--text-main);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .rm-col-mgr{flex:0 0 74px;color:var(--text-dim);font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .rm-col-days{flex:1;display:flex;gap:3px;}
-  .rm-daylabel{flex:1;text-align:center;font-size:9px;white-space:normal;line-height:1.3;}
+  .rm-col-mgr{flex:1 1 74px;min-width:74px;color:var(--text-dim);font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .rm-col-days{flex:0 0 auto;display:flex;gap:3px;}
+  .rm-daylabel{flex:0 0 48px;text-align:center;font-size:9px;white-space:normal;line-height:1.3;}
   .rm-daylabel-date{display:block;font-size:8px;font-weight:600;color:var(--accent);margin-top:1px;}
   .rm-col-total{flex:0 0 34px;text-align:right;font-weight:700;color:var(--accent);font-size:10.5px;}
-  .report-matrix2-cell{flex:1;height:20px;border-radius:5px;background:var(--bg-main,rgba(255,255,255,0.06));border:1px solid var(--line);font-size:9px;color:var(--text-dim);display:flex;align-items:center;justify-content:center;}
+  .report-matrix2-cell{flex:0 0 48px;height:20px;border-radius:5px;background:var(--bg-main,rgba(255,255,255,0.06));border:1px solid var(--line);font-size:9px;color:var(--text-dim);display:flex;align-items:center;justify-content:center;}
   .report-matrix2-cell.visited{cursor:pointer;background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700;transition:.12s;}
   .report-matrix2-cell.visited.active{outline:2px solid #fff;outline-offset:1px;}
   .report-matrix2-cell.visited:hover{opacity:0.85;transform:scale(1.08);}
@@ -228,8 +228,8 @@
   .report-missed-item{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .report-bar-rect{transition:opacity .12s;}
   .report-section-title{font-size:13px;font-weight:800;color:var(--text-main);margin:18px 0 9px;letter-spacing:.1px;}
-  .report-manager-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;}
-  .report-manager-card{border:1px solid var(--line);border-radius:7px;padding:5px 7px;background:var(--bg-side-2);min-width:0;box-shadow:var(--shadow-xs);transition:box-shadow .15s, transform .15s;}
+  .report-manager-cards{display:flex;flex-wrap:wrap;gap:6px;}
+  .report-manager-card{border:1px solid var(--line);border-radius:7px;padding:5px 9px;background:var(--bg-side-2);flex:0 1 auto;min-width:150px;max-width:280px;box-shadow:var(--shadow-xs);transition:box-shadow .15s, transform .15s;}
   .report-manager-card:hover{box-shadow:var(--shadow-sm);transform:translateY(-1px);}
   .report-manager-card-head{font-size:9.5px;font-weight:700;color:var(--accent);margin-bottom:1px;display:flex;justify-content:space-between;align-items:baseline;gap:4px;overflow:hidden;}
   .report-manager-card-head>*:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -564,7 +564,6 @@
   .badge-row{display:flex;gap:6px;margin-bottom:0;flex:none;}
   .detail-name{margin:0;font-size:17px;font-weight:800;letter-spacing:-.1px;white-space:nowrap;font-family:'Pretendard',var(--font-serif);}
   .detail-sub{color:var(--text-dim);font-size:11px;flex:none;}
-  .detail-viewer-badge{display:inline-block;margin-top:4px;font-size:10px;color:#3b82c4;background:rgba(59,130,196,.12);border-radius:6px;padding:2px 8px;}
 
   .detail-head-top{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:10px;margin-bottom:8px;}
   .detail-head-info{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;flex:1 1 100%;min-width:0;overflow:visible;order:2;margin-top:6px;}
@@ -1309,7 +1308,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-04-v205</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-04-v212</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -1751,13 +1750,6 @@ const L = (function(){
   const deletedLogIds = new Set();
   const refreshedSitesThisSession = new Set(); // 일지 targeted 새로고침을 그 현장당 이 세션에서 한 번만 돌리기 위한 기록
 
-  // ---- 협업 표시: "이 현장 최근에 누가 봤는지" 위해, 이 기기/사용자를 부를 이름을 하나 정해서 재사용한다 ----
-  function getMyViewerName(){
-    if(guestMode && currentGuest) return currentGuest.name;
-    // 팝업으로 물어보면 방해되니, 저장된 이름이 없으면 그냥 조용히 건너뛴다 (협업 표시 기능 자체를 안 씀)
-    return localStorage.getItem('viewerDisplayName') || '';
-  }
-
   // "전체 데이터 한꺼번에 불러오기"가 가끔 이 현장의 최신 일지를 놓치는 현상이 있어서(원인 불명, 재현 확인됨),
   // 현장을 선택하는 순간 그 현장 일지만 targeted로 한 번 더 확인해서 화면을 갱신한다.
   // (예전엔 "보고서" 탭을 열어야만 이 확인이 돌아서, 개요 탭에선 개수가 낮게 보이다가 보고서 탭 눌러야 늘어나는 것처럼 보이는 문제가 있었음.
@@ -1782,15 +1774,6 @@ const L = (function(){
           site.logs = (site.logs||[]).concat(newFromServer);
           const localIdx = officeArr.findIndex(s2=>s2.id===site.id);
           if(localIdx>-1) officeArr[localIdx].logs = site.logs;
-        }
-        // 협업 표시: 나 말고 최근에 이 현장을 본 사람이 있으면 알아뒀다가, 남길 때는 지금 나로 갱신
-        const myName = getMyViewerName();
-        const prevViewer = freshSite.lastViewer;
-        site._lastViewerInfo = (prevViewer && prevViewer.name && prevViewer.name !== myName) ? prevViewer : null;
-        if(myName){
-          fetch(`${FIREBASE_DB_URL}/offices/${encodeURIComponent(officeName)}/${idxInOffice}/lastViewer.json?auth=${encodeURIComponent(FIREBASE_DB_SECRET)}`, {
-            method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name: myName, at: Date.now()})
-          }).catch(()=>{});
         }
         if(currentView==='detail' && currentDetailId===site.id && !editingLogId){
           renderDetailPanel(site); // 지금도 이 현장을 보고 있으면 헤더(개수 배지, 협업 표시 등)까지 다시 그려서 최신 반영
@@ -3963,14 +3946,6 @@ const L = (function(){
             <h2 class="detail-name">${escapeHtml(site.name)}</h2>
             <div class="detail-manager">담당: ${escapeHtml(site.manager||'-')}</div>
             <div class="detail-sub">${escapeHtml(site.district)}</div>
-            ${(()=>{
-              const v = site._lastViewerInfo;
-              if(!v || !v.at) return '';
-              const minsAgo = Math.round((Date.now() - v.at) / 60000);
-              if(minsAgo > 180) return ''; // 3시간 넘으면 안 보여줌 (의미 없어짐)
-              const timeLabel = minsAgo < 1 ? '방금' : minsAgo < 60 ? `${minsAgo}분 전` : `${Math.round(minsAgo/60)}시간 전`;
-              return `<div class="detail-viewer-badge no-print" title="이 현장을 최근에 본 다른 사람">👀 ${escapeHtml(v.name)}님도 최근 조회 (${timeLabel})</div>`;
-            })()}
           </div>
           <div class="detail-head-actions">
             ${(editMode && (detailTab==='개요' || detailTab==='공고')) ? `<button class="btn btn-primary no-print" id="tabEditToggle" style="padding:3px 10px;font-size:10px;">저장</button>` : ''}
@@ -8920,9 +8895,17 @@ const L = (function(){
       const displayRows = isFilteredToOne ? groupRows.filter(r=>r.id===reportSelectedSiteId) : groupRows;
       const groupDaily = buildDailyGroups(groupRows, range, reportMode);
       const colHeadHtml = groupDaily.map(day=>{
-        const short = reportMode==='week' ? day.label.replace(/\d+일\(|\)/g,'') : (day.label.match(/(\d+)주차/)||[,''])[1];
-        const dateSub = (reportMode==='week' && day.key) ? `<span class="rm-daylabel-date">${escapeHtml(day.key.slice(5).replace('-','/'))}</span>` : '';
-        return `<span class="rm-daylabel">${escapeHtml(short)}${dateSub}</span>`;
+        if(reportMode==='week'){
+          const short = day.label.replace(/\d+일\(|\)/g,'');
+          const dateSub = day.key ? `<span class="rm-daylabel-date">${escapeHtml(day.key.slice(5).replace('-','/'))}</span>` : '';
+          return `<span class="rm-daylabel">${escapeHtml(short)}${dateSub}</span>`;
+        }
+        // 월간 모드에선 "1", "2"처럼 주차 번호만 나오면 무슨 뜻인지 알기 어려우니, 그 주에 해당하는
+        // 날짜 범위도 "1주차(1~6일)"처럼 같이 보여준다.
+        const rangeMatch = day.label.match(/^(\d+)~(\d+)일 (\d+)주차/);
+        const wk = rangeMatch ? rangeMatch[3] : (day.label.match(/(\d+)주차/)||[,''])[1];
+        const dateSub = rangeMatch ? `<span class="rm-daylabel-date">(${rangeMatch[1]}~${rangeMatch[2]}일)</span>` : '';
+        return `<span class="rm-daylabel">${escapeHtml(wk)}주차${dateSub}</span>`;
       }).join('');
       return `<div class="report-matrix-wrap">
         ${isFilteredToOne ? `<div class="report-notes-filter-banner no-print">📌 선택한 현장만 보는 중 <button type="button" class="report-notes-show-all-btn no-print">전체보기</button></div>` : ''}
