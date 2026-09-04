@@ -1019,6 +1019,10 @@
     body.cstat-print-mode #contactStatsModalOverlay{position:static !important;background:none !important;inset:auto !important;padding:0 !important;display:block !important;}
     body.cstat-print-mode #contactStatsModalBox{width:100% !important;max-width:none !important;max-height:none !important;overflow:visible !important;box-shadow:none !important;border:none !important;}
     body.cstat-print-mode .cstat-header-btns{display:none !important;}
+    /* "④ 접촉 상세"(로그별 상담내용 카드 전체 목록)는 인쇄에서 뺀다 — 이게 있으면 로그가 많은 달은
+       아무리 줄여도 1장에 안 들어가서 상담내용 글씨가 안 보일 정도로 작아져야 했다. 요약 표/그래프만
+       인쇄하고, 개별 상담 카드 내용은 화면에서만 본다. */
+    body.cstat-print-mode .cstat-detail-section{display:none !important;}
     /* 세로 1장에 최대한 맞도록, 인쇄할 땐 여백/글자 크기를 화면보다 촘촘하게 줄인다 */
     body.cstat-print-mode .cstat-section{padding:8px 10px !important;margin-bottom:6px !important;}
     body.cstat-print-mode .cstat-section-title{font-size:11px !important;margin:0 0 6px !important;}
@@ -1305,7 +1309,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-04-v204</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-04-v205</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -4897,7 +4901,7 @@ const L = (function(){
             }).join('')}</tbody></table>
           </div>
 
-          <div class="cstat-section">
+          <div class="cstat-section cstat-detail-section">
             <div class="cstat-section-title">④ ${escapeHtml(navLabel)} 접촉 상세 (${todayRows.length}건)</div>
             ${todayRows.length ? `
             <div class="cstat-detail-cards">${(()=>{
