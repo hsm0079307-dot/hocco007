@@ -375,22 +375,6 @@
     body.compare-print-mode .compare-modal{width:100% !important;max-height:none !important;box-shadow:none !important;border:none !important;overflow:visible !important;}
     body.compare-print-mode .compare-table-wrap{overflow:visible !important;padding:0 !important;}
     body.compare-print-mode #app{height:auto !important;overflow:visible !important;display:block !important;}
-    body.cstat-print-mode #app{display:none !important;}
-    body.cstat-print-mode #contactStatsModalOverlay{position:static !important;background:none !important;inset:auto !important;padding:0 !important;display:block !important;}
-    body.cstat-print-mode #contactStatsModalBox{width:100% !important;max-width:none !important;max-height:none !important;overflow:visible !important;box-shadow:none !important;border:none !important;}
-    body.cstat-print-mode .cstat-header-btns{display:none !important;}
-    /* 세로 1장에 최대한 맞도록, 인쇄할 땐 여백/글자 크기를 화면보다 촘촘하게 줄인다 */
-    body.cstat-print-mode .cstat-section{padding:8px 10px !important;margin-bottom:6px !important;}
-    body.cstat-print-mode .cstat-section-title{font-size:11px !important;margin:0 0 6px !important;}
-    body.cstat-print-mode .cstat-box{padding:6px 4px 5px !important;}
-    body.cstat-print-mode .cstat-num, body.cstat-print-mode .cstat-num-split{font-size:14px !important;min-height:auto !important;}
-    body.cstat-print-mode .cstat-lbl{font-size:9.5px !important;}
-    body.cstat-print-mode .cstat-table th, body.cstat-print-mode .cstat-table td{padding:3px 3px !important;font-size:9.5px !important;}
-    body.cstat-print-mode .cstat-chart{height:60px !important;}
-    body.cstat-print-mode .report-log-card{padding:5px 7px !important;margin-bottom:4px !important;}
-    body.cstat-print-mode .report-log-card div{font-size:9.5px !important;margin-bottom:1px !important;}
-    body.cstat-print-mode .cstat-header h3{font-size:12px !important;}
-    body.cstat-print-mode #contactStatsNoteInput{font-size:9.5px !important;padding:5px !important;}
     body.bulk-report-print-mode #app > *:not(#compareModalRoot){display:none !important;}
     body.bulk-report-print-mode #compareModalRoot{display:block !important;}
     body.bulk-report-print-mode .bulk-report-page{page-break-after:always;padding:10mm;}
@@ -1025,6 +1009,35 @@
     body.print-mode .detail-quad-box{height:auto !important; max-height:none !important; overflow:visible !important; resize:none !important;}
     body.print-mode .rte-toolbar, body.print-mode .quad-edit-btn{display:none !important;}
   }
+
+  /* 접촉현황 인쇄도 마찬가지로 @media print/screen 둘 다에 적용해서, 인쇄 버튼을 누르는 순간
+     화면에서 먼저 촘촘한 레이아웃으로 바뀌게 한다 — 그래야 JS가 실제 인쇄에 쓰일 높이를 정확히
+     재서 1장에 맞게 축소 비율을 계산할 수 있다(그렇지 않으면 화면용 넓은 레이아웃 기준으로 재서
+     비율 계산이 틀어진다). */
+  @media print, screen{
+    body.cstat-print-mode #app{display:none !important;}
+    body.cstat-print-mode #contactStatsModalOverlay{position:static !important;background:none !important;inset:auto !important;padding:0 !important;display:block !important;}
+    body.cstat-print-mode #contactStatsModalBox{width:100% !important;max-width:none !important;max-height:none !important;overflow:visible !important;box-shadow:none !important;border:none !important;}
+    body.cstat-print-mode .cstat-header-btns{display:none !important;}
+    /* 세로 1장에 최대한 맞도록, 인쇄할 땐 여백/글자 크기를 화면보다 촘촘하게 줄인다 */
+    body.cstat-print-mode .cstat-section{padding:8px 10px !important;margin-bottom:6px !important;}
+    body.cstat-print-mode .cstat-section-title{font-size:11px !important;margin:0 0 6px !important;}
+    body.cstat-print-mode .cstat-box{padding:6px 4px 5px !important;}
+    body.cstat-print-mode .cstat-num, body.cstat-print-mode .cstat-num-split{font-size:14px !important;min-height:auto !important;}
+    body.cstat-print-mode .cstat-lbl{font-size:9.5px !important;}
+    body.cstat-print-mode .cstat-table th, body.cstat-print-mode .cstat-table td{padding:3px 3px !important;font-size:9.5px !important;}
+    body.cstat-print-mode .report-log-card{padding:5px 7px !important;margin-bottom:4px !important;}
+    body.cstat-print-mode .report-log-card div{font-size:9.5px !important;margin-bottom:1px !important;}
+    body.cstat-print-mode .cstat-header h3{font-size:12px !important;}
+    body.cstat-print-mode #contactStatsNoteInput{font-size:9.5px !important;padding:5px !important;}
+    /* 주차별/담당자별 막대그래프 두 개는 세로로 따로 차지하면 자리를 많이 먹어서, 인쇄할 땐 나란히 배치 */
+    body.cstat-print-mode .cstat-chart-row{display:flex !important;gap:8px !important;}
+    body.cstat-print-mode .cstat-chart-row .cstat-section{flex:1 1 0 !important;min-width:0 !important;margin-bottom:6px !important;}
+    body.cstat-print-mode .cstat-chart{height:44px !important;gap:6px !important;}
+    body.cstat-print-mode .cstat-bar-label{font-size:8px !important;}
+    body.cstat-print-mode .cstat-bar-single-val{font-size:8px !important;}
+    body.cstat-print-mode .cstat-chart-legend{font-size:8.5px !important;}
+  }
   @media print{
     .tabs, .clear-filter, .region-panel,
     .card-actions, .no-print, #editToggle, .site-label,
@@ -1292,7 +1305,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-04-v203</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-04-v204</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -4903,6 +4916,7 @@ const L = (function(){
             <button type="button" id="contactStatsNoteSaveBtn" class="btn btn-primary btn-sm no-print" style="margin-top:6px;">저장</button>
           </div>
 
+          <div class="cstat-chart-row">
           <div class="cstat-section">
             <div class="cstat-section-title">📈 주차별 접촉현황</div>
             <div class="cstat-chart-legend">
@@ -4999,37 +5013,34 @@ const L = (function(){
               </div>`;
             })() : ''}
           </div>
+          </div>
         `;
         document.getElementById('contactStatsCloseBtn').addEventListener('click', ()=>document.getElementById('contactStatsModalOverlay').classList.remove('show'));
         document.getElementById('contactStatsPrintBtn').addEventListener('click', ()=>{
           // 접촉현황은 표/카드가 많아서 그대로 인쇄하면 여러 장으로 나뉘어 버린다. 세로(portrait) 1장에
           // 맞게, 페이지를 세로로 강제하고(임시 <style>로 가로 규격을 덮어씀) 실제 내용 높이를 재서
           // 한 페이지 안에 들어가도록 전체를 비율 그대로 축소한다.
+          // (예전엔 CSS transform:scale()을 썼는데, transform은 눈에 보이는 크기만 줄일 뿐 실제
+          // 레이아웃/페이지 나누기 계산에는 영향을 안 줘서, 인쇄가 원래(축소 전) 크기 기준으로 페이지를
+          // 나눠버려 화면엔 내용이 거의 안 보이는 빈 페이지처럼 나오는 문제가 있었다. zoom은 레이아웃
+          // 자체를 줄여서 페이지 나누기도 그 축소된 크기 기준으로 다시 계산되므로 이 문제가 없다.)
           const pageStyleEl = document.createElement('style');
           pageStyleEl.id = 'cstatPagePortraitStyle';
           pageStyleEl.textContent = '@page{size:portrait;margin:10mm;}';
           document.head.appendChild(pageStyleEl);
+          box.style.zoom = '';
           document.body.classList.add('cstat-print-mode');
-          box.style.transform = '';
-          box.style.width = '';
           requestAnimationFrame(()=>{
             const contentH = box.scrollHeight;
-            const contentW = box.scrollWidth;
-            const usableWpx = (210-20) * 96/25.4; // A4 세로, 여백 10mm씩
-            const usableHpx = (297-20) * 96/25.4;
+            const usableHpx = (297-20) * 96/25.4; // A4 세로, 위아래 여백 10mm씩 뺀 실제 인쇄 가능 높이
             // 글자가 안 보일 정도로 작아지진 않게, 최소 55%까지만 줄인다. 그래도 안 들어가면
             // 어쩔 수 없이 2쪽으로 넘어가는 쪽을 택한다(억지로 다 우겨넣어 안 보이게 만드는 것보단 낫다).
-            const scale = Math.max(0.55, Math.min(1, usableHpx/contentH, usableWpx/contentW));
-            if(scale < 1){
-              box.style.transformOrigin = 'top left';
-              box.style.transform = `scale(${scale})`;
-              box.style.width = `${100/scale}%`;
-            }
+            const scale = Math.max(0.55, Math.min(1, usableHpx/contentH));
+            box.style.zoom = scale < 1 ? String(scale) : '';
             window.print();
             setTimeout(()=>{
               document.body.classList.remove('cstat-print-mode');
-              box.style.transform = '';
-              box.style.width = '';
+              box.style.zoom = '';
               pageStyleEl.remove();
             }, 1000);
           });
