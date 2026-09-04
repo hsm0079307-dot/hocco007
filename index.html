@@ -1328,7 +1328,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉현황</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-04-v223</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-04-v224</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -9374,6 +9374,32 @@ const L = (function(){
       renderSitesView();
     });
   }
+  // 방금 이 기기에서 보고서를 저장한 직후에 리포트를 열면, 서버 쓰기가 아직 다 반영되기 전에
+  // 리포트가 "전체 새로고침" GET을 먼저 보내는 경우가 있다(특히 모바일 네트워크가 느릴 때).
+  // 그러면 서버에서 받아온 데이터가 오히려 이 기기가 방금 저장한 최신 로그보다 더 예전 것이어서,
+  // 그걸로 allOfficesData를 통째로 덮어써버리면 "방금 입력했는데 리포트에 안 잡힌다"는 문제가 생긴다.
+  // (실제로 다롱님이 이 문제로 여러 번 제보함) 그래서 서버에서 새로 받아온 걸 무조건 덮어쓰지 않고,
+  // 현장 id 기준으로 로그를 "합쳐서"(서버에 없지만 지금 내 화면엔 있는 로그는 살려서) 반영한다.
+  function mergeFreshOfficesData(freshOffices, localOffices){
+    const merged = {};
+    const officeNames = new Set([...Object.keys(freshOffices||{}), ...Object.keys(localOffices||{})]);
+    officeNames.forEach(office=>{
+      const freshList = (freshOffices && freshOffices[office]) || [];
+      const localList = (localOffices && localOffices[office]) || [];
+      const localById = {};
+      localList.forEach(s=>{ if(s && s.id) localById[s.id] = s; });
+      merged[office] = freshList.map(freshSite=>{
+        const localSite = freshSite && freshSite.id ? localById[freshSite.id] : null;
+        if(!localSite) return freshSite;
+        const freshLogs = freshSite.logs || [];
+        const localLogs = localSite.logs || [];
+        const freshIds = new Set(freshLogs.map(l=>l && l.id).filter(Boolean));
+        const extraLocalLogs = localLogs.filter(l=>l && l.id && !freshIds.has(l.id));
+        return extraLocalLogs.length ? Object.assign({}, freshSite, {logs: freshLogs.concat(extraLocalLogs)}) : freshSite;
+      });
+    });
+    return merged;
+  }
   // 리포트는 여러 현장의 로그를 한꺼번에 집계하는데, 부팅 때 한 번 불러온 데이터가
   // 그 사이 다른 곳(텔레그램 봇, 다른 기기 등)에서 추가된 로그를 놓쳤을 수 있다.
   // 개별 현장은 열 때마다 targeted로 다시 확인하지만, 리포트 전체 집계는 그 혜택을 못 받으므로
@@ -9382,14 +9408,14 @@ const L = (function(){
     try{
       if(window.storage){
         const res = await window.storage.get(STORAGE_KEY, false);
-        if(res && res.value){ allOfficesData = JSON.parse(res.value); return true; }
+        if(res && res.value){ allOfficesData = mergeFreshOfficesData(JSON.parse(res.value), allOfficesData); return true; }
         return false;
       }
       const res = await fetch(FIREBASE_DATA_URL + '?_=' + Date.now(), {cache:'no-store'});
       if(!res.ok) return false;
       const data = await res.json();
       if(data && data.offices && typeof data.offices==='object'){
-        allOfficesData = data.offices;
+        allOfficesData = mergeFreshOfficesData(data.offices, allOfficesData);
         sites = currentOffice===ALL_OFFICE ? OFFICES.flatMap(o=>allOfficesData[o]||[]) : (allOfficesData[currentOffice]||[]);
         return true;
       }
