@@ -149,8 +149,10 @@
   .report-chart-col-head span{font-size:10.5px;font-weight:400;color:var(--text-dim);}
   .report-chart-empty{font-size:11px;color:var(--text-dim);padding:10px 0;text-align:center;}
   @media (max-width:820px){ .report-chart-cols{grid-template-columns:1fr;} }
-  .report-dashboard{display:flex;gap:14px;align-items:stretch;background:linear-gradient(135deg, var(--bg-side-2), var(--bg-main,rgba(255,255,255,.03)));border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:14px;flex-wrap:wrap;}
+  .report-dashboard{display:flex;flex-direction:column;gap:6px;background:linear-gradient(135deg, var(--bg-side-2), var(--bg-main,rgba(255,255,255,.03)));border:1px solid var(--line);border-radius:14px;padding:12px 16px;margin-bottom:14px;}
   .rd-stats{display:flex;gap:10px;flex:1 1 auto;min-width:220px;}
+  .rd-stats-mini{font-size:11.5px;color:var(--text-dim);}
+  .rd-stats-mini b{color:var(--accent);font-size:13px;}
   .rd-stat{flex:1;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 12px;min-width:88px;}
   .rd-num{font-size:22px;font-weight:800;color:var(--accent);line-height:1.1;}
   .rd-num .rd-unit{font-size:11px;font-weight:600;color:var(--text-dim);margin-left:2px;}
@@ -1258,7 +1260,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉 리포트</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-03-v189</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-04-v190</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -8799,9 +8801,11 @@ const L = (function(){
         byWeek[wk].push(...hits);
       });
       const weekNums = Object.keys(byWeek).map(Number).sort((a,b)=>a-b);
-      // 주차가 여러 개면 "N주차: 문장" 형식으로, 한 주(주간 보기)뿐이면 그냥 문장만 보여준다
-      if(weekNums.length<=1) return weekNums.length ? byWeek[weekNums[0]].slice(0,2).join('\n') : '';
-      return weekNums.map(wk=>`${wk}주차: ${byWeek[wk].slice(0,2).join(' ')}`).join('\n');
+      if(!weekNums.length) return '';
+      // 월간 보기에선 걸린 주차가 하나뿐이어도 항상 "N주차:"를 붙이고, 주간 보기에선 애초에 한 주뿐이라 라벨이 필요 없으니 안 붙인다.
+      // (전에는 걸린 주차 개수에 따라 라벨을 붙였다 안 붙였다 해서, 같은 리포트 안에서 현장마다 형식이 들쭉날쭉해 보였음)
+      if(reportMode!=='month') return weekNums.map(wk=>byWeek[wk].slice(0,4).join(' ')).join('\n');
+      return weekNums.map(wk=>`${wk}주차: ${byWeek[wk].slice(0,4).join(' ')}`).join('\n');
     }
     function buildMatrixTable(groupRows, missedNames){
       const missedHtml = missedNames.length
@@ -8899,23 +8903,7 @@ const L = (function(){
     const topManager = managerRows[0];
     const dashboardHtml = `
       <div class="report-dashboard no-print">
-        <div class="rd-stats">
-          <div class="rd-stat">
-            <div class="rd-num">${curTotalSites}<span class="rd-unit">곳</span></div>
-            <div class="rd-label">방문현장</div>
-            <div class="rd-trend ${siteTrend.cls}">${siteTrend.sym}${siteTrend.diff ? ' '+siteTrend.diff+'%':''} <span class="rd-trend-sub">지난 ${reportMode==='week'?'주':'달'} 대비</span></div>
-          </div>
-          <div class="rd-stat">
-            <div class="rd-num">${curTotalVisitDays}<span class="rd-unit">일</span></div>
-            <div class="rd-label">총 방문</div>
-            <div class="rd-trend ${visitTrend.cls}">${visitTrend.sym}${visitTrend.diff ? ' '+visitTrend.diff+'%':''} <span class="rd-trend-sub">지난 ${reportMode==='week'?'주':'달'} 대비</span></div>
-          </div>
-          <div class="rd-stat">
-            <div class="rd-num">${curTotalMissed}<span class="rd-unit">곳</span></div>
-            <div class="rd-label">미방문</div>
-            ${topManager ? `<div class="rd-trend flat">👤 ${escapeHtml(topManager)} <span class="rd-trend-sub">최다 방문</span></div>` : ''}
-          </div>
-        </div>
+        <div class="rd-stats-mini">방문현장 <b>${curTotalSites}</b>곳</div>
         <div class="rd-chart">
           ${dashDaily.map((day,i)=>{
             const short = reportMode==='week' ? day.label.replace(/\d+일\(|\)/g,'') : (day.label.match(/(\d+)주차/)||[,''])[1]+'주';
@@ -9241,6 +9229,10 @@ const L = (function(){
           // 주간 보기에서 특정 날짜 막대를 누르면 그 날 방문한 현장만 아래 목록에 보여줌 (다시 누르면 해제)
           const clickedKey = col.dataset.dayKey;
           reportDayFilter = (reportDayFilter===clickedKey) ? null : clickedKey;
+          // 날짜 필터가 바뀌면 이전에 펼쳐놨던 "선택한 현장" 상세는 그 날짜와 무관한 낡은 정보라
+          // 화면에 계속 남아있으면 헷갈리므로 같이 접어준다.
+          reportSelectedSiteId = null;
+          reportSelectedDayKey = null;
           renderSitesView();
         }
       });
@@ -9286,6 +9278,9 @@ const L = (function(){
     reportGalleryRows = null;
     reportTourRows = null;
     reportToursSelectedKey = null;
+    reportDayFilter = null;
+    reportSelectedSiteId = null;
+    reportSelectedDayKey = null;
     document.getElementById('contactReportOverlay').classList.add('show');
     document.getElementById('contactReportBody').innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-dim);">최신 데이터 확인 중...</div>';
     await refreshAllOfficesDataForReport();
@@ -9300,16 +9295,20 @@ const L = (function(){
   document.getElementById('contactReportCloseBtn').addEventListener('click', ()=>{
     document.getElementById('contactReportOverlay').classList.remove('show');
   });
-  document.getElementById('reportModeWeekBtn').addEventListener('click', ()=>{ reportMode='week'; reportDayFilter=null; renderContactReport(); });
-  document.getElementById('reportModeMonthBtn').addEventListener('click', ()=>{ reportMode='month'; reportDayFilter=null; renderContactReport(); });
+  document.getElementById('reportModeWeekBtn').addEventListener('click', ()=>{ reportMode='week'; reportDayFilter=null; reportSelectedSiteId=null; reportSelectedDayKey=null; renderContactReport(); });
+  document.getElementById('reportModeMonthBtn').addEventListener('click', ()=>{ reportMode='month'; reportDayFilter=null; reportSelectedSiteId=null; reportSelectedDayKey=null; renderContactReport(); });
   document.getElementById('reportPrevBtn').addEventListener('click', ()=>{
     shiftReportBaseDate(-1);
     reportDayFilter=null;
+    reportSelectedSiteId=null;
+    reportSelectedDayKey=null;
     try{ renderContactReport(); }catch(e){ console.error('리포트 새로고침 실패', e); alert('리포트를 갱신하는 중 오류가 발생했어요: ' + (e && e.message ? e.message : e) + '\n이 메시지를 캡처해서 알려주세요.'); }
   });
   document.getElementById('reportNextBtn').addEventListener('click', ()=>{
     shiftReportBaseDate(1);
     reportDayFilter=null;
+    reportSelectedSiteId=null;
+    reportSelectedDayKey=null;
     try{ renderContactReport(); }catch(e){ console.error('리포트 새로고침 실패', e); alert('리포트를 갱신하는 중 오류가 발생했어요: ' + (e && e.message ? e.message : e) + '\n이 메시지를 캡처해서 알려주세요.'); }
   });
   document.getElementById('reportPrintBtn').addEventListener('click', ()=>{
