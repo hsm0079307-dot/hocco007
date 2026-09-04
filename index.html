@@ -1308,7 +1308,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉현황</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-04-v217</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-04-v218</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -4639,17 +4639,27 @@ const L = (function(){
         const y = monthRefDate.getFullYear(), mo = monthRefDate.getMonth();
         const firstDow = new Date(y, mo, 1).getDay();
         const mondayOffset = (firstDow + 6) % 7;
+        // "③ 주별 집계표"는 "①/② 담당별·직책별" 표와 똑같이 "접촉된 사람 수(중복 제거)"를 세야 한다.
+        // (예전엔 여기만 로그 건수를 그대로 다 세서, 같은 사람을 그 주에 두 번 이상 접촉했거나
+        // 담당 미지정/작성자 불일치 로그가 섞이면 위 표들의 합계보다 숫자가 더 크게 나와 서로 안 맞아 보였다.
+        // 그래서 여기도 담당자 표처럼 "그 사람을 그 주에 가장 많이 쓴 방법 하나"로만 한 번씩 센다.)
         const byWeek = {};
-        logs.forEach(l=>{
-          if(!l.date) return;
-          const ly = parseInt(l.date.slice(0,4),10), lm = parseInt(l.date.slice(5,7),10);
-          if(ly!==y || lm!==(mo+1)) return;
-          const d = parseInt(l.date.slice(8,10),10);
-          if(!d) return;
-          const wk = Math.ceil((d+mondayOffset)/7);
-          if(!byWeek[wk]) byWeek[wk] = {'상담':0,'단순':0,'TM':0};
-          const method = (l.contactMethod||'').trim();
-          if(byWeek[wk][method]!==undefined) byWeek[wk][method]++;
+        roster.forEach((r,i)=>{
+          const logsByWeek = {};
+          (personLogsAll[i]||[]).forEach(l=>{
+            if(!l.date) return;
+            const ly = parseInt(l.date.slice(0,4),10), lm = parseInt(l.date.slice(5,7),10);
+            if(ly!==y || lm!==(mo+1)) return;
+            const d = parseInt(l.date.slice(8,10),10);
+            if(!d) return;
+            const wk = Math.ceil((d+mondayOffset)/7);
+            (logsByWeek[wk] = logsByWeek[wk] || []).push(l);
+          });
+          Object.keys(logsByWeek).forEach(wk=>{
+            if(!byWeek[wk]) byWeek[wk] = {'상담':0,'단순':0,'TM':0};
+            const dm = dominantMethod(logsByWeek[wk]);
+            if(dm && byWeek[wk][dm]!==undefined) byWeek[wk][dm]++;
+          });
         });
         // 주차별로 "그 주에 접촉된 총 인원"과 "그 주에 처음 접촉된 신규 인원"을 계산 (주차별 집계표 그래프용)
         const weekTotalContact = {};
