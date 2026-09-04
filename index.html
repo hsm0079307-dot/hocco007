@@ -192,8 +192,9 @@
   .rm-siterow{font-size:11px;border-bottom:1px solid var(--line);}
   .rm-siterow.alt{background:var(--bg-main,rgba(255,255,255,.03));}
   .rm-siterow.selected{background:color-mix(in srgb, var(--accent) 12%, transparent);}
-  .rm-col-name{flex:0 0 84px;font-weight:700;color:var(--text-main);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .rm-col-mgr{flex:1 1 74px;min-width:74px;color:var(--text-dim);font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .rm-col-name{flex:0 0 84px;font-weight:700;color:var(--text-main);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;position:sticky;left:0;background:var(--bg-side-2);z-index:2;}
+  .rm-col-mgr{flex:1 1 74px;min-width:74px;color:var(--text-dim);font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;position:sticky;left:84px;background:var(--bg-side-2);z-index:2;}
+  .rm-siterow.selected .rm-col-name, .rm-siterow.selected .rm-col-mgr{background:var(--bg-side-2);box-shadow:inset 0 0 0 100px color-mix(in srgb, var(--accent) 12%, transparent);}
   .rm-col-days{flex:0 0 auto;display:flex;gap:3px;}
   .rm-daylabel{flex:0 0 48px;text-align:center;font-size:9px;white-space:normal;line-height:1.3;}
   .rm-daylabel-date{display:block;font-size:8px;font-weight:600;color:var(--accent);margin-top:1px;}
@@ -540,7 +541,8 @@
   .overlay.show .modal{animation:modalPopIn .2s cubic-bezier(.2,.8,.3,1);}
   @keyframes overlayFadeIn{from{opacity:0;}to{opacity:1;}}
   @keyframes modalPopIn{from{opacity:0;transform:translateY(6px) scale(.98);}to{opacity:1;transform:translateY(0) scale(1);}}
-  .modal{background:var(--bg-side);border:1px solid var(--accent);border-radius:10px;width:100%;max-width:420px;max-height:92vh;overflow-y:auto;padding:18px;box-shadow:0 0 0 1px rgba(255,183,3,.15), 0 20px 60px rgba(0,0,0,.5);}
+  .modal{background:var(--bg-side);border:1px solid var(--line);border-radius:10px;width:100%;max-width:420px;max-height:92vh;overflow-y:auto;padding:18px;box-shadow:0 0 0 1px color-mix(in srgb, var(--accent) 12%, transparent), 0 20px 50px rgba(0,0,0,.35);}
+  body.theme-dark .modal{box-shadow:0 0 0 1px rgba(255,183,3,.15), 0 20px 60px rgba(0,0,0,.5);}
   /* 모드 선택(관리자/담당자) 박스는 화면을 가리지 않게 우측 하단에 작게 배치.
      로그인 전에도 지도는 자유롭게 조회(이동/확대)할 수 있어야 하므로, 박스 바깥쪽은 클릭이 그대로 지도로 통과되게 한다. */
   #modeOverlay{align-items:flex-end;justify-content:flex-end;background:transparent;pointer-events:none;padding-bottom:56px;}
@@ -1308,7 +1310,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉현황</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-04-v218</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-04-v219</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
