@@ -192,9 +192,14 @@
   .rm-siterow{font-size:11px;border-bottom:1px solid var(--line);}
   .rm-siterow.alt{background:var(--bg-main,rgba(255,255,255,.03));}
   .rm-siterow.selected{background:color-mix(in srgb, var(--accent) 12%, transparent);}
-  .rm-col-name{flex:0 0 84px;font-weight:700;color:var(--text-main);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;position:sticky;left:0;background:var(--bg-side-2);z-index:2;}
-  .rm-col-mgr{flex:1 1 74px;min-width:74px;color:var(--text-dim);font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;position:sticky;left:84px;background:var(--bg-side-2);z-index:2;}
-  .rm-siterow.selected .rm-col-name, .rm-siterow.selected .rm-col-mgr{background:var(--bg-side-2);box-shadow:inset 0 0 0 100px color-mix(in srgb, var(--accent) 12%, transparent);}
+  /* 이름/담당 칸을 position:sticky로 고정해봤는데, 이 표(가로 스크롤 폭이 넓지 않은 flex 행) 구조에서는
+     스크롤을 끝까지 밀면 sticky가 자기 행의 오른쪽 끝에 걸려서 고정이 풀리며 다른 칸과 겹쳐 보이는
+     버그가 있었다(모바일에서 "테두리 이상하고 표가 겹쳐 보인다"는 제보의 원인). 그래서 sticky는 빼고,
+     대신 요일 칸 폭을 줄여서 애초에 가로 스크롤이 덜 필요하게 만드는 쪽으로 바꿨다.
+     (.rm-sticky-cols는 이름/담당을 묶는 용도로만 남겨둠, 특별한 위치 지정 없음) */
+  .rm-sticky-cols{display:flex;align-items:center;gap:6px;}
+  .rm-col-name{flex:0 0 84px;font-weight:700;color:var(--text-main);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .rm-col-mgr{flex:1 1 74px;min-width:74px;color:var(--text-dim);font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .rm-col-days{flex:0 0 auto;display:flex;gap:3px;}
   .rm-daylabel{flex:0 0 48px;text-align:center;font-size:9px;white-space:normal;line-height:1.3;}
   .rm-daylabel-date{display:block;font-size:8px;font-weight:600;color:var(--accent);margin-top:1px;}
@@ -203,6 +208,13 @@
   .report-matrix2-cell.visited{cursor:pointer;background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700;transition:.12s;}
   .report-matrix2-cell.visited.active{outline:2px solid #fff;outline-offset:1px;}
   .report-matrix2-cell.visited:hover{opacity:0.85;transform:scale(1.08);}
+  @media (max-width:520px){
+    .rm-col-name{flex-basis:64px;}
+    .rm-col-mgr{flex-basis:56px;min-width:56px;font-size:9px;}
+    .rm-daylabel{flex-basis:34px;font-size:8px;}
+    .report-matrix2-cell{flex-basis:34px;height:18px;font-size:8px;}
+    .rm-col-total{flex-basis:26px;font-size:9.5px;}
+  }
   .report-site-notes-summary{font-size:11px;color:var(--text-dim);padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin:8px 0 14px;background:var(--bg-side-2);}
   .report-site-note-line{padding:3px 0;border-bottom:1px dotted var(--line);}
   .report-site-note-line:last-child{border-bottom:none;}
@@ -1311,7 +1323,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉현황</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-04-v221</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-04-v222</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -1333,7 +1345,7 @@
       <button class="btn btn-ghost btn-sm report-view-tab" id="reportViewTabSearch" data-view="search">🔍 검색</button>
       <button class="btn btn-ghost btn-sm report-view-tab" id="reportViewTabTours" data-view="tours">🖼 투어예약</button>
     </div>
-    <div id="contactReportBody" style="max-height:72vh;overflow-y:auto;"></div>
+    <div id="contactReportBody" style="max-height:72vh;overflow-y:auto;overflow-x:hidden;"></div>
   </div>
 </div>
 
@@ -8924,7 +8936,7 @@ const L = (function(){
       return `<div class="report-matrix-wrap">
         ${isFilteredToOne ? `<div class="report-notes-filter-banner no-print">📌 선택한 현장만 보는 중 <button type="button" class="report-notes-show-all-btn no-print">전체보기</button></div>` : ''}
         <div class="rm-headrow">
-          <span class="rm-col-name">현장명</span><span class="rm-col-mgr">담당</span>
+          <span class="rm-sticky-cols"><span class="rm-col-name">현장명</span><span class="rm-col-mgr">담당</span></span>
           <span class="rm-col-days">${colHeadHtml}</span>
           <span class="rm-col-total">방문</span>
         </div>
@@ -8937,8 +8949,7 @@ const L = (function(){
           }).join('');
           const rowSelected = reportSelectedSiteId === r.id;
           return `<div class="rm-siterow ${ri%2?'alt':''}${rowSelected?' selected':''}">
-            <span class="rm-col-name" title="${escapeHtml(r.site)}">${escapeHtml(r.site)}</span>
-            <span class="rm-col-mgr" title="${escapeHtml(r.manager)}">${escapeHtml(r.manager)}</span>
+            <span class="rm-sticky-cols"><span class="rm-col-name" title="${escapeHtml(r.site)}">${escapeHtml(r.site)}</span><span class="rm-col-mgr" title="${escapeHtml(r.manager)}">${escapeHtml(r.manager)}</span></span>
             <span class="rm-col-days">${dots}</span>
             <span class="rm-col-total">${r.count}일</span>
           </div>${rowSelected ? buildRowDetailHtml(r, reportSelectedDayKey) : ''}`;
