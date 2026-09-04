@@ -1310,7 +1310,7 @@
   <div class="modal" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉현황</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-04-v219</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-04-v220</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -1321,6 +1321,7 @@
         <button class="btn btn-ghost btn-sm" id="reportNextBtn">▶</button>
       </div>
       <div style="margin-left:auto;display:flex;gap:8px;">
+        <button class="btn btn-ghost no-print" id="reportRefreshBtn" title="다른 사람이 방금 텔레그램/다른 기기로 올린 기록까지 다시 불러와요">🔄 새로고침</button>
         <button class="btn btn-ghost no-print" id="reportPrintBtn">🖨 인쇄</button>
         <button class="btn btn-ghost no-print" id="contactReportCloseBtn">닫기</button>
       </div>
@@ -9393,21 +9394,36 @@ const L = (function(){
   document.getElementById('contactReportCloseBtn').addEventListener('click', ()=>{
     document.getElementById('contactReportOverlay').classList.remove('show');
   });
-  document.getElementById('reportModeWeekBtn').addEventListener('click', ()=>{ reportMode='week'; reportDayFilter=null; reportSelectedSiteId=null; reportSelectedDayKey=null; renderContactReport(); });
-  document.getElementById('reportModeMonthBtn').addEventListener('click', ()=>{ reportMode='month'; reportDayFilter=null; reportSelectedSiteId=null; reportSelectedDayKey=null; renderContactReport(); });
+  // 접촉현황은 "처음 열 때"만 최신 데이터를 통째로 받아오고, 그 안에서 날짜 이동/주간·월간 전환은
+  // 그냥 화면만 다시 그렸었다. 그래서 열어둔 채로 시간이 좀 지나면, 그 사이 다른 담당자가 텔레그램
+  // 봇으로 새로 올린 보고서가 있어도 반영이 안 돼서 "분명 접촉했는데 왜 표에 안 나오냐"는 문제가 있었다.
+  // 그래서 날짜 이동/기간 전환 때도 매번 최신 데이터를 다시 받아오게 하고, 수동 새로고침 버튼도 추가했다.
+  async function refreshAndRenderReport(){
+    try{ await refreshAllOfficesDataForReport(); }catch(e){ console.error('리포트용 데이터 새로고침 실패', e); }
+    try{ renderContactReport(); }catch(e){ console.error('리포트 새로고침 실패', e); alert('리포트를 갱신하는 중 오류가 발생했어요: ' + (e && e.message ? e.message : e) + '\n이 메시지를 캡처해서 알려주세요.'); }
+  }
+  document.getElementById('reportModeWeekBtn').addEventListener('click', ()=>{ reportMode='week'; reportDayFilter=null; reportSelectedSiteId=null; reportSelectedDayKey=null; refreshAndRenderReport(); });
+  document.getElementById('reportModeMonthBtn').addEventListener('click', ()=>{ reportMode='month'; reportDayFilter=null; reportSelectedSiteId=null; reportSelectedDayKey=null; refreshAndRenderReport(); });
   document.getElementById('reportPrevBtn').addEventListener('click', ()=>{
     shiftReportBaseDate(-1);
     reportDayFilter=null;
     reportSelectedSiteId=null;
     reportSelectedDayKey=null;
-    try{ renderContactReport(); }catch(e){ console.error('리포트 새로고침 실패', e); alert('리포트를 갱신하는 중 오류가 발생했어요: ' + (e && e.message ? e.message : e) + '\n이 메시지를 캡처해서 알려주세요.'); }
+    refreshAndRenderReport();
   });
   document.getElementById('reportNextBtn').addEventListener('click', ()=>{
     shiftReportBaseDate(1);
     reportDayFilter=null;
     reportSelectedSiteId=null;
     reportSelectedDayKey=null;
-    try{ renderContactReport(); }catch(e){ console.error('리포트 새로고침 실패', e); alert('리포트를 갱신하는 중 오류가 발생했어요: ' + (e && e.message ? e.message : e) + '\n이 메시지를 캡처해서 알려주세요.'); }
+    refreshAndRenderReport();
+  });
+  document.getElementById('reportRefreshBtn').addEventListener('click', async ()=>{
+    const btn = document.getElementById('reportRefreshBtn');
+    const original = btn.textContent;
+    btn.disabled = true; btn.textContent = '불러오는 중...';
+    await refreshAndRenderReport();
+    btn.disabled = false; btn.textContent = original;
   });
   document.getElementById('reportPrintBtn').addEventListener('click', ()=>{
     const {range, rows, allSites} = buildContactReportData();
