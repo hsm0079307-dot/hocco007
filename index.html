@@ -1242,10 +1242,11 @@
     <div id="ownerRosterTableWrap" style="max-height:360px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;">
       <table class="mgr-breakdown-table" style="margin-bottom:0;table-layout:fixed;">
         <thead><tr>
-          <th id="ownerRosterSortNameTh" style="width:40%;cursor:pointer;user-select:none;" title="눌러서 이름순 정렬">이름 <span id="ownerRosterSortNameArrow"></span></th>
-          <th id="ownerRosterSortRoleTh" style="width:28%;cursor:pointer;user-select:none;" title="눌러서 직책순 정렬">직책 <span id="ownerRosterSortRoleArrow"></span></th>
-          <th id="ownerRosterSortManagerTh" style="width:28%;cursor:pointer;user-select:none;" title="눌러서 담당순 정렬">담당 <span id="ownerRosterSortManagerArrow"></span></th>
-          <th style="width:4%;"></th>
+          <th style="width:7%;text-align:center;">No</th>
+          <th id="ownerRosterSortNameTh" style="width:35%;cursor:pointer;user-select:none;" title="눌러서 이름순 정렬">이름 <span id="ownerRosterSortNameArrow"></span></th>
+          <th id="ownerRosterSortRoleTh" style="width:24%;cursor:pointer;user-select:none;" title="눌러서 직책순 정렬">직책 <span id="ownerRosterSortRoleArrow"></span></th>
+          <th id="ownerRosterSortManagerTh" style="width:24%;cursor:pointer;user-select:none;" title="눌러서 담당순 정렬">담당 <span id="ownerRosterSortManagerArrow"></span></th>
+          <th style="width:10%;"></th>
         </tr></thead>
         <tbody id="ownerRosterTableBody"></tbody>
       </table>
@@ -1328,7 +1329,7 @@
   <div class="modal" id="contactReportModalBox" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉현황</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-07-v228</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-08-v229</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -4438,17 +4439,43 @@ const L = (function(){
         const {name, role} = fullyStripRoles(entry);
         return {name, role, manager: ''};
       }
+      // No(연번)는 저장하는 값이 아니라 "지금 화면에 보이는 순서"를 그대로 매번 다시 매겨서 보여주는 것.
+      // 그래서 행을 삭제/삽입/정렬/붙여넣기 하면 번호가 항상 자동으로 1번부터 다시 매겨진다(일괄 재번호 효과).
       function renderOwnerRosterRows(rows){
         const tbody = document.getElementById('ownerRosterTableBody');
         tbody.innerHTML = rows.map((r,i)=>`
           <tr data-row-idx="${i}">
+            <td class="roster-no-cell" style="text-align:center;color:var(--text-dim);font-size:10.5px;">${i+1}</td>
             <td style="max-width:0;"><input type="text" class="log-inline-field roster-name" value="${escapeHtml(r.name||'')}" style="width:100%;box-sizing:border-box;padding:4px 6px;font-size:11px;"></td>
             <td style="max-width:0;"><input type="text" class="log-inline-field roster-role" value="${escapeHtml(r.role||'')}" style="width:100%;box-sizing:border-box;padding:4px 6px;font-size:11px;"></td>
             <td style="max-width:0;"><input type="text" class="log-inline-field roster-manager" value="${escapeHtml(r.manager||'')}" style="width:100%;box-sizing:border-box;padding:4px 6px;font-size:11px;"></td>
-            <td><button type="button" class="roster-row-del no-print" title="삭제" style="background:none;border:none;cursor:pointer;color:var(--text-dim);">✕</button></td>
+            <td style="white-space:nowrap;text-align:center;">
+              <button type="button" class="roster-row-insert no-print" title="이 아래에 새 줄 삽입" style="background:none;border:none;cursor:pointer;color:var(--text-dim);padding:0 2px;">➕</button>
+              <button type="button" class="roster-row-del no-print" title="삭제" style="background:none;border:none;cursor:pointer;color:var(--text-dim);padding:0 2px;">✕</button>
+            </td>
           </tr>`).join('');
         tbody.querySelectorAll('.roster-row-del').forEach(btn=>{
-          btn.addEventListener('click', ()=>{ btn.closest('tr').remove(); });
+          btn.addEventListener('click', ()=>{ btn.closest('tr').remove(); renumberOwnerRosterRows(); });
+        });
+        tbody.querySelectorAll('.roster-row-insert').forEach(btn=>{
+          btn.addEventListener('click', ()=>{
+            const tr = btn.closest('tr');
+            const idx = Array.from(tbody.children).indexOf(tr);
+            const current = readOwnerRosterRowsKeepBlank();
+            current.splice(idx+1, 0, {name:'', role:'', manager:''});
+            renderOwnerRosterRows(current);
+            applyOwnerRosterSearchFilter();
+            const newRow = tbody.children[idx+1];
+            if(newRow) newRow.querySelector('.roster-name')?.focus();
+          });
+        });
+      }
+      // 행 삭제처럼 배열을 다시 그리지 않고 DOM에서 직접 줄만 지운 경우에도 No 번호가 바로 맞게 보이도록,
+      // 화면에 남아있는 줄들의 No 칸만 순서대로 다시 채운다(입력 중이던 값은 안 건드림).
+      function renumberOwnerRosterRows(){
+        document.querySelectorAll('#ownerRosterTableBody tr').forEach((tr,i)=>{
+          const cell = tr.querySelector('.roster-no-cell');
+          if(cell) cell.textContent = i+1;
         });
       }
       function readOwnerRosterRows(){
