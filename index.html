@@ -1202,11 +1202,10 @@
  #map{flex:1 1 auto;min-height:0;width:100%;height:auto;}
  .office-switcher{position:static!important;top:auto!important;left:auto!important;right:auto!important;bottom:auto!important;order:2;flex:0 0 auto;margin:6px 8px 4px;width:auto;}
 }
-.mobile-stage-list-item{display:block;padding:10px 11px 9px 13px;margin:0 0 6px;border:1px solid var(--line);border-radius:10px;cursor:pointer;position:relative;}
+.mobile-stage-list-item{display:flex;align-items:center;padding:8px 10px;margin:0 0 5px;border:1px solid var(--line);border-radius:8px;cursor:pointer;position:relative;}
 .mobile-stage-list-item:hover{border-color:var(--accent);}
-.mobile-stage-list-item .dot{position:absolute;left:5px;top:15px;width:6px;height:6px;border-radius:50%;}
-.mobile-stage-list-item .name-item-text{display:block;font-size:12.5px;font-weight:700;padding-left:10px;}
-.mobile-stage-list-item .name-item-meta{display:block;font-size:10.5px;color:var(--text-dim);margin-top:3px;padding-left:10px;}
+.mobile-stage-list-item .dot{flex:none;width:6px;height:6px;border-radius:50%;}
+.mobile-stage-list-item .name-item-text{display:block;font-size:12.5px;font-weight:700;padding-left:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .mobile-stage-list-search{width:100%;box-sizing:border-box;background:var(--bg-side-2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;color:var(--text-main);font-size:13px;outline:none;margin-bottom:10px;}
 .mobile-stage-list-search::placeholder{color:var(--text-dim);}
 .mobile-stage-list-empty{padding:20px 8px;text-align:center;color:var(--text-dim);font-size:12.5px;}
@@ -1942,6 +1941,13 @@ body.theme-dark .name-item.active,
 body.theme-dark .mobile-stage-list-item.active{
   color:#fff !important;
 }
+/* v241 디자인 패치의 h1~h4 색상(--v241-text)이 body.dark/[data-theme=dark] 클래스만 보고
+   어두운 값을 적용하는데, 이 앱은 실제로 body.theme-dark 클래스를 쓰기 때문에 그 다크 오버라이드가
+   전혀 적용되지 않고 항상 밝은(light) 테마용 짙은 남색(#182230 계열)이 남아있었음.
+   → 어두운 테마에서 제목(현장명 등 h1~h4)이 카드 배경에 묻혀 안 보이는 문제 수정 */
+body.theme-dark h1,body.theme-dark h2,body.theme-dark h3,body.theme-dark h4{
+  color:var(--text-main) !important;
+}
 </style>
 
 
@@ -2212,7 +2218,7 @@ body.theme-dark .mobile-stage-list-item.active{
   <div class="modal" id="contactReportModalBox" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉현황</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-09-v247</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-09-v248</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -3844,7 +3850,6 @@ const L = (function(){
           <div class="mobile-stage-list-item" data-id="${s.id}">
             <span class="dot" style="background:${colorForStatus(s.status)}"></span>
             <span class="name-item-text">${escapeHtml(s.name)}</span>
-            <span class="name-item-meta">${escapeHtml(s.progressStage||s.stage||'단계 미입력')} · ${s.lastDate ? escapeHtml(s.lastDate) : '최근 기록 없음'}</span>
           </div>`).join('') : `<div class="mobile-stage-list-empty">해당하는 현장이 없습니다.</div>`}
       </div>
     `;
