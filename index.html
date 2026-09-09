@@ -2184,7 +2184,7 @@ body.theme-dark .report-matrix2-cell.visited{
   <div class="modal" id="contactReportModalBox" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉현황</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-09-v240</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-09-v241</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -3779,6 +3779,7 @@ const L = (function(){
       el.addEventListener('click', ()=>{
         selectedStage = el.dataset.stage;
         currentView='list';
+        currentDetailId = null;
         if(el.dataset.stage==='전체'){
           selectedDistrict = null;
           regionFocusMode = false;
@@ -7338,6 +7339,7 @@ function renderDetailPanel(site){
     selectedDistrict = null;
     regionFocusMode = false;
     currentView = 'list';
+    currentDetailId = null;
     selectedStage = '전체';
     const brandEl = document.querySelector('.brand');
     if(brandEl) brandEl.textContent = (office===ALL_OFFICE?'전체':office) + ' 스크린';
@@ -7391,6 +7393,7 @@ function renderDetailPanel(site){
     selectedDistrict = `${sido} ${gu}`;
     regionFocusMode = true;
     currentView = 'list';
+    currentDetailId = null;
     const shape = shapeFor(sido, gu);
     if(shape){
       map.fitBounds(L.latLngBounds(shape), {padding:[30,30]});
@@ -8680,6 +8683,7 @@ function renderDetailPanel(site){
       closeModal();
     }else if(currentView === 'detail'){
       currentView = 'list';
+      currentDetailId = null;
       renderAll();
     }
   });
