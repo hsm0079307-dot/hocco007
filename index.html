@@ -2010,7 +2010,8 @@ body.theme-dark .name-item.active{
   background:color-mix(in srgb, var(--accent) 20%, var(--card)) !important;
 }
 
-/* 지도: 선택된 현장 마커는 크게+포인트색으로 강조, 나머지는 살짝 낮은 대비로 */
+/* 지도: 선택된 현장 마커는 크게+포인트색으로 강조, 나머지는 시각적 우선순위를 낮춤(약 65% 톤다운) */
+.site-dot{ position:relative; }
 .site-dot-active{
   width:20px !important;height:20px !important;
   background:var(--accent) !important;
@@ -2018,6 +2019,14 @@ body.theme-dark .name-item.active{
   box-shadow:0 0 0 2px var(--accent), 0 2px 8px rgba(0,0,0,.4) !important;
   z-index:500;
 }
+.site-dot-active::after{
+  content:'';
+  position:absolute;top:50%;left:50%;
+  width:6px;height:6px;border-radius:50%;
+  background:#fff;
+  transform:translate(-50%,-50%);
+}
+.site-dot-dim{ opacity:.65 !important; }
 .site-label-active{
   background:var(--accent) !important;
   color:var(--accent-ink) !important;
@@ -2025,6 +2034,31 @@ body.theme-dark .name-item.active{
   box-shadow:0 0 0 2px var(--accent), 0 3px 10px rgba(0,0,0,.45) !important;
   transform:scale(1.08);
   z-index:500;
+}
+.site-label-dim{ opacity:.65 !important; }
+
+/* 상세 패널 상단: 선택 현장 표시를 리스트/지도와 같은 포인트색 점으로 통일 */
+.detail-name{ display:flex; align-items:center; gap:7px; }
+.detail-name::before{
+  content:'●';
+  display:inline-block;
+  color:var(--accent);
+  font-size:.62em;
+}
+
+/* hover(살짝 밝아짐)과 selected(계속 강조)를 명확히 구분 */
+.name-item:hover:not(.active){
+  background:var(--card-hover) !important;
+  border-color:var(--line) !important;
+  box-shadow:none !important;
+}
+
+/* 현장 목록 카드처럼, 지도 영역도 같은 라운딩 카드 스타일로 통일 */
+.main{ gap:10px; }
+.map-wrap{
+  border-radius:12px !important;
+  overflow:hidden !important;
+  border:1px solid var(--line) !important;
 }
 </style>
 
@@ -2276,7 +2310,7 @@ body.theme-dark .name-item.active{
   <div class="modal" id="contactReportModalBox" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉현황</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-09-v254</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-09-v256</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -8141,16 +8175,18 @@ function renderDetailPanel(site){
         if(s.polygon && s.polygon.length>=3){
           L.polygon(s.polygon, {
             color: isActiveSite ? accentHex : colorForStatus(s.status), weight: isActiveSite ? 3 : 1.5,
-            fillColor:colorForStatus(s.status), fillOpacity: isDimmed ? .22 : (isActiveSite ? .6 : .45),
+            fillColor:colorForStatus(s.status), fillOpacity: isDimmed ? .28 : (isActiveSite ? .6 : .45),
             interactive:true
           }).addTo(siteLayer).on('click', ()=>goToDetailFor(s));
         }else{
           const dotSize = isActiveSite ? 20 : 10;
-          const dot = L.divIcon({className:'', html:`<div class="site-dot${isActiveSite?' site-dot-active':''}" style="background:#111;${isDimmed?'opacity:.4;':''}"></div>`, iconSize:[dotSize,dotSize]});
+          const dotCls = isActiveSite ? ' site-dot-active' : (isDimmed ? ' site-dot-dim' : '');
+          const dot = L.divIcon({className:'', html:`<div class="site-dot${dotCls}" style="background:#111;"></div>`, iconSize:[dotSize,dotSize]});
           L.marker(basePos, {icon:dot}).addTo(siteLayer).on('click', ()=>goToDetailFor(s));
         }
 
-        const labelIcon = L.divIcon({className:'', html:`<div class="site-label${isActiveSite?' site-label-active':''}" style="background:${isActiveSite?'var(--accent)':colorForStatus(s.status)};${isDimmed?'opacity:.45;':''}${labelEditMode?'cursor:grab;box-shadow:0 0 0 2px #fff, 0 2px 6px rgba(0,0,0,.4);':''}">${isActiveSite?'★ ':''}${escapeHtml(s.name)}</div>`, iconSize:null});
+        const labelCls = isActiveSite ? ' site-label-active' : (isDimmed ? ' site-label-dim' : '');
+        const labelIcon = L.divIcon({className:'', html:`<div class="site-label${labelCls}" style="background:${isActiveSite?'var(--accent)':colorForStatus(s.status)};${labelEditMode?'cursor:grab;box-shadow:0 0 0 2px #fff, 0 2px 6px rgba(0,0,0,.4);':''}">${isActiveSite?'★ ':''}${escapeHtml(s.name)}</div>`, iconSize:null});
         const labelMarker = L.marker(labelPos, {icon:labelIcon}).addTo(siteLayer);
         if(labelEditMode){
           enableLabelDrag(labelMarker, s, labelPos);
