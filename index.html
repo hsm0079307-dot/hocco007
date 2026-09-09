@@ -2009,6 +2009,23 @@ body.theme-dark h1,body.theme-dark h2,body.theme-dark h3,body.theme-dark h4{
 body.theme-dark .name-item.active{
   background:color-mix(in srgb, var(--accent) 20%, var(--card)) !important;
 }
+
+/* 지도: 선택된 현장 마커는 크게+포인트색으로 강조, 나머지는 살짝 낮은 대비로 */
+.site-dot-active{
+  width:20px !important;height:20px !important;
+  background:var(--accent) !important;
+  border:3px solid #fff !important;
+  box-shadow:0 0 0 2px var(--accent), 0 2px 8px rgba(0,0,0,.4) !important;
+  z-index:500;
+}
+.site-label-active{
+  background:var(--accent) !important;
+  color:var(--accent-ink) !important;
+  font-weight:800 !important;
+  box-shadow:0 0 0 2px var(--accent), 0 3px 10px rgba(0,0,0,.45) !important;
+  transform:scale(1.08);
+  z-index:500;
+}
 </style>
 
 </head>
@@ -8098,12 +8115,20 @@ function renderDetailPanel(site){
       const districtGroups = {};
       fs.forEach(s=>{ (districtGroups[s.district] = districtGroups[s.district]||[]).push(s); });
 
+      // 리스트에서 선택한 현장과 지도 마커를 같은 선택 상태로 연동 (선택된 현장은 크게+포인트색, 나머지는 살짝 낮은 대비)
+      const activeSiteId = (currentView==='detail' && currentDetailId) ? currentDetailId : null;
+      const accentHex = (function(){
+        try{ return (getComputedStyle(document.body).getPropertyValue('--accent')||'').trim() || '#174A4A'; }catch(e){ return '#174A4A'; }
+      })();
+
       fs.forEach(s=>{
         const basePos = sitePosition(s);
         if(!basePos) return;
         const group = districtGroups[s.district] || [s];
         const idx = group.indexOf(s);
         const labelPos = s.labelPos ? s.labelPos : labelPosition(basePos, idx, group.length, s.id);
+        const isActiveSite = activeSiteId ? (s.id === activeSiteId) : false;
+        const isDimmed = activeSiteId ? !isActiveSite : false;
 
         const goToDetailFor = (site)=>{
           currentDetailId = site.id;
@@ -8115,16 +8140,17 @@ function renderDetailPanel(site){
 
         if(s.polygon && s.polygon.length>=3){
           L.polygon(s.polygon, {
-            color:colorForStatus(s.status), weight:1.5,
-            fillColor:colorForStatus(s.status), fillOpacity:.45,
+            color: isActiveSite ? accentHex : colorForStatus(s.status), weight: isActiveSite ? 3 : 1.5,
+            fillColor:colorForStatus(s.status), fillOpacity: isDimmed ? .22 : (isActiveSite ? .6 : .45),
             interactive:true
           }).addTo(siteLayer).on('click', ()=>goToDetailFor(s));
         }else{
-          const dot = L.divIcon({className:'', html:`<div class="site-dot" style="background:#111"></div>`, iconSize:[10,10]});
+          const dotSize = isActiveSite ? 20 : 10;
+          const dot = L.divIcon({className:'', html:`<div class="site-dot${isActiveSite?' site-dot-active':''}" style="background:#111;${isDimmed?'opacity:.4;':''}"></div>`, iconSize:[dotSize,dotSize]});
           L.marker(basePos, {icon:dot}).addTo(siteLayer).on('click', ()=>goToDetailFor(s));
         }
 
-        const labelIcon = L.divIcon({className:'', html:`<div class="site-label" style="background:${colorForStatus(s.status)}${labelEditMode?';cursor:grab;box-shadow:0 0 0 2px #fff, 0 2px 6px rgba(0,0,0,.4);':''}">${escapeHtml(s.name)}</div>`, iconSize:null});
+        const labelIcon = L.divIcon({className:'', html:`<div class="site-label${isActiveSite?' site-label-active':''}" style="background:${isActiveSite?'var(--accent)':colorForStatus(s.status)};${isDimmed?'opacity:.45;':''}${labelEditMode?'cursor:grab;box-shadow:0 0 0 2px #fff, 0 2px 6px rgba(0,0,0,.4);':''}">${isActiveSite?'★ ':''}${escapeHtml(s.name)}</div>`, iconSize:null});
         const labelMarker = L.marker(labelPos, {icon:labelIcon}).addTo(siteLayer);
         if(labelEditMode){
           enableLabelDrag(labelMarker, s, labelPos);
