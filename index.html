@@ -2221,7 +2221,7 @@ body.theme-dark h1,body.theme-dark h2,body.theme-dark h3,body.theme-dark h4{
   <div class="modal" id="contactReportModalBox" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉현황</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-09-v251</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-09-v252</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -9089,8 +9089,11 @@ function renderDetailPanel(site){
       btn.textContent = mode==='dark' ? '☀️' : '🌙';
       btn.title = mode==='dark' ? '라이트 모드로 전환' : '다크 모드로 전환';
     };
-    let saved = 'light';
-    try{ saved = localStorage.getItem('themeMode') || 'light'; }catch(e){}
+    // 모바일에서 다크모드로 켜둬도 그건 그 기기(브라우저)의 localStorage에만 저장되기 때문에,
+    // 데스크탑 등 다른 기기/브라우저로 처음 열면 저장된 값이 없어서 항상 흰 배경(라이트 모드)으로
+    // 보이는 문제가 있었음 → 기본값 자체를 다크로 바꿔서, 따로 저장된 적 없는 기기는 처음부터 다크로 보이게 함
+    let saved = 'dark';
+    try{ saved = localStorage.getItem('themeMode') || 'dark'; }catch(e){}
     apply(saved);
     btn.addEventListener('click', ()=>{
       const next = document.body.classList.contains('theme-dark') ? 'light' : 'dark';
