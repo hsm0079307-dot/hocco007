@@ -960,6 +960,9 @@
     .card-compact{height:auto;min-height:56px;}
     .office-switcher{bottom:auto;top:8px;left:8px;right:8px;flex-wrap:wrap;z-index:520;}
     .office-btn{padding:5px 9px;font-size:10.5px;}
+    /* 모바일에서는 지도 영역이 좁아져서, 하단에 뜨는 안내문구(v235-map-hint)가 상단의
+       사업소 전환 버튼(office-switcher)과 겹치는 문제가 있었음 → 모바일에서는 안내문구를 숨김 */
+    .v235-map-hint{display:none;}
     .region-panel{max-width:60vw;top:44px;right:8px;bottom:60px;max-height:none;font-size:11px;z-index:500;}
     .region-panel .region-item{padding:4px 2px;font-size:10px;}
     #modeOverlay{position:fixed !important;inset:0 !important;align-items:center !important;justify-content:center !important;padding:16px !important;background:rgba(3,12,22,.6) !important;pointer-events:auto !important;z-index:900;}
@@ -1563,7 +1566,7 @@ label{letter-spacing:-.02em;}
   --v241-radius-xl:16px;--v241-radius-lg:14px;--v241-radius-md:11px;--v241-radius-sm:9px;
   --v241-shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px rgba(16,24,40,.045);
 }
-html,body{background:var(--v241-bg)!important;color:var(--v241-text)}
+html,body{background:var(--v241-bg)!important;color:var(--text-main)!important}
 body{letter-spacing:-.015em}
 #app,.app,.container,.main,.content,.page{background:transparent}
 .card,.panel,.section,.modal,.dialog,.stats-card,.stat-card,.site-card,.detail-card,.work-card{
@@ -1618,7 +1621,7 @@ hr,.divider{border-color:var(--v241-border)!important}
   --v241-radius-card:14px;--v241-radius-control:9px;--v241-radius-pill:999px;
   --v241-shadow:0 1px 2px rgba(16,24,40,.035),0 5px 18px rgba(16,24,40,.035);
 }
-html,body{background:var(--v241-bg)!important;color:var(--v241-text)!important}
+html,body{background:var(--v241-bg)!important;color:var(--text-main)!important}
 body{font-family:Pretendard,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:-.018em}
 .topbar{background:rgba(255,255,255,.94)!important;border-bottom:1px solid var(--v241-border)!important;box-shadow:0 1px 8px rgba(16,24,40,.035)!important;backdrop-filter:blur(10px);}
 .brand{letter-spacing:-.035em}
@@ -1871,21 +1874,21 @@ input,textarea,select{
 
 /* 밤: 푸른 느낌을 줄이고 차분한 차콜/슬레이트 */
 body.theme-dark{
-  --bg-side:#171c1d;
-  --bg-side-2:#101415;
-  --line:#303a3c;
+  --bg-side:#272f31;
+  --bg-side-2:#1f2729;
+  --line:#3a4547;
   --text-main:#edf1f0;
   --text-dim:#a9b3b2;
   --accent:#69a9a2;
   --accent-2:#6b8f9c;
   --accent-ink:#10201f;
-  --card:#1c2324;
-  --card-hover:#242e2f;
+  --card:#2c3738;
+  --card-hover:#334243;
   --grid-line:rgba(105,169,162,.055);
-  background:#101415 !important;
+  background:#1f2729 !important;
 }
 body.theme-dark #app{
-  background:linear-gradient(180deg,#101415 0%,#171c1d 100%) !important;
+  background:linear-gradient(180deg,#1f2729 0%,#272f31 100%) !important;
 }
 body.theme-dark .topbar,body.theme-dark .tabs,body.theme-dark .card,
 body.theme-dark .panel,body.theme-dark .detail-panel,body.theme-dark .sidebar,
@@ -1900,12 +1903,12 @@ body.theme-dark .report-matrix-wrap,body.theme-dark .report-site-toggle-row,
 body.theme-dark .report-site-notes-summary,body.theme-dark .report-manager-card,
 body.theme-dark .cal-nav,body.theme-dark .cal-quickadd,body.theme-dark .cal-inline-agenda,
 body.theme-dark .tab{
-  background:#171e1f !important;
+  background:#263233 !important;
   border-color:var(--line) !important;
   color:var(--text-main);
 }
 body.theme-dark input,body.theme-dark textarea,body.theme-dark select{
-  background:#121819 !important;color:var(--text-main) !important;border-color:var(--line) !important;
+  background:#212c2e !important;color:var(--text-main) !important;border-color:var(--line) !important;
 }
 body.theme-dark .btn-primary,body.theme-dark .tab.active,
 body.theme-dark .report-period-toggle .btn.active-toggle,
@@ -2180,7 +2183,7 @@ body.theme-dark .report-matrix2-cell.visited{
   <div class="modal" id="contactReportModalBox" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉현황</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-09-v237</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-09-v239</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
