@@ -1195,6 +1195,12 @@
  .detail-head-actions{gap:4px!important;}
  .summary-strip{display:none!important;}
  .tab{cursor:pointer;}
+ /* 모바일에서는 사업소 전환 버튼을 지도 위에 겹쳐 띄우지 않고, 지도 아래에 별도 줄로 내려서 배치.
+    sidebar는 flex:1로 남는 공간을 채우고, map-wrap은 고정 높이라 화면 밖으로 밀려나지 않음 */
+ .sidebar{flex:1 1 auto!important;min-height:0!important;}
+ .map-wrap{display:flex!important;flex-direction:column!important;flex:0 0 260px!important;min-height:260px!important;max-height:260px!important;}
+ #map{flex:1 1 auto;min-height:0;width:100%;height:auto;}
+ .office-switcher{position:static!important;top:auto!important;left:auto!important;right:auto!important;bottom:auto!important;order:2;flex:0 0 auto;margin:6px 8px 4px;width:auto;}
 }
 .mobile-stage-list-item{display:block;padding:10px 11px 9px 13px;margin:0 0 6px;border:1px solid var(--line);border-radius:10px;cursor:pointer;position:relative;}
 .mobile-stage-list-item:hover{border-color:var(--accent);}
@@ -1930,6 +1936,12 @@ body.theme-dark .report-view-tab.active-toggle,
 body.theme-dark .report-matrix2-cell.visited{
   background:var(--accent) !important;border-color:var(--accent) !important;color:var(--accent-ink) !important;
 }
+/* 어두운 테마에서 현장목록의 선택된(active) 항목 이름이 --accent-ink(짙은 남색)라 잘 안 보인다는
+   피드백 → 선택된 항목의 이름 글씨만 밝은 색으로 변경 (다른 --accent-ink 사용처는 그대로 둠) */
+body.theme-dark .name-item.active,
+body.theme-dark .mobile-stage-list-item.active{
+  color:#fff !important;
+}
 </style>
 
 
@@ -2200,7 +2212,7 @@ body.theme-dark .report-matrix2-cell.visited{
   <div class="modal" id="contactReportModalBox" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">접촉현황</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-09-v246</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-09-v247</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
