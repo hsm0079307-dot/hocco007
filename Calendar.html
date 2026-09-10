@@ -860,6 +860,153 @@ body.dark-mode .bottom-toolbar button{color:#e4eded !important}
   .bottom-toolbar{bottom:8px !important;justify-content:flex-start !important;margin-top:12px !important}
 }
 
+
+/* =========================================================
+   MOBILE DETAIL PASS v2 — 2026-09-10
+   모바일에서 PC 축소 느낌 제거 / 팝업·관리메뉴·집계표 정리
+   ========================================================= */
+.summary-card::after{display:none !important}
+
+/* 모달은 본문 다크/라이트 모드와 관계없이 읽기 쉬운 밝은 카드로 통일 */
+.overlay{z-index:200 !important;background:rgba(31,54,59,.42) !important;backdrop-filter:blur(8px) !important;-webkit-backdrop-filter:blur(8px) !important}
+.modal{
+  background:#ffffff !important;color:#233f46 !important;
+  border:1px solid #dbe7e5 !important;border-radius:22px !important;
+  box-shadow:0 26px 72px rgba(22,52,58,.24) !important;
+}
+.modal h2,.modal h3,.modal .row-line span,.modal .block,#modalBody,#statusBody,#formFields,#memoBody{color:#233f46 !important}
+.modal .close{background:#eef5f3 !important;color:#5c747a !important;border:0 !important;border-radius:10px !important;width:34px !important;height:34px !important;font-size:17px !important}
+.modal .block{margin:0 0 14px !important;padding:0 !important}
+.modal .tag{margin:0 0 7px !important;padding:5px 9px !important;border-radius:999px !important;font-size:10.5px !important}
+.modal .row-line{
+  border:1px solid #e5eeec !important;border-radius:11px !important;
+  background:#f8fbfa !important;padding:9px 9px 9px 11px !important;margin:5px 0 !important;
+  line-height:1.42 !important;gap:8px !important;
+}
+.modal .row-line span{min-width:0 !important;font-size:12px !important;font-weight:650 !important;word-break:keep-all !important;overflow-wrap:anywhere !important}
+.modal .row-del{background:#fff0f2 !important;color:#d65b72 !important;border:1px solid #ffd6dd !important;border-radius:999px !important;padding:5px 9px !important;font-size:10px !important}
+.cap-info-line{
+  margin:13px 0 0 !important;padding:11px 12px !important;
+  border:1px solid #e3edeb !important;border-radius:11px !important;
+  background:#f7faf9 !important;color:#60777c !important;box-shadow:none !important;
+}
+.cap-info-line .mini-action{margin-left:auto !important;color:#176f6b !important;font-weight:850 !important}
+.preview-actions{display:grid !important;grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:7px !important;margin-top:11px !important;padding-top:11px !important}
+.preview-actions button{min-height:42px !important;padding:9px 7px !important;border-radius:11px !important;border:1px solid #dbe7e5 !important;background:#f7faf9 !important;color:#304f56 !important;font-size:11px !important;font-weight:850 !important}
+.preview-actions button.primary{background:#177e78 !important;border-color:#177e78 !important;color:#fff !important;box-shadow:none !important}
+.preview-actions button.on{background:#fff0f2 !important;border-color:#f7cbd4 !important;color:#c94f68 !important}
+body.dark-mode .modal,body.dark-mode .modal .row-line,body.dark-mode .cap-info-line{color:#233f46 !important}
+body.dark-mode .modal{background:#fff !important;border-color:#dbe7e5 !important}
+body.dark-mode .modal h2,body.dark-mode .modal h3,body.dark-mode .modal .row-line span,body.dark-mode #modalBody,body.dark-mode #statusBody,body.dark-mode #formFields,body.dark-mode #memoBody{color:#233f46 !important}
+body.dark-mode .modal .row-line{background:#f8fbfa !important;border-color:#e5eeec !important}
+body.dark-mode .cap-info-line{background:#f7faf9 !important;border-color:#e3edeb !important;color:#60777c !important}
+body.dark-mode .modal input,body.dark-mode .modal textarea,body.dark-mode .modal select{background:#fff !important;color:#233f46 !important;border-color:#d9e4e2 !important}
+
+/* 담당자 집계표 — 선과 행 높이를 줄여 모바일 밀도 개선 */
+#managerTable{overflow:hidden !important;border:1px solid #dfe9e7 !important;border-radius:14px !important;background:#fff !important}
+.manager-table{margin:0 !important;border:0 !important;border-collapse:separate !important;border-spacing:0 !important;table-layout:fixed !important;width:100% !important;box-shadow:none !important}
+.manager-table th,.manager-table td{border:0 !important;border-right:1px solid #e6eeec !important;border-bottom:1px solid #e6eeec !important;text-align:center !important;vertical-align:middle !important}
+.manager-table th:last-child,.manager-table td:last-child{border-right:0 !important}
+.manager-table tbody tr:last-child td{border-bottom:0 !important}
+.manager-table thead th{background:#253f59 !important;color:#fff !important;font-size:10.7px !important;font-weight:850 !important;padding:10px 5px !important}
+.manager-table tbody td{background:#fff !important;color:#374a5e !important;font-size:11.4px !important;line-height:1.35 !important;padding:9px 5px !important;min-height:48px !important}
+.manager-table td.mdanji{font-weight:600 !important;word-break:keep-all !important}
+.manager-table td.mname{font-weight:850 !important;word-break:keep-all !important}
+.manager-table td.clickable-count{text-decoration:none !important;font-weight:850 !important}
+.manager-table td.clickable-count::after{content:"";display:block;width:13px;border-bottom:1px dotted currentColor;margin:1px auto 0;opacity:.55}
+.manager-table th:nth-child(1),.manager-table td:nth-child(1){width:9% !important}
+.manager-table th:nth-child(2),.manager-table td:nth-child(2){width:25% !important}
+.manager-table th:nth-child(3),.manager-table td:nth-child(3){width:24% !important}
+.manager-table th:nth-child(4),.manager-table td:nth-child(4),
+.manager-table th:nth-child(5),.manager-table td:nth-child(5),
+.manager-table th:nth-child(6),.manager-table td:nth-child(6),
+.manager-table th:nth-child(7),.manager-table td:nth-child(7){width:10.5% !important}
+
+/* 요일 차트 영역을 과하게 큰 카드처럼 보이지 않게 */
+.chartWeekBar{
+  min-height:52px !important;margin:8px 0 7px !important;padding:8px 10px !important;
+  border:1px solid #e2ecea !important;border-radius:13px !important;background:#fafcfc !important;box-shadow:none !important;
+}
+.chartWeekBar span{font-size:12px !important;color:#294b52 !important;font-weight:900 !important}
+.chartWeekBar button{width:36px !important;height:36px !important;min-height:36px !important;padding:0 !important;border-radius:10px !important;background:#fff !important;color:#45656b !important}
+.chart-bars{height:96px !important;padding:11px 10px 8px !important;border:1px solid #e3ebe9 !important;border-radius:13px !important;background:#fbfcfd !important;box-shadow:none !important;gap:8px !important}
+.chart-bar-wrap{width:100% !important;max-width:20px !important;background:#f0f4f4 !important;border-radius:999px !important;overflow:hidden !important}
+.chart-bar{width:100% !important;min-width:0 !important;border-radius:999px !important}
+.chart-count{font-size:9px !important;min-height:12px !important;color:#45636a !important}
+.chart-label{font-size:9.5px !important;color:#6e858a !important;margin-top:3px !important}
+
+/* 모바일 관리 메뉴: 평소에는 작은 '관리' 버튼만, 누르면 패널 오픈 */
+.mobile-admin-fab,.mobile-admin-scrim{display:none}
+
+@media(max-width:560px){
+  body{padding:7px 5px calc(78px + env(safe-area-inset-bottom)) !important}
+  .wrap{max-width:none !important}
+  .checklist-section{padding:12px 10px 14px !important;border-radius:16px !important;margin-top:12px !important}
+  .checklist-section h2{font-size:15px !important;margin-bottom:9px !important}
+  .checklist-section h3{font-size:12.5px !important;margin:14px 0 7px !important}
+  .summary-bar{gap:6px !important}
+  .summary-card{min-height:68px !important;padding:10px 12px !important;border-radius:13px !important}
+  .summary-card .num{font-size:21px !important}.summary-card .label{font-size:9.5px !important;margin-top:5px !important}
+  .summary-card.attended,.summary-card.noshow,.summary-card.scheduled{border-top-width:2px !important}
+
+  .managerFilterBar{padding:7px !important;gap:6px !important;margin-bottom:9px !important;border-radius:12px !important}
+  .managerFilterBar .colFilter{flex:1 1 0 !important;min-width:0 !important}
+  .managerFilterBar .colFilterBtn{width:100% !important;height:36px !important;min-height:36px !important;padding:6px 5px !important;font-size:10.5px !important}
+  .managerFilterBar .resetBtn{height:36px !important;min-height:36px !important;padding:6px 9px !important;font-size:10.5px !important;white-space:nowrap !important}
+  .colFilterDropdown{min-width:170px !important;max-width:82vw !important}
+  #managerTable{border-radius:13px !important}
+  .manager-table thead th{font-size:9.9px !important;padding:9px 3px !important}
+  .manager-table tbody td{font-size:10.8px !important;padding:8px 3px !important;line-height:1.32 !important}
+  .manager-table td.mdanji,.manager-table td.mname{padding-left:4px !important;padding-right:4px !important}
+
+  /* 모바일에서 달력 미리보기는 하단 바텀시트 */
+  .overlay{align-items:flex-end !important;justify-content:center !important;padding:0 !important}
+  .overlay .modal{
+    width:100% !important;max-width:none !important;max-height:82dvh !important;margin:0 !important;
+    border-left:0 !important;border-right:0 !important;border-bottom:0 !important;
+    border-radius:24px 24px 0 0 !important;padding:18px 15px calc(18px + env(safe-area-inset-bottom)) !important;
+    overflow-y:auto !important;overscroll-behavior:contain !important;
+  }
+  .overlay .modal::before{content:"";display:block;width:38px;height:4px;border-radius:999px;background:#d4dfdd;margin:-8px auto 12px}
+  .modal h2{font-size:18px !important;margin:0 0 12px !important;color:#1f4148 !important}
+  .modal .close{position:sticky !important;top:0 !important;float:right !important;z-index:3 !important;margin:-1px 0 0 8px !important}
+  .modal .row-line{padding:10px !important;margin:6px 0 !important}
+  .modal .row-line span{font-size:11.5px !important;line-height:1.45 !important}
+  .cap-info-line{display:grid !important;grid-template-columns:1fr auto !important;align-items:center !important;gap:4px 8px !important;font-size:10.8px !important;padding:10px !important}
+  .cap-info-line .mini-action{margin:0 !important;white-space:nowrap !important;font-size:10px !important}
+  .preview-actions{grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:7px !important}
+  .preview-actions button{min-height:43px !important;font-size:10.8px !important}
+
+  .chartWeekBar{margin-top:8px !important}
+  .chart-bars{height:92px !important;padding:10px 8px 7px !important}
+
+  /* 기존 항상 떠 있던 툴바를 토글형 관리패널로 전환 */
+  .bottom-toolbar{
+    position:fixed !important;left:10px !important;right:10px !important;bottom:calc(68px + env(safe-area-inset-bottom)) !important;
+    width:auto !important;max-width:none !important;margin:0 !important;padding:9px !important;
+    display:grid !important;grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:5px !important;
+    border-radius:16px !important;background:rgba(255,255,255,.98) !important;
+    box-shadow:0 18px 50px rgba(29,62,67,.22) !important;
+    transform:translateY(16px) scale(.98) !important;opacity:0 !important;visibility:hidden !important;pointer-events:none !important;
+    transition:opacity .16s ease,transform .16s ease,visibility .16s !important;z-index:120 !important;overflow:visible !important;
+  }
+  .bottom-toolbar.mobile-open{transform:translateY(0) scale(1) !important;opacity:1 !important;visibility:visible !important;pointer-events:auto !important}
+  .bottom-toolbar button{height:39px !important;min-height:39px !important;padding:7px 8px !important;border:1px solid #e2ebe9 !important;border-radius:10px !important;background:#f8fbfa !important;color:#365960 !important;font-size:10.8px !important;text-align:center !important}
+  .bottom-toolbar button:nth-child(3),.bottom-toolbar button:nth-child(5){background:#eef7f5 !important;color:#176f6b !important}
+  body.dark-mode .bottom-toolbar{background:#fff !important;border-color:#dce8e5 !important;box-shadow:0 18px 50px rgba(0,0,0,.3) !important}
+  body.dark-mode .bottom-toolbar button{background:#f8fbfa !important;color:#365960 !important;border-color:#e2ebe9 !important}
+  .mobile-admin-fab{
+    display:flex !important;position:fixed !important;right:14px !important;bottom:calc(14px + env(safe-area-inset-bottom)) !important;z-index:130 !important;
+    height:46px !important;min-width:70px !important;padding:0 15px !important;border:1px solid rgba(23,111,107,.16) !important;border-radius:999px !important;
+    align-items:center !important;justify-content:center !important;gap:6px !important;background:#176f6b !important;color:#fff !important;
+    font-family:inherit !important;font-size:11.5px !important;font-weight:900 !important;box-shadow:0 10px 28px rgba(23,111,107,.27) !important;
+  }
+  .mobile-admin-fab::before{content:"⋯";font-size:17px;line-height:1;transform:translateY(-1px)}
+  .mobile-admin-fab[aria-expanded="true"]{background:#274d54 !important}
+  .mobile-admin-scrim{display:block !important;position:fixed !important;inset:0 !important;background:rgba(29,49,54,.18) !important;backdrop-filter:blur(2px) !important;-webkit-backdrop-filter:blur(2px) !important;z-index:110 !important;opacity:0 !important;visibility:hidden !important;pointer-events:none !important;transition:.16s ease !important}
+  .mobile-admin-scrim.on{opacity:1 !important;visibility:visible !important;pointer-events:auto !important}
+}
+
 </style>
 </head>
 <body>
@@ -950,16 +1097,18 @@ body.dark-mode .bottom-toolbar button{color:#e4eded !important}
     <div class="foot-note" id="footNote" contenteditable="true">※ 8/8~9, 8/15~16은 갤러리 10:30 / 1:30 2타임 운영</div>
   </div>
 
-  <div class="toolbar bottom-toolbar">
-    <button onclick="exportExcel()">엑셀</button>
-    <button onclick="window.print()">인쇄</button>
-    <button onclick="openCapacitySettings()">정원</button>
-    <button onclick="printAllDates()">전체인쇄</button>
-    <button onclick="backupScheduleData()">백업</button>
-    <button onclick="restoreScheduleDataPrompt()">불러오기</button>
-    <button onclick="changePassword()">비번변경</button>
-    <button onclick="showHomeScreenGuide()">홈화면추가</button>
+  <div class="toolbar bottom-toolbar" id="adminToolbar">
+    <button onclick="exportExcel();closeMobileAdminMenu()">엑셀</button>
+    <button onclick="window.print();closeMobileAdminMenu()">인쇄</button>
+    <button onclick="openCapacitySettings();closeMobileAdminMenu()">정원</button>
+    <button onclick="printAllDates();closeMobileAdminMenu()">전체인쇄</button>
+    <button onclick="backupScheduleData();closeMobileAdminMenu()">백업</button>
+    <button onclick="restoreScheduleDataPrompt();closeMobileAdminMenu()">불러오기</button>
+    <button onclick="changePassword();closeMobileAdminMenu()">비번변경</button>
+    <button onclick="showHomeScreenGuide();closeMobileAdminMenu()">홈화면추가</button>
   </div>
+  <div class="mobile-admin-scrim" id="mobileAdminScrim" onclick="closeMobileAdminMenu()"></div>
+  <button type="button" class="mobile-admin-fab" id="mobileAdminFab" aria-expanded="false" onclick="toggleMobileAdminMenu()">관리</button>
 </div>
 
 <div class="overlay" id="overlay">
@@ -1990,9 +2139,9 @@ function openPreview(key){
   const isClosed = !!GALLERY_CLOSED[key];
   const capForKey = getCapacityForKey(key);
   const headcountForKey = computeDateHeadcount(key);
-  html += "<div class='cap-info-line'>정원 "+(capForKey>0 ? capForKey+"명" : "미설정")+
+  html += "<div class='cap-info-line'><span class='cap-summary'>정원 "+(capForKey>0 ? capForKey+"명" : "미설정")+
     (headcountForKey>0 ? " · 현재 "+headcountForKey+"명" : "")+
-    " <span class='mini-action' onclick=\"openDateCapacitySettings()\">• 이 날짜만 설정</span></div>";
+    "</span><span class='mini-action' onclick=\"openDateCapacitySettings()\">이 날짜만 설정</span></div>";
   html += "<div class='preview-actions'>"+
     "<button onclick=\"addEntryFlow('gallery')\">+"+CAT_LABEL.gallery+"</button>"+
     "<button onclick=\"addEntryFlow('tour')\">+"+CAT_LABEL.tour+"</button>"+
@@ -2425,6 +2574,39 @@ function computeDateHeadcount(key){
     }
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',install); else install();
+})();
+</script>
+
+
+<script id="calendar-mobile-detail-v2">
+(function(){
+  function isMobile(){ return window.matchMedia && window.matchMedia('(max-width:560px)').matches; }
+  window.toggleMobileAdminMenu=function(){
+    var bar=document.getElementById('adminToolbar');
+    var fab=document.getElementById('mobileAdminFab');
+    var scrim=document.getElementById('mobileAdminScrim');
+    if(!bar||!fab) return;
+    var open=!bar.classList.contains('mobile-open');
+    bar.classList.toggle('mobile-open',open);
+    fab.setAttribute('aria-expanded',open?'true':'false');
+    if(scrim) scrim.classList.toggle('on',open);
+  };
+  window.closeMobileAdminMenu=function(){
+    var bar=document.getElementById('adminToolbar');
+    var fab=document.getElementById('mobileAdminFab');
+    var scrim=document.getElementById('mobileAdminScrim');
+    if(bar) bar.classList.remove('mobile-open');
+    if(fab) fab.setAttribute('aria-expanded','false');
+    if(scrim) scrim.classList.remove('on');
+  };
+  document.addEventListener('keydown',function(e){ if(e.key==='Escape') closeMobileAdminMenu(); });
+  window.addEventListener('resize',function(){ if(!isMobile()) closeMobileAdminMenu(); });
+
+  // 달력/상태 팝업을 열 때 관리 메뉴가 남아있지 않도록 정리
+  ['overlay','statusOverlay','formOverlay','memoOverlay'].forEach(function(id){
+    var el=document.getElementById(id); if(!el) return;
+    new MutationObserver(function(){ if(el.classList.contains('on')) closeMobileAdminMenu(); }).observe(el,{attributes:true,attributeFilter:['class']});
+  });
 })();
 </script>
 

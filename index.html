@@ -4938,7 +4938,7 @@ body.theme-dark .name-item.active{
   <div class="modal" id="contactReportModalBox" style="max-width:min(97vw,1180px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">통합 접촉현황</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-10-v374</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-10-v375</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -15164,7 +15164,9 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
   function smInRangeDate(k,r){return k&&k>=r.start&&k<=r.end;}
   function smRoster(site){
     const ex=smExcel(site);
-    const source=(ex&&Array.isArray(ex.people))?ex.people:(Array.isArray(site&&site.ownerRoster)?site.ownerRoster:[]);
+    const source=(ex&&Array.isArray(ex.people))
+      ? ex.people
+      : (Array.isArray(site&&site.ownerRoster)?site.ownerRoster:[]);
     return source.map(r=>typeof r==='string'
       ? {name:r.trim(),role:'',manager:'',unit:'',dong:'',contactMethod:'',contacted:false,todayContactMethod:''}
       : {
@@ -15216,7 +15218,44 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
     return h||null;
   }
   function smFillSiteSelect(){const e=document.getElementById('siteMgmtSiteSelect');if(!e)return;const a=smAllSites();e.innerHTML=a.map(x=>`<option value="${escapeHtml(String(x.site.id||''))}">${escapeHtml(x.site.name||'')} · ${escapeHtml(x.office.replace('사업소',''))}</option>`).join('');if(a.some(x=>String(x.site.id)===String(siteMgmtSiteId)))e.value=siteMgmtSiteId;else if(a.length){siteMgmtSiteId=String(a[0].site.id||'');e.value=siteMgmtSiteId;}}
-  function smExcel(site){const x=site&&site.excelStats;return x&&x.source==='excel-master'?x:null;}
+  function smExcel(site){
+    const own=site&&site.excelStats;
+    if(own&&own.source==='excel-master')return own;
+    if(!site)return null;
+
+    const key=smSiteLogicalKey(site.name||'');
+    if(!key)return null;
+
+    let ownerOffice='';
+    try{
+      for(const o of OFFICES){
+        const arr=allOfficesData[o]||[];
+        if(arr.some(s=>s===site || (s&&site&&String(s.id||'')===String(site.id||'') && smSiteLogicalKey(s.name||'')===key))){
+          ownerOffice=o;break;
+        }
+      }
+    }catch(e){}
+
+    const candidates=[];
+    try{
+      for(const o of OFFICES){
+        const arr=allOfficesData[o]||[];
+        for(const s of arr){
+          if(!s||smSiteLogicalKey(s.name||'')!==key)continue;
+          const x=s.excelStats;
+          if(x&&x.source==='excel-master'){
+            candidates.push({office:o,stats:x});
+          }
+        }
+      }
+    }catch(e){}
+
+    if(!candidates.length)return null;
+    const sameOffice=ownerOffice?candidates.filter(c=>c.office===ownerOffice):[];
+    const pool=sameOffice.length?sameOffice:candidates;
+    pool.sort((a,b)=>String(b.stats.syncedAt||'').localeCompare(String(a.stats.syncedAt||'')));
+    return pool[0].stats||null;
+  }
 
   // 집계표에서만 동일 담당자를 합친다. 로그/달력의 원문 '김민주 차장' 표기는 그대로 보존.
   function smManagerKey(v){
@@ -15337,20 +15376,61 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
   }
 
   function smManagerRows(x,events,periodMode){
+    // Excel-master 전체 누계는 byManager 캐시를 다시 합산하지 않고,
+    // Excel 사람별 snapshot(people)을 직접 1명씩 세어 담당자표를 만든다.
+    if(x&&x.source==='excel-master'&&!periodMode&&Array.isArray(x.people)){
+      const groups={};
+      let unassigned=0;
+
+      x.people.forEach(p=>{
+        if(!p||!String(p.name||'').trim())return;
+        const manager=smManagerKey(p.manager);
+        const contacted=!!p.contacted || ['상담','단순','TM'].includes(String(p.contactMethod||'').trim());
+        const method=String(p.contactMethod||'').trim();
+        const todayMethod=String(p.todayContactMethod||'').trim();
+
+        if(manager==='(미지정)'){
+          if(contacted)unassigned++;
+          return;
+        }
+
+        if(!groups[manager]){
+          groups[manager]={
+            name:manager,total:0,contacted:0,rate:0,today:0,
+            methods:{상담:0,단순:0,TM:0,미접촉:0,거부:0,부재:0,불명:0}
+          };
+        }
+        const g=groups[manager];
+        g.total++;
+        if(contacted)g.contacted++;
+        if(method&&g.methods[method]!==undefined)g.methods[method]++;
+        if(['상담','단순','TM'].includes(todayMethod))g.today++;
+      });
+
+      const rows=Object.values(groups)
+        .filter(r=>r.total>0)
+        .map(r=>({...r,rate:r.total?r.contacted/r.total*100:0}))
+        .sort((a,b)=>a.name.localeCompare(b.name,'ko'));
+
+      return{rows,unassigned};
+    }
+
+    // 월/주/일은 Excel-master면 events 자체가 Excel contactEvents이고,
+    // Excel 없는 현장만 Dashboard events가 들어온다.
     const bm=smMergeManagers(x.byManager||{}),a=smAggregateEvents(events),rows=[];
     Object.entries(bm).forEach(([name,d])=>{
-      if(name==='(미지정)')return;
+      if(name==='(미지정)'||Number(d.total||0)<=0)return;
       if(!periodMode){
         const contacted=Number(d.contacted||0);
         rows.push({name,total:Number(d.total||0),contacted,rate:Number(d.total||0)?contacted/Number(d.total||0)*100:0,today:Number(d.todayContacted||0),methods:d.methods});
       }else{
-        const p=a.mgr[name],contacted=p?p.people.size:0,methods=p?p.methods:{상담:0,단순:0,TM:0};
-        rows.push({name,total:Number(d.total||0),contacted,rate:Number(d.total||0)?contacted/Number(d.total||0)*100:0,today:0,methods});
+        const p=a.mgr[name],contacted=p?p.people.size:0,methods=p?p.methods:{상담:0,단순:0,TM:0,미접촉:0,거부:0,부재:0,불명:0};
+        rows.push({name,total:Number(d.total||0),contacted,rate:Number(d.total||0)?Math.min(100,contacted/Number(d.total||0)*100):0,today:0,methods});
       }
     });
     rows.sort((a,b)=>a.name.localeCompare(b.name,'ko'));
     const un=bm['(미지정)'];
-    const unassigned=!periodMode?(un?smSuccessMethods(un.methods):0):((a.mgr['(미지정)']&&a.mgr['(미지정)'].people.size)||0);
+    const unassigned=!periodMode?(un?Number(un.contacted||0):0):((a.mgr['(미지정)']&&a.mgr['(미지정)'].people.size)||0);
     return{rows,unassigned};
   }
 
@@ -15606,12 +15686,14 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
         </colgroup>
         <thead><tr><th>No</th><th>담당</th><th>인원</th><th>누계접촉</th><th>접촉률</th><th>금일접촉</th><th>상담</th><th>단순</th><th>TM</th><th>미접촉</th><th>거부</th><th>부재</th><th>불명</th></tr></thead>
         <tbody>${managerRows||'<tr><td colspan="13" class="pdf-empty">담당별 집계 없음</td></tr>'}${mr.rows.length?`<tr class="pdf-total"><td colspan="2">합계</td><td>${managerTotal.total}</td><td>${managerTotal.contacted}</td><td>${managerTotal.total?(managerTotal.contacted/managerTotal.total*100).toFixed(1):'0.0'}%</td><td>${managerTotal.today||'-'}</td><td>${managerTotal.상담||'-'}</td><td>${managerTotal.단순||'-'}</td><td>${managerTotal.TM||'-'}</td><td>${Math.max(0,managerTotal.total-managerTotal.contacted)||'-'}</td><td>${managerTotal.거부||'-'}</td><td>${managerTotal.부재||'-'}</td><td>${managerTotal.불명||'-'}</td></tr>`:''}</tbody>
-      </table>${mr.unassigned?`<div class="pdf-note-line">＊ 미담당 접촉 ${mr.unassigned}명</div>`:''}</div>`;
+      </table>${mr.unassigned?`<div class="pdf-note-line">＊ 담당 미지정 접촉 ${mr.unassigned}명 · 담당별 합계는 담당 입력된 인원만 표시</div>`:''}</div>`;
 
     const roleRows=roles.map((r,i)=>`<tr><td>${i+1}</td><td class="sm-drill sm-drill-link" data-drill="role_contacted" data-role="${escapeHtml(r.name)}">${escapeHtml(r.name)}</td><td ${smDrillAttr('role_total',{role:r.name})}>${r.total}</td><td ${r.contacted?smDrillAttr('role_contacted',{role:r.name}):''}>${r.contacted||'-'}</td><td ${r.uncontacted?smDrillAttr('role_uncontacted',{role:r.name}):''}>${r.uncontacted||'-'}</td><td ${r.total?smDrillAttr('role_rate',{role:r.name}):''}>${r.rate.toFixed(1)}%</td></tr>`).join('');
     const roleTable=`<div class="pdf-section pdf-role-card"><div class="pdf-section-title">② 집행부·직책별 접촉현황</div><table class="pdf-table pdf-role"><thead><tr><th style="width:28px">No</th><th class="left">직책</th><th>인원</th><th>접촉</th><th>미접촉</th><th>접촉률</th></tr></thead><tbody>${roleRows||'<tr><td colspan="6" class="pdf-empty">직책 집계 없음</td></tr>'}</tbody></table></div>`;
 
-    const source=x.source==='excel-master'?`Excel 원장 기준 · ${escapeHtml(String(x.syncedAt||'').replace('T',' ').slice(0,16))}`:'대시보드 명단/보고서 기준';
+    const source=x.source==='excel-master'
+      ? `Excel 원장 기준 · ${escapeHtml(String(x.syncedAt||'').replace('T',' ').slice(0,16))}`
+      : '대시보드 명단/보고서 기준';
     body.innerHTML=`<div class="pdfsheet">
       <div class="pdf-titlebar"><span>▣ ${escapeHtml(site.name)} 접촉현황</span><small>${escapeHtml(titleDate)}</small></div>
       <div class="pdf-source">${source}${periodMode?' · 선택기간 집계':''}</div>
