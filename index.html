@@ -2298,6 +2298,13 @@ body.theme-dark .name-item.active{
   .sm-table{width:100%;border-collapse:separate;border-spacing:0;font-size:10.5px;min-width:520px}.sm-table th,.sm-table td{padding:6px 7px;border-bottom:1px solid var(--line);border-right:1px solid var(--line);text-align:center;white-space:nowrap}.sm-table th{position:sticky;top:0;background:var(--bg-side-2);z-index:2;color:var(--text-dim);font-size:9.8px}.sm-table th:last-child,.sm-table td:last-child{border-right:0}.sm-table tr:last-child td{border-bottom:0}.sm-table td.left,.sm-table th.left{text-align:left;}
   .sm-note-list{padding:8px 10px;max-height:340px;overflow:auto}.sm-note{border-bottom:1px solid var(--line);padding:8px 2px;line-height:1.45;font-size:10.8px}.sm-note:last-child{border-bottom:0}.sm-note-date{font-size:9.5px;color:var(--accent);font-weight:700;margin-bottom:2px}.sm-note-meta{font-size:9.5px;color:var(--text-dim);margin-bottom:3px}.sm-empty{padding:18px 10px;text-align:center;color:var(--text-dim);font-size:11px}.sm-period-label{font-size:11px;font-weight:700;min-width:128px;text-align:center}.sm-progress{height:5px;background:var(--bg-side);border:1px solid var(--line);border-radius:999px;overflow:hidden;margin-top:4px}.sm-progress>i{display:block;height:100%;background:var(--accent);}
   @media(max-width:820px){#globalStatsModalBox{width:98vw;max-height:96vh}.sm-head{padding:9px}.sm-spacer{display:none}.sm-select{min-width:145px;max-width:52vw}.sm-body{padding:8px;max-height:calc(96vh - 92px)}.sm-kpis{grid-template-columns:repeat(2,1fr)}.sm-grid2{grid-template-columns:1fr}.sm-table{font-size:10px}}
+
+  .sm-sheet-grid{display:grid;grid-template-columns:1.05fr 1fr;gap:10px;margin-bottom:10px}
+  .sm-section.full{grid-column:1/-1}.sm-muted{color:var(--text-dim);font-size:9.5px}
+  .sm-total-row td{font-weight:800;background:var(--bg-side)}
+  .sm-status-ok{font-weight:800;color:var(--accent)}
+  .sm-detail-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:10px}
+  @media(max-width:900px){.sm-sheet-grid,.sm-detail-grid{grid-template-columns:1fr}.sm-section.full{grid-column:auto}}
 </style>
 
 </head>
@@ -2335,7 +2342,7 @@ body.theme-dark .name-item.active{
         <details class="menu-section">
           <summary class="menu-section-title">📊 리포트</summary>
           <div class="menu-section-body">
-            <button class="menu-item-btn" id="globalStatsMenuBtn" type="button">📌 현장 관리집계</button>
+            <button class="menu-item-btn" id="globalStatsMenuBtn" type="button">📌 현장별 접촉현황</button>
             <button class="menu-item-btn" id="handoverBtn" type="button">🤝 인수인계 리포트</button>
           </div>
         </details>
@@ -2376,7 +2383,7 @@ body.theme-dark .name-item.active{
           <button class="menu-item-btn" id="mobileNavSummaryBtn" type="button">📱 간단현황</button>
           <button class="menu-item-btn" id="mobileNavCalendarBtn" type="button">📅 일정 캘린더</button>
           <button class="menu-item-btn" id="mobileNavReportBtn" type="button">📊 접촉현황</button>
-          <button class="menu-item-btn" id="mobileNavGlobalStatsBtn" type="button">📌 현장 관리집계</button>
+          <button class="menu-item-btn" id="mobileNavGlobalStatsBtn" type="button">📌 현장별 접촉현황</button>
           <button class="menu-item-btn" id="mobileNavTourBtn" type="button">🚗 투어예약</button>
         </div>
       </div>
@@ -2387,7 +2394,7 @@ body.theme-dark .name-item.active{
     <button class="view-switch-btn mobile-only-btn" id="mobileSummaryBtn">📱 간단현황</button>
     <button class="view-switch-btn" id="calendarBtn">📅 일정 캘린더</button>
     <button class="view-switch-btn" id="contactReportTopBtn">📊 접촉현황</button>
-    <button type="button" class="view-switch-btn" id="globalStatsTopBtn" onclick="if(window.openGlobalStats){window.openGlobalStats();}">📌 현장 관리집계</button>
+    <button type="button" class="view-switch-btn" id="globalStatsTopBtn" onclick="if(window.openGlobalStats){window.openGlobalStats();}">📌 현장별 접촉현황</button>
     <button class="view-switch-btn" id="tourBookingTopBtn">🚗 투어예약</button>
     <div class="manager-filter-wrap" id="managerFilterWrap">
       <button class="view-switch-btn" id="managerFilterBtn" type="button">👤 담당자 전체 ▾</button>
@@ -2450,14 +2457,15 @@ body.theme-dark .name-item.active{
 <div class="overlay" id="globalStatsOverlay">
   <div class="modal" id="globalStatsModalBox">
     <div class="sm-head">
-      <h3>📌 현장 관리집계</h3>
+      <h3>📌 현장별 접촉현황</h3>
       <select id="globalStatsOfficeFilter" class="sm-select" title="사업소">
         <option value="__ALL__">전체 사업소</option><option value="강서사업소">강서사업소</option><option value="강남사업소">강남사업소</option><option value="강북사업소">강북사업소</option>
       </select>
       <select id="siteMgmtSiteSelect" class="sm-select" title="현장 선택"></select>
-      <button type="button" class="sm-btn" id="siteMgmtDayBtn">일</button>
-      <button type="button" class="sm-btn" id="siteMgmtWeekBtn">주</button>
+      <button type="button" class="sm-btn" id="siteMgmtAllBtn">전체</button>
       <button type="button" class="sm-btn" id="siteMgmtMonthBtn">월</button>
+      <button type="button" class="sm-btn" id="siteMgmtWeekBtn">주</button>
+      <button type="button" class="sm-btn" id="siteMgmtDayBtn">일</button>
       <button type="button" class="sm-btn" id="siteMgmtPrevBtn">◀</button>
       <span id="siteMgmtPeriodLabel" class="sm-period-label"></span>
       <button type="button" class="sm-btn" id="siteMgmtNextBtn">▶</button>
@@ -2573,7 +2581,7 @@ body.theme-dark .name-item.active{
   <div class="modal" id="contactReportModalBox" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">현장 방문·접촉 현황</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-10-v345</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-10-v347</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -3038,12 +3046,21 @@ const L = (function(){
         const freshSite=freshArr[idxInOffice]||{};
         const freshLogs=Array.isArray(freshSite.logs)?freshSite.logs:[];
         const officeArr=allOfficesData[officeName]||[];
+
+        // Excel-master 동기화 결과도 targeted 경로에서 같이 가져온다.
+        // 예전엔 logs만 합쳐서 현장별 접촉현황가 계속 '대시보드 명단 기준'으로 남는 문제가 있었다.
+        if(freshSite.excelStats && typeof freshSite.excelStats==='object') site.excelStats=freshSite.excelStats;
+        if(Array.isArray(freshSite.ownerRoster) && freshSite.ownerRoster.length) site.ownerRoster=freshSite.ownerRoster;
         const localIds=new Set((site.logs||[]).map(l=>l.id));
         const newFromServer=freshLogs.filter(l=>l && !localIds.has(l.id) && !deletedLogIds.has(l.id));
+        const localIdx=officeArr.findIndex(s2=>s2.id===site.id);
+        if(localIdx>-1){
+          if(site.excelStats) officeArr[localIdx].excelStats=site.excelStats;
+          if(Array.isArray(site.ownerRoster)) officeArr[localIdx].ownerRoster=site.ownerRoster;
+        }
 
         if(newFromServer.length && !editingLogId){
           site.logs=(site.logs||[]).concat(newFromServer);
-          const localIdx=officeArr.findIndex(s2=>s2.id===site.id);
           if(localIdx>-1) officeArr[localIdx].logs=site.logs;
 
           if(currentView==='detail' && currentDetailId===site.id){
@@ -4874,7 +4891,7 @@ const L = (function(){
       </head><body>
         <h1>${title}</h1>
       <!-- v235: quick filters, expanded search, sorting, list/map UX -->
-<!-- dashboard v3.39: 현장 관리집계 -->
+<!-- dashboard v3.39: 현장별 접촉현황 -->
 </body></html>`);
       printWin.document.body.appendChild(tableClone);
       printWin.document.close();
@@ -12134,71 +12151,112 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
   })();
 
 
-// ---------- v3.40 현장 중심 관리집계 ----------
-  let siteMgmtOffice='__ALL__', siteMgmtSiteId='', siteMgmtPeriod='week', siteMgmtDate=new Date();
+// ---------- v3.47 현장별 접촉현황: Excel 접촉현황 시트 방식 ----------
+  let siteMgmtOffice='__ALL__', siteMgmtSiteId='', siteMgmtPeriod='all', siteMgmtDate=new Date();
 
   function smDateKey(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
   function smMonday(d){const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());x.setDate(x.getDate()-((x.getDay()+6)%7));return x;}
-  function smRange(){const d=siteMgmtDate;if(siteMgmtPeriod==='day'){const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());return{start:x,end:x,label:`${x.getFullYear()}.${x.getMonth()+1}.${x.getDate()}`};}if(siteMgmtPeriod==='week'){const s=smMonday(d),e=new Date(s);e.setDate(e.getDate()+6);return{start:s,end:e,label:`${s.getMonth()+1}.${s.getDate()} ~ ${e.getMonth()+1}.${e.getDate()}`};}const s=new Date(d.getFullYear(),d.getMonth(),1),e=new Date(d.getFullYear(),d.getMonth()+1,0);return{start:s,end:e,label:`${s.getFullYear()}년 ${s.getMonth()+1}월`};}
-  function smInRange(l,r){if(!l||!l.date)return false;const k=String(l.date).slice(0,10);return k>=smDateKey(r.start)&&k<=smDateKey(r.end);}
-  function smSplitManager(raw){return String(raw||'').split(/[,，;/|\n]+/).map(x=>x.trim()).filter(Boolean);}
+  function smRange(){
+    const d=siteMgmtDate;
+    if(siteMgmtPeriod==='all') return {start:'0000-01-01',end:'9999-12-31',label:'전체 누계'};
+    if(siteMgmtPeriod==='day'){const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());return{start:smDateKey(x),end:smDateKey(x),label:`${x.getFullYear()}.${x.getMonth()+1}.${x.getDate()}`};}
+    if(siteMgmtPeriod==='week'){const s=smMonday(d),e=new Date(s);e.setDate(e.getDate()+6);return{start:smDateKey(s),end:smDateKey(e),label:`${s.getMonth()+1}.${s.getDate()} ~ ${e.getMonth()+1}.${e.getDate()}`};}
+    const s=new Date(d.getFullYear(),d.getMonth(),1),e=new Date(d.getFullYear(),d.getMonth()+1,0);return{start:smDateKey(s),end:smDateKey(e),label:`${s.getFullYear()}년 ${s.getMonth()+1}월`};
+  }
+  function smInRangeDate(k,r){return !!k && k>=r.start && k<=r.end;}
+  function smSplit(raw){return String(raw||'').split(/[,，;/|\n]+/).map(x=>x.trim()).filter(Boolean);}
   function smRoster(site){return(Array.isArray(site&&site.ownerRoster)?site.ownerRoster:[]).map(r=>typeof r==='string'?{name:r.trim(),role:'',manager:''}:{name:String(r&&r.name||'').trim(),role:String(r&&r.role||'').trim(),manager:String(r&&r.manager||'').trim()}).filter(r=>r.name);}
-  function smCore(raw){return String(raw||'').trim().replace(/[（(].*?[）)]/g,' ').replace(/\s+/g,' ').trim().toLowerCase();}
-  function smPeople(raw){return String(raw||'').split(/[,，;/|\n]+/).map(x=>x.trim()).filter(Boolean);}
   function smAllSites(){const os=siteMgmtOffice==='__ALL__'?OFFICES:[siteMgmtOffice];return os.flatMap(o=>(allOfficesData[o]||[]).map(s=>({office:o,site:s})));}
   function smSelected(){const a=smAllSites();let h=a.find(x=>String(x.site.id)===String(siteMgmtSiteId));if(!h&&a.length){h=a[0];siteMgmtSiteId=String(h.site.id||'');}return h||null;}
   function smFillSiteSelect(){const e=document.getElementById('siteMgmtSiteSelect');if(!e)return;const a=smAllSites();e.innerHTML=a.map(x=>`<option value="${escapeHtml(String(x.site.id||''))}">${escapeHtml(x.site.name||'')} · ${escapeHtml(x.office.replace('사업소',''))}</option>`).join('');if(a.some(x=>String(x.site.id)===String(siteMgmtSiteId)))e.value=siteMgmtSiteId;else if(a.length){siteMgmtSiteId=String(a[0].site.id||'');e.value=siteMgmtSiteId;}}
-  function smDashboardProgress(site){const r=smRoster(site),keys=r.map(x=>smCore(x.name)),hit=new Set();(site.logs||[]).filter(l=>!isTourBookingLog(l)).forEach(l=>smPeople(l.contactName).forEach(p=>{const i=keys.indexOf(smCore(p));if(i>=0)hit.add(i);}));return{total:r.length,contacted:hit.size,uncontacted:Math.max(0,r.length-hit.size),rate:r.length?hit.size/r.length*100:0};}
-  function smProgress(site){const x=site&&site.excelStats&&site.excelStats.source==='excel-master'?site.excelStats:null;if(x){const total=Number(x.totalOwners||0),contacted=Number(x.contactedOwners||0);return{source:'excel',total,contacted,uncontacted:Number(x.uncontactedOwners!=null?x.uncontactedOwners:Math.max(0,total-contacted)),rate:Number(x.contactRate!=null?x.contactRate:(total?contacted/total*100:0)),roleOwners:Number(x.roleOwners||0),byDong:x.byDong||null,syncedAt:String(x.syncedAt||'')};}const d=smDashboardProgress(site),r=smRoster(site);return{...d,source:'dashboard',roleOwners:r.filter(x=>x.role).length,byDong:null,syncedAt:''};}
-  function smPeriodStats(site,r){const logs=(site.logs||[]).filter(l=>!isTourBookingLog(l)&&smInRange(l,r)),dates=new Set(logs.map(l=>l.date).filter(Boolean)),managers={},people={};logs.forEach(l=>{smSplitManager((l.author||'').trim()||site.manager||'담당자 미상').forEach(m=>{if(!managers[m])managers[m]={dates:new Set(),people:new Set(),reports:0};if(l.date)managers[m].dates.add(l.date);smPeople(l.contactName).forEach(p=>managers[m].people.add(smCore(p)||p));managers[m].reports++;});smPeople(l.contactName||l.owner).forEach(p=>{const k=smCore(p)||p;if(!people[k])people[k]={name:p,dates:new Set(),reports:0,last:'',methods:new Set()};if(l.date)people[k].dates.add(l.date);people[k].reports++;if((l.date||'')>people[k].last)people[k].last=l.date||'';if(l.contactMethod)people[k].methods.add(l.contactMethod);});});return{logs,visitDays:dates.size,managers,people};}
-  function smExecLogs(site,r){const roster=smRoster(site),roleNames=new Set(roster.filter(x=>x.role).map(x=>smCore(x.name)));return(site.logs||[]).filter(l=>!isTourBookingLog(l)&&smInRange(l,r)&&(String(l.executiveStance||'').trim()||smPeople(l.contactName).some(n=>roleNames.has(smCore(n))))).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));}
-  function smWeeklyGroups(site,r){const logs=(site.logs||[]).filter(l=>!isTourBookingLog(l)&&smInRange(l,r)&&String(l.text||'').trim()),g={};logs.forEach(l=>{const d=new Date((l.date||'')+'T00:00:00');if(isNaN(d))return;const k=smDateKey(smMonday(d));(g[k]||(g[k]=[])).push(l);});return Object.entries(g).sort((a,b)=>b[0].localeCompare(a[0]));}
-  function smDongRows(p){const b=p.byDong;if(!b)return[];const a=Array.isArray(b)?b:Object.entries(b).map(([dong,v])=>({dong,...(v||{})}));return a.map(v=>{const total=Number(v.total||v.totalOwners||0),contacted=Number(v.contacted||v.contactedOwners||0);return{dong:String(v.dong||v.name||v.key||'-'),total,contacted,uncontacted:Number(v.uncontacted!=null?v.uncontacted:Math.max(0,total-contacted)),rate:Number(v.contactRate!=null?v.contactRate:(total?contacted/total*100:0)),today:Number(v.todayContacted||0),role:Number(v.roleOwners||0)};}).filter(x=>x.dong!=='-'||x.total||x.contacted);}
-  function renderGlobalStats(){const body=document.getElementById('globalStatsBody');if(!body)return;const pick=smSelected();if(!pick){body.innerHTML='<div class="sm-empty">표시할 현장이 없습니다.</div>';return;}const{site,office}=pick,r=smRange(),p=smProgress(site),ps=smPeriodStats(site,r),exec=smExecLogs(site,r),weeks=smWeeklyGroups(site,r),dong=smDongRows(p);document.getElementById('siteMgmtPeriodLabel').textContent=r.label;[['day','Day'],['week','Week'],['month','Month']].forEach(([m,n])=>{const e=document.getElementById('siteMgmt'+n+'Btn');if(e)e.classList.toggle('active',siteMgmtPeriod===m);});const source=p.source==='excel'?`<span class="sm-source excel">📗 Excel 원장 기준${p.syncedAt?' · '+escapeHtml(p.syncedAt.replace('T',' ').slice(5,16)):''}</span>`:'<span class="sm-source dash">🌐 대시보드 명단 기준</span>';const mgr=Object.entries(ps.managers).sort((a,b)=>a[0].localeCompare(b[0],'ko')).map(([n,d])=>`<tr><td class="left">${escapeHtml(n)}</td><td>${d.dates.size}</td><td>${d.people.size}</td><td>${d.reports}</td></tr>`).join('');const people=Object.values(ps.people).sort((a,b)=>String(b.last).localeCompare(String(a.last))||a.name.localeCompare(b.name,'ko')).map(d=>`<tr><td class="left">${escapeHtml(d.name)}</td><td>${d.dates.size}</td><td>${d.reports}</td><td>${escapeHtml(d.last||'-')}</td><td>${escapeHtml(Array.from(d.methods).join(' / ')||'-')}</td></tr>`).join('');const dongHtml=dong.length?`<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th class="left">동</th><th>조합원/소유주</th><th>누계접촉</th><th>미접촉</th><th>접촉률</th><th>금일</th><th>직책자</th></tr></thead><tbody>${dong.map(x=>`<tr><td class="left">${escapeHtml(x.dong)}</td><td>${x.total}</td><td>${x.contacted}</td><td>${x.uncontacted}</td><td>${x.rate.toFixed(1)}%</td><td>${x.today}</td><td>${x.role}</td></tr>`).join('')}</tbody></table></div>`:'';const execHtml=exec.length?exec.map(l=>`<div class="sm-note"><div class="sm-note-date">${escapeHtml(l.date||'')}</div><div class="sm-note-meta">${escapeHtml(l.contactName||l.owner||'-')}${l.author?' · 담당 '+escapeHtml(l.author):''}${l.executiveStance?' · 집행부성향 '+escapeHtml(l.executiveStance):''}${l.closeness?' · 친밀도 '+escapeHtml(l.closeness):''}</div><div>${escapeHtml(l.text||'')}</div></div>`).join(''):'<div class="sm-empty">이 기간 집행부/직책자 접촉 기록이 없습니다.</div>';const weekHtml=weeks.length?weeks.map(([wk,logs])=>{const s=new Date(wk+'T00:00:00'),e=new Date(s);e.setDate(e.getDate()+6);return`<div class="sm-note"><div class="sm-note-date">${s.getMonth()+1}/${s.getDate()} ~ ${e.getMonth()+1}/${e.getDate()}</div>${logs.slice().sort((a,b)=>String(b.date).localeCompare(String(a.date))).map(l=>`<div style="margin:5px 0 8px;"><div class="sm-note-meta">${escapeHtml(l.date||'')} · ${escapeHtml(l.contactName||l.owner||'-')}${l.author?' · '+escapeHtml(l.author):''}</div><div>${escapeHtml(l.text||'')}</div></div>`).join('')}</div>`;}).join(''):'<div class="sm-empty">이 기간 특이사항/상담 기록이 없습니다.</div>';const pct=Math.max(0,Math.min(100,Number(p.rate||0)));body.innerHTML=`<div class="sm-site-title"><h2>${escapeHtml(site.name||'')}</h2><span>${escapeHtml(office)}</span>${source}</div><div class="sm-section"><div class="sm-section-head"><b>① 현장별 접촉 집계</b><span>전체 현장 합계가 아니라 선택 현장 기준</span></div><div class="sm-kpis"><div class="sm-kpi"><div class="l">조합원/소유주</div><div class="v">${p.total.toLocaleString()}</div><div class="s">명부 기준</div></div><div class="sm-kpi"><div class="l">누계 접촉</div><div class="v">${p.contacted.toLocaleString()}</div><div class="s">전체 기간</div></div><div class="sm-kpi"><div class="l">미접촉</div><div class="v">${p.uncontacted.toLocaleString()}</div><div class="s">누계 기준</div></div><div class="sm-kpi"><div class="l">접촉률</div><div class="v">${Number(p.rate||0).toFixed(1)}%</div><div class="sm-progress"><i style="width:${pct}%"></i></div></div><div class="sm-kpi"><div class="l">집행부/직책자</div><div class="v">${p.roleOwners.toLocaleString()}</div><div class="s">명부 직책 기준</div></div><div class="sm-kpi"><div class="l">${siteMgmtPeriod==='day'?'당일':siteMgmtPeriod==='week'?'주간':'월간'} 방문</div><div class="v">${ps.visitDays}</div><div class="s">고유 방문일수</div></div></div>${dongHtml}</div><div class="sm-section"><div class="sm-section-head"><b>② 방문 횟수 · 담당별 · 개인별</b><span>${escapeHtml(r.label)} / 같은 날 여러 보고서는 방문 1회</span></div><div class="sm-grid2"><div class="sm-table-wrap"><table class="sm-table"><thead><tr><th class="left">담당자</th><th>방문일수</th><th>접촉인원</th><th>보고서</th></tr></thead><tbody>${mgr||'<tr><td colspan="4" class="sm-empty">기록 없음</td></tr>'}</tbody></table></div><div class="sm-table-wrap"><table class="sm-table"><thead><tr><th class="left">조합원/소유주·접촉자</th><th>접촉일수</th><th>보고서</th><th>최근일</th><th>방법</th></tr></thead><tbody>${people||'<tr><td colspan="5" class="sm-empty">기록 없음</td></tr>'}</tbody></table></div></div></div><div class="sm-grid2"><div class="sm-section" style="margin-bottom:0"><div class="sm-section-head"><b>③ 집행부 접촉</b><span>집행부 성향 또는 명부 직책자 접촉</span></div><div class="sm-note-list">${execHtml}</div></div><div class="sm-section" style="margin-bottom:0"><div class="sm-section-head"><b>④ 주별 특이사항 · 주요 이슈</b><span>보고서 내용을 주차별로 묶음</span></div><div class="sm-note-list">${weekHtml}</div></div></div>`;}
-  function openGlobalStats(){
-    const overlay=document.getElementById('globalStatsOverlay');
-    const body=document.getElementById('globalStatsBody');
-    if(overlay) overlay.classList.add('show'); // open FIRST so click always has visible response
-    try{
-      siteMgmtOffice=(typeof currentOffice!=='undefined' && typeof ALL_OFFICE!=='undefined' && currentOffice && currentOffice!==ALL_OFFICE)?currentOffice:'__ALL__';
-      const o=document.getElementById('globalStatsOfficeFilter');
-      if(o)o.value=siteMgmtOffice;
-      if(typeof currentDetailId!=='undefined' && currentDetailId)siteMgmtSiteId=String(currentDetailId);
-      smFillSiteSelect();
-      renderGlobalStats();
-      const picked=smSelected();
-      if(picked&&picked.site&&typeof refreshLogsForSiteIfNeeded==='function')refreshLogsForSiteIfNeeded(picked.site,true);
-    }catch(err){
-      console.error('현장 관리집계 열기 실패',err);
-      if(body){
-        body.innerHTML='<div class="sm-empty" style="padding:24px;">현장 관리집계를 불러오지 못했습니다.<br><span style="font-size:10px;">'+
-          escapeHtml(String(err&&err.message||err))+'</span></div>';
-      }
-    }
+  function smExcel(site){const x=site&&site.excelStats;return x&&x.source==='excel-master'?x:null;}
+  function smDashboardFallback(site){const roster=smRoster(site), logs=(site.logs||[]).filter(l=>!isTourBookingLog(l)), names=new Set();logs.forEach(l=>smSplit(l.contactName).forEach(n=>names.add(n)));const total=roster.length,contacted=Math.min(total,names.size);return{source:'dashboard-master',totalOwners:total,contactedOwners:contacted,uncontactedOwners:Math.max(0,total-contacted),contactRate:total?contacted/total*100:0,roleOwners:roster.filter(r=>r.role).length,byManager:{},byRole:{},byDong:{},contactEvents:[]};}
+  function smStats(site){return smExcel(site)||smDashboardFallback(site);}
+  function smEvents(site,range){
+    const x=smExcel(site);
+    if(x&&Array.isArray(x.contactEvents)&&x.contactEvents.length){return x.contactEvents.filter(e=>smInRangeDate(String(e.date||''),range));}
+    // Excel 이벤트가 아직 없는 구버전 데이터는 Dashboard logs로 기간 집계 fallback.
+    const out=[];(site.logs||[]).filter(l=>!isTourBookingLog(l)&&smInRangeDate(String(l.date||''),range)).forEach(l=>{
+      smSplit(l.contactName||l.owner).forEach(n=>out.push({date:l.date,name:n,manager:l.author||site.manager||'',unit:l.unit||'',dong:'',role:'',method:l.contactMethod||''}));
+    });return out;
   }
-  const smOffice=document.getElementById('globalStatsOfficeFilter');if(smOffice)smOffice.addEventListener('change',()=>{siteMgmtOffice=smOffice.value;siteMgmtSiteId='';smFillSiteSelect();renderGlobalStats();});
-  const smSite=document.getElementById('siteMgmtSiteSelect');if(smSite)smSite.addEventListener('change',()=>{siteMgmtSiteId=smSite.value;renderGlobalStats();const picked=smSelected();if(picked&&picked.site)refreshLogsForSiteIfNeeded(picked.site,true);});
-  [['day','Day'],['week','Week'],['month','Month']].forEach(([m,n])=>{const e=document.getElementById('siteMgmt'+n+'Btn');if(e)e.addEventListener('click',()=>{siteMgmtPeriod=m;renderGlobalStats();});});
-  const smPrev=document.getElementById('siteMgmtPrevBtn');if(smPrev)smPrev.addEventListener('click',()=>{if(siteMgmtPeriod==='day')siteMgmtDate=new Date(siteMgmtDate.getFullYear(),siteMgmtDate.getMonth(),siteMgmtDate.getDate()-1);else if(siteMgmtPeriod==='week')siteMgmtDate=new Date(siteMgmtDate.getFullYear(),siteMgmtDate.getMonth(),siteMgmtDate.getDate()-7);else siteMgmtDate=new Date(siteMgmtDate.getFullYear(),siteMgmtDate.getMonth()-1,1);renderGlobalStats();});
-  const smNext=document.getElementById('siteMgmtNextBtn');if(smNext)smNext.addEventListener('click',()=>{if(siteMgmtPeriod==='day')siteMgmtDate=new Date(siteMgmtDate.getFullYear(),siteMgmtDate.getMonth(),siteMgmtDate.getDate()+1);else if(siteMgmtPeriod==='week')siteMgmtDate=new Date(siteMgmtDate.getFullYear(),siteMgmtDate.getMonth(),siteMgmtDate.getDate()+7);else siteMgmtDate=new Date(siteMgmtDate.getFullYear(),siteMgmtDate.getMonth()+1,1);renderGlobalStats();});
-  const smRefresh=document.getElementById('globalStatsRefreshBtn');if(smRefresh)smRefresh.addEventListener('click',renderGlobalStats);
+  function smAggregateEvents(events){
+    const people={},mgr={},role={},dong={},methods={'상담':0,'단순':0,'TM':0};const dates=new Set();
+    events.forEach(e=>{const name=String(e.name||'').trim()||'-', manager=String(e.manager||'').trim()||'(미지정)', method=String(e.method||'').trim();if(e.date)dates.add(e.date);if(methods[method]!==undefined)methods[method]++;
+      const pk=name; if(!people[pk])people[pk]={name,manager,unit:e.unit||'',role:e.role||'',dates:new Set(),count:0,methods:{'상담':0,'단순':0,'TM':0},last:''};people[pk].count++;if(e.date)people[pk].dates.add(e.date);if(e.date>people[pk].last)people[pk].last=e.date;if(methods[method]!==undefined)people[pk].methods[method]++;
+      if(!mgr[manager])mgr[manager]={people:new Set(),count:0,dates:new Set(),methods:{'상담':0,'단순':0,'TM':0}};mgr[manager].people.add(pk);mgr[manager].count++;if(e.date)mgr[manager].dates.add(e.date);if(methods[method]!==undefined)mgr[manager].methods[method]++;
+      const rv=String(e.role||'').trim();if(rv){if(!role[rv])role[rv]={people:new Set(),count:0};role[rv].people.add(pk);role[rv].count++;}
+      const dv=String(e.dong||'').trim();if(dv){if(!dong[dv])dong[dv]={people:new Set(),count:0};dong[dv].people.add(pk);dong[dv].count++;}
+    });return{people,mgr,role,dong,methods,visitDays:dates.size,uniquePeople:Object.keys(people).length,totalEvents:events.length};
+  }
+  function smPercent(a,b){return b?Number(a)/Number(b)*100:0;}
+  function smNum(v){return Number(v||0).toLocaleString();}
+  function smMethodCell(m,key){return Number((m||{})[key]||0)||'-';}
+
+  function smOverallHtml(site,office,x){
+    const bm=x.byManager||{}, br=x.byRole||{}, bd=x.byDong||{};
+    const managerRows=Object.entries(bm).sort((a,b)=>a[0]==='(미지정)'?1:b[0]==='(미지정)'?-1:a[0].localeCompare(b[0],'ko')).map(([name,d],i)=>`<tr><td>${i+1}</td><td class="left">${escapeHtml(name)}</td><td>${smNum(d.total)}</td><td>${smNum(d.contacted)}</td><td class="sm-status-ok">${Number(d.contactRate!=null?d.contactRate:smPercent(d.contacted,d.total)).toFixed(1)}%</td><td>${smNum(d.todayContacted)}</td><td>${smMethodCell(d.methods,'상담')}</td><td>${smMethodCell(d.methods,'단순')}</td><td>${smMethodCell(d.methods,'TM')}</td><td>${smMethodCell(d.methods,'미접촉')}</td><td>${smMethodCell(d.methods,'거부')}</td><td>${smMethodCell(d.methods,'부재')}</td><td>${smMethodCell(d.methods,'불명')}</td></tr>`).join('');
+    const roleRows=Object.entries(br).map(([name,d],i)=>`<tr><td>${i+1}</td><td class="left">${escapeHtml(name)}</td><td>${smNum(d.total)}</td><td>${smNum(d.contacted)}</td><td>${smNum(d.uncontacted)}</td><td class="sm-status-ok">${Number(d.contactRate!=null?d.contactRate:smPercent(d.contacted,d.total)).toFixed(1)}%</td></tr>`).join('');
+    const dongRows=Object.entries(bd).sort((a,b)=>String(a[0]).localeCompare(String(b[0]),'ko',{numeric:true})).map(([name,d])=>`<tr><td class="left">${escapeHtml(name)}</td><td>${smNum(d.total)}</td><td>${smNum(d.contacted)}</td><td>${smNum(d.uncontacted)}</td><td class="sm-status-ok">${Number(d.contactRate!=null?d.contactRate:smPercent(d.contacted,d.total)).toFixed(1)}%</td></tr>`).join('');
+    const unassigned=bm['(미지정)'];
+    const source=x.source==='excel-master'?`<span class="sm-source excel">📗 Excel 원장 기준${x.syncedAt?' · '+escapeHtml(String(x.syncedAt).replace('T',' ').slice(5,16)):''}</span>`:'<span class="sm-source dash">🌐 대시보드 명단 기준</span>';
+    return `<div class="sm-site-title"><h2>${escapeHtml(site.name||'')}</h2><span>${escapeHtml(office)}</span>${source}</div>
+      <div class="sm-section"><div class="sm-section-head"><b>▣ 현장 접촉현황 · 전체 누계</b><span>Excel 접촉현황 시트와 같은 개념</span></div><div class="sm-kpis">
+        <div class="sm-kpi"><div class="l">조합원/소유주</div><div class="v">${smNum(x.totalOwners)}</div></div><div class="sm-kpi"><div class="l">누계접촉</div><div class="v">${smNum(x.contactedOwners)}</div></div><div class="sm-kpi"><div class="l">미접촉</div><div class="v">${smNum(x.uncontactedOwners)}</div></div><div class="sm-kpi"><div class="l">접촉률</div><div class="v">${Number(x.contactRate||0).toFixed(1)}%</div></div><div class="sm-kpi"><div class="l">금일접촉</div><div class="v">${smNum(x.todayContactedOwners)}</div></div><div class="sm-kpi"><div class="l">집행부/직책자</div><div class="v">${smNum(x.roleOwners)}</div></div>
+      </div></div>
+      <div class="sm-section full"><div class="sm-section-head"><b>① 담당별 접촉현황</b><span>누계접촉 = 상담·단순·TM / 부재·거부·불명·미접촉은 미접촉군</span></div><div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>No</th><th class="left">담당</th><th>인원</th><th>누계접촉</th><th>접촉률</th><th>금일접촉</th><th>상담</th><th>단순</th><th>TM</th><th>미접촉</th><th>거부</th><th>부재</th><th>불명</th></tr></thead><tbody>${managerRows||'<tr><td colspan="13" class="sm-empty">Excel 담당별 집계가 없습니다. 전체 동기화를 실행해주세요.</td></tr>'}</tbody></table></div>${unassigned?`<div class="sm-muted" style="padding:7px 10px;">＊ 미담당 접촉 ${smNum(unassigned.contacted)}명</div>`:''}</div>
+      <div class="sm-sheet-grid"><div class="sm-section"><div class="sm-section-head"><b>② 집행부·직책별 접촉현황</b></div><div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>No</th><th class="left">직책</th><th>인원</th><th>접촉</th><th>미접촉</th><th>접촉률</th></tr></thead><tbody>${roleRows||'<tr><td colspan="6" class="sm-empty">직책 집계 없음</td></tr>'}</tbody></table></div></div><div class="sm-section"><div class="sm-section-head"><b>③ 동별 접촉현황</b></div><div class="sm-table-wrap"><table class="sm-table"><thead><tr><th class="left">동</th><th>인원</th><th>접촉</th><th>미접촉</th><th>접촉률</th></tr></thead><tbody>${dongRows||'<tr><td colspan="5" class="sm-empty">동별 집계 없음</td></tr>'}</tbody></table></div></div></div>`;
+  }
+
+  function smPeriodHtml(site,office,x,range,events){
+    const a=smAggregateEvents(events), mgrRows=Object.entries(a.mgr).sort((a,b)=>a[0].localeCompare(b[0],'ko')).map(([n,d],i)=>`<tr><td>${i+1}</td><td class="left">${escapeHtml(n)}</td><td>${d.dates.size}</td><td>${d.people.size}</td><td>${d.count}</td><td>${smMethodCell(d.methods,'상담')}</td><td>${smMethodCell(d.methods,'단순')}</td><td>${smMethodCell(d.methods,'TM')}</td></tr>`).join('');
+    const personRows=Object.values(a.people).sort((p,q)=>String(q.last).localeCompare(String(p.last))||p.name.localeCompare(q.name,'ko')).map((d,i)=>`<tr><td>${i+1}</td><td class="left">${escapeHtml(d.name)}</td><td>${escapeHtml(d.manager||'-')}</td><td>${escapeHtml(d.unit||'-')}</td><td>${d.dates.size}</td><td>${d.count}</td><td>${escapeHtml(d.last||'-')}</td><td>${smMethodCell(d.methods,'상담')}</td><td>${smMethodCell(d.methods,'단순')}</td><td>${smMethodCell(d.methods,'TM')}</td></tr>`).join('');
+    const roleRows=Object.entries(a.role).map(([n,d])=>`<tr><td class="left">${escapeHtml(n)}</td><td>${d.people.size}</td><td>${d.count}</td></tr>`).join('');
+    const dongRows=Object.entries(a.dong).sort((a,b)=>String(a[0]).localeCompare(String(b[0]),'ko',{numeric:true})).map(([n,d])=>`<tr><td class="left">${escapeHtml(n)}</td><td>${d.people.size}</td><td>${d.count}</td></tr>`).join('');
+    const source=(smExcel(site)&&Array.isArray(smExcel(site).contactEvents)&&smExcel(site).contactEvents.length)?'<span class="sm-source excel">📗 Excel 월날짜 이력 기준</span>':'<span class="sm-source dash">🌐 대시보드 보고 로그 기준</span>';
+    return `<div class="sm-site-title"><h2>${escapeHtml(site.name||'')}</h2><span>${escapeHtml(office)}</span>${source}</div>
+      <div class="sm-section"><div class="sm-section-head"><b>▣ ${escapeHtml(range.label)} 접촉현황</b></div><div class="sm-kpis"><div class="sm-kpi"><div class="l">접촉인원</div><div class="v">${smNum(a.uniquePeople)}</div></div><div class="sm-kpi"><div class="l">접촉횟수</div><div class="v">${smNum(a.totalEvents)}</div></div><div class="sm-kpi"><div class="l">방문/접촉일수</div><div class="v">${smNum(a.visitDays)}</div></div><div class="sm-kpi"><div class="l">상담</div><div class="v">${smNum(a.methods['상담'])}</div></div><div class="sm-kpi"><div class="l">단순</div><div class="v">${smNum(a.methods['단순'])}</div></div><div class="sm-kpi"><div class="l">TM</div><div class="v">${smNum(a.methods['TM'])}</div></div></div></div>
+      <div class="sm-section full"><div class="sm-section-head"><b>① 담당별 접촉현황</b><span>랭킹이 아니라 선택 기간의 담당별 활동 집계</span></div><div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>No</th><th class="left">담당</th><th>접촉일수</th><th>접촉인원</th><th>접촉횟수</th><th>상담</th><th>단순</th><th>TM</th></tr></thead><tbody>${mgrRows||'<tr><td colspan="8" class="sm-empty">이 기간 접촉 기록이 없습니다.</td></tr>'}</tbody></table></div></div>
+      <div class="sm-detail-grid"><div class="sm-section"><div class="sm-section-head"><b>② 조합원·소유주 개인별</b></div><div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>No</th><th class="left">성명</th><th>담당</th><th>동호수</th><th>접촉일수</th><th>횟수</th><th>최근일</th><th>상담</th><th>단순</th><th>TM</th></tr></thead><tbody>${personRows||'<tr><td colspan="10" class="sm-empty">기록 없음</td></tr>'}</tbody></table></div></div><div><div class="sm-section"><div class="sm-section-head"><b>③ 집행부·직책 접촉</b></div><div class="sm-table-wrap"><table class="sm-table"><thead><tr><th class="left">직책</th><th>접촉인원</th><th>접촉횟수</th></tr></thead><tbody>${roleRows||'<tr><td colspan="3" class="sm-empty">기록 없음</td></tr>'}</tbody></table></div></div><div class="sm-section"><div class="sm-section-head"><b>④ 동별 접촉</b></div><div class="sm-table-wrap"><table class="sm-table"><thead><tr><th class="left">동</th><th>접촉인원</th><th>접촉횟수</th></tr></thead><tbody>${dongRows||'<tr><td colspan="3" class="sm-empty">기록 없음</td></tr>'}</tbody></table></div></div></div></div>`;
+  }
+
+  function smIssueHtml(site,range){
+    const logs=(site.logs||[]).filter(l=>!isTourBookingLog(l)&&smInRangeDate(String(l.date||''),range)&&String(l.text||'').trim()).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+    const exec=logs.filter(l=>String(l.executiveStance||'').trim());
+    const card=list=>list.length?list.slice(0,40).map(l=>`<div class="sm-note"><div class="sm-note-date">${escapeHtml(l.date||'')}</div><div class="sm-note-meta">${escapeHtml(l.contactName||l.owner||'-')}${l.author?' · '+escapeHtml(l.author):''}${l.executiveStance?' · 집행부 '+escapeHtml(l.executiveStance):''}</div><div>${escapeHtml(l.text||'')}</div></div>`).join(''):'<div class="sm-empty">기록 없음</div>';
+    return `<div class="sm-sheet-grid"><div class="sm-section"><div class="sm-section-head"><b>⑤ 집행부 접촉·동향</b><span>대시보드 보고서 기준</span></div><div class="sm-note-list">${card(exec)}</div></div><div class="sm-section"><div class="sm-section-head"><b>⑥ 특이사항·주요 이슈</b><span>대시보드 보고서 기준</span></div><div class="sm-note-list">${card(logs)}</div></div></div>`;
+  }
+
+  function renderGlobalStats(){
+    const body=document.getElementById('globalStatsBody');if(!body)return;const pick=smSelected();if(!pick){body.innerHTML='<div class="sm-empty">표시할 현장이 없습니다.</div>';return;}
+    const {site,office}=pick, range=smRange(), x=smStats(site);
+    const lbl=document.getElementById('siteMgmtPeriodLabel');if(lbl)lbl.textContent=range.label;
+    [['all','All'],['month','Month'],['week','Week'],['day','Day']].forEach(([m,n])=>{const e=document.getElementById('siteMgmt'+n+'Btn');if(e)e.classList.toggle('active',siteMgmtPeriod===m);});
+    const prev=document.getElementById('siteMgmtPrevBtn'),next=document.getElementById('siteMgmtNextBtn');if(prev)prev.style.visibility=siteMgmtPeriod==='all'?'hidden':'visible';if(next)next.style.visibility=siteMgmtPeriod==='all'?'hidden':'visible';
+    const main=siteMgmtPeriod==='all'?smOverallHtml(site,office,x):smPeriodHtml(site,office,x,range,smEvents(site,range));
+    const issueRange=siteMgmtPeriod==='all'?{start:'0000-01-01',end:'9999-12-31',label:'전체'}:range;
+    body.innerHTML=main+smIssueHtml(site,issueRange);
+  }
+
+  function openGlobalStats(){
+    siteMgmtOffice=(currentOffice&&currentOffice!==ALL_OFFICE)?currentOffice:'__ALL__';
+    const o=document.getElementById('globalStatsOfficeFilter');if(o)o.value=siteMgmtOffice;
+    if(currentDetailId)siteMgmtSiteId=String(currentDetailId);
+    smFillSiteSelect();siteMgmtPeriod='all';renderGlobalStats();document.getElementById('globalStatsOverlay').classList.add('show');
+    const picked=smSelected();if(picked&&picked.site)refreshLogsForSiteIfNeeded(picked.site,true);
+    // targeted fetch is async: give it a moment then redraw with fresh excelStats/ownerRoster.
+    setTimeout(()=>{try{renderGlobalStats();}catch(e){}},700);
+  }
+  window.openGlobalStats=openGlobalStats;
+  const smOffice=document.getElementById('globalStatsOfficeFilter');if(smOffice)smOffice.addEventListener('change',()=>{siteMgmtOffice=smOffice.value;siteMgmtSiteId='';smFillSiteSelect();renderGlobalStats();const p=smSelected();if(p&&p.site)refreshLogsForSiteIfNeeded(p.site,true);setTimeout(renderGlobalStats,700);});
+  const smSite=document.getElementById('siteMgmtSiteSelect');if(smSite)smSite.addEventListener('change',()=>{siteMgmtSiteId=smSite.value;renderGlobalStats();const p=smSelected();if(p&&p.site)refreshLogsForSiteIfNeeded(p.site,true);setTimeout(renderGlobalStats,700);});
+  [['all','All'],['month','Month'],['week','Week'],['day','Day']].forEach(([m,n])=>{const e=document.getElementById('siteMgmt'+n+'Btn');if(e)e.addEventListener('click',()=>{siteMgmtPeriod=m;renderGlobalStats();});});
+  const smPrev=document.getElementById('siteMgmtPrevBtn');if(smPrev)smPrev.addEventListener('click',()=>{if(siteMgmtPeriod==='day')siteMgmtDate=new Date(siteMgmtDate.getFullYear(),siteMgmtDate.getMonth(),siteMgmtDate.getDate()-1);else if(siteMgmtPeriod==='week')siteMgmtDate=new Date(siteMgmtDate.getFullYear(),siteMgmtDate.getMonth(),siteMgmtDate.getDate()-7);else if(siteMgmtPeriod==='month')siteMgmtDate=new Date(siteMgmtDate.getFullYear(),siteMgmtDate.getMonth()-1,1);renderGlobalStats();});
+  const smNext=document.getElementById('siteMgmtNextBtn');if(smNext)smNext.addEventListener('click',()=>{if(siteMgmtPeriod==='day')siteMgmtDate=new Date(siteMgmtDate.getFullYear(),siteMgmtDate.getMonth(),siteMgmtDate.getDate()+1);else if(siteMgmtPeriod==='week')siteMgmtDate=new Date(siteMgmtDate.getFullYear(),siteMgmtDate.getMonth(),siteMgmtDate.getDate()+7);else if(siteMgmtPeriod==='month')siteMgmtDate=new Date(siteMgmtDate.getFullYear(),siteMgmtDate.getMonth()+1,1);renderGlobalStats();});
+  const smRefresh=document.getElementById('globalStatsRefreshBtn');if(smRefresh)smRefresh.addEventListener('click',()=>{const p=smSelected();if(p&&p.site)refreshLogsForSiteIfNeeded(p.site,true);setTimeout(renderGlobalStats,700);});
   const smClose=document.getElementById('globalStatsCloseBtn');if(smClose)smClose.addEventListener('click',()=>document.getElementById('globalStatsOverlay').classList.remove('show'));
   const smOverlay=document.getElementById('globalStatsOverlay');if(smOverlay)smOverlay.addEventListener('click',e=>{if(e.target===smOverlay)smOverlay.classList.remove('show');});
-  // v3.45: this code MUST stay inside the main app IIFE so it can use
-  // OFFICES / allOfficesData / currentOffice / escapeHtml.
-  window.openGlobalStats=openGlobalStats;
-  (function bindSiteManagementButtons(){
-    ['globalStatsTopBtn','globalStatsMenuBtn','mobileNavGlobalStatsBtn'].forEach(id=>{
-      const e=document.getElementById(id);
-      if(!e) return;
-      if(id==='globalStatsTopBtn'){
-        // top button already has inline fallback; do not attach a second listener
-        return;
-      }
-      e.addEventListener('click',openGlobalStats);
-    });
-  })();
-
+  (function bindSiteManagementButtons(){['globalStatsMenuBtn','mobileNavGlobalStatsBtn'].forEach(id=>{const e=document.getElementById(id);if(e)e.addEventListener('click',openGlobalStats);});})();
 
 })();
 
