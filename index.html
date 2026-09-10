@@ -2722,6 +2722,164 @@ body.theme-dark .name-item.active{
     .sm-select{min-width:132px;max-width:43vw}
     .pdfsheet{width:1220px;min-width:1020px}
   }
+
+  /* v3.58 drill-down */
+  .sm-drill{
+    cursor:pointer;
+    transition:background .12s ease,color .12s ease,box-shadow .12s ease;
+  }
+  .pdf-table td.sm-drill:hover{
+    background:#eaf6f3!important;
+    color:#0c7567;
+    box-shadow:inset 0 0 0 1px #89c7bb;
+    font-weight:700;
+  }
+  .pdf-summary-cell.sm-drill:hover{
+    border-color:#78b9ad;
+    box-shadow:0 5px 16px rgba(19,104,88,.12);
+    transform:translateY(-1px);
+  }
+  .sm-drill-link{
+    text-decoration:underline;
+    text-decoration-style:dotted;
+    text-underline-offset:3px;
+    text-decoration-color:#8fb8af;
+  }
+  #smDrillOverlay{
+    position:fixed;
+    inset:0;
+    z-index:2600;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:18px;
+    background:rgba(3,9,12,.72);
+    backdrop-filter:blur(5px);
+  }
+  #smDrillOverlay.show{display:flex}
+  .sm-drill-modal{
+    width:min(96vw,1050px);
+    max-height:86vh;
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+    border-radius:15px;
+    border:1px solid #cfdad6;
+    background:#f8fbfa;
+    box-shadow:0 24px 70px rgba(0,0,0,.35);
+    color:#1e2925;
+  }
+  .sm-drill-head{
+    flex:0 0 auto;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    min-height:58px;
+    padding:10px 14px;
+    border-bottom:1px solid #dae3e0;
+    background:#fff;
+  }
+  .sm-drill-title-wrap{min-width:0;flex:1}
+  .sm-drill-title{
+    font-size:15px;
+    font-weight:800;
+    letter-spacing:-.35px;
+    color:#1d2b27;
+  }
+  .sm-drill-sub{
+    margin-top:2px;
+    font-size:9.5px;
+    color:#778681;
+  }
+  .sm-drill-count{
+    flex:0 0 auto;
+    padding:5px 9px;
+    border-radius:999px;
+    background:#e4f3ef;
+    color:#166d5d;
+    font-size:10px;
+    font-weight:800;
+  }
+  .sm-drill-close{
+    width:34px;height:34px;flex:0 0 34px;
+    border:1px solid #cdd8d4;
+    border-radius:9px;
+    background:#fff;
+    color:#465852;
+    cursor:pointer;
+    font-size:15px;
+  }
+  .sm-drill-toolbar{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:8px 13px;
+    border-bottom:1px solid #e0e7e5;
+    background:#f6f9f8;
+  }
+  .sm-drill-search{
+    width:min(320px,70vw);
+    height:32px;
+    padding:0 10px;
+    border:1px solid #ccd9d5;
+    border-radius:8px;
+    background:#fff;
+    color:#26332f;
+    font-size:10px;
+    outline:none;
+  }
+  .sm-drill-search:focus{border-color:#6eb5a8;box-shadow:0 0 0 2px rgba(50,145,126,.10)}
+  .sm-drill-body{overflow:auto;background:#fff}
+  .sm-drill-table{
+    width:100%;
+    border-collapse:separate;
+    border-spacing:0;
+    table-layout:fixed;
+    font-size:10px;
+  }
+  .sm-drill-table th,.sm-drill-table td{
+    padding:7px 7px;
+    border-right:1px solid #e3e9e7;
+    border-bottom:1px solid #e3e9e7;
+    vertical-align:middle;
+    text-align:center;
+    line-height:1.4;
+  }
+  .sm-drill-table th{
+    position:sticky;
+    top:0;
+    z-index:2;
+    background:#edf5f2;
+    color:#486159;
+    font-size:9px;
+    font-weight:700;
+  }
+  .sm-drill-table th:last-child,.sm-drill-table td:last-child{border-right:0}
+  .sm-drill-table td.name{font-weight:700;color:#1b5047}
+  .sm-drill-table td.note{
+    text-align:left;
+    white-space:normal;
+    color:#47534f;
+  }
+  .sm-method{
+    display:inline-flex;
+    min-width:33px;
+    justify-content:center;
+    padding:2px 5px;
+    border-radius:6px;
+    background:#edf4f2;
+    color:#416159;
+    font-size:9px;
+    font-weight:700;
+  }
+  .sm-method.success{background:#e4f3ed;color:#18705e}
+  .sm-method.fail{background:#f4efed;color:#796158}
+  .sm-drill-empty{
+    padding:38px 12px;
+    text-align:center;
+    color:#8c9995;
+    font-size:10px;
+  }
 </style>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -3001,7 +3159,7 @@ body.theme-dark .name-item.active{
   <div class="modal" id="contactReportModalBox" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">현장 방문·접촉 현황</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-10-v357</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-10-v358</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -5311,7 +5469,7 @@ const L = (function(){
       </head><body>
         <h1>${title}</h1>
       <!-- v235: quick filters, expanded search, sorting, list/map UX -->
-<!-- dashboard v3.57: readable full-width manager table and uniform borders -->
+<!-- dashboard v3.58: click-to-drill people lists -->
 </body></html>`);
       printWin.document.body.appendChild(tableClone);
       printWin.document.close();
@@ -12584,7 +12742,7 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
     const s=new Date(d.getFullYear(),d.getMonth(),1),e=new Date(d.getFullYear(),d.getMonth()+1,0);return{start:smDateKey(s),end:smDateKey(e),label:`${s.getFullYear()}년 ${s.getMonth()+1}월`};
   }
   function smInRangeDate(k,r){return k&&k>=r.start&&k<=r.end;}
-  function smRoster(site){return(Array.isArray(site&&site.ownerRoster)?site.ownerRoster:[]).map(r=>typeof r==='string'?{name:r.trim(),role:'',manager:''}:{name:String(r&&r.name||'').trim(),role:String(r&&r.role||r&&r.roleType||'').trim(),manager:String(r&&r.manager||'').trim()}).filter(r=>r.name);}
+  function smRoster(site){return(Array.isArray(site&&site.ownerRoster)?site.ownerRoster:[]).map(r=>typeof r==='string'?{name:r.trim(),role:'',manager:'',unit:'',dong:'',contactMethod:'',contacted:false,todayContactMethod:''}:{name:String(r&&r.name||'').trim(),role:String(r&&r.role||r&&r.roleType||'').trim(),manager:String(r&&r.manager||'').trim(),unit:String(r&&r.unit||'').trim(),dong:String(r&&r.dong||'').trim(),contactMethod:String(r&&r.contactMethod||'').trim(),contacted:!!(r&&r.contacted),todayContactMethod:String(r&&r.todayContactMethod||'').trim()}).filter(r=>r.name);}
   function smSplit(v){return String(v||'').split(/[,，;/|\n]+/).map(x=>x.trim()).filter(Boolean);}
   function smCore(v){return String(v||'').trim().replace(/[（(].*?[）)]/g,' ').replace(/\s+/g,' ').trim().toLowerCase();}
   function smAllSites(){const os=siteMgmtOffice==='__ALL__'?OFFICES:[siteMgmtOffice];return os.flatMap(o=>(allOfficesData[o]||[]).map(s=>({office:o,site:s})));}
@@ -12663,7 +12821,13 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
     return{start:smDateKey(s),end:smDateKey(e)};
   }
   function smWeeklyRows(site){
-    const mr=smMonthRangeForCurrent(),ev=smEvents(site,mr),weeks=[1,2,3,4,5].map(n=>({n,상담:0,단순:0,TM:0,people:new Set()}));
+    const mr=smMonthRangeForCurrent(),ev=smEvents(site,mr);
+    const monthStart=new Date(mr.start+'T00:00:00'),monthEnd=new Date(mr.end+'T00:00:00');
+    const weeks=[1,2,3,4,5].map(n=>{
+      const s=new Date(monthStart);s.setDate((n-1)*7+1);
+      const e=new Date(monthStart);e.setDate(Math.min(n*7,monthEnd.getDate()));
+      return{n,상담:0,단순:0,TM:0,people:new Set(),start:smDateKey(s),end:smDateKey(e)};
+    });
     ev.forEach(e=>{const w=smWeekNo(e.date);if(!w)return;const z=weeks[w-1];if(z[e.method]!==undefined)z[e.method]++;z.people.add(e.name);});
     return weeks;
   }
@@ -12731,7 +12895,7 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
     const left=rows.slice(0,half), right=rows.slice(half);
     const n=Math.max(left.length,right.length);
     const cells=r=>r
-      ? `<td>${escapeHtml(r.name)}</td><td>${r.total}</td><td>${r.contacted||'-'}</td><td>${r.uncontacted||'-'}</td><td>${Number(r.rate||0).toFixed(1)}%</td>`
+      ? `<td class="sm-drill sm-drill-link" data-drill="dong_contacted" data-dong="${escapeHtml(r.name)}">${escapeHtml(r.name)}</td><td ${smDrillAttr('dong_total',{dong:r.name})}>${r.total}</td><td ${r.contacted?smDrillAttr('dong_contacted',{dong:r.name}):''}>${r.contacted||'-'}</td><td ${r.uncontacted?smDrillAttr('dong_uncontacted',{dong:r.name}):''}>${r.uncontacted||'-'}</td><td ${r.total?smDrillAttr('dong_rate',{dong:r.name}):''}>${Number(r.rate||0).toFixed(1)}%</td>`
       : `<td></td><td></td><td></td><td></td><td></td>`;
     const body=Array.from({length:n},(_,i)=>{
       const l=left[i],r=right[i];
@@ -12752,6 +12916,148 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
     </table>`;
   }
 
+  function smDrillAttr(type,opts={}){
+    const attrs=[`data-drill="${escapeHtml(type)}"`,'class="sm-drill"'];
+    Object.entries(opts).forEach(([k,v])=>attrs.push(`data-${k}="${escapeHtml(String(v==null?'':v))}"`));
+    return attrs.join(' ');
+  }
+
+  function smAllEventsFor(site){
+    return smEvents(site,{start:'0000-01-01',end:'9999-12-31'});
+  }
+
+  function smLatestLogForPerson(site,name){
+    const key=smCore(name);
+    const hits=(site.logs||[]).filter(l=>!isTourBookingLog(l)&&smSplit(l.contactName||l.owner).some(n=>smCore(n)===key));
+    hits.sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+    return hits[0]||null;
+  }
+
+  function smPersonRows(site){
+    const roster=smRoster(site),events=smAllEventsFor(site),byName={};
+    events.forEach(e=>{
+      const k=smCore(e.name);
+      if(!k)return;
+      if(!byName[k])byName[k]=[];
+      byName[k].push(e);
+    });
+    return roster.map(r=>{
+      const ev=(byName[smCore(r.name)]||[]).slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+      const latest=ev[0]||{};
+      const log=smLatestLogForPerson(site,r.name);
+      const method=r.contactMethod||latest.method||'';
+      const contacted=(r.contactMethod ? ['상담','단순','TM'].includes(r.contactMethod) : (r.contacted||['상담','단순','TM'].includes(method)));
+      return{
+        name:r.name,manager:smManagerKey(r.manager),unit:r.unit||latest.unit||'',dong:r.dong||latest.dong||'',
+        role:r.role||latest.role||'',method,contacted,todayMethod:r.todayContactMethod||'',
+        count:ev.length,last:latest.date||'',note:log?String(log.text||''):''
+      };
+    });
+  }
+
+  function smGroupEventRows(site,events){
+    const map={};
+    events.forEach(e=>{
+      const k=smCore(e.name)||String(e.name||'');
+      if(!map[k])map[k]={name:e.name||'-',manager:smManagerKey(e.manager),unit:e.unit||'',dong:e.dong||'',role:e.role||'',count:0,last:'',methods:new Set(),note:''};
+      const r=map[k];r.count++;
+      if(String(e.date||'')>r.last){r.last=String(e.date||'');r.manager=smManagerKey(e.manager);r.unit=e.unit||r.unit;r.dong=e.dong||r.dong;r.role=e.role||r.role;}
+      if(e.method)r.methods.add(e.method);
+    });
+    Object.values(map).forEach(r=>{
+      const log=smLatestLogForPerson(site,r.name);
+      r.method=Array.from(r.methods).join(' / ');
+      r.note=log?String(log.text||''):'';
+    });
+    return Object.values(map).sort((a,b)=>String(b.last||'').localeCompare(String(a.last||''))||String(a.name).localeCompare(String(b.name),'ko'));
+  }
+
+  function smFilterDrill(site,type,d){
+    const roster=smPersonRows(site),events=smAllEventsFor(site);
+    const mgr=d.manager||'',role=d.role||'',dong=d.dong||'',method=d.method||'';
+    const success=r=>r.contacted;
+    const mgrMatch=r=>!mgr||smManagerKey(r.manager)===smManagerKey(mgr);
+    const roleMatch=r=>!role||String(r.role||'')===role;
+    const dongMatch=r=>!dong||String(r.dong||'')===dong;
+
+    let title='',sub='',rows=[],rawCount=0,eventMode=false;
+    if(type==='site_total'){title='전체 소유주/조합원';rows=roster;}
+    else if(type==='site_contacted'||type==='site_rate'){title='누계 접촉자';rows=roster.filter(success);}
+    else if(type==='site_uncontacted'){title='미접촉자';rows=roster.filter(r=>!success(r));}
+    else if(type==='manager_total'){title=`${mgr} · 담당 인원`;rows=roster.filter(mgrMatch);}
+    else if(type==='manager_contacted'||type==='manager_rate'){title=`${mgr} · 누계접촉`;rows=roster.filter(r=>mgrMatch(r)&&success(r));}
+    else if(type==='manager_uncontacted'){title=`${mgr} · 미접촉`;rows=roster.filter(r=>mgrMatch(r)&&!success(r));}
+    else if(type==='manager_today'){title=`${mgr} · 금일접촉`;rows=roster.filter(r=>mgrMatch(r)&&['상담','단순','TM'].includes(r.todayMethod));}
+    else if(type==='manager_method'){title=`${mgr} · ${method}`;rows=roster.filter(r=>mgrMatch(r)&&r.method===method);}
+    else if(type==='role_total'){title=`${role} · 인원`;rows=roster.filter(roleMatch);}
+    else if(type==='role_contacted'||type==='role_rate'){title=`${role} · 접촉`;rows=roster.filter(r=>roleMatch(r)&&success(r));}
+    else if(type==='role_uncontacted'){title=`${role} · 미접촉`;rows=roster.filter(r=>roleMatch(r)&&!success(r));}
+    else if(type==='dong_total'){title=`${dong} · 인원`;rows=roster.filter(dongMatch);}
+    else if(type==='dong_contacted'||type==='dong_rate'){title=`${dong} · 접촉`;rows=roster.filter(r=>dongMatch(r)&&success(r));}
+    else if(type==='dong_uncontacted'){title=`${dong} · 미접촉`;rows=roster.filter(r=>dongMatch(r)&&!success(r));}
+    else if(type==='period_method'||type==='period_total'){
+      eventMode=true;
+      const start=d.start||'0000-01-01',end=d.end||'9999-12-31';
+      let ev=events.filter(e=>String(e.date||'')>=start&&String(e.date||'')<=end);
+      if(type==='period_method')ev=ev.filter(e=>String(e.method||'')===method);
+      rawCount=ev.length;
+      rows=smGroupEventRows(site,ev);
+      title=`${d.label||start} · ${type==='period_method'?method:'전체 접촉'}`;
+      sub=`${rawCount}건 · ${rows.length}명`;
+    }
+    return{title,sub,rows,eventMode,rawCount};
+  }
+
+  function smEnsureDrillModal(){
+    let ov=document.getElementById('smDrillOverlay');
+    if(ov)return ov;
+    ov=document.createElement('div');
+    ov.id='smDrillOverlay';
+    ov.innerHTML=`<div class="sm-drill-modal">
+      <div class="sm-drill-head">
+        <div class="sm-drill-title-wrap"><div class="sm-drill-title" id="smDrillTitle"></div><div class="sm-drill-sub" id="smDrillSub"></div></div>
+        <div class="sm-drill-count" id="smDrillCount"></div>
+        <button type="button" class="sm-drill-close" id="smDrillClose">✕</button>
+      </div>
+      <div class="sm-drill-toolbar"><input id="smDrillSearch" class="sm-drill-search" type="search" placeholder="이름 · 동호수 · 담당 검색"></div>
+      <div class="sm-drill-body" id="smDrillBody"></div>
+    </div>`;
+    document.body.appendChild(ov);
+    ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('show');});
+    ov.querySelector('#smDrillClose').addEventListener('click',()=>ov.classList.remove('show'));
+    ov.querySelector('#smDrillSearch').addEventListener('input',()=>smRenderDrillRows());
+    return ov;
+  }
+
+  let smDrillState={rows:[],title:'',sub:''};
+
+  function smRenderDrillRows(){
+    const ov=smEnsureDrillModal(),q=String(ov.querySelector('#smDrillSearch').value||'').trim().toLowerCase();
+    const all=smDrillState.rows||[];
+    const rows=!q?all:all.filter(r=>[r.name,r.manager,r.unit,r.dong,r.role,r.method,r.note].join(' ').toLowerCase().includes(q));
+    const body=ov.querySelector('#smDrillBody');
+    ov.querySelector('#smDrillCount').textContent=`${rows.length}명`;
+    body.innerHTML=rows.length?`<table class="sm-drill-table">
+      <colgroup><col style="width:46px"><col style="width:100px"><col style="width:85px"><col style="width:92px"><col style="width:90px"><col style="width:58px"><col style="width:88px"><col style="width:72px"><col></colgroup>
+      <thead><tr><th>No</th><th>성명</th><th>담당</th><th>동호수</th><th>직책</th><th>횟수</th><th>최근접촉일</th><th>방법</th><th>최근 내용</th></tr></thead>
+      <tbody>${rows.map((r,i)=>{
+        const meth=String(r.method||'-'),ok=['상담','단순','TM'].some(x=>meth.includes(x));
+        return`<tr><td>${i+1}</td><td class="name">${escapeHtml(r.name||'-')}</td><td>${escapeHtml(r.manager||'-')}</td><td>${escapeHtml(r.unit||r.dong||'-')}</td><td>${escapeHtml(r.role||'-')}</td><td>${r.count||'-'}</td><td>${escapeHtml(r.last||'-')}</td><td><span class="sm-method ${ok?'success':'fail'}">${escapeHtml(meth)}</span></td><td class="note">${escapeHtml(r.note||'')}</td></tr>`;
+      }).join('')}</tbody></table>`:'<div class="sm-drill-empty">해당 인원이 없습니다.</div>';
+  }
+
+  function smOpenDrill(el){
+    const pick=smSelected();if(!pick)return;
+    const data={...el.dataset},res=smFilterDrill(pick.site,data.drill,data);
+    const ov=smEnsureDrillModal();
+    smDrillState={rows:res.rows||[],title:res.title||'',sub:res.sub||''};
+    ov.querySelector('#smDrillTitle').textContent=`${pick.site.name} · ${res.title||'상세 명단'}`;
+    ov.querySelector('#smDrillSub').textContent=res.sub||`${(res.rows||[]).length}명`;
+    ov.querySelector('#smDrillSearch').value='';
+    smRenderDrillRows();
+    ov.classList.add('show');
+  }
+
   function smTrendSection(site,range){
     let rows,title;
     if(siteMgmtPeriod==='week'){
@@ -12762,7 +13068,7 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
       rows=smWeeklyRows(site).map(w=>({label:`${w.n}주차`,...w}));title='④ 주별 접촉현황';
     }
     if(!rows.length)return`<div class="pdf-section pdf-period-card"><div class="pdf-section-title">${title}</div><div class="pdf-empty">접촉 기록 없음</div></div>`;
-    const body=rows.map((r,i)=>{const lab=r.label||String(r.date||'').slice(5);const sum=Number(r.상담||0)+Number(r.단순||0)+Number(r.TM||0);return`<tr><td>${i+1}</td><td class="left">${escapeHtml(lab)}</td><td>${r.상담||'-'}</td><td>${r.단순||'-'}</td><td>${r.TM||'-'}</td><td>${sum||'-'}</td></tr>`;}).join('');
+    const body=rows.map((r,i)=>{const lab=r.label||String(r.date||'').slice(5),start=r.start||r.date||range.start,end=r.end||r.date||range.end;const sum=Number(r.상담||0)+Number(r.단순||0)+Number(r.TM||0);return`<tr><td>${i+1}</td><td class="left">${escapeHtml(lab)}</td><td ${r.상담?smDrillAttr('period_method',{method:'상담',start,end,label:lab}):''}>${r.상담||'-'}</td><td ${r.단순?smDrillAttr('period_method',{method:'단순',start,end,label:lab}):''}>${r.단순||'-'}</td><td ${r.TM?smDrillAttr('period_method',{method:'TM',start,end,label:lab}):''}>${r.TM||'-'}</td><td ${sum?smDrillAttr('period_total',{start,end,label:lab}):''}>${sum||'-'}</td></tr>`;}).join('');
     const sum={상담:0,단순:0,TM:0};rows.forEach(r=>{sum.상담+=Number(r.상담||0);sum.단순+=Number(r.단순||0);sum.TM+=Number(r.TM||0);});
     return`<div class="pdf-section"><div class="pdf-section-title">${title}</div><table class="pdf-table pdf-week"><thead><tr><th style="width:28px">No</th><th class="left">${siteMgmtPeriod==='week'||siteMgmtPeriod==='day'?'일자':'주별'}</th><th>상담</th><th>단순</th><th>TM</th><th>계</th></tr></thead><tbody>${body}<tr class="pdf-total"><td colspan="2">합계</td><td>${sum.상담||'-'}</td><td>${sum.단순||'-'}</td><td>${sum.TM||'-'}</td><td>${sum.상담+sum.단순+sum.TM||'-'}</td></tr></tbody></table></div>`;
   }
@@ -12810,7 +13116,7 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
     [['all','All'],['month','Month'],['week','Week'],['day','Day']].forEach(([m,n])=>{const e=document.getElementById('siteMgmt'+n+'Btn');if(e)e.classList.toggle('active',siteMgmtPeriod===m);});
     const prev=document.getElementById('siteMgmtPrevBtn'),next=document.getElementById('siteMgmtNextBtn');if(prev)prev.style.visibility=siteMgmtPeriod==='all'?'hidden':'visible';if(next)next.style.visibility=siteMgmtPeriod==='all'?'hidden':'visible';
 
-    const managerRows=mr.rows.map((r,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(r.name)}</td><td>${r.total}</td><td class="pdf-contact-good">${r.contacted||'-'}</td><td class="pdf-rate-good">${r.rate.toFixed(1)}%</td><td>${r.today||'-'}</td><td>${r.methods.상담||'-'}</td><td>${r.methods.단순||'-'}</td><td>${r.methods.TM||'-'}</td><td>${Math.max(0,r.total-r.contacted)||'-'}</td><td>${r.methods.거부||'-'}</td><td>${r.methods.부재||'-'}</td><td>${r.methods.불명||'-'}</td></tr>`).join('');
+    const managerRows=mr.rows.map((r,i)=>{const miss=Math.max(0,r.total-r.contacted);return`<tr><td>${i+1}</td><td class="sm-drill sm-drill-link" data-drill="manager_contacted" data-manager="${escapeHtml(r.name)}">${escapeHtml(r.name)}</td><td ${smDrillAttr('manager_total',{manager:r.name})}>${r.total}</td><td class="pdf-contact-good sm-drill" data-drill="manager_contacted" data-manager="${escapeHtml(r.name)}">${r.contacted||'-'}</td><td class="pdf-rate-good sm-drill" data-drill="manager_rate" data-manager="${escapeHtml(r.name)}">${r.rate.toFixed(1)}%</td><td ${r.today?smDrillAttr('manager_today',{manager:r.name}):''}>${r.today||'-'}</td><td ${r.methods.상담?smDrillAttr('manager_method',{manager:r.name,method:'상담'}):''}>${r.methods.상담||'-'}</td><td ${r.methods.단순?smDrillAttr('manager_method',{manager:r.name,method:'단순'}):''}>${r.methods.단순||'-'}</td><td ${r.methods.TM?smDrillAttr('manager_method',{manager:r.name,method:'TM'}):''}>${r.methods.TM||'-'}</td><td ${miss?smDrillAttr('manager_uncontacted',{manager:r.name}):''}>${miss||'-'}</td><td ${r.methods.거부?smDrillAttr('manager_method',{manager:r.name,method:'거부'}):''}>${r.methods.거부||'-'}</td><td ${r.methods.부재?smDrillAttr('manager_method',{manager:r.name,method:'부재'}):''}>${r.methods.부재||'-'}</td><td ${r.methods.불명?smDrillAttr('manager_method',{manager:r.name,method:'불명'}):''}>${r.methods.불명||'-'}</td></tr>`;}).join('');
     const managerTotal={total:0,contacted:0,today:0,상담:0,단순:0,TM:0,거부:0,부재:0,불명:0};
     mr.rows.forEach(r=>{managerTotal.total+=r.total;managerTotal.contacted+=r.contacted;managerTotal.today+=r.today;['상담','단순','TM','거부','부재','불명'].forEach(k=>managerTotal[k]+=Number(r.methods[k]||0));});
     const managerTable=`<div class="pdf-section pdf-manager-card"><div class="pdf-section-title">① 담당별 접촉현황</div>
@@ -12824,7 +13130,7 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
         <tbody>${managerRows||'<tr><td colspan="13" class="pdf-empty">담당별 집계 없음</td></tr>'}${mr.rows.length?`<tr class="pdf-total"><td colspan="2">합계</td><td>${managerTotal.total}</td><td>${managerTotal.contacted}</td><td>${managerTotal.total?(managerTotal.contacted/managerTotal.total*100).toFixed(1):'0.0'}%</td><td>${managerTotal.today||'-'}</td><td>${managerTotal.상담||'-'}</td><td>${managerTotal.단순||'-'}</td><td>${managerTotal.TM||'-'}</td><td>${Math.max(0,managerTotal.total-managerTotal.contacted)||'-'}</td><td>${managerTotal.거부||'-'}</td><td>${managerTotal.부재||'-'}</td><td>${managerTotal.불명||'-'}</td></tr>`:''}</tbody>
       </table>${mr.unassigned?`<div class="pdf-note-line">＊ 미담당 접촉 ${mr.unassigned}명</div>`:''}</div>`;
 
-    const roleRows=roles.map((r,i)=>`<tr><td>${i+1}</td><td class="left">${escapeHtml(r.name)}</td><td>${r.total}</td><td>${r.contacted||'-'}</td><td>${r.uncontacted||'-'}</td><td>${r.rate.toFixed(1)}%</td></tr>`).join('');
+    const roleRows=roles.map((r,i)=>`<tr><td>${i+1}</td><td class="sm-drill sm-drill-link" data-drill="role_contacted" data-role="${escapeHtml(r.name)}">${escapeHtml(r.name)}</td><td ${smDrillAttr('role_total',{role:r.name})}>${r.total}</td><td ${r.contacted?smDrillAttr('role_contacted',{role:r.name}):''}>${r.contacted||'-'}</td><td ${r.uncontacted?smDrillAttr('role_uncontacted',{role:r.name}):''}>${r.uncontacted||'-'}</td><td ${r.total?smDrillAttr('role_rate',{role:r.name}):''}>${r.rate.toFixed(1)}%</td></tr>`).join('');
     const roleTable=`<div class="pdf-section pdf-role-card"><div class="pdf-section-title">② 집행부·직책별 접촉현황</div><table class="pdf-table pdf-role"><thead><tr><th style="width:28px">No</th><th class="left">직책</th><th>인원</th><th>접촉</th><th>미접촉</th><th>접촉률</th></tr></thead><tbody>${roleRows||'<tr><td colspan="6" class="pdf-empty">직책 집계 없음</td></tr>'}</tbody></table></div>`;
 
     const source=x.source==='excel-master'?`Excel 원장 기준 · ${escapeHtml(String(x.syncedAt||'').replace('T',' ').slice(0,16))}`:'대시보드 명단/보고서 기준';
@@ -12832,10 +13138,10 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
       <div class="pdf-titlebar"><span>▣ ${escapeHtml(site.name)} 접촉현황</span><small>${escapeHtml(titleDate)}</small></div>
       <div class="pdf-source">${source}${periodMode?' · 선택기간 집계':''}</div>
       <div class="pdf-summary">
-        <div class="pdf-summary-cell"><div class="h">소유주</div><div class="n">${metrics.total}명</div></div>
-        <div class="pdf-summary-cell"><div class="h">접촉</div><div class="n">${metrics.contacted}명</div></div>
-        <div class="pdf-summary-cell"><div class="h">미접촉</div><div class="n">${metrics.uncontacted}명</div></div>
-        <div class="pdf-summary-cell"><div class="h">접촉률</div><div class="n">${metrics.rate.toFixed(1)}%</div></div>
+        <div class="pdf-summary-cell sm-drill" data-drill="site_total"><div class="h">소유주</div><div class="n">${metrics.total}명</div></div>
+        <div class="pdf-summary-cell sm-drill" data-drill="site_contacted"><div class="h">접촉</div><div class="n">${metrics.contacted}명</div></div>
+        <div class="pdf-summary-cell sm-drill" data-drill="site_uncontacted"><div class="h">미접촉</div><div class="n">${metrics.uncontacted}명</div></div>
+        <div class="pdf-summary-cell sm-drill" data-drill="site_rate"><div class="h">접촉률</div><div class="n">${metrics.rate.toFixed(1)}%</div></div>
       </div>
       <div class="pdf-manager-row">${managerTable}</div>
       <div class="pdf-middle-grid">
@@ -12849,6 +13155,14 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
       ${smCharts(site,x,events,periodMode,mr.rows)}
       ${smTodaySection(site,periodMode?events:smEvents(site,smMonthRangeForCurrent()),periodMode)}
     </div>`;
+  }
+
+  const smDrillBodyRoot=document.getElementById('globalStatsBody');
+  if(smDrillBodyRoot){
+    smDrillBodyRoot.addEventListener('click',e=>{
+      const el=e.target.closest('.sm-drill');
+      if(el && smDrillBodyRoot.contains(el)) smOpenDrill(el);
+    });
   }
 
   function openGlobalStats(){
