@@ -6,53 +6,72 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
 <title>시장모니터링 대시보드</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pretendard/1.3.9/static/pretendard.css">
 <style>
   :root{
-    --bg-side:#eaeef6;
-    --bg-side-2:#dbe1ee;
-    --line:#c9d1e0;
-    --text-main:#182036;
-    --text-dim:#5c6579;
-    --accent:#1c2b45;
+    /* v3.62 Unified palette — Light */
+    --bg-side:#eef3f1;
+    --bg-side-2:#e5ece9;
+    --line:#cfdad6;
+    --text-main:#1d2925;
+    --text-dim:#687872;
+    --accent:#1b7e70;
     --accent-ink:#ffffff;
-    --card:#ffffff;
-    --card-hover:#e6ebf5;
-    --grid-line:rgba(28,43,69,.07);
+    --accent-soft:#e2f0ec;
+    --accent-soft-2:#d6e9e4;
+    --accent-border:#a9cfc6;
+    --card:#fbfcfc;
+    --card-hover:#eef6f3;
+    --grid-line:rgba(27,126,112,.055);
     --font-serif:'Pretendard','Apple SD Gothic Neo',sans-serif;
     --font-mono:'Pretendard','Apple SD Gothic Neo',sans-serif;
-    --shadow-xs:0 1px 2px rgba(28,43,69,.08);
-    --shadow-sm:0 2px 8px rgba(28,43,69,.10);
-    --shadow-md:0 6px 20px rgba(28,43,69,.14);
-    --shadow-accent:0 4px 14px rgba(28,43,69,.22);
-    --pos:#1f7a3d;
-    --neg:#b3261e;
-    --warn-text:#6b3e00;
-    --warn-bg:rgba(255,183,3,0.22);
-    --warn-border:rgba(180,120,0,0.55);
+    --shadow-xs:0 1px 2px rgba(24,55,48,.06);
+    --shadow-sm:0 3px 10px rgba(24,55,48,.08);
+    --shadow-md:0 8px 24px rgba(24,55,48,.11);
+    --shadow-accent:0 4px 14px rgba(27,126,112,.16);
+    --pos:#28795e;
+    --neg:#b55a52;
+    --warn-text:#855f20;
+    --warn-bg:#fbf2dc;
+    --warn-border:#ddc18b;
+    --report-head:#176f64;
+    --report-head-ink:#ffffff;
+    --table-head:#edf4f2;
+    --table-total:#f2f6f4;
+    --table-em:#dff0eb;
   }
   body.theme-dark{
-    --bg-side:#1c3226;
-    --bg-side-2:#25402f;
-    --line:rgba(201,157,107,.3);
-    --text-main:#f2ead9;
-    --text-dim:#a7c0ab;
-    --accent:#d3a45f;
-    --accent-ink:#1c3226;
-    --card:#213b2d;
-    --card-hover:#2c4c39;
-    --grid-line:rgba(255,255,255,.05);
-    --shadow-xs:0 1px 2px rgba(0,0,0,.25);
-    --shadow-sm:0 2px 10px rgba(0,0,0,.30);
-    --shadow-md:0 8px 24px rgba(0,0,0,.38);
-    --shadow-accent:0 4px 16px rgba(211,164,95,.25);
-    --pos:#7ee787;
-    --neg:#ff7b7b;
-    --warn-text:#ffb703;
-    --warn-bg:rgba(255,183,3,0.12);
-    --warn-border:rgba(255,183,3,0.4);
-    background:#2a1d12;
+    /* v3.62 Unified palette — Dark: same hue family, only luminance changes */
+    --bg-side:#101a17;
+    --bg-side-2:#14231f;
+    --line:#2d413b;
+    --text-main:#eef5f2;
+    --text-dim:#99aaa5;
+    --accent:#67c4af;
+    --accent-ink:#0c241e;
+    --accent-soft:#1b3932;
+    --accent-soft-2:#21443b;
+    --accent-border:#397467;
+    --card:#172722;
+    --card-hover:#1d302a;
+    --grid-line:rgba(103,196,175,.055);
+    --shadow-xs:0 1px 2px rgba(0,0,0,.24);
+    --shadow-sm:0 3px 12px rgba(0,0,0,.28);
+    --shadow-md:0 9px 28px rgba(0,0,0,.34);
+    --shadow-accent:0 4px 16px rgba(103,196,175,.14);
+    --pos:#73c9a5;
+    --neg:#df827b;
+    --warn-text:#deb66a;
+    --warn-bg:#30291b;
+    --warn-border:#685936;
+    --report-head:#1d7569;
+    --report-head-ink:#f3faf7;
+    --table-head:#1d302b;
+    --table-total:#1b2d28;
+    --table-em:#214239;
+    background:#0b1412;
   }
   body.theme-dark #app{box-shadow:0 2px 20px rgba(0,0,0,.6);}
   *{box-sizing:border-box;}
@@ -90,8 +109,8 @@
   .btn-primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:800;box-shadow:var(--shadow-accent);}
   #addBtn{margin-left:auto;}
   .btn-primary:hover{box-shadow:0 6px 18px color-mix(in srgb, var(--accent) 35%, transparent);}
-  body.theme-dark .btn-primary:hover{box-shadow:0 6px 20px rgba(211,164,95,.32);}
-  .btn-primary:hover{background:#ffc933;}
+  body.theme-dark .btn-primary:hover{box-shadow:0 6px 18px color-mix(in srgb, var(--accent) 22%, transparent);}
+  .btn-primary:hover{background:color-mix(in srgb, var(--accent) 88%, white 12%);}
   .btn-ghost{background:var(--bg-side-2);color:var(--text-main);border:1px solid var(--line);}
   .btn-ghost:hover{background:var(--card-hover);border-color:var(--accent);}
   .file-label{display:inline-flex;}
@@ -2991,6 +3010,324 @@ body.theme-dark .name-item.active{
     .cis-kpis{grid-template-columns:repeat(2,1fr)}
   }
 </style>
+
+<style id="dashboardReportV360Style">
+  .mgr-breakdown-wrap{
+    border:1px solid var(--line)!important;
+    border-radius:12px!important;
+    padding:0!important;
+    overflow:hidden;
+    background:var(--bg-side-2)!important;
+  }
+  .mgr-report-source{
+    display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+    padding:9px 11px;border-bottom:1px solid var(--line);
+    background:color-mix(in srgb,var(--accent) 7%,var(--bg-side-2));
+  }
+  .mgr-report-source-badge{
+    display:inline-flex;align-items:center;gap:5px;
+    padding:4px 8px;border-radius:999px;
+    background:color-mix(in srgb,var(--accent) 14%,transparent);
+    color:var(--accent);font-size:9.5px;font-weight:700;
+  }
+  .mgr-report-source-desc{font-size:9px;color:var(--text-dim);line-height:1.4}
+  .mgr-report-kpis{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:7px;
+    padding:9px 10px 5px;
+  }
+  .mgr-report-kpi{
+    min-height:52px;padding:7px 9px;border:1px solid var(--line);
+    border-radius:9px;background:var(--bg-side);
+  }
+  .mgr-report-kpi .k{font-size:8.5px;color:var(--text-dim);font-weight:600}
+  .mgr-report-kpi .v{margin-top:2px;font-size:15px;color:var(--text-main);font-weight:800}
+  .mgr-report-kpi .s{margin-top:1px;font-size:8px;color:var(--text-dim)}
+  .mgr-filter-row{padding:6px 10px 2px;margin-bottom:2px!important}
+  .mgr-subtabs{padding:0 10px;margin:0 0 8px!important}
+  .mgr-nav-row{padding:0 10px}
+  .mgr-subtab-body{padding:0 10px 10px}
+  .mgr-filter-chip{
+    border-radius:8px!important;padding:4px 9px!important;
+    font-size:10px!important;
+  }
+  .mgr-subtab{font-size:10px!important;padding:6px 9px!important}
+  .mgr-cal-cell{
+    min-height:58px!important;border-radius:7px!important;
+    padding:4px 5px!important;
+  }
+  .mgr-cal-summary-chip{
+    display:flex;flex-direction:column;gap:1px;margin-top:5px;
+    padding:4px 5px;border-radius:6px;
+    background:color-mix(in srgb,var(--accent) 14%,transparent);
+    color:var(--text-main);cursor:pointer;
+  }
+  .mgr-cal-summary-chip:hover{background:color-mix(in srgb,var(--accent) 24%,transparent)}
+  .mgr-cal-summary-main{font-size:9px;font-weight:700;color:var(--accent)}
+  .mgr-cal-summary-sub{font-size:8px;color:var(--text-dim)}
+  .mgr-cal-manager-mini{
+    font-size:7.5px;color:var(--text-dim);white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;margin-top:2px;
+  }
+  .report-log-source-note{
+    font-size:9px;color:var(--text-dim);padding:0 2px 8px;
+  }
+
+  /* Reference roster is a utility, not the report source of truth. */
+  #ownerRosterModalBox{max-width:590px!important}
+  .roster-reference-note{
+    padding:8px 10px;margin-bottom:9px;
+    border:1px solid color-mix(in srgb,var(--accent) 35%,var(--line));
+    border-radius:8px;
+    background:color-mix(in srgb,var(--accent) 8%,transparent);
+    color:var(--text-dim);font-size:9.5px;line-height:1.5;
+  }
+  .roster-reference-note b{color:var(--accent)}
+  .roster-advanced-details{
+    border-top:1px solid var(--line);margin-top:12px;padding-top:9px;
+  }
+  .roster-advanced-details>summary{
+    cursor:pointer;color:var(--text-dim);font-size:10.5px;font-weight:600;
+    padding:5px 2px;
+  }
+  .roster-advanced-inner{padding-top:8px}
+
+  @media(max-width:620px){
+    .mgr-report-kpis{grid-template-columns:repeat(2,1fr)}
+  }
+</style>
+
+<style id="unifiedThemeV362Style">
+  /* ===== Shared application surfaces ===== */
+  body{
+    background:var(--bg-side-2)!important;
+    color:var(--text-main);
+  }
+  #app{
+    background:linear-gradient(180deg,var(--bg-side-2) 0%,var(--bg-side) 62%,var(--bg-side) 100%)!important;
+    box-shadow:var(--shadow-md)!important;
+  }
+  body.theme-dark #app{
+    box-shadow:0 4px 24px rgba(0,0,0,.34)!important;
+  }
+  .blueprint-grid{background-color:var(--bg-side)!important}
+  .btn-primary{
+    background:var(--accent)!important;color:var(--accent-ink)!important;
+    border-color:var(--accent)!important;
+  }
+  .btn-primary:hover{
+    background:color-mix(in srgb,var(--accent) 88%,white 12%)!important;
+  }
+  body.theme-dark .btn-primary:hover{
+    background:color-mix(in srgb,var(--accent) 88%,black 12%)!important;
+  }
+  .btn-ghost,.view-switch-btn,.menu-item-btn{
+    border-color:var(--line)!important;
+  }
+  .view-switch-btn:hover,.menu-item-btn:hover{
+    border-color:var(--accent-border)!important;
+    background:var(--card-hover)!important;
+  }
+  .active-toggle,.view-switch-btn.active,.menu-item-btn.active{
+    background:var(--accent-soft)!important;
+    color:var(--accent)!important;
+    border-color:var(--accent-border)!important;
+  }
+
+  /* ===== Dashboard report/log view ===== */
+  .log-item,.report-chart-wrap,.report-chart-col,.report-matrix-wrap,
+  .mgr-breakdown-wrap,.mgr-report-kpi,.roster-tool-card{
+    background:var(--card)!important;
+    border-color:var(--line)!important;
+    box-shadow:var(--shadow-xs)!important;
+  }
+  .log-date,.log-field-line b,.report-chart-col-head,.report-matrix-title,
+  .mgr-report-source-badge,.mgr-cal-summary-main{
+    color:var(--accent)!important;
+  }
+  .log-tag,.mgr-cal-summary-chip{
+    background:var(--accent-soft)!important;
+    border-color:var(--accent-border)!important;
+    color:var(--accent)!important;
+  }
+  .mgr-report-source{
+    background:var(--accent-soft)!important;
+    border-color:var(--line)!important;
+  }
+  .mgr-report-source-badge{
+    background:transparent!important;
+  }
+  .mgr-filter-chip.active,.mgr-subtab.active{
+    background:var(--accent)!important;
+    color:var(--accent-ink)!important;
+    border-color:var(--accent)!important;
+  }
+  .mgr-cal-cell{
+    background:var(--card)!important;
+    border-color:var(--line)!important;
+  }
+  .mgr-cal-cell.has-log{
+    background:color-mix(in srgb,var(--accent-soft) 55%,var(--card))!important;
+  }
+
+  /* ===== Integrated summary ===== */
+  .cis-toolbar,.cis-kpi,.cis-board,.cis-row{
+    background:var(--card)!important;
+    border-color:var(--line)!important;
+  }
+  .cis-head{
+    background:var(--report-head)!important;
+    color:var(--report-head-ink)!important;
+  }
+  .cis-head>div,.cis-row>div{border-color:var(--line)!important}
+  .cis-row:hover{
+    background:var(--card-hover)!important;
+  }
+  .cis-btn.active{
+    background:var(--accent)!important;color:var(--accent-ink)!important;
+    border-color:var(--accent)!important;
+  }
+  .cis-progress{background:var(--bg-side-2)!important}
+  .cis-progress>span{background:var(--accent)!important}
+  .cis-site-name:hover,.cis-num:hover{color:var(--accent)!important}
+  .cis-badge.excel,.cis-badge.dashboard{
+    background:var(--accent-soft)!important;
+    color:var(--accent)!important;
+    border:1px solid var(--accent-border);
+  }
+  .cis-detail-btn:hover{
+    background:var(--accent)!important;color:var(--accent-ink)!important;
+    border-color:var(--accent)!important;
+  }
+  .cis-office-divider{
+    background:var(--bg-side-2)!important;color:var(--accent)!important;
+    border-color:var(--line)!important;
+  }
+
+  /* ===== Site aggregate modal: fully obey theme instead of forcing a white sheet ===== */
+  #globalStatsOverlay{
+    background:color-mix(in srgb,#000 66%,transparent)!important;
+  }
+  #globalStatsModalBox{
+    background:var(--bg-side)!important;
+    border-color:var(--line)!important;
+    box-shadow:var(--shadow-md)!important;
+  }
+  .sm-head{
+    background:var(--bg-side-2)!important;
+    border-color:var(--line)!important;
+  }
+  .sm-head h3{color:var(--text-main)!important}
+  .sm-select,.sm-btn{
+    background:var(--card)!important;color:var(--text-main)!important;
+    border-color:var(--line)!important;
+  }
+  .sm-select:hover,.sm-btn:hover{
+    background:var(--card-hover)!important;border-color:var(--accent-border)!important;
+  }
+  .sm-btn.active{
+    background:var(--accent)!important;color:var(--accent-ink)!important;
+    border-color:var(--accent)!important;
+  }
+  .sm-period-label{color:var(--text-main)!important}
+  .sm-body{background:var(--bg-side)!important}
+  .pdfsheet{color:var(--text-main)!important}
+  .pdf-titlebar{
+    background:var(--report-head)!important;
+    color:var(--report-head-ink)!important;
+    box-shadow:var(--shadow-sm)!important;
+  }
+  .pdf-source{color:var(--text-dim)!important}
+  .pdf-summary-cell,.pdf-section,.pdf-chart{
+    background:var(--card)!important;
+    border-color:var(--line)!important;
+    box-shadow:var(--shadow-xs)!important;
+  }
+  .pdf-summary-cell:before{
+    background:var(--accent)!important;
+  }
+  .pdf-summary-cell .h{color:var(--text-dim)!important}
+  .pdf-summary-cell .n,
+  .pdf-summary-cell:nth-child(2) .n,
+  .pdf-summary-cell:nth-child(4) .n{
+    color:var(--text-main)!important;
+  }
+  .pdf-summary-cell:nth-child(2) .n,
+  .pdf-summary-cell:nth-child(4) .n{
+    color:var(--accent)!important;
+  }
+  .pdf-section-title{
+    background:var(--bg-side-2)!important;
+    color:var(--text-main)!important;
+    border-color:var(--line)!important;
+  }
+  .pdf-section-title:before{background:var(--accent)!important}
+  .pdf-section-title .sub{color:var(--text-dim)!important}
+
+  /* One table header color for manager/role/dong/week/today */
+  .pdf-table th,
+  .pdf-manager th,.pdf-role th,.pdf-dong th,.pdf-week th,.pdf-today th{
+    background:var(--table-head)!important;
+    color:var(--text-dim)!important;
+    border-color:var(--line)!important;
+  }
+  .pdf-table td{
+    background:var(--card)!important;
+    color:var(--text-main)!important;
+    border-color:var(--line)!important;
+  }
+  .pdf-total td{
+    background:var(--table-total)!important;
+    color:var(--text-main)!important;
+  }
+  .pdf-contact-good,.pdf-rate-good{
+    background:var(--table-em)!important;
+    color:var(--accent)!important;
+  }
+  .pdf-note-line,.pdf-issues,.pdf-today-table td{
+    background:var(--card)!important;color:var(--text-main)!important;
+    border-color:var(--line)!important;
+  }
+  .pdf-issue{border-color:var(--line)!important}
+  .pdf-issue-date{
+    background:var(--accent-soft)!important;color:var(--accent)!important;
+  }
+  .pdf-bars{border-color:var(--line)!important}
+  .pdf-bar.a{background:color-mix(in srgb,var(--accent) 38%,var(--bg-side-2))!important}
+  .pdf-bar.b,.pdf-bar.c{background:var(--accent)!important}
+  .pdf-bar.c{opacity:.62}
+  .pdf-bar span,.pdf-bar-label,.pdf-chart-title,.pdf-chart-legend{
+    color:var(--text-dim)!important;
+  }
+  .pdf-table tbody tr:hover td{background:var(--card-hover)!important}
+
+  /* ===== Drill-down modal ===== */
+  .sm-drill-modal,.sm-drill-head,.sm-drill-body{
+    background:var(--card)!important;color:var(--text-main)!important;
+    border-color:var(--line)!important;
+  }
+  .sm-drill-toolbar,.sm-drill-table th{
+    background:var(--bg-side-2)!important;
+    border-color:var(--line)!important;
+  }
+  .sm-drill-table td,.sm-drill-table th{border-color:var(--line)!important}
+  .sm-drill-search,.sm-drill-close{
+    background:var(--card)!important;color:var(--text-main)!important;
+    border-color:var(--line)!important;
+  }
+  .sm-drill-count,.sm-method.success{
+    background:var(--accent-soft)!important;color:var(--accent)!important;
+  }
+  .sm-method.fail{
+    background:var(--bg-side-2)!important;color:var(--text-dim)!important;
+  }
+
+  /* ===== Reference roster / misc cards ===== */
+  .roster-reference-note{
+    background:var(--accent-soft)!important;
+    border-color:var(--accent-border)!important;
+  }
+  .roster-reference-note b{color:var(--accent)!important}
+</style>
 </head>
 <body>
 <div id="entryGate" style="position:fixed;inset:0;background:rgba(3,12,22,.94);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;">
@@ -3168,7 +3505,9 @@ body.theme-dark .name-item.active{
 </div>
 <div class="overlay" id="ownerRosterModalOverlay">
   <div class="modal" id="ownerRosterModalBox" style="max-width:560px;width:100%;">
-    <h3 style="margin:0 0 6px;font-size:14px;">📋 소유주 명단 관리</h3>
+    <h3 style="margin:0 0 6px;font-size:14px;">📋 참조 명단 관리</h3>
+    <div class="roster-reference-note"><b>🌐 대시보드 보고서 집계 기준은 아닙니다.</b><br>
+    이 명단은 접촉자 이름·직책·담당 매칭을 보조하고 오타/중복을 점검하기 위한 참조용입니다. 보고서 건수·방문일·접촉자별 현황은 실제 대시보드 보고서 기록을 기준으로 계산합니다.</div>
     <details style="margin-bottom:8px;">
       <summary style="font-size:10.5px;color:var(--accent);cursor:pointer;">📥 여러 명 한번에 붙여넣기 (엑셀에서 복사해온 것도 가능)</summary>
       <p style="font-size:10px;color:var(--text-dim);margin:4px 0;line-height:1.5;">
@@ -3199,7 +3538,9 @@ body.theme-dark .name-item.active{
       <button type="button" class="btn btn-ghost btn-sm" id="ownerRosterCancelBtn">취소</button>
       <button type="button" class="btn btn-primary btn-sm" id="ownerRosterSaveBtn">저장</button>
     </div>
-    <div style="border-top:1px solid var(--line);margin-top:12px;padding-top:10px;">
+    <details class="roster-advanced-details">
+      <summary>🛠 고급 정리 도구 · 오타/의심항목/중복 점검</summary>
+      <div class="roster-advanced-inner">
       <div class="roster-tool-card">
         <div class="roster-tool-head">
           <span class="roster-tool-title">🔄 명단 기준으로 기존 보고서 정리 <button type="button" class="roster-tool-info" id="ownerRosterCleanupInfoBtn">ⓘ</button></span>
@@ -3224,7 +3565,8 @@ body.theme-dark .name-item.active{
         <div class="roster-tool-desc" id="ownerRosterDupDesc" style="display:none;">같은 날짜에 같은 담당이 같은 소유주를 상대로 쓴 보고서가 2건 이상이면(중복 입력 의심) 찾아줘요. 확인 후 필요 없는 건은 바로 삭제할 수 있어요.</div>
         <div id="ownerRosterDupResult" style="font-size:11px;margin-top:8px;line-height:1.6;max-height:320px;overflow-y:auto;"></div>
       </div>
-    </div>
+      </div>
+    </details>
   </div>
 </div>
 <div class="overlay" id="logEditModalOverlay">
@@ -3265,7 +3607,7 @@ body.theme-dark .name-item.active{
   <div class="modal" id="contactReportModalBox" style="max-width:min(97vw,1180px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">통합 접촉현황</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-10-v359</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-10-v362</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -6461,8 +6803,8 @@ function renderDetailPanel(site){
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
             ${editingLog ? '<span style="font-size:11px;color:var(--accent);font-weight:700;">✏️ 보고서 수정 중</span>' : '<span></span>'}
             <div style="display:flex;gap:5px;">
-              ${guestMode?'':`<button class="btn btn-ghost btn-sm no-print" id="ownerRosterBtn" style="padding:3px 9px;font-size:10.5px;" title="소유주 명단을 미리 등록해두면 성함 입력할 때 그 목록에서 고를 수 있어요">📋 소유주 명단</button>`}
-              <button class="btn btn-ghost btn-sm no-print" id="contactStatsBtn" style="padding:3px 9px;font-size:10.5px;" title="명단 기준으로 집계표를 만들어요">📊 집계표</button>
+              ${guestMode?'':`<button class="btn btn-ghost btn-sm no-print" id="ownerRosterBtn" style="padding:3px 9px;font-size:10.5px;" title="보고서 집계 기준이 아닌 이름/직책/담당 매칭용 참조 명단">📋 참조 명단</button>`}
+              <button class="btn btn-ghost btn-sm no-print" id="reportOpenSiteStatsBtn" style="padding:3px 9px;font-size:10.5px;" title="Excel/대시보드 현장 기준의 상세 접촉집계 열기">📌 현장 상세집계</button>
               <button class="btn btn-ghost btn-sm no-print" id="logRefreshBtn" style="padding:3px 9px;font-size:10.5px;" title="이 현장 보고서만 다시 최신으로 불러오기">🔄 보고서 새로고침</button>
             </div>
           </div>
@@ -6537,7 +6879,7 @@ function renderDetailPanel(site){
                   const specialSentence = sentences.find(sen=>SPECIAL_KEYWORDS.some(k=>sen.includes(k)));
                   // 상담내용에 이미 원문 전체가 나오니, 타사활동/특이사항은 문장을 또 반복하지 않고 있음/없음만 표시
                   function fieldOutRpt(hitSentence){
-                    return hitSentence ? '있음 (상담내용 참고)' : '없음';
+                    return hitSentence ? hitSentence : '없음';
                   }
                   const competitorOut = fieldOutRpt(competitorSentence);
                   const specialOut = fieldOutRpt(specialSentence);
@@ -6566,6 +6908,21 @@ function renderDetailPanel(site){
             }).join('');
           })()}
         </div>`;
+      const reportOpenSiteStatsBtn = document.getElementById('reportOpenSiteStatsBtn');
+      if(reportOpenSiteStatsBtn) reportOpenSiteStatsBtn.addEventListener('click', ()=>{
+        siteMgmtOffice = site.office || currentOffice || '__ALL__';
+        siteMgmtSiteId = String(site.id||'');
+        siteMgmtPeriod = 'month';
+        siteMgmtDate = new Date();
+        const of=document.getElementById('globalStatsOfficeFilter');
+        if(of)of.value=siteMgmtOffice;
+        smFillSiteSelect();
+        renderGlobalStats();
+        document.getElementById('globalStatsOverlay').classList.add('show');
+        refreshLogsForSiteIfNeeded(site,true);
+        setTimeout(()=>{try{renderGlobalStats();}catch(e){}},500);
+      });
+
       const logRefreshBtn = document.getElementById('logRefreshBtn');
       if(logRefreshBtn) logRefreshBtn.addEventListener('click', async ()=>{
         logRefreshBtn.disabled = true;
@@ -8142,7 +8499,7 @@ function renderDetailPanel(site){
           applyLogFilter(item=>{
             if(item.dataset.logDate!==dateKey) return false;
             if(mgrName){
-              const authors = String(item.dataset.logAuthor||'').split(/[,\s]+/).filter(Boolean);
+              const authors = String(item.dataset.logAuthor||'').split(/[,，;/|]+/).map(x=>x.trim()).filter(Boolean);
               if(!authors.includes(mgrName)) return false;
             }
             if(ownerName){
@@ -8164,7 +8521,7 @@ function renderDetailPanel(site){
           applyLogFilter(item=>{
             if(item.dataset.logWeek!==weekKey) return false;
             if(mgrName){
-              const authors = String(item.dataset.logAuthor||'').split(/[,\s]+/).filter(Boolean);
+              const authors = String(item.dataset.logAuthor||'').split(/[,，;/|]+/).map(x=>x.trim()).filter(Boolean);
               if(!authors.includes(mgrName)) return false;
             }
             if(ownerName){
@@ -10254,8 +10611,8 @@ function renderDetailPanel(site){
     if(!btn) return;
     const apply = (mode)=>{
       document.body.classList.toggle('theme-dark', mode==='dark');
-      btn.textContent = mode==='dark' ? '☀️' : '🌙';
-      btn.title = mode==='dark' ? '라이트 모드로 전환' : '다크 모드로 전환';
+      btn.textContent = mode==='dark' ? '☀️ 라이트 모드' : '🌙 다크 모드';
+      btn.title = mode==='dark' ? '밝은 화면으로 전환' : '어두운 화면으로 전환';
     };
     // 모바일에서 다크모드로 켜둬도 그건 그 기기(브라우저)의 localStorage에만 저장되기 때문에,
     // 데스크탑 등 다른 기기/브라우저로 처음 열면 저장된 값이 없어서 항상 흰 배경(라이트 모드)으로
@@ -10552,28 +10909,47 @@ function renderDetailPanel(site){
   function buildManagerBreakdownTable(site){
     const allLogsRaw = (site.logs||[]).filter(l=>!isTourBookingLog(l));
     if(!allLogsRaw.length) return '';
+    const splitManagerNames = v=>String(v||'').split(/[,，;/|]+/).map(x=>x.trim()).filter(Boolean);
     const managerSet = new Set();
-    String(site.manager||'').split(/[,，;/|]+/).filter(Boolean).forEach(n=>managerSet.add(n));
-    allLogsRaw.forEach(l=>{ if(l.author) String(l.author).split(/[,\s]+/).filter(Boolean).forEach(n=>managerSet.add(n)); });
+    splitManagerNames(site.manager).forEach(n=>managerSet.add(n));
+    allLogsRaw.forEach(l=>{ if(l.author) splitManagerNames(l.author).forEach(n=>managerSet.add(n)); });
     const managers = Array.from(managerSet);
     if(!managers.length) return '';
 
     // 담당자 필터가 걸려있으면 이 뷰 전체가 그 사람 것만 보이게
     if(mgrBreakdownManagerFilter && !managers.includes(mgrBreakdownManagerFilter)) mgrBreakdownManagerFilter = null;
     const allLogs = mgrBreakdownManagerFilter
-      ? allLogsRaw.filter(l=>String(l.author||'').split(/[,\s]+/).filter(x=>x && !['부장','차장','과장','대리','사원','팀장','실장','소장','본부장','지점장','센터장','이사','상무','전무','대표','대표이사'].includes(x)).filter(Boolean).includes(mgrBreakdownManagerFilter))
+      ? allLogsRaw.filter(l=>splitManagerNames(l.author).includes(mgrBreakdownManagerFilter))
       : allLogsRaw;
 
     function logsForManager(m){
       return allLogs.filter(l=>{
-        const authorNames = String(l.author||'').split(/[,\s]+/).filter(x=>x && !['부장','차장','과장','대리','사원','팀장','실장','소장','본부장','지점장','센터장','이사','상무','전무','대표','대표이사'].includes(x)).filter(Boolean);
+        const authorNames = splitManagerNames(l.author);
         if(authorNames.length) return authorNames.includes(m);
-        return String(site.manager||'').split(/[,，;/|]+/).filter(Boolean).includes(m); // 작성자 미상 로그는 대표 담당자 몫으로 집계
+        return splitManagerNames(site.manager).includes(m); // 작성자 미상 로그는 대표 담당자 몫으로 집계
       });
     }
     const now = mgrBreakdownNavDate;
     const weekRange = getWeekRange(now);
     const monthRange = getMonthRange(now);
+
+    // 이 상단 현황은 Excel/참조명단이 아니라 실제 Dashboard 보고서 로그만 센다.
+    const monthLogs = allLogsRaw.filter(l=>{
+      if(!l.date) return false;
+      const d=new Date(l.date+'T00:00:00');
+      return d>=monthRange.start && d<=monthRange.end;
+    });
+    const monthVisitDays = new Set(monthLogs.map(l=>l.date).filter(Boolean)).size;
+    const monthContacts = new Set();
+    monthLogs.forEach(l=>{
+      const segs=splitMultiNames((l.contactName||'').trim());
+      if(segs.length) segs.forEach(seg=>{
+        const n=fullyStripRoles(seg).name;
+        if(n) monthContacts.add(n);
+      });
+      else if((l.contactName||'').trim()) monthContacts.add((l.contactName||'').trim());
+    });
+    const latestReportDate = allLogsRaw.map(l=>l.date).filter(Boolean).sort().slice(-1)[0] || '-';
     // buildDailyGroups는 "현장별" 집계용으로 만들었지만, 담당자를 현장처럼 취급해서 그대로 재사용한다
     const managerRows = managers.map(m=>({site:m, logs: logsForManager(m)}));
     const weekBuckets = buildDailyGroups(managerRows, weekRange, 'week');
@@ -10614,7 +10990,8 @@ function renderDetailPanel(site){
 
     // ---- 하위 탭 ----
     const subTabs = ['달력','주별집계','월별집계','소유자별'];
-    const tabHtml = `<div class="mgr-subtabs">${subTabs.map(t=>`<span class="mgr-subtab${mgrBreakdownSubTab===t?' active':''}" data-mgr-subtab="${t}">${t}</span>`).join('')}</div>`;
+    const subTabLabel = {'달력':'일자별','주별집계':'주별','월별집계':'월별','소유자별':'접촉자별'};
+    const tabHtml = `<div class="mgr-subtabs">${subTabs.map(t=>`<span class="mgr-subtab${mgrBreakdownSubTab===t?' active':''}" data-mgr-subtab="${t}">${subTabLabel[t]}</span>`).join('')}</div>`;
 
     // ---- 달력 뷰 ----
     function buildCalendarView(){
@@ -10633,12 +11010,21 @@ function renderDetailPanel(site){
       for(let d=1; d<=daysInMonth; d++){
         const dateKey = y+'-'+String(mo+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
         const dayLogs = logsByDate[dateKey]||[];
-        const namesOnDay = Array.from(new Set(dayLogs.map(l=>l.author).filter(Boolean).flatMap(a=>String(a).split(/[,\s]+/).filter(Boolean))));
+        const namesOnDay = Array.from(new Set(dayLogs.flatMap(l=>splitManagerNames(l.author))));
+        const contactsOnDay = new Set();
+        dayLogs.forEach(l=>{
+          const segs=splitMultiNames((l.contactName||'').trim());
+          if(segs.length)segs.forEach(seg=>{const n=fullyStripRoles(seg).name;if(n)contactsOnDay.add(n);});
+          else if((l.contactName||'').trim())contactsOnDay.add((l.contactName||'').trim());
+        });
         const isToday = dateKey === (now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0'));
-        const namesHtml = namesOnDay.map(name=>`<div class="mgr-cal-name-chip" data-filter-date="${escapeHtml(dateKey)}" data-filter-manager="${escapeHtml(name)}">${escapeHtml(name)}</div>`).join('');
+        const managerMini = namesOnDay.slice(0,2).join(' · ')+(namesOnDay.length>2?` 외 ${namesOnDay.length-2}`:'');
         cells += `<div class="mgr-cal-cell${dayLogs.length?' has-log':''}${isToday?' is-today':''}">
           <div class="mgr-cal-daynum">${d}</div>
-          ${namesHtml ? `<div class="mgr-cal-names">${namesHtml}</div>` : ''}
+          ${dayLogs.length?`<div class="mgr-cal-summary-chip mgr-cal-name-chip" data-filter-date="${escapeHtml(dateKey)}">
+            <span class="mgr-cal-summary-main">보고 ${dayLogs.length}건 · 접촉 ${contactsOnDay.size}명</span>
+            ${managerMini?`<span class="mgr-cal-manager-mini">${escapeHtml(managerMini)}</span>`:''}
+          </div>`:''}
         </div>`;
       }
       const dayHeads = ['월','화','수','목','금','토','일'];
@@ -10689,7 +11075,7 @@ function renderDetailPanel(site){
       </table>`;
     }
 
-    // ---- 소유자(접촉자)별 접촉현황 ----
+    // ---- 접촉자별 보고현황 ----
     function buildOwnerView(){
       const byOwner = {}; // name -> {role, logs:[]}
       allLogs.forEach(l=>{
@@ -10727,11 +11113,11 @@ function renderDetailPanel(site){
       // 조합만 다르게 적힌 것끼리 서로 다른 값으로 취급돼 지저분하게 나온다. 이름 단위로 쪼개서 유니크하게 모은다.
       function uniqueAuthorsOf(logs){
         const set = new Set();
-        logs.forEach(l=>{ String(l.author||'').split(/[,\s]+/).filter(x=>x && !['부장','차장','과장','대리','사원','팀장','실장','소장','본부장','지점장','센터장','이사','상무','전무','대표','대표이사'].includes(x)).filter(Boolean).forEach(a=>set.add(a)); });
+        logs.forEach(l=>{ splitManagerNames(l.author).forEach(a=>set.add(a)); });
         return Array.from(set);
       }
       const owners = Object.keys(byOwner).sort((a,b)=>uniqueDateCount(byOwner[b].logs)-uniqueDateCount(byOwner[a].logs));
-      if(!owners.length) return `<div class="mgr-empty">접촉자 기록이 없습니다.</div>`;
+      if(!owners.length) return `<div class="mgr-empty">대시보드에 접촉자 기록이 없습니다.</div>`;
 
       const toggleHtml = `<div class="mgr-owner-toggle no-print">
         ${['전체','주별','월별','카드'].map(v=>`<span class="mgr-owner-toggle-btn${mgrOwnerSubView===v?' active':''}" data-owner-subview="${v}">${v}</span>`).join('')}
@@ -10882,7 +11268,19 @@ function renderDetailPanel(site){
       <button type="button" class="mgr-nav-today-btn" id="mgrBreakdownTodayBtn">오늘</button>
     </div>`;
 
+    const sourceHtml=`<div class="mgr-report-source">
+      <span class="mgr-report-source-badge">🌐 대시보드 보고서 기준</span>
+      <span class="mgr-report-source-desc">이 영역의 보고건수·방문일·접촉자별 현황은 Excel 명부가 아니라 실제 저장된 보고서 로그를 기준으로 계산합니다.</span>
+    </div>
+    <div class="mgr-report-kpis">
+      <div class="mgr-report-kpi"><div class="k">이번 달 보고서</div><div class="v">${monthLogs.length}건</div><div class="s">${monthRange.start.getMonth()+1}월 기록</div></div>
+      <div class="mgr-report-kpi"><div class="k">방문일수</div><div class="v">${monthVisitDays}일</div><div class="s">같은 날 여러 보고 = 1일</div></div>
+      <div class="mgr-report-kpi"><div class="k">접촉자</div><div class="v">${monthContacts.size}명</div><div class="s">보고서 성함 기준</div></div>
+      <div class="mgr-report-kpi"><div class="k">최근 보고</div><div class="v">${escapeHtml(latestReportDate==='-'?'-':latestReportDate.slice(5).replace('-','/'))}</div><div class="s">${managers.length}명 담당 기록</div></div>
+    </div>`;
+
     return `<div class="mgr-breakdown-wrap no-print-collapse">
+      ${sourceHtml}
       ${managerHeaderHtml}
       ${tabHtml}
       ${navHtml}
