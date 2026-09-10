@@ -4117,6 +4117,27 @@ body.theme-dark .name-item.active{
     .mgr-report-kpis{grid-template-columns:repeat(2,minmax(0,1fr))!important}
   }
 </style>
+
+<style id="v369FixStyle">
+  .excel-source-lock{
+    display:inline-flex;align-items:center;gap:5px;
+    padding:3px 7px;border-radius:999px;
+    background:var(--accent-soft);color:var(--accent);
+    font-size:8.5px;font-weight:700;
+  }
+  @media(max-width:820px){
+    #smDrillOverlay{padding:8px!important}
+    .sm-drill-modal{
+      width:calc(100vw - 16px)!important;
+      max-width:calc(100vw - 16px)!important;
+      max-height:82dvh!important;
+      margin:0!important;
+    }
+    .sm-drill-head{min-height:54px!important;padding:8px 10px!important}
+    .sm-drill-title{font-size:12.5px!important}
+    .sm-drill-sub{font-size:8.7px!important}
+  }
+</style>
 </head>
 <body>
 <div id="entryGate" style="position:fixed;inset:0;background:rgba(3,12,22,.94);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;">
@@ -4396,7 +4417,7 @@ body.theme-dark .name-item.active{
   <div class="modal" id="contactReportModalBox" style="max-width:min(97vw,1180px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">통합 접촉현황</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-10-v368</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-10-v369</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -4909,6 +4930,7 @@ const L = (function(){
   let mgrBreakdownManagerFilter = null; // 담당자 이름 클릭시 그 사람 것만 필터링
   let mgrOwnerSubView = '전체'; // 소유자별 탭 안의 보기 방식: 전체 | 주별 | 월별
   let mgrBreakdownNavDate = new Date(); // 담당자별/소유자별 집계(달력/주별/월별)에서 기준이 되는 날짜 - 이전/다음으로 넘길 수 있음
+  let mgrBreakdownLastSiteKey = null; // 현장 변경 시 달력을 오늘 달로 되돌리기
   const GUEST_KEY = 'realestate-guest-accounts-v1';
   const CHANGELOG_KEY = 'realestate-guest-changelog-v1';
   const ADMIN_PW_KEY = 'realestate-admin-pw-hash-v1';
@@ -11808,6 +11830,9 @@ function renderDetailPanel(site){
     }
 
     function buildCalendarView(){
+      if(!periodPayloadReady){
+        return `<div class="mgr-empty" style="padding:28px 12px;">⏳ Excel 날짜이력이 아직 동기화되지 않았습니다.<br><span style="font-size:9px;color:var(--text-dim);">v3.69 최초 동기화가 끝나면 이 달력이 자동으로 채워집니다.</span></div>`;
+      }
       const y=year,mo=month-1,days=monthRange.end.getDate();
       const firstDow=new Date(y,mo,1).getDay();
       const leading=(firstDow===0)?6:firstDow-1;
@@ -11919,6 +11944,12 @@ function renderDetailPanel(site){
   }
 
   function buildManagerBreakdownTable(site){
+    const logicalSiteKey=String(site&&site.id||'')+'|'+smSiteLogicalKey(site&&site.name);
+    if(mgrBreakdownLastSiteKey!==logicalSiteKey){
+      mgrBreakdownLastSiteKey=logicalSiteKey;
+      mgrBreakdownNavDate=new Date();
+      mgrBreakdownManagerFilter=null;
+    }
     const excelMaster=(site&&site.excelStats&&site.excelStats.source==='excel-master')?site.excelStats:null;
     if(excelMaster) return buildExcelReportBreakdown(site,excelMaster);
 
@@ -14452,20 +14483,66 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
     const s=new Date(d.getFullYear(),d.getMonth(),1),e=new Date(d.getFullYear(),d.getMonth()+1,0);return{start:smDateKey(s),end:smDateKey(e),label:`${s.getFullYear()}년 ${s.getMonth()+1}월`};
   }
   function smInRangeDate(k,r){return k&&k>=r.start&&k<=r.end;}
-  function smRoster(site){return(Array.isArray(site&&site.ownerRoster)?site.ownerRoster:[]).map(r=>typeof r==='string'?{name:r.trim(),role:'',manager:'',unit:'',dong:'',contactMethod:'',contacted:false,todayContactMethod:''}:{name:String(r&&r.name||'').trim(),role:String(r&&r.role||r&&r.roleType||'').trim(),manager:String(r&&r.manager||'').trim(),unit:String(r&&r.unit||'').trim(),dong:String(r&&r.dong||'').trim(),contactMethod:String(r&&r.contactMethod||'').trim(),contacted:!!(r&&r.contacted),todayContactMethod:String(r&&r.todayContactMethod||'').trim()}).filter(r=>r.name);}
+  function smRoster(site){
+    const ex=smExcel(site);
+    const source=(ex&&Array.isArray(ex.people))?ex.people:(Array.isArray(site&&site.ownerRoster)?site.ownerRoster:[]);
+    return source.map(r=>typeof r==='string'
+      ? {name:r.trim(),role:'',manager:'',unit:'',dong:'',contactMethod:'',contacted:false,todayContactMethod:''}
+      : {
+          name:String(r&&r.name||'').trim(),
+          role:String(r&&r.role||r&&r.roleType||'').trim(),
+          manager:String(r&&r.manager||'').trim().replace(/\s+/g,' '),
+          unit:String(r&&r.unit||'').trim(),
+          dong:String(r&&r.dong||'').trim(),
+          contactMethod:String(r&&r.contactMethod||'').trim(),
+          contacted:!!(r&&r.contacted),
+          todayContactMethod:String(r&&r.todayContactMethod||'').trim()
+        }).filter(r=>r.name);
+  }
   function smSplit(v){return String(v||'').split(/[,，;/|\n]+/).map(x=>x.trim()).filter(Boolean);}
   function smCore(v){return String(v||'').trim().replace(/[（(].*?[）)]/g,' ').replace(/\s+/g,' ').trim().toLowerCase();}
-  function smAllSites(){const os=siteMgmtOffice==='__ALL__'?OFFICES:[siteMgmtOffice];return os.flatMap(o=>(allOfficesData[o]||[]).map(s=>({office:o,site:s})));}
-  function smSelected(){const a=smAllSites();let h=a.find(x=>String(x.site.id)===String(siteMgmtSiteId));if(!h&&a.length){h=a[0];siteMgmtSiteId=String(h.site.id||'');}return h||null;}
+  function smSiteLogicalKey(name){
+    return String(name||'').toLowerCase()
+      .replace(/\([^)]*\)/g,'')
+      .replace(/[\s_\-·ㆍ]+/g,'')
+      .replace(/신탁방식|신탁/g,'');
+  }
+  function smRawSites(){
+    const os=siteMgmtOffice==='__ALL__'?OFFICES:[siteMgmtOffice];
+    return os.flatMap(o=>(allOfficesData[o]||[]).filter(s=>s&&typeof s==='object').map(s=>({office:o,site:s})));
+  }
+  function smAllSites(){
+    const groups={};
+    smRawSites().forEach(p=>{
+      const k=p.office+'|'+smSiteLogicalKey(p.site.name);
+      const score=(p.site.excelStats&&p.site.excelStats.source==='excel-master'?1000000:0)
+        +(Array.isArray(p.site.ownerRoster)?p.site.ownerRoster.length*10:0)
+        +(Array.isArray(p.site.logs)?p.site.logs.length:0);
+      if(!groups[k]||score>groups[k]._score)groups[k]={...p,_score:score};
+    });
+    return Object.values(groups).map(({_score,...p})=>p);
+  }
+  function smSelected(){
+    const a=smAllSites();
+    let h=a.find(x=>String(x.site.id)===String(siteMgmtSiteId));
+    if(!h&&siteMgmtSiteId){
+      const raw=smRawSites().find(x=>String(x.site.id)===String(siteMgmtSiteId));
+      if(raw){
+        const key=smSiteLogicalKey(raw.site.name);
+        h=a.find(x=>x.office===raw.office&&smSiteLogicalKey(x.site.name)===key);
+      }
+    }
+    if(!h&&a.length)h=a[0];
+    if(h)siteMgmtSiteId=String(h.site.id||'');
+    return h||null;
+  }
   function smFillSiteSelect(){const e=document.getElementById('siteMgmtSiteSelect');if(!e)return;const a=smAllSites();e.innerHTML=a.map(x=>`<option value="${escapeHtml(String(x.site.id||''))}">${escapeHtml(x.site.name||'')} · ${escapeHtml(x.office.replace('사업소',''))}</option>`).join('');if(a.some(x=>String(x.site.id)===String(siteMgmtSiteId)))e.value=siteMgmtSiteId;else if(a.length){siteMgmtSiteId=String(a[0].site.id||'');e.value=siteMgmtSiteId;}}
   function smExcel(site){const x=site&&site.excelStats;return x&&x.source==='excel-master'?x:null;}
 
   // 집계표에서만 동일 담당자를 합친다. 로그/달력의 원문 '김민주 차장' 표기는 그대로 보존.
   function smManagerKey(v){
-    let s=String(v||'').trim().replace(/\s+/g,' ');
-    if(!s||s==='(미지정)')return'(미지정)';
-    s=s.replace(/\s*(본부장|실장|팀장|부장|차장|과장|대리|사원|주임)$/,'').trim();
-    return s||'(미지정)';
+    const s=String(v||'').trim().replace(/\s+/g,' ');
+    return (!s||s==='(미지정)')?'(미지정)':s;
   }
   function smEmptyMgr(){return{total:0,contacted:0,uncontacted:0,todayContacted:0,roleOwners:0,methods:{상담:0,단순:0,TM:0,미접촉:0,거부:0,부재:0,불명:0},todayMethods:{상담:0,단순:0,TM:0,미접촉:0,거부:0,부재:0,불명:0}};}
   function smMergeManagers(raw){
@@ -14475,17 +14552,19 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
       ['total','contacted','uncontacted','todayContacted','roleOwners'].forEach(f=>t[f]+=Number(d&&d[f]||0));
       ['methods','todayMethods'].forEach(g=>Object.keys(t[g]).forEach(m=>t[g][m]+=Number(d&&d[g]&&d[g][m]||0)));
     });
-    Object.values(out).forEach(d=>{d.contacted=(d.methods.상담||0)+(d.methods.단순||0)+(d.methods.TM||0);d.uncontacted=Math.max(0,d.total-d.contacted);d.contactRate=d.total?d.contacted/d.total*100:0;});
+    Object.values(out).forEach(d=>{
+      d.contacted=Math.max(0,Math.min(Number(d.total||0),Number(d.contacted||0)));
+      d.uncontacted=Math.max(0,Number(d.total||0)-d.contacted);
+      d.contactRate=d.total?d.contacted/d.total*100:0;
+    });
     return out;
   }
   function smSuccessMethods(m){return Number(m&&m.상담||0)+Number(m&&m.단순||0)+Number(m&&m.TM||0);}
   function smOverallMetrics(x){
     const bm=smMergeManagers(x&&x.byManager||{});
     const total=Number(x&&x.totalOwners||0);
-    let contacted=0,today=0;
-    Object.values(bm).forEach(d=>{contacted+=smSuccessMethods(d.methods);today+=smSuccessMethods(d.todayMethods);});
-    if(!Object.keys(bm).length){contacted=Number(x&&x.contactedOwners||0);today=Number(x&&x.todayContactedOwners||0);}
-    contacted=Math.min(total,contacted);
+    const contacted=Math.max(0,Math.min(total,Number(x&&x.contactedOwners||0)));
+    const today=Math.max(0,Number(x&&x.todayContactedOwners||0));
     return{total,contacted,uncontacted:Math.max(0,total-contacted),rate:total?contacted/total*100:0,today,bm};
   }
 
@@ -14583,10 +14662,11 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
     Object.entries(bm).forEach(([name,d])=>{
       if(name==='(미지정)')return;
       if(!periodMode){
-        rows.push({name,total:d.total,contacted:smSuccessMethods(d.methods),rate:d.total?smSuccessMethods(d.methods)/d.total*100:0,today:smSuccessMethods(d.todayMethods),methods:d.methods});
+        const contacted=Number(d.contacted||0);
+        rows.push({name,total:Number(d.total||0),contacted,rate:Number(d.total||0)?contacted/Number(d.total||0)*100:0,today:Number(d.todayContacted||0),methods:d.methods});
       }else{
         const p=a.mgr[name],contacted=p?p.people.size:0,methods=p?p.methods:{상담:0,단순:0,TM:0};
-        rows.push({name,total:d.total,contacted,rate:d.total?contacted/d.total*100:0,today:0,methods});
+        rows.push({name,total:Number(d.total||0),contacted,rate:Number(d.total||0)?contacted/Number(d.total||0)*100:0,today:0,methods});
       }
     });
     rows.sort((a,b)=>a.name.localeCompare(b.name,'ko'));
@@ -14657,12 +14737,15 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
       if(!byName[k])byName[k]=[];
       byName[k].push(e);
     });
+    const excelMaster=!!smExcel(site);
     return roster.map(r=>{
       const ev=(byName[smCore(r.name)]||[]).slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
       const latest=ev[0]||{};
       const log=smLatestLogForPerson(site,r.name);
       const method=r.contactMethod||latest.method||'';
-      const contacted=(r.contactMethod ? ['상담','단순','TM'].includes(r.contactMethod) : (r.contacted||['상담','단순','TM'].includes(method)));
+      const contacted=excelMaster
+        ? (r.contacted||['상담','단순','TM'].includes(r.contactMethod))
+        : (r.contactMethod?['상담','단순','TM'].includes(r.contactMethod):(r.contacted||['상담','단순','TM'].includes(method)));
       return{
         name:r.name,manager:smManagerKey(r.manager),unit:r.unit||latest.unit||'',dong:r.dong||latest.dong||'',
         role:r.role||latest.role||'',method,contacted,todayMethod:r.todayContactMethod||'',
