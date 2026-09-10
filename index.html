@@ -3423,6 +3423,53 @@ body.theme-dark .name-item.active{
     }
   }
 </style>
+
+<style id="excelFirstReportV364Style">
+  .mgr-report-source.excel-first{
+    background:var(--accent-soft)!important;
+  }
+  .mgr-report-source.excel-first .mgr-report-source-badge{
+    color:var(--accent)!important;
+    font-weight:800;
+  }
+  .mgr-report-kpis.excel-first .mgr-report-kpi{
+    background:var(--card)!important;
+  }
+  .mgr-report-kpis.excel-first .mgr-report-kpi .v{
+    color:var(--text-main)!important;
+  }
+  .mgr-report-kpis.excel-first .mgr-report-kpi:nth-child(2) .v,
+  .mgr-report-kpis.excel-first .mgr-report-kpi:nth-child(4) .v{
+    color:var(--accent)!important;
+  }
+  .mgr-report-activity{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    flex-wrap:wrap;
+    margin:0 10px 8px;
+    padding:7px 9px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    background:var(--bg-side-2);
+    color:var(--text-dim);
+    font-size:8.8px;
+    line-height:1.45;
+  }
+  .mgr-report-activity b{
+    color:var(--accent);
+    font-weight:700;
+  }
+  .mgr-report-activity .sep{
+    opacity:.45;
+  }
+  @media(max-width:620px){
+    .mgr-report-activity{
+      font-size:8.5px;
+      gap:5px;
+    }
+  }
+</style>
 </head>
 <body>
 <div id="entryGate" style="position:fixed;inset:0;background:rgba(3,12,22,.94);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;">
@@ -3702,7 +3749,7 @@ body.theme-dark .name-item.active{
   <div class="modal" id="contactReportModalBox" style="max-width:min(97vw,1180px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">통합 접촉현황</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-10-v363</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-10-v364</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -11075,6 +11122,17 @@ function renderDetailPanel(site){
       else if((l.contactName||'').trim()) monthContacts.add((l.contactName||'').trim());
     });
     const latestReportDate = allLogsRaw.map(l=>l.date).filter(Boolean).sort().slice(-1)[0] || '-';
+
+    // HYBRID MASTER:
+    // Excel 원장이 있는 현장은 접촉 집계 숫자를 무조건 ExcelStats에서 가져온다.
+    // Dashboard 로그는 보고서 건수/방문일/특이사항/접촉자별 이력에만 사용한다.
+    const ex = (site.excelStats && site.excelStats.source==='excel-master') ? site.excelStats : null;
+    const isExcelMaster = !!ex;
+    const exTotal = isExcelMaster ? Number(ex.totalOwners||0) : 0;
+    const exContacted = isExcelMaster ? Number(ex.contactedOwners||0) : 0;
+    const exUncontacted = isExcelMaster ? Number(ex.uncontactedOwners||Math.max(0,exTotal-exContacted)) : 0;
+    const exRate = isExcelMaster ? Number(ex.contactRate||0) : 0;
+    const exSyncedAt = isExcelMaster ? String(ex.syncedAt||'') : '';
     // buildDailyGroups는 "현장별" 집계용으로 만들었지만, 담당자를 현장처럼 취급해서 그대로 재사용한다
     const managerRows = managers.map(m=>({site:m, logs: logsForManager(m)}));
     const weekBuckets = buildDailyGroups(managerRows, weekRange, 'week');
@@ -11393,16 +11451,34 @@ function renderDetailPanel(site){
       <button type="button" class="mgr-nav-today-btn" id="mgrBreakdownTodayBtn">오늘</button>
     </div>`;
 
-    const sourceHtml=`<div class="mgr-report-source">
-      <span class="mgr-report-source-badge">🌐 대시보드 보고서 기준</span>
-      <span class="mgr-report-source-desc">이 영역의 보고건수·방문일·접촉자별 현황은 Excel 명부가 아니라 실제 저장된 보고서 로그를 기준으로 계산합니다.</span>
-    </div>
-    <div class="mgr-report-kpis">
-      <div class="mgr-report-kpi"><div class="k">이번 달 보고서</div><div class="v">${monthLogs.length}건</div><div class="s">${monthRange.start.getMonth()+1}월 기록</div></div>
-      <div class="mgr-report-kpi"><div class="k">방문일수</div><div class="v">${monthVisitDays}일</div><div class="s">같은 날 여러 보고 = 1일</div></div>
-      <div class="mgr-report-kpi"><div class="k">접촉자</div><div class="v">${monthContacts.size}명</div><div class="s">보고서 성함 기준</div></div>
-      <div class="mgr-report-kpi"><div class="k">최근 보고</div><div class="v">${escapeHtml(latestReportDate==='-'?'-':latestReportDate.slice(5).replace('-','/'))}</div><div class="s">${managers.length}명 담당 기록</div></div>
-    </div>`;
+    const sourceHtml = isExcelMaster
+      ? `<div class="mgr-report-source excel-first">
+          <span class="mgr-report-source-badge">📗 Excel 원장 집계 우선</span>
+          <span class="mgr-report-source-desc">조합원/소유주·누계접촉·미접촉·접촉률은 Excel 원장 기준입니다. 아래 일자별·주별·월별·접촉자별 보고현황만 대시보드 보고서 로그를 사용합니다.</span>
+        </div>
+        <div class="mgr-report-kpis excel-first">
+          <div class="mgr-report-kpi"><div class="k">조합원/소유주</div><div class="v">${exTotal}명</div><div class="s">Excel 명부 기준</div></div>
+          <div class="mgr-report-kpi"><div class="k">누계접촉</div><div class="v">${exContacted}명</div><div class="s">상담·단순·TM</div></div>
+          <div class="mgr-report-kpi"><div class="k">미접촉</div><div class="v">${exUncontacted}명</div><div class="s">Excel 원장 기준</div></div>
+          <div class="mgr-report-kpi"><div class="k">접촉률</div><div class="v">${exRate.toFixed(1)}%</div><div class="s">${exSyncedAt ? '동기화 '+escapeHtml(exSyncedAt.slice(5,16).replace('T',' ')) : 'Excel 동기화 값'}</div></div>
+        </div>
+        <div class="mgr-report-activity">
+          <b>🌐 대시보드 보고서 활동</b>
+          <span>이번 달 보고 ${monthLogs.length}건</span><span class="sep">·</span>
+          <span>방문 ${monthVisitDays}일</span><span class="sep">·</span>
+          <span>보고서 접촉자 ${monthContacts.size}명</span><span class="sep">·</span>
+          <span>최근 보고 ${escapeHtml(latestReportDate==='-'?'-':latestReportDate.slice(5).replace('-','/'))}</span>
+        </div>`
+      : `<div class="mgr-report-source">
+          <span class="mgr-report-source-badge">🌐 대시보드 기준 · Excel 원장 없음</span>
+          <span class="mgr-report-source-desc">Excel 집계 원장이 없는 현장입니다. 보고건수·방문일·접촉자별 현황은 실제 저장된 대시보드 보고서 로그를 기준으로 계산합니다.</span>
+        </div>
+        <div class="mgr-report-kpis">
+          <div class="mgr-report-kpi"><div class="k">이번 달 보고서</div><div class="v">${monthLogs.length}건</div><div class="s">${monthRange.start.getMonth()+1}월 기록</div></div>
+          <div class="mgr-report-kpi"><div class="k">방문일수</div><div class="v">${monthVisitDays}일</div><div class="s">같은 날 여러 보고 = 1일</div></div>
+          <div class="mgr-report-kpi"><div class="k">접촉자</div><div class="v">${monthContacts.size}명</div><div class="s">보고서 성함 기준</div></div>
+          <div class="mgr-report-kpi"><div class="k">최근 보고</div><div class="v">${escapeHtml(latestReportDate==='-'?'-':latestReportDate.slice(5).replace('-','/'))}</div><div class="s">${managers.length}명 담당 기록</div></div>
+        </div>`;
 
     return `<div class="mgr-breakdown-wrap no-print-collapse">
       ${sourceHtml}
