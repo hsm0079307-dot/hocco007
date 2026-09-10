@@ -9559,7 +9559,7 @@ function renderDetailPanel(site){
         const authorsUnion = new Set();
         logsInRange.forEach(l=>{
           const author = (l.author && l.author.trim()) || s.manager || '';
-          const names = String(author).split(/[,\s]+/).filter(x=>x && !SOONI_TITLE_ONLY.has(x)).filter(Boolean);
+          const names = sooniManagerTokens(author).filter(Boolean);
           names.forEach(n=>authorsUnion.add(n));
           dateAuthorsMap[l.date] = dateAuthorsMap[l.date] || new Set();
           names.forEach(n=>dateAuthorsMap[l.date].add(n));
@@ -9779,12 +9779,12 @@ function renderDetailPanel(site){
     // 담당자 필터가 걸려있으면 이 뷰 전체가 그 사람 것만 보이게
     if(mgrBreakdownManagerFilter && !managers.includes(mgrBreakdownManagerFilter)) mgrBreakdownManagerFilter = null;
     const allLogs = mgrBreakdownManagerFilter
-      ? allLogsRaw.filter(l=>String(l.author||'').split(/[,\s]+/).filter(x=>x && !SOONI_TITLE_ONLY.has(x)).filter(Boolean).includes(mgrBreakdownManagerFilter))
+      ? allLogsRaw.filter(l=>sooniManagerTokens(l.author).filter(Boolean).includes(mgrBreakdownManagerFilter))
       : allLogsRaw;
 
     function logsForManager(m){
       return allLogs.filter(l=>{
-        const authorNames = String(l.author||'').split(/[,\s]+/).filter(x=>x && !SOONI_TITLE_ONLY.has(x)).filter(Boolean);
+        const authorNames = sooniManagerTokens(l.author).filter(Boolean);
         if(authorNames.length) return authorNames.includes(m);
         return String(site.manager||'').split(/[,\s]+/).filter(Boolean).includes(m); // 작성자 미상 로그는 대표 담당자 몫으로 집계
       });
@@ -9945,7 +9945,7 @@ function renderDetailPanel(site){
       // 조합만 다르게 적힌 것끼리 서로 다른 값으로 취급돼 지저분하게 나온다. 이름 단위로 쪼개서 유니크하게 모은다.
       function uniqueAuthorsOf(logs){
         const set = new Set();
-        logs.forEach(l=>{ String(l.author||'').split(/[,\s]+/).filter(x=>x && !SOONI_TITLE_ONLY.has(x)).filter(Boolean).forEach(a=>set.add(a)); });
+        logs.forEach(l=>{ sooniManagerTokens(l.author).filter(Boolean).forEach(a=>set.add(a)); });
         return Array.from(set);
       }
       const owners = Object.keys(byOwner).sort((a,b)=>uniqueDateCount(byOwner[b].logs)-uniqueDateCount(byOwner[a].logs));
@@ -11406,6 +11406,11 @@ function renderDetailPanel(site){
         <div class="p-footer">생성일시 ${new Date().toLocaleString('ko-KR')}</div>
       </div>
       <script>
+const SOONI_TITLE_ONLY = new Set(['부장','차장','과장','대리','사원','팀장','실장','소장','본부장','지점장','센터장','이사','상무','전무','대표','대표이사']);
+function sooniManagerTokens(author){
+  return String(author||'').split(/[,\s]+/).map(x=>x.trim()).filter(x=>x && !SOONI_TITLE_ONLY.has(x));
+}
+
         window.onload = function(){
           try{
             var root = document.getElementById('printRoot');
@@ -11793,7 +11798,7 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
         const ly = parseInt(l.date.slice(0,4),10), lm = parseInt(l.date.slice(5,7),10);
         if(ly!==y || lm!==(mo+1)) return;
         monthDates.add(l.date);
-        const authors = String(l.author||'').split(/[,\s]+/).filter(x=>x && !SOONI_TITLE_ONLY.has(x)).filter(Boolean);
+        const authors = sooniManagerTokens(l.author).filter(Boolean);
         if(!dayManagers[l.date]) dayManagers[l.date] = new Set();
         authors.forEach(a=>dayManagers[l.date].add(a));
         const dayNum = parseInt(l.date.slice(8,10),10);
@@ -12054,10 +12059,6 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
     }
   })();
 })();
-
-<script>
-const SOONI_TITLE_ONLY = new Set(['부장','차장','과장','대리','사원','팀장','실장','소장','본부장','지점장','센터장','이사','상무','전무','대표','대표이사']);
-</script>
 </script>
 <!-- v235: quick filters, expanded search, sorting, list/map UX -->
 </body>
