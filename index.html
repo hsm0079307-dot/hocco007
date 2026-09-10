@@ -3470,6 +3470,478 @@ body.theme-dark .name-item.active{
     }
   }
 </style>
+
+<style id="mobileLayoutV365Style">
+  /* =========================================================
+     v3.65 MOBILE ONLY
+     1) 첫 화면의 좌우 밀림/가로 오버플로우 제거
+     2) 현장 상세집계 모바일 정렬
+     ========================================================= */
+  @media(max-width:820px){
+    html,body{
+      width:100%!important;
+      max-width:100%!important;
+      min-width:0!important;
+      overflow-x:hidden!important;
+      margin:0!important;
+      padding:0!important;
+    }
+    body{
+      position:relative;
+    }
+    #app{
+      width:100%!important;
+      max-width:100%!important;
+      min-width:0!important;
+      margin:0!important;
+      padding:7px!important;
+      overflow-x:hidden!important;
+      border-radius:0!important;
+    }
+    #app>*{
+      max-width:100%!important;
+      min-width:0!important;
+      box-sizing:border-box!important;
+    }
+
+    /* ---------- 첫 화면 상단 ---------- */
+    .topbar{
+      width:100%!important;
+      max-width:100%!important;
+      display:grid!important;
+      grid-template-columns:minmax(0,1fr) auto auto!important;
+      grid-template-rows:auto auto!important;
+      gap:8px 7px!important;
+      align-items:center!important;
+      padding:11px 12px!important;
+      margin:0!important;
+      overflow:visible!important;
+      border-radius:12px!important;
+      box-sizing:border-box!important;
+    }
+    .topbar .brand{
+      grid-column:1 / 2!important;
+      grid-row:1!important;
+      min-width:0!important;
+      margin:0!important;
+      font-size:18px!important;
+      line-height:1.2!important;
+      font-weight:800!important;
+      white-space:nowrap!important;
+      overflow:visible!important;
+    }
+    .topbar .sync-status{
+      grid-column:2 / 4!important;
+      grid-row:1!important;
+      min-width:0!important;
+      max-width:100%!important;
+      margin:0!important;
+      display:flex!important;
+      flex-wrap:nowrap!important;
+      gap:5px!important;
+      justify-content:flex-end!important;
+      overflow-x:auto!important;
+      overflow-y:hidden!important;
+      scrollbar-width:none!important;
+      -webkit-overflow-scrolling:touch;
+    }
+    .topbar .sync-status::-webkit-scrollbar{display:none!important}
+    .topbar .sync-pill{
+      flex:0 0 auto!important;
+      white-space:nowrap!important;
+      font-size:9px!important;
+      padding:4px 7px!important;
+    }
+    .topbar .search-box{display:none!important}
+    #topbarMenuWrap{
+      grid-column:2!important;
+      grid-row:2!important;
+      justify-self:end!important;
+      margin-left:0!important;
+    }
+    #mobileNavWrap{
+      grid-column:3!important;
+      grid-row:2!important;
+      justify-self:end!important;
+      display:block!important;
+    }
+    #topbarMenuBtn,#mobileNavBtn{
+      min-height:38px!important;
+      padding:7px 11px!important;
+      font-size:11px!important;
+      border-radius:9px!important;
+    }
+
+    /* ---------- 두 번째 버튼줄 ---------- */
+    .view-switch-bar{
+      width:100%!important;
+      max-width:100%!important;
+      min-width:0!important;
+      display:flex!important;
+      align-items:center!important;
+      justify-content:flex-start!important;
+      gap:7px!important;
+      padding:9px 10px!important;
+      margin:0!important;
+      overflow-x:auto!important;
+      overflow-y:visible!important;
+      white-space:nowrap!important;
+      scrollbar-width:none!important;
+      -webkit-overflow-scrolling:touch;
+      border-radius:12px!important;
+    }
+    .view-switch-bar::-webkit-scrollbar{display:none!important}
+    .view-switch-bar>*{flex:0 0 auto!important}
+    #globalStatsTopBtn,#managerFilterBtn{
+      min-height:36px!important;
+      padding:7px 11px!important;
+      font-size:11px!important;
+      border-radius:9px!important;
+    }
+
+    /* ---------- 단계 탭 ---------- */
+    .tabs{
+      width:100%!important;
+      max-width:100%!important;
+      min-width:0!important;
+      display:flex!important;
+      flex-wrap:nowrap!important;
+      gap:5px!important;
+      padding:7px 9px!important;
+      margin:0!important;
+      overflow-x:auto!important;
+      overflow-y:hidden!important;
+      scrollbar-width:none!important;
+      -webkit-overflow-scrolling:touch;
+      border-radius:12px!important;
+    }
+    .tabs::-webkit-scrollbar{display:none!important}
+    .tab{
+      flex:0 0 auto!important;
+      min-height:34px!important;
+      padding:6px 11px!important;
+      font-size:11px!important;
+      white-space:nowrap!important;
+    }
+
+    /* ---------- 첫 화면 본문 + 지도 ---------- */
+    .main{
+      width:100%!important;
+      max-width:100%!important;
+      min-width:0!important;
+      display:flex!important;
+      flex-direction:column!important;
+      gap:10px!important;
+      overflow-x:hidden!important;
+      overflow-y:auto!important;
+      box-sizing:border-box!important;
+    }
+    .sidebar{
+      width:100%!important;
+      max-width:100%!important;
+      min-width:0!important;
+      flex:1 1 auto!important;
+      border-right:0!important;
+      border-bottom:1px solid var(--line)!important;
+      overflow:hidden!important;
+      box-sizing:border-box!important;
+    }
+    .master-detail,.master-panel{
+      width:100%!important;
+      max-width:100%!important;
+      min-width:0!important;
+      overflow:hidden!important;
+      box-sizing:border-box!important;
+    }
+    .master-panel .empty{
+      min-height:250px!important;
+      display:flex!important;
+      flex-direction:column!important;
+      justify-content:center!important;
+      align-items:center!important;
+      padding:28px 18px!important;
+      box-sizing:border-box!important;
+      text-align:center!important;
+    }
+    .map-wrap{
+      width:100%!important;
+      max-width:100%!important;
+      min-width:0!important;
+      flex:0 0 300px!important;
+      min-height:300px!important;
+      max-height:300px!important;
+      margin:0!important;
+      overflow:hidden!important;
+      box-sizing:border-box!important;
+      border-radius:12px!important;
+    }
+    #map{
+      width:100%!important;
+      max-width:100%!important;
+      min-width:0!important;
+      height:auto!important;
+      flex:1 1 auto!important;
+      box-sizing:border-box!important;
+    }
+    .office-switcher{
+      width:auto!important;
+      max-width:calc(100% - 16px)!important;
+      margin:6px 8px 5px!important;
+      overflow-x:auto!important;
+      flex-wrap:nowrap!important;
+      scrollbar-width:none!important;
+    }
+    .office-switcher::-webkit-scrollbar{display:none!important}
+
+    /* =========================================================
+       현장 상세집계 모바일
+       ========================================================= */
+    #globalStatsOverlay{
+      padding:6px!important;
+      align-items:flex-start!important;
+      overflow:hidden!important;
+    }
+    #globalStatsModalBox{
+      width:calc(100vw - 12px)!important;
+      max-width:calc(100vw - 12px)!important;
+      min-width:0!important;
+      height:calc(100dvh - 12px)!important;
+      max-height:calc(100dvh - 12px)!important;
+      margin:0!important;
+      border-radius:14px!important;
+      overflow:hidden!important;
+    }
+    .sm-head{
+      display:grid!important;
+      grid-template-columns:repeat(6,minmax(0,1fr))!important;
+      grid-template-rows:auto auto auto auto!important;
+      gap:6px!important;
+      align-items:center!important;
+      min-height:0!important;
+      padding:10px!important;
+      box-sizing:border-box!important;
+    }
+    .sm-head h3{
+      grid-column:1 / 6!important;
+      grid-row:1!important;
+      margin:0!important;
+      min-width:0!important;
+      font-size:14px!important;
+      line-height:1.25!important;
+      white-space:nowrap!important;
+      overflow:hidden!important;
+      text-overflow:ellipsis!important;
+    }
+    #globalStatsCloseBtn{
+      grid-column:6!important;
+      grid-row:1!important;
+      width:100%!important;
+      min-width:0!important;
+    }
+    #globalStatsOfficeFilter{
+      grid-column:1 / 3!important;
+      grid-row:2!important;
+    }
+    #siteMgmtSiteSelect{
+      grid-column:3 / 7!important;
+      grid-row:2!important;
+    }
+    .sm-select{
+      width:100%!important;
+      max-width:100%!important;
+      min-width:0!important;
+      height:36px!important;
+      font-size:10.5px!important;
+      padding:4px 8px!important;
+    }
+    #siteMgmtAllBtn{grid-column:1!important;grid-row:3!important}
+    #siteMgmtMonthBtn{grid-column:2!important;grid-row:3!important}
+    #siteMgmtWeekBtn{grid-column:3!important;grid-row:3!important}
+    #siteMgmtDayBtn{grid-column:4!important;grid-row:3!important}
+    #siteMgmtPrevBtn{grid-column:5!important;grid-row:3!important}
+    #siteMgmtNextBtn{grid-column:6!important;grid-row:3!important}
+    #siteMgmtPeriodLabel{
+      grid-column:1 / 5!important;
+      grid-row:4!important;
+      min-width:0!important;
+      width:100%!important;
+      text-align:left!important;
+      padding-left:5px!important;
+      font-size:10.5px!important;
+      white-space:nowrap!important;
+    }
+    #globalStatsRefreshBtn{
+      grid-column:5 / 7!important;
+      grid-row:4!important;
+      width:100%!important;
+      min-width:0!important;
+    }
+    .sm-spacer{display:none!important}
+    .sm-btn{
+      width:100%!important;
+      min-width:0!important;
+      height:35px!important;
+      padding:4px 6px!important;
+      font-size:10.5px!important;
+      border-radius:8px!important;
+    }
+
+    .sm-body{
+      height:calc(100dvh - 188px)!important;
+      max-height:none!important;
+      width:100%!important;
+      max-width:100%!important;
+      min-width:0!important;
+      padding:9px!important;
+      overflow-x:hidden!important;
+      overflow-y:auto!important;
+      box-sizing:border-box!important;
+    }
+    .pdfsheet{
+      width:100%!important;
+      max-width:100%!important;
+      min-width:0!important;
+      margin:0!important;
+    }
+    .pdf-titlebar{
+      width:100%!important;
+      min-height:44px!important;
+      padding:0 12px!important;
+      font-size:14px!important;
+      border-radius:10px!important;
+    }
+    .pdf-titlebar small{
+      font-size:8px!important;
+    }
+    .pdf-source{
+      font-size:8px!important;
+      margin:4px 2px 8px!important;
+    }
+
+    /* KPI: 2 x 2 */
+    .pdf-summary{
+      width:100%!important;
+      grid-template-columns:repeat(2,minmax(0,1fr))!important;
+      gap:8px!important;
+      margin-bottom:9px!important;
+    }
+    .pdf-summary-cell{
+      min-width:0!important;
+      min-height:66px!important;
+      padding:10px 11px!important;
+      border-radius:9px!important;
+    }
+    .pdf-summary-cell .h{font-size:9px!important}
+    .pdf-summary-cell .n{font-size:20px!important}
+
+    /* All cards stack vertically on a phone */
+    .pdf-middle-grid,.pdf-bottom-grid,.pdf-layout-chart{
+      grid-template-columns:1fr!important;
+      gap:9px!important;
+      margin-bottom:9px!important;
+      margin-top:9px!important;
+    }
+    .pdf-manager-row{
+      width:100%!important;
+      max-width:100%!important;
+      margin-bottom:9px!important;
+      overflow:hidden!important;
+    }
+    .pdf-section{
+      width:100%!important;
+      max-width:100%!important;
+      min-width:0!important;
+      border-radius:9px!important;
+    }
+    .pdf-section-title{
+      min-height:36px!important;
+      flex-basis:36px!important;
+      padding:0 10px!important;
+      font-size:10.5px!important;
+    }
+
+    /* Wide tables scroll INSIDE their own card instead of pushing the whole screen sideways. */
+    .pdf-manager-card,.pdf-dong-card{
+      overflow-x:auto!important;
+      overflow-y:hidden!important;
+      -webkit-overflow-scrolling:touch;
+      scrollbar-width:thin;
+    }
+    .pdf-manager-card .pdf-table{
+      width:720px!important;
+      min-width:720px!important;
+      table-layout:fixed!important;
+    }
+    .pdf-dong-card .pdf-dong-one{
+      width:620px!important;
+      min-width:620px!important;
+      table-layout:fixed!important;
+    }
+    .pdf-role-card .pdf-table,
+    .pdf-period-card .pdf-table{
+      width:100%!important;
+      min-width:0!important;
+      table-layout:fixed!important;
+    }
+    .pdf-table{
+      font-size:9px!important;
+    }
+    .pdf-table th{
+      font-size:8.3px!important;
+    }
+    .pdf-table th,.pdf-table td{
+      height:29px!important;
+      padding:4px 4px!important;
+    }
+
+    .pdf-issues-card{
+      height:auto!important;
+      min-height:220px!important;
+      max-height:none!important;
+    }
+    .pdf-issues{
+      min-height:180px!important;
+      max-height:260px!important;
+      font-size:9.5px!important;
+      line-height:1.55!important;
+    }
+    .pdf-chart{
+      width:100%!important;
+      height:180px!important;
+      min-height:180px!important;
+      border-radius:9px!important;
+    }
+    .pdf-bars{height:108px!important}
+    .pdf-today-wrap{
+      width:100%!important;
+      margin-top:9px!important;
+      overflow-x:auto!important;
+    }
+    .pdf-today-table{
+      width:760px!important;
+      min-width:760px!important;
+    }
+
+    /* drill-down popup also stays inside phone width */
+    .sm-drill-modal{
+      width:calc(100vw - 16px)!important;
+      max-width:calc(100vw - 16px)!important;
+      max-height:88dvh!important;
+    }
+    .sm-drill-body{overflow:auto!important}
+    .sm-drill-table{min-width:860px!important}
+  }
+
+  @media(max-width:420px){
+    .topbar{
+      grid-template-columns:minmax(0,1fr) auto auto!important;
+      padding:10px!important;
+    }
+    .topbar .brand{font-size:17px!important}
+    .topbar .sync-pill{font-size:8.5px!important;padding:3px 6px!important}
+    .sm-body{height:calc(100dvh - 188px)!important}
+  }
+</style>
 </head>
 <body>
 <div id="entryGate" style="position:fixed;inset:0;background:rgba(3,12,22,.94);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;">
@@ -3749,7 +4221,7 @@ body.theme-dark .name-item.active{
   <div class="modal" id="contactReportModalBox" style="max-width:min(97vw,1180px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">통합 접촉현황</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-10-v364</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-10-v365</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -7089,7 +7561,7 @@ function renderDetailPanel(site){
         if(of)of.value=siteMgmtOffice;
         smFillSiteSelect();
         renderGlobalStats();
-        document.getElementById('globalStatsOverlay').classList.add('show');
+        document.getElementById('globalStatsOverlay').classList.add('show'); if(window.innerWidth<=820)setTimeout(sooniMobileStraighten,20);
         refreshLogsForSiteIfNeeded(site,true);
         setTimeout(()=>{try{renderGlobalStats();}catch(e){}},500);
       });
@@ -9193,6 +9665,26 @@ function renderDetailPanel(site){
     renderRegionPanel();
   }
 
+
+  function sooniMobileStraighten(){
+    if(window.innerWidth>820) return;
+    try{
+      document.documentElement.scrollLeft=0;
+      document.body.scrollLeft=0;
+      window.scrollTo({left:0,top:window.scrollY,behavior:'instant'});
+    }catch(e){
+      try{window.scrollTo(0,window.scrollY);}catch(e2){}
+    }
+    setTimeout(()=>{
+      try{
+        if(map && typeof map.invalidateSize==='function'){
+          map.invalidateSize({pan:false,animate:false});
+        }
+      }catch(e){}
+    },80);
+  }
+  window.addEventListener('load',()=>setTimeout(sooniMobileStraighten,120));
+  window.addEventListener('orientationchange',()=>setTimeout(sooniMobileStraighten,180));
   function initMap(){
     map = L.map('map', {zoomControl:true, preferCanvas:true});
     installMapResizeObserver();
