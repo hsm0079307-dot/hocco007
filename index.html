@@ -2573,7 +2573,7 @@ body.theme-dark .name-item.active{
   <div class="modal" id="contactReportModalBox" style="max-width:min(94vw,900px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">현장 방문·접촉 현황</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-10-v343</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-10-v345</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -12132,10 +12132,8 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
       alert('페이지를 여는 중 오류가 발생했어요: ' + (bootErr && bootErr.message ? bootErr.message : bootErr) + '\n이 메시지를 캡처해서 알려주세요.');
     }
   })();
-})();
 
-  </script>
-<script id="siteManagementV343Script">
+
 // ---------- v3.40 현장 중심 관리집계 ----------
   let siteMgmtOffice='__ALL__', siteMgmtSiteId='', siteMgmtPeriod='week', siteMgmtDate=new Date();
 
@@ -12186,8 +12184,8 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
   const smRefresh=document.getElementById('globalStatsRefreshBtn');if(smRefresh)smRefresh.addEventListener('click',renderGlobalStats);
   const smClose=document.getElementById('globalStatsCloseBtn');if(smClose)smClose.addEventListener('click',()=>document.getElementById('globalStatsOverlay').classList.remove('show'));
   const smOverlay=document.getElementById('globalStatsOverlay');if(smOverlay)smOverlay.addEventListener('click',e=>{if(e.target===smOverlay)smOverlay.classList.remove('show');});
-  // v3.43: bind in an independent script so an earlier runtime error in the large app script
-  // cannot make the button dead.
+  // v3.45: this code MUST stay inside the main app IIFE so it can use
+  // OFFICES / allOfficesData / currentOffice / escapeHtml.
   window.openGlobalStats=openGlobalStats;
   (function bindSiteManagementButtons(){
     ['globalStatsTopBtn','globalStatsMenuBtn','mobileNavGlobalStatsBtn'].forEach(id=>{
@@ -12201,8 +12199,10 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
     });
   })();
 
-</script>
 
+})();
+
+  </script>
 <!-- v235: quick filters, expanded search, sorting, list/map UX -->
 </body>
 </html>
