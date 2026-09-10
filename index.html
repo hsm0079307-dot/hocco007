@@ -4659,6 +4659,105 @@ body.theme-dark .name-item.active{
     .report-brief-text{font-size:9.5px}
   }
 </style>
+
+<style id="mobileSettingsV376Style">
+  #mobileSettingsBackdrop{
+    display:none;
+  }
+
+  @media(max-width:820px){
+    /* 상단 overflow가 설정 패널을 가리는 문제 제거 */
+    .topbar{
+      overflow:visible!important;
+      z-index:5000!important;
+    }
+    #topbarMenuWrap{
+      position:relative!important;
+      z-index:10020!important;
+    }
+
+    /* 모바일에서는 드롭다운 대신 확실한 bottom sheet */
+    #topbarMenuPanel{
+      position:fixed!important;
+      left:12px!important;
+      right:12px!important;
+      top:auto!important;
+      bottom:max(14px, env(safe-area-inset-bottom))!important;
+
+      width:auto!important;
+      max-width:none!important;
+      max-height:min(68dvh, 560px)!important;
+
+      margin:0!important;
+      padding:8px!important;
+
+      overflow-y:auto!important;
+      overflow-x:hidden!important;
+      -webkit-overflow-scrolling:touch!important;
+
+      border:1px solid var(--line)!important;
+      border-radius:16px!important;
+      background:var(--card)!important;
+      box-shadow:0 18px 48px rgba(0,0,0,.38)!important;
+
+      z-index:10050!important;
+    }
+
+    #topbarMenuPanel::before{
+      content:"설정";
+      display:block;
+      position:sticky;
+      top:-8px;
+      z-index:2;
+      margin:-8px -8px 4px;
+      padding:12px 14px 10px;
+      border-bottom:1px solid var(--line);
+      background:var(--card);
+      color:var(--text-main);
+      font-size:14px;
+      font-weight:800;
+      letter-spacing:-.3px;
+    }
+
+    #topbarMenuPanel .menu-section-title{
+      min-height:40px!important;
+      padding:9px 10px!important;
+      font-size:12px!important;
+    }
+    #topbarMenuPanel .menu-section-body{
+      padding:2px 3px 8px!important;
+      gap:3px!important;
+    }
+    #topbarMenuPanel .menu-item-btn{
+      min-height:40px!important;
+      padding:9px 11px!important;
+      font-size:12px!important;
+      border:1px solid transparent!important;
+      border-radius:9px!important;
+    }
+    #topbarMenuPanel .menu-item-btn:active{
+      background:var(--accent-soft)!important;
+      border-color:var(--accent-border)!important;
+    }
+
+    #mobileSettingsBackdrop{
+      position:fixed!important;
+      inset:0!important;
+      display:none;
+      background:rgba(3,12,10,.48)!important;
+      backdrop-filter:blur(2px);
+      -webkit-backdrop-filter:blur(2px);
+      z-index:10040!important;
+    }
+    #mobileSettingsBackdrop.show{
+      display:block!important;
+    }
+
+    body.mobile-settings-open{
+      overflow:hidden!important;
+    }
+  }
+</style>
 </head>
 <body>
 <div id="entryGate" style="position:fixed;inset:0;background:rgba(3,12,22,.94);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;">
@@ -4670,6 +4769,7 @@ body.theme-dark .name-item.active{
     <div id="entryGateError" style="color:#f87171;font-size:11px;margin-top:4px;display:none;">비밀번호가 틀렸습니다.</div>
   </div>
 </div>
+<div id="mobileSettingsBackdrop" aria-hidden="true"></div>
 <div id="app">
   <div id="compareModalRoot"></div>
 
@@ -4938,7 +5038,7 @@ body.theme-dark .name-item.active{
   <div class="modal" id="contactReportModalBox" style="max-width:min(97vw,1180px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">통합 접촉현황</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-10-v375</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-10-v376</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -6213,21 +6313,77 @@ const L = (function(){
     }
   });
 
-  // ---------- 상단 메뉴(엑셀/양식/담당자관리/비번변경 등)를 한 곳에 모은 드롭다운 ----------
+  // ---------- 상단 설정 메뉴 ----------
+  function closeTopbarSettings(){
+    const panel=document.getElementById('topbarMenuPanel');
+    const backdrop=document.getElementById('mobileSettingsBackdrop');
+    if(panel)panel.style.display='none';
+    if(backdrop)backdrop.classList.remove('show');
+    document.body.classList.remove('mobile-settings-open');
+  }
+
+  function openTopbarSettings(){
+    const panel=document.getElementById('topbarMenuPanel');
+    const backdrop=document.getElementById('mobileSettingsBackdrop');
+    if(!panel)return;
+    panel.style.display='block';
+
+    if(window.innerWidth<=820){
+      if(backdrop)backdrop.classList.add('show');
+      document.body.classList.add('mobile-settings-open');
+      panel.scrollTop=0;
+    }
+  }
+
   document.getElementById('topbarMenuBtn').addEventListener('click', (e)=>{
     e.stopPropagation();
-    const panel = document.getElementById('topbarMenuPanel');
-    panel.style.display = panel.style.display==='none' ? 'block' : 'none';
+    const panel=document.getElementById('topbarMenuPanel');
+    const isOpen=panel && panel.style.display!=='none';
+    if(isOpen)closeTopbarSettings();
+    else openTopbarSettings();
   });
+
+  const mobileSettingsBackdrop=document.getElementById('mobileSettingsBackdrop');
+  if(mobileSettingsBackdrop){
+    mobileSettingsBackdrop.addEventListener('click',(e)=>{
+      e.preventDefault();
+      e.stopPropagation();
+      closeTopbarSettings();
+    });
+  }
+
   document.addEventListener('click', (e)=>{
-    const wrap = document.getElementById('topbarMenuWrap');
-    const panel = document.getElementById('topbarMenuPanel');
-    // 엑셀 업로드는 파일 선택창이 뜨는 동안 포커스가 밖으로 나가므로, 그 클릭만은 안 닫히게 둔다.
-    if(wrap && !wrap.contains(e.target)){
-      panel.style.display = 'none';
-    }else if(e.target.closest('.manager-filter-item') && e.target.tagName !== 'INPUT'){
-      panel.style.display = 'none';
+    const wrap=document.getElementById('topbarMenuWrap');
+    const panel=document.getElementById('topbarMenuPanel');
+    if(!panel || panel.style.display==='none')return;
+
+    // 모바일: 패널/설정버튼 외 클릭은 backdrop이 처리.
+    if(window.innerWidth<=820){
+      if(panel.contains(e.target) || (wrap&&wrap.contains(e.target)))return;
+      closeTopbarSettings();
+      return;
     }
+
+    // 데스크탑 기존 드롭다운 동작 유지.
+    if(wrap && !wrap.contains(e.target)){
+      closeTopbarSettings();
+    }else if(e.target.closest('.manager-filter-item') && e.target.tagName !== 'INPUT'){
+      closeTopbarSettings();
+    }
+  });
+
+
+  // 모바일 설정에서 항목 실행 후 패널 자동 닫기.
+  [
+    'refreshDataBtn','manualSaveBtn','adminLogoutBtn',
+    'globalStatsMenuBtn','handoverBtn','templateBtn','exportBtn',
+    'missingCoordsBtn','guestManageBtn','changeLogBtn','undoBtn',
+    'dupIdCheckBtn','changeAdminPwBtn','changeEntryPwBtn'
+  ].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.addEventListener('click',()=>{
+      if(window.innerWidth<=820)setTimeout(closeTopbarSettings,30);
+    });
   });
 
   // ---------- 모바일 전용: 설정 옆 메뉴(간단현황/캘린더/접촉현황/투어예약 모음) ----------
