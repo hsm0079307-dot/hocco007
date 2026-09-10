@@ -2089,6 +2089,148 @@ body.theme-dark .name-item.active{
 }
 </style>
 
+
+<style id="sooni-calendar-v2">
+/* ===== 통합 일정표 리디자인 : 기존 events/sites/saveSites 연동 유지 ===== */
+.calendar-view{
+  --sch-green:#0f766e;
+  --sch-green2:#13897d;
+  --sch-green-soft:#e8f7f3;
+  --sch-orange:#f39a3e;
+  --sch-orange-soft:#fff3e7;
+  --sch-pink:#e95b7d;
+  --sch-pink-soft:#fff0f4;
+  --sch-blue:#4199d2;
+  --sch-blue-soft:#edf7fd;
+  --sch-card:#fff;
+  --sch-line:#dde9ee;
+  --sch-ink:#173247;
+  --sch-dim:#72899a;
+  --sch-shadow:0 8px 25px rgba(48,86,110,.08);
+  position:absolute;inset:0;z-index:600;overflow:auto;
+  padding:18px 22px 26px !important;
+  background:
+    radial-gradient(circle at 85% 0%,rgba(177,229,220,.25),transparent 24%),
+    linear-gradient(180deg,#f8fcff 0,#f1f7fa 150px,#f4f8fa 100%) !important;
+  color:var(--sch-ink);
+}
+.sooni-sch-head{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+.sooni-sch-brand{display:flex;align-items:center;gap:11px;min-width:0}
+.sooni-sch-icon{width:43px;height:43px;border-radius:13px;background:linear-gradient(145deg,#0c756c,#20a194);display:grid;place-items:center;color:#fff;font-size:22px;box-shadow:var(--sch-shadow);flex:none}
+.sooni-sch-title{font-size:24px;font-weight:900;letter-spacing:-.7px;line-height:1.05}
+.sooni-sch-sub{font-size:11px;color:var(--sch-dim);font-weight:600;margin-top:4px}
+.sooni-sch-head-actions{margin-left:auto;display:flex;align-items:center;gap:8px}
+.sooni-sch-search{width:255px;border:1px solid var(--sch-line);background:#fff;border-radius:24px;padding:10px 14px;font-size:12px;color:var(--sch-ink);outline:none}
+.sooni-sch-close{border:1px solid var(--sch-line);background:#fff;border-radius:50%;width:39px;height:39px;cursor:pointer;font-weight:800;color:#4d6879}
+
+.sooni-sch-toolbar{display:flex;gap:8px;align-items:center;background:#fff;border:1px solid #e8eff3;border-radius:16px;padding:10px 12px;box-shadow:var(--sch-shadow);margin-bottom:12px}
+.sooni-sch-period{border:1px solid var(--sch-line);border-radius:11px;padding:9px 12px;font-size:12px;font-weight:800;color:#49677a;white-space:nowrap}
+.sooni-sch-filter{border:0;border-radius:22px;padding:9px 15px;font-size:12px;font-weight:800;cursor:pointer;background:#f3f7f9;color:#587083}
+.sooni-sch-filter.active{background:var(--sch-green);color:white}
+.sooni-sch-filter[data-type="assembly"]{background:var(--sch-green-soft);color:var(--sch-green)}
+.sooni-sch-filter[data-type="bid"]{background:var(--sch-orange-soft);color:#d8842d}
+.sooni-sch-filter[data-type="meeting"]{background:var(--sch-pink-soft);color:#d84f73}
+.sooni-sch-filter.active[data-type]{background:var(--sch-green);color:#fff}
+.sooni-sch-spacer{flex:1}
+.sooni-sch-add{border:0;background:var(--sch-green);color:#fff;border-radius:11px;padding:10px 14px;font-size:12px;font-weight:900;cursor:pointer}
+
+.sooni-sch-stats{display:grid;grid-template-columns:1.18fr repeat(4,1fr);gap:10px;margin-bottom:12px}
+.sooni-sch-stat{background:#fff;border:1px solid #e8eff3;border-radius:15px;padding:13px 15px;box-shadow:var(--sch-shadow)}
+.sooni-sch-stat.main{background:linear-gradient(135deg,#0d756c,#158d80);color:#fff}
+.sooni-sch-stat-lbl{font-size:11px;font-weight:800;color:#5e7889}
+.sooni-sch-stat.main .sooni-sch-stat-lbl{color:#d8f5ef}
+.sooni-sch-stat-num{font-size:29px;font-weight:900;line-height:1.15;margin-top:4px}
+.sooni-sch-stat-sub{font-size:9px;color:#8ba0ae;margin-top:2px}
+.sooni-sch-stat.main .sooni-sch-stat-sub{color:#c9eee8}
+
+.sooni-sch-layout{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:12px;align-items:stretch}
+.sooni-sch-calendar-card,.sooni-sch-detail{background:#fff;border:1px solid #e5eef2;border-radius:16px;box-shadow:var(--sch-shadow)}
+.sooni-sch-calendar-card{padding:13px}
+.sooni-sch-calhead{display:flex;align-items:center;gap:8px;margin-bottom:9px}
+.sooni-sch-calhead h2{font-size:20px;margin:0 4px;font-weight:900;letter-spacing:-.4px}
+.sooni-sch-nav{border:0;background:#fff;font-size:19px;color:#35556a;cursor:pointer;padding:4px 7px;border-radius:8px}
+.sooni-sch-today{margin-left:auto;border:1px solid var(--sch-line);background:#fff;border-radius:9px;padding:7px 10px;font-size:10px;font-weight:800;color:#587083;cursor:pointer}
+.sooni-sch-legend{display:flex;align-items:center;gap:9px;font-size:9px;color:#7890a0;margin-right:6px}
+.sooni-sch-legend i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:3px}
+.sooni-sch-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.sooni-sch-dow{text-align:center;padding:5px 0;font-size:10px;font-weight:800;color:#506d80}
+.sooni-sch-dow.sun{color:#e15167}.sooni-sch-dow.sat{color:#2d8ac0}
+.sooni-sch-cell{min-height:78px;border:1px solid #e4edf1;border-radius:7px;padding:5px;background:#fff;position:relative;overflow:hidden}
+.sooni-sch-cell.other{background:#fbfdfe;color:#bdc8cf}
+.sooni-sch-cell.today{border:2px solid var(--sch-green);background:#f7fffd}
+.sooni-sch-day{font-size:10px;font-weight:900;display:flex;justify-content:space-between;align-items:center}
+.sooni-sch-addday{border:0;background:transparent;color:#91a4b0;font-size:13px;cursor:pointer;padding:0 2px}
+.sooni-sch-event{display:block;width:100%;border:0;text-align:left;margin-top:4px;border-radius:8px;padding:4px 5px;font-size:8.5px;font-weight:800;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sooni-sch-event.assembly{background:var(--sch-green-soft);color:var(--sch-green)}
+.sooni-sch-event.bid{background:var(--sch-orange-soft);color:#d8842d}
+.sooni-sch-event.meeting{background:var(--sch-pink-soft);color:#d84f73}
+.sooni-sch-event.otherType{background:var(--sch-blue-soft);color:#3c8ebf}
+.sooni-sch-more{position:absolute;right:5px;bottom:4px;font-size:8px;color:#71899a}
+
+.sooni-sch-detail{overflow:hidden}
+.sooni-sch-detail-top{height:93px;background:linear-gradient(135deg,#deefe9,#f7fbfa);position:relative;padding:16px}
+.sooni-sch-detail-type{display:inline-block;border-radius:15px;background:var(--sch-green);color:#fff;padding:5px 9px;font-size:9px;font-weight:900}
+.sooni-sch-detail-body{padding:15px}
+.sooni-sch-detail h3{font-size:20px;margin:0 0 13px;font-weight:900}
+.sooni-sch-info{display:grid;grid-template-columns:18px 1fr;gap:7px;font-size:11px;color:#49677a;margin:9px 0;line-height:1.5}
+.sooni-sch-info b{color:#28485d}
+.sooni-sch-progress{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:center;border:1px solid var(--sch-line);border-radius:10px;padding:10px;margin:13px 0}
+.sooni-sch-mini b{font-size:16px}
+.sooni-sch-ring{width:45px;height:45px;border-radius:50%;background:conic-gradient(var(--sch-green) 0 72%,#e8efef 72%);display:grid;place-items:center}
+.sooni-sch-ring:after{content:"";width:33px;height:33px;border-radius:50%;background:#fff}
+.sooni-sch-detail-actions{display:flex;gap:6px;margin-top:13px}
+.sooni-sch-detail-actions button{flex:1;border:1px solid var(--sch-line);border-radius:15px;background:#fff;padding:8px 4px;font-size:9px;font-weight:800;color:var(--sch-green);cursor:pointer}
+.sooni-sch-detail-actions .primary{background:var(--sch-green);color:#fff;border-color:var(--sch-green)}
+
+.sooni-sch-list{margin-top:12px;background:#fff;border:1px solid #e5eef2;border-radius:15px;box-shadow:var(--sch-shadow);overflow:hidden}
+.sooni-sch-list-head{padding:9px 13px;font-size:11px;font-weight:900;border-bottom:1px solid #edf2f4}
+.sooni-sch-tablewrap{overflow:auto;max-height:230px}
+.sooni-sch-table{width:100%;border-collapse:collapse;font-size:10px}
+.sooni-sch-table th,.sooni-sch-table td{padding:7px 10px;border-bottom:1px solid #edf2f4;text-align:left;white-space:nowrap}
+.sooni-sch-table th{font-size:9px;color:#728999;background:#fbfdfe;position:sticky;top:0}
+.sooni-sch-table tr{cursor:pointer}.sooni-sch-table tr:hover td{background:#f7fbfc}
+.sooni-sch-badge{display:inline-block;border-radius:12px;padding:4px 8px;font-size:8px;font-weight:900}
+.sooni-sch-badge.assembly{background:var(--sch-green-soft);color:var(--sch-green)}
+.sooni-sch-badge.bid{background:var(--sch-orange-soft);color:#d8842d}
+.sooni-sch-badge.meeting{background:var(--sch-pink-soft);color:#d84f73}
+.sooni-sch-badge.otherType{background:var(--sch-blue-soft);color:#3c8ebf}
+
+.sooni-sch-quick{margin-top:10px;background:#fff;border:1px solid var(--sch-line);border-radius:12px;padding:9px;display:flex;gap:6px;align-items:center}
+.sooni-sch-quick select,.sooni-sch-quick input{border:1px solid var(--sch-line);border-radius:9px;padding:7px 9px;font-size:11px;color:var(--sch-ink);background:#fff}
+.sooni-sch-quick input{flex:1;min-width:100px}
+.sooni-sch-quick button{border:0;border-radius:9px;padding:7px 10px;font-size:10px;font-weight:800;cursor:pointer}
+.sooni-sch-quick .ok{background:var(--sch-green);color:#fff}
+
+@media(max-width:760px){
+  .calendar-view{padding:10px !important}
+  .sooni-sch-head{align-items:flex-start;flex-wrap:wrap}
+  .sooni-sch-icon{width:38px;height:38px;border-radius:11px;font-size:19px}
+  .sooni-sch-title{font-size:19px}
+  .sooni-sch-sub{font-size:9px}
+  .sooni-sch-head-actions{width:100%;margin-left:0}
+  .sooni-sch-search{flex:1;width:auto;min-width:0;font-size:11px}
+  .sooni-sch-toolbar{overflow-x:auto;white-space:nowrap;padding:8px;gap:5px}
+  .sooni-sch-period{font-size:9px;padding:7px 9px}.sooni-sch-filter{font-size:9px;padding:7px 10px}.sooni-sch-add{font-size:9px;padding:8px 10px}
+  .sooni-sch-stats{display:flex;overflow-x:auto;gap:7px}
+  .sooni-sch-stat{min-width:117px;padding:10px}.sooni-sch-stat.main{min-width:135px}.sooni-sch-stat-num{font-size:23px}
+  .sooni-sch-layout{grid-template-columns:1fr}
+  .sooni-sch-calendar-card{padding:8px}
+  .sooni-sch-calhead{flex-wrap:wrap}
+  .sooni-sch-calhead h2{font-size:17px}
+  .sooni-sch-legend{order:3;width:100%;justify-content:flex-end;font-size:8px}
+  .sooni-sch-grid{gap:2px}
+  .sooni-sch-cell{min-height:58px;padding:3px;border-radius:5px}
+  .sooni-sch-day{font-size:8.5px}
+  .sooni-sch-event{padding:3px;font-size:7px;border-radius:5px;margin-top:2px}
+  .sooni-sch-more{font-size:7px;right:3px;bottom:2px}
+  .sooni-sch-detail{display:block}
+  .sooni-sch-detail-top{height:65px;padding:10px}
+  .sooni-sch-detail-body{padding:12px}.sooni-sch-detail h3{font-size:18px}
+  .sooni-sch-table{font-size:9px}
+  .sooni-sch-quick{flex-wrap:wrap}.sooni-sch-quick select,.sooni-sch-quick input{font-size:10px}
+}
+</style>
+
 </head>
 <body>
 <div id="entryGate" style="position:fixed;inset:0;background:rgba(3,12,22,.94);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;">
@@ -3620,6 +3762,30 @@ const L = (function(){
   let calMonth = today0.getMonth(); // 0-based
   let quickAddDate = null; // 캘린더에서 "+"로 빠른 일정추가 중인 날짜(YYYY-MM-DD) 또는 null
   const calendarViewEl = document.getElementById('calendarView');
+  let sooniCalFilter = 'all';
+  let sooniCalSearch = '';
+  let sooniCalSelected = null;
+
+  function sooniEventType(label){
+    const t = String(label||'');
+    if(/총회|회의|의결|선정총회/.test(t)) return 'assembly';
+    if(/입찰|마감|현설|현장설명/.test(t)) return 'bid';
+    if(/설명회|간담회|미팅|면담|방문|투어/.test(t)) return 'meeting';
+    return 'otherType';
+  }
+  function sooniTypeLabel(type){
+    return type==='assembly'?'총회/회의':type==='bid'?'입찰/현설':type==='meeting'?'설명회/미팅':'기타';
+  }
+  function sooniFlatEventsForMonth(year, month){
+    const rows=[];
+    sites.forEach(s=>eventsOf(s).forEach(ev=>{
+      if(!ev || !ev.date || !ev.label) return;
+      const d=new Date(ev.date);
+      if(isNaN(d.getTime()) || d.getFullYear()!==year || d.getMonth()!==month) return;
+      rows.push({site:s,date:ev.date,label:ev.label,type:sooniEventType(ev.label)});
+    }));
+    return rows.sort((a,b)=>a.date.localeCompare(b.date)||a.site.name.localeCompare(b.site.name));
+  }
 
   // 예전 데이터(총회일/입찰마감일 고정 필드)만 있고 아직 새 방식(events)으로 저장 안 된 현장을 위한 호환 처리
   function legacyEventsFrom(site){
@@ -3759,148 +3925,196 @@ const L = (function(){
 
   function renderCalendarView(){
     if(!calendarViewEl) return;
-    const events = collectEventsForMonth(calYear, calMonth);
+
+    const allRows = sooniFlatEventsForMonth(calYear, calMonth);
+    const q = sooniCalSearch.trim().toLowerCase();
+    const rows = allRows.filter(x=>{
+      if(sooniCalFilter!=='all' && x.type!==sooniCalFilter) return false;
+      if(q && !(x.site.name+' '+x.label+' '+(x.site.manager||'')).toLowerCase().includes(q)) return false;
+      return true;
+    });
+
+    const byDate={};
+    rows.forEach(x=>(byDate[x.date]=byDate[x.date]||[]).push(x));
+
+    if(!sooniCalSelected || !rows.some(x=>x.site.id===sooniCalSelected.site.id && x.date===sooniCalSelected.date && x.label===sooniCalSelected.label)){
+      sooniCalSelected = rows[0] || allRows[0] || null;
+    }
+
     const first = new Date(calYear, calMonth, 1);
     const startDow = first.getDay();
     const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
     const daysInPrevMonth = new Date(calYear, calMonth, 0).getDate();
-    const todayStr = `${today0.getFullYear()}-${String(today0.getMonth()+1).padStart(2,'0')}-${String(today0.getDate()).padStart(2,'0')}`;
+    const t = new Date();
+    const todayStr = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
 
-    const cells = [];
-    for(let i=0;i<startDow;i++){
-      cells.push({day: daysInPrevMonth-startDow+1+i, other:true});
-    }
-    for(let d=1; d<=daysInMonth; d++){
-      cells.push({day:d, other:false});
-    }
-    while(cells.length % 7 !== 0){
-      cells.push({day: cells.length - (startDow+daysInMonth) + 1, other:true});
-    }
+    const cells=[];
+    for(let i=0;i<startDow;i++) cells.push({day:daysInPrevMonth-startDow+1+i,other:true});
+    for(let d=1;d<=daysInMonth;d++) cells.push({day:d,other:false});
+    while(cells.length%7!==0) cells.push({day:cells.length-(startDow+daysInMonth)+1,other:true});
 
-    const dowNames = ['일','월','화','수','목','금','토'];
-    const cellHtml = cells.map(c=>{
-      let dateStr;
-      if(c.other){
-        dateStr = '';
-      }else{
-        dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(c.day).padStart(2,'0')}`;
-      }
-      const isToday = dateStr === todayStr;
-      const holiday = dateStr ? krHolidayName(dateStr) : null;
-      const evs = (dateStr && events[dateStr]) ? events[dateStr] : [];
-      const evHtml = evs.map(ev=>`<span class="cal-event" style="background:${ev.color}" data-id="${ev.site.id}" title="${escapeHtml(ev.site.name)} · ${ev.label}">${escapeHtml(ev.site.name)}<span class="cal-event-del" data-id="${ev.site.id}" data-date="${dateStr}" data-label="${escapeHtml(ev.label)}">✕</span></span>`).join('');
-      return `<div class="cal-cell ${c.other?'other-month':''} ${isToday?'today':''} ${holiday?'is-holiday':''}">
-        <div class="cal-daynum">${c.day}${!c.other?`<button class="cal-add-btn" data-date="${dateStr}" title="일정 추가">+</button>`:''}</div>
-        ${holiday?`<div class="cal-holiday-label" title="${escapeHtml(holiday)}">${escapeHtml(holiday)}</div>`:''}
-        ${evHtml}
+    const cellHtml=cells.map((c,idx)=>{
+      const dow=idx%7;
+      const dateStr=c.other?'':`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(c.day).padStart(2,'0')}`;
+      const evs=dateStr?(byDate[dateStr]||[]):[];
+      const evHtml=evs.slice(0,2).map(x=>`<button class="sooni-sch-event ${x.type}" data-id="${x.site.id}" data-date="${x.date}" data-label="${escapeHtml(x.label)}" title="${escapeHtml(x.site.name)} · ${escapeHtml(x.label)}">${escapeHtml(x.site.name)} · ${escapeHtml(x.label)}</button>`).join('');
+      return `<div class="sooni-sch-cell ${c.other?'other':''} ${dateStr===todayStr?'today':''}">
+        <div class="sooni-sch-day"><span>${c.day}</span>${!c.other?`<button class="sooni-sch-addday" data-date="${dateStr}" title="일정 추가">＋</button>`:''}</div>
+        ${evHtml}${evs.length>2?`<span class="sooni-sch-more">+${evs.length-2}</span>`:''}
       </div>`;
     }).join('');
 
-    calendarViewEl.innerHTML = `
-      <div class="cal-top-row">
-        <div class="cal-header">
-          <button class="cal-nav" id="calPrev">◀</button>
-          <h2>${calYear}년 ${calMonth+1}월</h2>
-          <button class="cal-nav" id="calNext">▶</button>
-          <button class="cal-nav" id="calToday">오늘</button>
-          <button class="cal-nav cal-close" id="calClose">닫기 ✕</button>
+    const total=allRows.length;
+    const nAssembly=allRows.filter(x=>x.type==='assembly').length;
+    const nBid=allRows.filter(x=>x.type==='bid').length;
+    const nMeeting=allRows.filter(x=>x.type==='meeting').length;
+    const nToday=allRows.filter(x=>x.date===todayStr).length;
+    const managers=new Set(allRows.map(x=>x.site.manager).filter(Boolean)).size;
+
+    const sel=sooniCalSelected;
+    const selType=sel?sooniTypeLabel(sel.type):'일정';
+    const selSite=sel?sel.site:null;
+
+    calendarViewEl.innerHTML=`
+      <div class="sooni-sch-head">
+        <div class="sooni-sch-brand">
+          <div class="sooni-sch-icon">📅</div>
+          <div><div class="sooni-sch-title">통합 일정표 & 체크리스트</div><div class="sooni-sch-sub">시장모니터링 현장 일정과 진행현황을 한눈에 확인합니다.</div></div>
         </div>
-        <div class="cal-agenda cal-agenda-inline">
-          <h3>이번 달 일정</h3>
-          ${(()=>{
-            const items = Object.keys(events).sort().flatMap(dateKey=>{
-              const d = new Date(dateKey);
-              const md = `${d.getMonth()+1}.${d.getDate()}`;
-              return events[dateKey].map(ev=>({md, ev, dateKey}));
-            });
-            return items.length
-              ? items.map(({md,ev,dateKey})=>`<div class="cal-agenda-item" data-id="${ev.site.id}"><span class="cal-dot" style="background:${ev.color}"></span>${md} ${escapeHtml(ev.site.name)}(${escapeHtml(ev.label)})<span class="cal-event-del" data-id="${ev.site.id}" data-date="${dateKey}" data-label="${escapeHtml(ev.label)}">✕</span></div>`).join('')
-              : '<div class="cal-agenda-empty">이번 달 일정이 없습니다.</div>';
-          })()}
+        <div class="sooni-sch-head-actions">
+          <input id="sooniCalSearch" class="sooni-sch-search" placeholder="현장명 · 일정 · 담당자 검색" value="${escapeHtml(sooniCalSearch)}">
+          <button id="calClose" class="sooni-sch-close" title="닫기">✕</button>
         </div>
       </div>
-      <div class="cal-grid">
-        ${dowNames.map(d=>`<div class="cal-dow">${d}</div>`).join('')}
-        ${cellHtml}
+
+      <div class="sooni-sch-toolbar">
+        <div class="sooni-sch-period">📆 ${calYear}.${String(calMonth+1).padStart(2,'0')}.01 ~ ${calYear}.${String(calMonth+1).padStart(2,'0')}.${String(daysInMonth).padStart(2,'0')}</div>
+        <button class="sooni-sch-filter ${sooniCalFilter==='all'?'active':''}" data-type="all">전체</button>
+        <button class="sooni-sch-filter ${sooniCalFilter==='assembly'?'active':''}" data-type="assembly">총회/회의</button>
+        <button class="sooni-sch-filter ${sooniCalFilter==='bid'?'active':''}" data-type="bid">입찰/현설</button>
+        <button class="sooni-sch-filter ${sooniCalFilter==='meeting'?'active':''}" data-type="meeting">설명회/미팅</button>
+        <span class="sooni-sch-spacer"></span>
+        <button id="sooniAddToday" class="sooni-sch-add">＋ 일정 추가</button>
       </div>
-      ${quickAddDate ? `
-      <div class="cal-quickadd">
-        <b>${quickAddDate} 일정 추가</b>
-        <select id="qaSite">${sites.map(s=>`<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('')}</select>
-        <input type="text" id="qaLabel" placeholder="예: 정기총회">
-        <button class="btn btn-primary btn-sm" id="qaConfirm">추가</button>
-        <button class="btn btn-ghost btn-sm" id="qaCancel">취소</button>
-      </div>` : ''}
+
+      <div class="sooni-sch-stats">
+        <div class="sooni-sch-stat main"><div class="sooni-sch-stat-lbl">전체 일정</div><div class="sooni-sch-stat-num">${total}건</div><div class="sooni-sch-stat-sub">${calYear}년 ${calMonth+1}월 등록 일정</div></div>
+        <div class="sooni-sch-stat"><div class="sooni-sch-stat-lbl">총회 / 회의</div><div class="sooni-sch-stat-num">${nAssembly}건</div><div class="sooni-sch-stat-sub">주요 의사결정 일정</div></div>
+        <div class="sooni-sch-stat"><div class="sooni-sch-stat-lbl">입찰 / 현설</div><div class="sooni-sch-stat-num">${nBid}건</div><div class="sooni-sch-stat-sub">입찰 및 현장설명</div></div>
+        <div class="sooni-sch-stat"><div class="sooni-sch-stat-lbl">설명회 / 미팅</div><div class="sooni-sch-stat-num">${nMeeting}건</div><div class="sooni-sch-stat-sub">대면 및 설명 일정</div></div>
+        <div class="sooni-sch-stat"><div class="sooni-sch-stat-lbl">오늘 / 담당자</div><div class="sooni-sch-stat-num">${nToday}건</div><div class="sooni-sch-stat-sub">이번 달 담당자 ${managers}명</div></div>
+      </div>
+
+      <div class="sooni-sch-layout">
+        <div class="sooni-sch-calendar-card">
+          <div class="sooni-sch-calhead">
+            <button class="sooni-sch-nav" id="calPrev">‹</button>
+            <h2>${calYear}년 ${calMonth+1}월</h2>
+            <button class="sooni-sch-nav" id="calNext">›</button>
+            <button class="sooni-sch-today" id="calToday">오늘</button>
+            <div class="sooni-sch-legend">
+              <span><i style="background:#159386"></i>총회/회의</span>
+              <span><i style="background:#f39a3e"></i>입찰/현설</span>
+              <span><i style="background:#e95b7d"></i>설명회/미팅</span>
+            </div>
+          </div>
+          <div class="sooni-sch-grid">
+            ${['일','월','화','수','목','금','토'].map((d,i)=>`<div class="sooni-sch-dow ${i===0?'sun':i===6?'sat':''}">${d}</div>`).join('')}
+            ${cellHtml}
+          </div>
+          ${quickAddDate?`<div class="sooni-sch-quick">
+            <b>${quickAddDate}</b>
+            <select id="qaSite">${sites.map(s=>`<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('')}</select>
+            <input id="qaLabel" type="text" placeholder="일정 내용 입력">
+            <button class="ok" id="qaConfirm">추가</button><button id="qaCancel">취소</button>
+          </div>`:''}
+        </div>
+
+        <aside class="sooni-sch-detail">
+          <div class="sooni-sch-detail-top"><span class="sooni-sch-detail-type">${selType}</span></div>
+          <div class="sooni-sch-detail-body">
+            <h3>${sel?escapeHtml(sel.site.name):'선택된 일정 없음'}</h3>
+            <div class="sooni-sch-info"><span>📅</span><div><b>일정일</b><br>${sel?escapeHtml(sel.date):'-'}</div></div>
+            <div class="sooni-sch-info"><span>📝</span><div><b>일정 내용</b><br>${sel?escapeHtml(sel.label):'-'}</div></div>
+            <div class="sooni-sch-info"><span>👤</span><div><b>담당자</b><br>${selSite?escapeHtml(selSite.manager||'미지정'):'-'}</div></div>
+            <div class="sooni-sch-info"><span>📍</span><div><b>현장</b><br>${selSite?escapeHtml(selSite.district||'')+' · '+escapeHtml(selSite.stage||selSite.progressStage||''):'-'}</div></div>
+            <div class="sooni-sch-progress"><div class="sooni-sch-mini"><small>조합원</small><br><b>${selSite?escapeHtml(selSite.unionMembers||'-'):'-'}</b></div><div class="sooni-sch-mini"><small>최근보고</small><br><b style="font-size:11px">${selSite?escapeHtml(selSite.lastDate||'-'):'-'}</b></div><div class="sooni-sch-ring"></div></div>
+            <div class="sooni-sch-detail-actions">
+              <button id="sooniOpenSite" class="primary" ${sel?'':'disabled'}>현장 상세</button>
+              <button id="sooniDeleteEvent" ${sel?'':'disabled'}>일정 삭제</button>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <div class="sooni-sch-list">
+        <div class="sooni-sch-list-head">이번 달 일정 목록 · ${rows.length}건</div>
+        <div class="sooni-sch-tablewrap"><table class="sooni-sch-table">
+          <thead><tr><th>일자</th><th>현장명</th><th>구분</th><th>일정 내용</th><th>담당자</th><th>사업단계</th></tr></thead>
+          <tbody>${rows.length?rows.map(x=>`<tr class="sooni-sch-row" data-id="${x.site.id}" data-date="${x.date}" data-label="${escapeHtml(x.label)}"><td>${escapeHtml(x.date)}</td><td><b>${escapeHtml(x.site.name)}</b></td><td><span class="sooni-sch-badge ${x.type}">${sooniTypeLabel(x.type)}</span></td><td>${escapeHtml(x.label)}</td><td>${escapeHtml(x.site.manager||'-')}</td><td>${escapeHtml(x.site.stage||x.site.progressStage||'-')}</td></tr>`).join(''):`<tr><td colspan="6" style="text-align:center;color:#8799a5;padding:20px">조건에 맞는 일정이 없습니다.</td></tr>`}</tbody>
+        </table></div>
+      </div>
     `;
-    document.getElementById('calPrev').addEventListener('click', ()=>{
-      calMonth--; if(calMonth<0){ calMonth=11; calYear--; }
+
+    document.getElementById('calPrev').onclick=()=>{calMonth--;if(calMonth<0){calMonth=11;calYear--;}sooniCalSelected=null;renderCalendarView();};
+    document.getElementById('calNext').onclick=()=>{calMonth++;if(calMonth>11){calMonth=0;calYear++;}sooniCalSelected=null;renderCalendarView();};
+    document.getElementById('calToday').onclick=()=>{const d=new Date();calYear=d.getFullYear();calMonth=d.getMonth();sooniCalSelected=null;renderCalendarView();};
+    document.getElementById('calClose').onclick=closeCalendarView;
+
+    document.querySelectorAll('.sooni-sch-filter').forEach(btn=>btn.onclick=()=>{sooniCalFilter=btn.dataset.type;sooniCalSelected=null;renderCalendarView();});
+    const searchEl=document.getElementById('sooniCalSearch');
+    if(searchEl) searchEl.oninput=(e)=>{sooniCalSearch=e.target.value;renderCalendarView(); requestAnimationFrame(()=>{const n=document.getElementById('sooniCalSearch');if(n){n.focus();n.setSelectionRange(n.value.length,n.value.length);}});};
+
+    calendarViewEl.querySelectorAll('.sooni-sch-event,.sooni-sch-row').forEach(el=>el.onclick=()=>{
+      const site=sites.find(s=>s.id===el.dataset.id);
+      if(!site) return;
+      const type=sooniEventType(el.dataset.label);
+      sooniCalSelected={site,date:el.dataset.date,label:el.dataset.label,type};
       renderCalendarView();
     });
-    document.getElementById('calNext').addEventListener('click', ()=>{
-      calMonth++; if(calMonth>11){ calMonth=0; calYear++; }
+
+    calendarViewEl.querySelectorAll('.sooni-sch-addday').forEach(btn=>btn.onclick=async(e)=>{
+      e.stopPropagation();
+      if(!(await ensureUnlocked())) return;
+      quickAddDate=btn.dataset.date;
       renderCalendarView();
     });
-    document.getElementById('calToday').addEventListener('click', ()=>{
-      calYear = today0.getFullYear(); calMonth = today0.getMonth();
+    document.getElementById('sooniAddToday').onclick=async()=>{
+      if(!(await ensureUnlocked())) return;
+      const d=new Date(calYear,calMonth,Math.min(new Date().getDate(),daysInMonth));
+      quickAddDate=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
       renderCalendarView();
-    });
-    document.getElementById('calClose').addEventListener('click', closeCalendarView);
-    calendarViewEl.querySelectorAll('.cal-event, .cal-agenda-item').forEach(el=>{
-      el.addEventListener('click', ()=>{
-        const id = el.dataset.id;
-        closeCalendarView();
-        currentDetailId = id;
-        currentView = 'detail';
-        detailTab = '개요';
-        editMode = false;
-        renderAll();
-        const freshSiteX = sites.find(s=>s.id===id);
-        if(freshSiteX) renderDetailPanel(freshSiteX);
-      });
-    });
-    // 일정 옆 ✕ : 그 일정만 삭제 (부모의 상세이동 클릭으로 안 번지게 stopPropagation)
-    calendarViewEl.querySelectorAll('.cal-event-del').forEach(btn=>{
-      btn.addEventListener('click', async (e)=>{
-        e.stopPropagation();
-        if(!(await ensureUnlocked())) return;
-        const site = sites.find(s=>s.id===btn.dataset.id);
-        if(!site) return;
-        if(!confirm(`"${btn.dataset.label}" 일정을 삭제할까요?`)) return;
-        site.events = eventsOf(site).filter(ev=>!(ev.date===btn.dataset.date && ev.label===btn.dataset.label));
-        lastEditedSiteId = site.id;
-        await saveSites();
-        renderCalendarView();
-      });
-    });
-    // 날짜칸의 "+" : 그 날짜로 빠른 일정 추가 폼 열기
-    calendarViewEl.querySelectorAll('.cal-add-btn').forEach(btn=>{
-      btn.addEventListener('click', async (e)=>{
-        e.stopPropagation();
-        if(!(await ensureUnlocked())) return;
-        quickAddDate = btn.dataset.date;
-        renderCalendarView();
-      });
-    });
-    const qaConfirm = document.getElementById('qaConfirm');
+    };
+
+    const qaConfirm=document.getElementById('qaConfirm');
     if(qaConfirm){
-      qaConfirm.addEventListener('click', async ()=>{
-        const siteId = document.getElementById('qaSite').value;
-        const label = document.getElementById('qaLabel').value.trim();
-        if(!label){ alert('일정 내용을 입력해주세요.'); return; }
-        const site = sites.find(s=>s.id===siteId);
-        if(!site) return;
-        site.events = mergeEvents(eventsOf(site), [{date:quickAddDate, label}]);
-        lastEditedSiteId = site.id;
-        await saveSites();
-        quickAddDate = null;
-        renderCalendarView();
-      });
-      document.getElementById('qaCancel').addEventListener('click', ()=>{
-        quickAddDate = null;
-        renderCalendarView();
-      });
+      qaConfirm.onclick=async()=>{
+        const siteId=document.getElementById('qaSite').value;
+        const label=document.getElementById('qaLabel').value.trim();
+        if(!label){alert('일정 내용을 입력해주세요.');return;}
+        const site=sites.find(s=>s.id===siteId);if(!site)return;
+        site.events=mergeEvents(eventsOf(site),[{date:quickAddDate,label}]);
+        lastEditedSiteId=site.id;await saveSites();quickAddDate=null;renderCalendarView();
+      };
+      document.getElementById('qaCancel').onclick=()=>{quickAddDate=null;renderCalendarView();};
     }
+
+    const openBtn=document.getElementById('sooniOpenSite');
+    if(openBtn && sel) openBtn.onclick=()=>{
+      closeCalendarView();
+      currentDetailId=sel.site.id;currentView='detail';detailTab='개요';editMode=false;renderAll();
+      const fresh=sites.find(s=>s.id===sel.site.id);if(fresh)renderDetailPanel(fresh);
+    };
+    const delBtn=document.getElementById('sooniDeleteEvent');
+    if(delBtn && sel) delBtn.onclick=async()=>{
+      if(!(await ensureUnlocked()))return;
+      if(!confirm(`"${sel.label}" 일정을 삭제할까요?`))return;
+      const site=sites.find(s=>s.id===sel.site.id);if(!site)return;
+      site.events=eventsOf(site).filter(ev=>!(ev.date===sel.date&&ev.label===sel.label));
+      lastEditedSiteId=site.id;await saveSites();sooniCalSelected=null;renderCalendarView();
+    };
   }
+
   function closeCalendarView(){
     calendarViewEl.style.display = 'none';
   }
