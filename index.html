@@ -4838,6 +4838,52 @@ body.theme-dark .name-item.active{
     }
   }
 </style>
+
+<style id="allSiteAuditV378Style">
+  #allSiteAuditOverlay{
+    position:fixed;inset:0;display:none;align-items:center;justify-content:center;
+    padding:14px;background:rgba(0,0,0,.58);backdrop-filter:blur(2px);
+    -webkit-backdrop-filter:blur(2px);z-index:2147482500;
+  }
+  #allSiteAuditOverlay.show{display:flex}
+  .audit-modal{
+    width:min(1180px,96vw);height:min(820px,92vh);display:flex;flex-direction:column;
+    overflow:hidden;border:1px solid var(--line);border-radius:15px;background:var(--bg-side);
+    color:var(--text-main);box-shadow:0 20px 64px rgba(0,0,0,.42);
+  }
+  .audit-head{display:flex;align-items:center;gap:9px;padding:11px 12px;border-bottom:1px solid var(--line);background:var(--bg-side-2)}
+  .audit-head h3{margin:0;flex:1;font-size:14px;font-weight:800}
+  .audit-close,.audit-refresh{
+    min-height:34px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;
+    background:var(--card);color:var(--text-main);font:inherit;cursor:pointer
+  }
+  .audit-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;padding:10px 12px;border-bottom:1px solid var(--line)}
+  .audit-kpi{padding:8px 9px;border:1px solid var(--line);border-radius:9px;background:var(--card)}
+  .audit-kpi .k{font-size:8px;color:var(--text-dim);font-weight:700}
+  .audit-kpi .v{margin-top:2px;font-size:17px;font-weight:800}
+  .audit-kpi.ok .v{color:var(--accent)} .audit-kpi.warn .v{color:var(--warn-text)} .audit-kpi.fail .v{color:var(--neg)}
+  .audit-body{flex:1;overflow:auto;padding:0 12px 12px}
+  .audit-table{width:100%;min-width:1060px;border-collapse:separate;border-spacing:0;font-size:9px}
+  .audit-table th{
+    position:sticky;top:0;z-index:2;padding:7px 6px;border-bottom:1px solid var(--line);
+    background:var(--table-head);color:var(--text-dim);text-align:center;white-space:nowrap
+  }
+  .audit-table td{padding:7px 6px;border-bottom:1px solid var(--line);background:var(--card);text-align:center;vertical-align:top}
+  .audit-table td.site{text-align:left;font-weight:800}
+  .audit-table td.issue{text-align:left;line-height:1.45;min-width:300px}
+  .audit-badge{display:inline-flex;align-items:center;justify-content:center;min-width:46px;padding:3px 7px;border-radius:999px;font-size:8px;font-weight:800}
+  .audit-badge.ok{background:var(--accent-soft);color:var(--accent)}
+  .audit-badge.warn{background:var(--warn-bg);color:var(--warn-text)}
+  .audit-badge.fail{background:color-mix(in srgb,var(--neg) 13%,var(--card));color:var(--neg)}
+  .audit-note{padding:8px 12px 10px;border-top:1px solid var(--line);color:var(--text-dim);font-size:8.5px;line-height:1.5}
+  @media(max-width:820px){
+    #allSiteAuditOverlay{padding:6px}
+    .audit-modal{width:calc(100vw - 12px);height:calc(100dvh - 12px);border-radius:13px}
+    .audit-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .audit-table{font-size:8.5px}
+    .audit-head h3{font-size:13px}
+  }
+</style>
 </head>
 <body>
 <div id="entryGate" style="position:fixed;inset:0;background:rgba(3,12,22,.94);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;">
@@ -4875,6 +4921,7 @@ body.theme-dark .name-item.active{
           <summary class="menu-section-title">📊 리포트</summary>
           <div class="menu-section-body">
             <button class="menu-item-btn" id="globalStatsMenuBtn" type="button">📌 현장 상세집계</button>
+            <button class="menu-item-btn" id="allSiteAuditBtn" type="button">🔎 전체 현장 집계검증</button>
             <button class="menu-item-btn" id="handoverBtn" type="button">🤝 인수인계 리포트</button>
           </div>
         </details>
@@ -5118,7 +5165,7 @@ body.theme-dark .name-item.active{
   <div class="modal" id="contactReportModalBox" style="max-width:min(97vw,1180px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">통합 접촉현황</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-11-v377</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-11-v378</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -16051,6 +16098,215 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
   window.addEventListener('load',function(){setTimeout(fitMobileLeft,60);},{passive:true});
   window.addEventListener('pageshow',function(){setTimeout(fitMobileLeft,30);},{passive:true});
   window.addEventListener('orientationchange',function(){setTimeout(fitMobileLeft,120);},{passive:true});
+})();
+</script>
+
+<div id="allSiteAuditOverlay" aria-hidden="true">
+  <div class="audit-modal" role="dialog" aria-modal="true" aria-labelledby="allSiteAuditTitle">
+    <div class="audit-head">
+      <h3 id="allSiteAuditTitle">🔎 전체 현장 집계 검증</h3>
+      <button type="button" class="audit-refresh" id="allSiteAuditRefreshBtn">↻ 다시 검사</button>
+      <button type="button" class="audit-close" id="allSiteAuditCloseBtn">✕</button>
+    </div>
+    <div id="allSiteAuditSummary" class="audit-summary"></div>
+    <div class="audit-body">
+      <table class="audit-table">
+        <thead><tr>
+          <th>상태</th><th>사업소</th><th>현장</th><th>기준</th>
+          <th>전체</th><th>누계접촉</th><th>people</th>
+          <th>담당인원합</th><th>담당접촉합</th>
+          <th>직책</th><th>동별</th><th>기간이력</th><th>검사내용</th>
+        </tr></thead>
+        <tbody id="allSiteAuditRows"></tbody>
+      </table>
+    </div>
+    <div class="audit-note">
+      Excel 현장은 <b>excelStats.people · byManager · byRole · byDong · contactEvents</b> 내부 일치 여부를 검사합니다.
+      실제 Excel 원본과 Dashboard 값을 직접 대조하려면 Bridge 폴더의 <b>6_AUDIT_ALL_SITES.bat</b>를 실행하세요.
+    </div>
+  </div>
+</div>
+
+<script id="allSiteAuditV378Script">
+(function(){
+  const SUCCESS=new Set(['상담','단순','TM']);
+  const num=v=>Number(v||0);
+  const pct=(a,b)=>b?Math.round(a/b*1000)/10:0;
+  const managerKey=v=>String(v||'').trim().replace(/\s+/g,' ')||'(미지정)';
+
+  function allRawPairs(){
+    const out=[];
+    try{
+      (OFFICES||[]).forEach(o=>{
+        (allOfficesData[o]||[]).forEach(s=>{
+          if(s&&typeof s==='object')out.push({office:o,site:s});
+        });
+      });
+    }catch(e){}
+    return out;
+  }
+
+  function logicalKey(name){
+    try{ if(typeof smSiteLogicalKey==='function')return smSiteLogicalKey(name); }catch(e){}
+    return String(name||'').toLowerCase().replace(/\([^)]*\)/g,'').replace(/[\s_\-·ㆍ]+/g,'').replace(/신탁방식|신탁/g,'');
+  }
+
+  function uniqueSitePairs(){
+    const groups={};
+    allRawPairs().forEach(p=>{
+      const k=p.office+'|'+logicalKey(p.site.name);
+      const x=p.site.excelStats;
+      const score=(x&&x.source==='excel-master'?1000000:0)
+        +(Array.isArray(x&&x.people)?x.people.length*100:0)
+        +(Array.isArray(p.site.ownerRoster)?p.site.ownerRoster.length*10:0)
+        +(Array.isArray(p.site.logs)?p.site.logs.length:0);
+      if(!groups[k])groups[k]={...p,score,dups:1};
+      else{
+        groups[k].dups++;
+        if(score>groups[k].score){
+          const d=groups[k].dups;
+          groups[k]={...p,score,dups:d};
+        }
+      }
+    });
+    return Object.values(groups);
+  }
+
+  const sumObj=(obj,field)=>Object.values(obj||{}).reduce((s,d)=>s+num(d&&d[field]),0);
+
+  function auditExcel(pair){
+    const x=pair.site.excelStats||{},issues=[];
+    const people=Array.isArray(x.people)?x.people:[];
+    const total=num(x.totalOwners),contacted=num(x.contactedOwners),uncontacted=num(x.uncontactedOwners);
+    const peopleTotal=people.length;
+    const peopleContacted=people.filter(p=>!!p.contacted||SUCCESS.has(String(p.contactMethod||'').trim())).length;
+
+    const mgrPeople={};
+    people.forEach(p=>{
+      const m=managerKey(p.manager);
+      const d=mgrPeople[m]||(mgrPeople[m]={total:0,contacted:0});
+      d.total++;
+      if(!!p.contacted||SUCCESS.has(String(p.contactMethod||'').trim()))d.contacted++;
+    });
+    const assigned=Object.entries(mgrPeople).filter(([m])=>m!=='(미지정)');
+    const assignedTotal=assigned.reduce((s,[m,d])=>s+d.total,0);
+    const assignedContacted=assigned.reduce((s,[m,d])=>s+d.contacted,0);
+    const unassignedTotal=(mgrPeople['(미지정)']||{}).total||0;
+    const unassignedContacted=(mgrPeople['(미지정)']||{}).contacted||0;
+
+    const bm=x.byManager||{};
+    const bmTotal=sumObj(bm,'total'),bmContacted=sumObj(bm,'contacted');
+
+    const peopleRole=people.filter(p=>!!p.roleFlag||String(p.role||p.roleType||'').trim()).length;
+    const brTotal=sumObj(x.byRole||{},'total');
+    const peopleDong=people.filter(p=>String(p.dong||'').trim()).length;
+    const bdTotal=sumObj(x.byDong||{},'total');
+
+    const eventReady=Array.isArray(x.contactEvents)&&x.monthDateColumns&&Object.keys(x.monthDateColumns||{}).length>0;
+    const eventCount=Array.isArray(x.contactEvents)?x.contactEvents.length:0;
+
+    if(total!==peopleTotal)issues.push(`전체 ${total} ≠ people ${peopleTotal}`);
+    if(contacted!==peopleContacted)issues.push(`누계접촉 ${contacted} ≠ people접촉 ${peopleContacted}`);
+    if(uncontacted!==Math.max(0,total-contacted))issues.push(`미접촉 ${uncontacted} 계산불일치`);
+    if(Math.abs(num(x.contactRate)-pct(contacted,total))>.15)issues.push(`접촉률 ${num(x.contactRate).toFixed(1)}% 계산불일치`);
+    if(bmTotal!==total)issues.push(`byManager 인원합 ${bmTotal} ≠ 전체 ${total}`);
+    if(bmContacted!==contacted)issues.push(`byManager 접촉합 ${bmContacted} ≠ 누계 ${contacted}`);
+
+    Object.entries(bm).forEach(([m,d])=>{
+      const pp=mgrPeople[m]||{total:0,contacted:0};
+      if(num(d.total)!==pp.total || num(d.contacted)!==pp.contacted){
+        issues.push(`담당 ${m}: 캐시 ${num(d.total)}/${num(d.contacted)} ≠ people ${pp.total}/${pp.contacted}`);
+      }
+      if(num(d.contacted)>num(d.total))issues.push(`담당 ${m}: 접촉이 인원보다 큼`);
+    });
+
+    if(brTotal!==peopleRole)issues.push(`직책합 ${brTotal} ≠ people직책 ${peopleRole}`);
+    if(bdTotal!==peopleDong)issues.push(`동별합 ${bdTotal} ≠ 동값보유 ${peopleDong}`);
+    if(!eventReady)issues.push('일/주/월 기간이력 미동기화');
+    if(pair.dups>1)issues.push(`동일현장 카드 ${pair.dups}개`);
+
+    let level='ok';
+    const fatal=issues.filter(t=>t.includes('전체 ')||t.includes('누계접촉')||t.includes('byManager')||t.startsWith('담당 '));
+    if(fatal.length)level='fail';
+    else if(issues.length)level='warn';
+
+    return{
+      level,issues,total,contacted,peopleTotal,
+      mgrTotal:assignedTotal,mgrContacted:assignedContacted,
+      unassignedTotal,unassignedContacted,
+      role:`${peopleRole}/${brTotal}`,dong:`${peopleDong}/${bdTotal}`,
+      events:eventReady?`${eventCount}건`:'미동기화'
+    };
+  }
+
+  function auditDashboard(pair){
+    const s=pair.site,roster=Array.isArray(s.ownerRoster)?s.ownerRoster:[];
+    const logs=Array.isArray(s.logs)?s.logs:[];
+    const issues=[];
+    if(pair.dups>1)issues.push(`동일현장 카드 ${pair.dups}개`);
+    return{
+      level:issues.length?'warn':'ok',issues,total:roster.length,contacted:'-',peopleTotal:roster.length,
+      mgrTotal:'-',mgrContacted:'-',role:'-',dong:'-',events:`보고 ${logs.length}건`
+    };
+  }
+
+  function renderAudit(){
+    const rowsEl=document.getElementById('allSiteAuditRows');
+    const sumEl=document.getElementById('allSiteAuditSummary');
+    if(!rowsEl||!sumEl)return;
+
+    const results=uniqueSitePairs().map(pair=>{
+      const x=pair.site&&pair.site.excelStats;
+      const isExcel=!!(x&&x.source==='excel-master');
+      return{pair,isExcel,result:isExcel?auditExcel(pair):auditDashboard(pair)};
+    });
+
+    const excel=results.filter(r=>r.isExcel).length;
+    const warn=results.filter(r=>r.result.level==='warn').length;
+    const fail=results.filter(r=>r.result.level==='fail').length;
+
+    sumEl.innerHTML=`
+      <div class="audit-kpi"><div class="k">검사 현장</div><div class="v">${results.length}곳</div></div>
+      <div class="audit-kpi ok"><div class="k">Excel 원장</div><div class="v">${excel}곳</div></div>
+      <div class="audit-kpi warn"><div class="k">주의</div><div class="v">${warn}곳</div></div>
+      <div class="audit-kpi fail"><div class="k">불일치</div><div class="v">${fail}곳</div></div>`;
+
+    rowsEl.innerHTML=results.map(({pair,isExcel,result:r})=>{
+      const label=r.level==='ok'?'정상':r.level==='warn'?'주의':'불일치';
+      const mgrTotal=r.unassignedTotal!==undefined?`${r.mgrTotal}${r.unassignedTotal?` (+미지정 ${r.unassignedTotal})`:''}`:r.mgrTotal;
+      const mgrContact=r.unassignedContacted!==undefined?`${r.mgrContacted}${r.unassignedContacted?` (+미지정 ${r.unassignedContacted})`:''}`:r.mgrContacted;
+      return `<tr>
+        <td><span class="audit-badge ${r.level}">${label}</span></td>
+        <td>${escapeHtml(pair.office)}</td>
+        <td class="site">${escapeHtml(pair.site.name||'')}</td>
+        <td>${isExcel?'📗 Excel':'🌐 Dashboard'}</td>
+        <td>${r.total}</td><td>${r.contacted}</td><td>${r.peopleTotal}</td>
+        <td>${mgrTotal}</td><td>${mgrContact}</td>
+        <td>${r.role}</td><td>${r.dong}</td><td>${r.events}</td>
+        <td class="issue">${r.issues.length?r.issues.map(x=>'• '+escapeHtml(x)).join('<br>'):'이상 없음'}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  function openAudit(){
+    try{ if(typeof closeTopbarSettings==='function')closeTopbarSettings(); }catch(e){}
+    renderAudit();
+    const o=document.getElementById('allSiteAuditOverlay');
+    if(o){o.classList.add('show');o.setAttribute('aria-hidden','false');}
+  }
+  function closeAudit(){
+    const o=document.getElementById('allSiteAuditOverlay');
+    if(o){o.classList.remove('show');o.setAttribute('aria-hidden','true');}
+  }
+
+  const openBtn=document.getElementById('allSiteAuditBtn');
+  if(openBtn)openBtn.addEventListener('click',openAudit);
+  const refreshBtn=document.getElementById('allSiteAuditRefreshBtn');
+  if(refreshBtn)refreshBtn.addEventListener('click',renderAudit);
+  const closeBtn=document.getElementById('allSiteAuditCloseBtn');
+  if(closeBtn)closeBtn.addEventListener('click',closeAudit);
+  const overlay=document.getElementById('allSiteAuditOverlay');
+  if(overlay)overlay.addEventListener('click',e=>{if(e.target===overlay)closeAudit();});
 })();
 </script>
 </body>
