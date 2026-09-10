@@ -4758,6 +4758,86 @@ body.theme-dark .name-item.active{
     }
   }
 </style>
+
+<style id="mobileSettingsV377Style">
+  @media(max-width:820px){
+    #mobileSettingsBackdrop{
+      position:fixed!important;
+      inset:0!important;
+      z-index:2147482000!important;
+      background:rgba(4,13,11,.52)!important;
+      backdrop-filter:blur(2px)!important;
+      -webkit-backdrop-filter:blur(2px)!important;
+    }
+    #mobileSettingsBackdrop.show{display:block!important;}
+
+    body > #topbarMenuPanel.sooni-mobile-settings-sheet{
+      display:block!important;
+      visibility:visible!important;
+      opacity:1!important;
+      pointer-events:auto!important;
+      transform:none!important;
+
+      position:fixed!important;
+      left:12px!important;
+      right:12px!important;
+      top:auto!important;
+      bottom:max(14px, env(safe-area-inset-bottom))!important;
+
+      width:auto!important;
+      min-width:0!important;
+      max-width:none!important;
+      max-height:min(70dvh, 590px)!important;
+      margin:0!important;
+      padding:8px!important;
+
+      overflow-x:hidden!important;
+      overflow-y:auto!important;
+      -webkit-overflow-scrolling:touch!important;
+
+      border:1px solid var(--line)!important;
+      border-radius:17px!important;
+      background:var(--card)!important;
+      color:var(--text-main)!important;
+      box-shadow:0 20px 60px rgba(0,0,0,.42)!important;
+      z-index:2147483000!important;
+      isolation:isolate!important;
+    }
+
+    body > #topbarMenuPanel.sooni-mobile-settings-sheet::before{
+      content:"⚙ 설정";
+      display:block!important;
+      position:sticky!important;
+      top:-8px!important;
+      z-index:3!important;
+      margin:-8px -8px 5px!important;
+      padding:13px 14px 11px!important;
+      border-bottom:1px solid var(--line)!important;
+      background:var(--card)!important;
+      color:var(--text-main)!important;
+      font-size:14px!important;
+      font-weight:800!important;
+    }
+
+    body > #topbarMenuPanel.sooni-mobile-settings-sheet .menu-section-title{
+      min-height:42px!important;
+      padding:10px 11px!important;
+      color:var(--accent)!important;
+      font-size:12px!important;
+      font-weight:800!important;
+    }
+    body > #topbarMenuPanel.sooni-mobile-settings-sheet .menu-item-btn{
+      min-height:42px!important;
+      padding:10px 12px!important;
+      color:var(--text-main)!important;
+      background:transparent!important;
+      font-size:12px!important;
+    }
+    body > #topbarMenuPanel.sooni-mobile-settings-sheet .menu-item-btn:active{
+      background:var(--accent-soft)!important;
+    }
+  }
+</style>
 </head>
 <body>
 <div id="entryGate" style="position:fixed;inset:0;background:rgba(3,12,22,.94);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;">
@@ -5038,7 +5118,7 @@ body.theme-dark .name-item.active{
   <div class="modal" id="contactReportModalBox" style="max-width:min(97vw,1180px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">통합 접촉현황</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-10-v376</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-11-v377</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -6314,24 +6394,58 @@ const L = (function(){
   });
 
   // ---------- 상단 설정 메뉴 ----------
+  // iOS Safari에서는 #app/상단영역의 stacking context 안에 fixed panel이 있으면
+  // backdrop보다 뒤로 숨을 수 있다. 모바일에서 열 때 panel 자체를 body 직속으로 이동한다.
+  const topbarSettingsPanel=document.getElementById('topbarMenuPanel');
+  const topbarSettingsHome=document.getElementById('topbarMenuWrap');
+  const topbarSettingsNext=topbarSettingsPanel ? topbarSettingsPanel.nextSibling : null;
+
+  function restoreTopbarSettingsHome(){
+    const panel=document.getElementById('topbarMenuPanel');
+    if(!panel||!topbarSettingsHome)return;
+    panel.classList.remove('sooni-mobile-settings-sheet');
+    if(panel.parentNode!==topbarSettingsHome){
+      if(topbarSettingsNext && topbarSettingsNext.parentNode===topbarSettingsHome){
+        topbarSettingsHome.insertBefore(panel,topbarSettingsNext);
+      }else{
+        topbarSettingsHome.appendChild(panel);
+      }
+    }
+  }
+
   function closeTopbarSettings(){
     const panel=document.getElementById('topbarMenuPanel');
     const backdrop=document.getElementById('mobileSettingsBackdrop');
     if(panel)panel.style.display='none';
     if(backdrop)backdrop.classList.remove('show');
     document.body.classList.remove('mobile-settings-open');
+    if(window.innerWidth<=820)restoreTopbarSettingsHome();
   }
 
   function openTopbarSettings(){
     const panel=document.getElementById('topbarMenuPanel');
     const backdrop=document.getElementById('mobileSettingsBackdrop');
     if(!panel)return;
-    panel.style.display='block';
 
     if(window.innerWidth<=820){
+      // Critical fix: move OUTSIDE #app so no parent stacking context can hide it.
+      if(panel.parentNode!==document.body)document.body.appendChild(panel);
+      panel.classList.add('sooni-mobile-settings-sheet');
+      panel.style.display='block';
+      panel.style.visibility='visible';
+      panel.style.opacity='1';
+      panel.style.pointerEvents='auto';
       if(backdrop)backdrop.classList.add('show');
       document.body.classList.add('mobile-settings-open');
       panel.scrollTop=0;
+      requestAnimationFrame(()=>{
+        panel.style.display='block';
+        panel.style.visibility='visible';
+        panel.style.opacity='1';
+      });
+    }else{
+      restoreTopbarSettingsHome();
+      panel.style.display='block';
     }
   }
 
@@ -6341,6 +6455,21 @@ const L = (function(){
     const isOpen=panel && panel.style.display!=='none';
     if(isOpen)closeTopbarSettings();
     else openTopbarSettings();
+  });
+
+  window.addEventListener('orientationchange',()=>{
+    if(document.body.classList.contains('mobile-settings-open')){
+      setTimeout(()=>{
+        const panel=document.getElementById('topbarMenuPanel');
+        if(window.innerWidth<=820 && panel){
+          if(panel.parentNode!==document.body)document.body.appendChild(panel);
+          panel.classList.add('sooni-mobile-settings-sheet');
+          panel.style.display='block';
+        }else{
+          closeTopbarSettings();
+        }
+      },120);
+    }
   });
 
   const mobileSettingsBackdrop=document.getElementById('mobileSettingsBackdrop');
