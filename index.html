@@ -5165,7 +5165,7 @@ body.theme-dark .name-item.active{
   <div class="modal" id="contactReportModalBox" style="max-width:min(97vw,1180px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">통합 접촉현황</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-11-v378</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-11-v379</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -12628,8 +12628,14 @@ function renderDetailPanel(site){
   // 사이트 상세 "보고서" 탭에 보여줄 담당자별 집계표(주간/월간 방문 매트릭스 + 요일·주차별 접촉자 목록)
   function buildExcelReportBreakdown(site,ex){
     const periodPayloadReady=Array.isArray(ex&&ex.contactEvents) && ex&&ex.monthDateColumns && Object.keys(ex.monthDateColumns||{}).length>0;
-    const rawEvents=Array.isArray(ex&&ex.contactEvents)?ex.contactEvents:[];
-    const roster=Array.isArray(site&&site.ownerRoster)?site.ownerRoster.map(normalizeRosterEntry).filter(r=>r&&r.name):[];
+    const baseEvents=Array.isArray(ex&&ex.contactEvents)?ex.contactEvents:[];
+    const aliasValues=[]
+      .concat(Array.isArray(ex&&ex.people)?ex.people.map(p=>p&&p.manager):[])
+      .concat(Object.keys(ex&&ex.byManager||{}))
+      .concat(baseEvents.map(e=>e&&e.manager));
+    const managerAliases=smManagerAliasMap(aliasValues);
+    const rawEvents=baseEvents.map(e=>({...e,manager:smManagerAlias(e.manager,managerAliases)}));
+    const roster=Array.isArray(ex&&ex.people)?ex.people:(Array.isArray(site&&site.ownerRoster)?site.ownerRoster.map(normalizeRosterEntry).filter(r=>r&&r.name):[]);
     const now=mgrBreakdownNavDate;
     const monthRange=getMonthRange(now);
     const year=monthRange.start.getFullYear();
@@ -12638,7 +12644,7 @@ function renderDetailPanel(site){
     const monthEnd=`${year}-${String(month).padStart(2,'0')}-${String(monthRange.end.getDate()).padStart(2,'0')}`;
     const successMethods=new Set(['상담','단순','TM']);
     const clean=v=>String(v||'').trim();
-    const mgrKey=v=>smManagerKey(v);
+    const mgrKey=v=>smManagerAlias(v,managerAliases);
     const uniquePeople=arr=>new Set(arr.map(e=>clean(e.name)).filter(Boolean)).size;
     const inMonth=e=>String(e.date||'')>=monthStart&&String(e.date||'')<=monthEnd;
     const monthEventsRaw=rawEvents.filter(inMonth);
@@ -15499,7 +15505,7 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
     const source=(ex&&Array.isArray(ex.people))
       ? ex.people
       : (Array.isArray(site&&site.ownerRoster)?site.ownerRoster:[]);
-    return source.map(r=>typeof r==='string'
+    const rows=source.map(r=>typeof r==='string'
       ? {name:r.trim(),role:'',manager:'',unit:'',dong:'',contactMethod:'',contacted:false,todayContactMethod:''}
       : {
           name:String(r&&r.name||'').trim(),
@@ -15511,6 +15517,9 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
           contacted:!!(r&&r.contacted),
           todayContactMethod:String(r&&r.todayContactMethod||'').trim()
         }).filter(r=>r.name);
+    const aliases=smManagerAliasMap(rows.map(r=>r.manager));
+    rows.forEach(r=>{r.manager=smManagerAlias(r.manager,aliases);});
+    return rows;
   }
   function smSplit(v){return String(v||'').split(/[,，;/|\n]+/).map(x=>x.trim()).filter(Boolean);}
   function smCore(v){return String(v||'').trim().replace(/[（(].*?[）)]/g,' ').replace(/\s+/g,' ').trim().toLowerCase();}
@@ -15594,11 +15603,31 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
     const s=String(v||'').trim().replace(/\s+/g,' ');
     return (!s||s==='(미지정)')?'(미지정)':s;
   }
+  function smManagerBase(v){
+    const s=smManagerKey(v);
+    if(s==='(미지정)')return s;
+    return s.replace(/\s*(본부장|실장|팀장|부장|차장|과장|대리|사원|주임)$/,'').trim();
+  }
+  function smManagerAliasMap(values){
+    const present=new Set((values||[]).map(smManagerKey).filter(v=>v&&v!=='(미지정)'));
+    const map={};
+    present.forEach(s=>map[s]=s);
+    present.forEach(s=>{
+      const base=smManagerBase(s);
+      if(base&&base!==s&&present.has(base))map[s]=base;
+    });
+    return map;
+  }
+  function smManagerAlias(v,map){
+    const s=smManagerKey(v);
+    return (map&&map[s])||s;
+  }
   function smEmptyMgr(){return{total:0,contacted:0,uncontacted:0,todayContacted:0,roleOwners:0,methods:{상담:0,단순:0,TM:0,미접촉:0,거부:0,부재:0,불명:0},todayMethods:{상담:0,단순:0,TM:0,미접촉:0,거부:0,부재:0,불명:0}};}
   function smMergeManagers(raw){
     const out={};
+    const aliases=smManagerAliasMap(Object.keys(raw||{}));
     Object.entries(raw||{}).forEach(([name,d])=>{
-      const k=smManagerKey(name);if(!out[k])out[k]=smEmptyMgr();const t=out[k];
+      const k=smManagerAlias(name,aliases);if(!out[k])out[k]=smEmptyMgr();const t=out[k];
       ['total','contacted','uncontacted','todayContacted','roleOwners'].forEach(f=>t[f]+=Number(d&&d[f]||0));
       ['methods','todayMethods'].forEach(g=>Object.keys(t[g]).forEach(m=>t[g][m]+=Number(d&&d[g]&&d[g][m]||0)));
     });
@@ -15636,7 +15665,14 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
     // 0건이면 Excel 기준 0건이다.
     if(x){
       const ev=Array.isArray(x.contactEvents)?x.contactEvents:[];
-      return ev.filter(e=>smInRangeDate(String(e.date||''),range));
+      const aliasValues=[]
+        .concat(Array.isArray(x.people)?x.people.map(p=>p&&p.manager):[])
+        .concat(Object.keys(x.byManager||{}))
+        .concat(ev.map(e=>e&&e.manager));
+      const aliases=smManagerAliasMap(aliasValues);
+      return ev
+        .filter(e=>smInRangeDate(String(e.date||''),range))
+        .map(e=>({...e,manager:smManagerAlias(e.manager,aliases)}));
     }
     const out=[];(site.logs||[]).filter(l=>!isTourBookingLog(l)&&smInRangeDate(String(l.date||''),range)).forEach(l=>{
       smSplit(l.contactName||l.owner).forEach(n=>out.push({date:l.date,name:n,manager:l.author||site.manager||'',unit:l.unit||'',dong:'',role:'',method:l.contactMethod||''}));
@@ -15713,10 +15749,11 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
     if(x&&x.source==='excel-master'&&!periodMode&&Array.isArray(x.people)){
       const groups={};
       let unassigned=0;
+      const aliases=smManagerAliasMap(x.people.map(p=>p&&p.manager));
 
       x.people.forEach(p=>{
         if(!p||!String(p.name||'').trim())return;
-        const manager=smManagerKey(p.manager);
+        const manager=smManagerAlias(p.manager,aliases);
         const contacted=!!p.contacted || ['상담','단순','TM'].includes(String(p.contactMethod||'').trim());
         const method=String(p.contactMethod||'').trim();
         const todayMethod=String(p.todayContactMethod||'').trim();
@@ -15822,6 +15859,7 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
 
   function smPersonRows(site){
     const roster=smRoster(site),events=smAllEventsFor(site),byName={};
+    const managerAliases=smManagerAliasMap(roster.map(r=>r.manager).concat(events.map(e=>e.manager)));
     events.forEach(e=>{
       const k=smCore(e.name);
       if(!k)return;
@@ -15838,7 +15876,7 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
         ? (r.contacted||['상담','단순','TM'].includes(r.contactMethod))
         : (r.contactMethod?['상담','단순','TM'].includes(r.contactMethod):(r.contacted||['상담','단순','TM'].includes(method)));
       return{
-        name:r.name,manager:smManagerKey(r.manager),unit:r.unit||latest.unit||'',dong:r.dong||latest.dong||'',
+        name:r.name,manager:smManagerAlias(r.manager,managerAliases),unit:r.unit||latest.unit||'',dong:r.dong||latest.dong||'',
         role:r.role||latest.role||'',method,contacted,todayMethod:r.todayContactMethod||'',
         count:ev.length,last:latest.date||'',note:log?String(log.text||''):''
       };
@@ -16018,7 +16056,7 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
         </colgroup>
         <thead><tr><th>No</th><th>담당</th><th>인원</th><th>누계접촉</th><th>접촉률</th><th>금일접촉</th><th>상담</th><th>단순</th><th>TM</th><th>미접촉</th><th>거부</th><th>부재</th><th>불명</th></tr></thead>
         <tbody>${managerRows||'<tr><td colspan="13" class="pdf-empty">담당별 집계 없음</td></tr>'}${mr.rows.length?`<tr class="pdf-total"><td colspan="2">합계</td><td>${managerTotal.total}</td><td>${managerTotal.contacted}</td><td>${managerTotal.total?(managerTotal.contacted/managerTotal.total*100).toFixed(1):'0.0'}%</td><td>${managerTotal.today||'-'}</td><td>${managerTotal.상담||'-'}</td><td>${managerTotal.단순||'-'}</td><td>${managerTotal.TM||'-'}</td><td>${Math.max(0,managerTotal.total-managerTotal.contacted)||'-'}</td><td>${managerTotal.거부||'-'}</td><td>${managerTotal.부재||'-'}</td><td>${managerTotal.불명||'-'}</td></tr>`:''}</tbody>
-      </table>${mr.unassigned?`<div class="pdf-note-line">＊ 담당 미지정 접촉 ${mr.unassigned}명 · 담당별 합계는 담당 입력된 인원만 표시</div>`:''}</div>`;
+      </table><div class="pdf-note-line">＊ 같은 현장에 '이름' + '이름 직급'이 함께 있으면 기존 이름으로 합산 (예: 오지현 + 오지현 차장 → 오지현)</div>${mr.unassigned?`<div class="pdf-note-line">＊ 담당 미지정 접촉 ${mr.unassigned}명 · 담당별 합계는 담당 입력된 인원만 표시</div>`:''}</div>`;
 
     const roleRows=roles.map((r,i)=>`<tr><td>${i+1}</td><td class="sm-drill sm-drill-link" data-drill="role_contacted" data-role="${escapeHtml(r.name)}">${escapeHtml(r.name)}</td><td ${smDrillAttr('role_total',{role:r.name})}>${r.total}</td><td ${r.contacted?smDrillAttr('role_contacted',{role:r.name}):''}>${r.contacted||'-'}</td><td ${r.uncontacted?smDrillAttr('role_uncontacted',{role:r.name}):''}>${r.uncontacted||'-'}</td><td ${r.total?smDrillAttr('role_rate',{role:r.name}):''}>${r.rate.toFixed(1)}%</td></tr>`).join('');
     const roleTable=`<div class="pdf-section pdf-role-card"><div class="pdf-section-title">② 집행부·직책별 접촉현황</div><table class="pdf-table pdf-role"><thead><tr><th style="width:28px">No</th><th class="left">직책</th><th>인원</th><th>접촉</th><th>미접촉</th><th>접촉률</th></tr></thead><tbody>${roleRows||'<tr><td colspan="6" class="pdf-empty">직책 집계 없음</td></tr>'}</tbody></table></div>`;
@@ -16133,6 +16171,13 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
   const num=v=>Number(v||0);
   const pct=(a,b)=>b?Math.round(a/b*1000)/10:0;
   const managerKey=v=>String(v||'').trim().replace(/\s+/g,' ')||'(미지정)';
+  const managerBase=v=>managerKey(v).replace(/\s*(본부장|실장|팀장|부장|차장|과장|대리|사원|주임)$/,'').trim();
+  const managerAliases=values=>{
+    const p=new Set((values||[]).map(managerKey).filter(v=>v&&v!=='(미지정)')),m={};
+    p.forEach(v=>m[v]=v);
+    p.forEach(v=>{const b=managerBase(v);if(b&&b!==v&&p.has(b))m[v]=b;});
+    return m;
+  };
 
   function allRawPairs(){
     const out=[];
@@ -16182,8 +16227,10 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
     const peopleContacted=people.filter(p=>!!p.contacted||SUCCESS.has(String(p.contactMethod||'').trim())).length;
 
     const mgrPeople={};
+    const mgrAlias=managerAliases(people.map(p=>p&&p.manager).concat(Object.keys(x.byManager||{})));
     people.forEach(p=>{
-      const m=managerKey(p.manager);
+      const raw=managerKey(p.manager);
+      const m=mgrAlias[raw]||raw;
       const d=mgrPeople[m]||(mgrPeople[m]={total:0,contacted:0});
       d.total++;
       if(!!p.contacted||SUCCESS.has(String(p.contactMethod||'').trim()))d.contacted++;
@@ -16213,7 +16260,8 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
     if(bmContacted!==contacted)issues.push(`byManager 접촉합 ${bmContacted} ≠ 누계 ${contacted}`);
 
     Object.entries(bm).forEach(([m,d])=>{
-      const pp=mgrPeople[m]||{total:0,contacted:0};
+      const mk=mgrAlias[managerKey(m)]||managerKey(m);
+      const pp=mgrPeople[mk]||{total:0,contacted:0};
       if(num(d.total)!==pp.total || num(d.contacted)!==pp.contacted){
         issues.push(`담당 ${m}: 캐시 ${num(d.total)}/${num(d.contacted)} ≠ people ${pp.total}/${pp.contacted}`);
       }
