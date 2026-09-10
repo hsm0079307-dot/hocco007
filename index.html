@@ -6168,7 +6168,17 @@ function renderDetailPanel(site){
           document.getElementById('contactStatsTitle').addEventListener('dblclick', ()=>document.getElementById('contactStatsModalOverlay').classList.remove('show'));
           return;
         }
-        const managerNames = Object.keys(s.byManager).sort((a,b)=>s.byManager[b].total-s.byManager[a].total);
+        const excelStatsMaster = (site.excelStats && site.excelStats.source==='excel-master') ? site.excelStats : null;
+        const excelMgr = excelStatsMaster && excelStatsMaster.byManager ? excelStatsMaster.byManager : {};
+        const managerNames = Array.from(new Set(Object.keys(s.byManager).concat(Object.keys(excelMgr).filter(x=>x!=='(미지정)')))).sort((a,b)=>{
+          const at=(excelMgr[a]&&excelMgr[a].total)||((s.byManager[a]||{}).total)||0;
+          const bt=(excelMgr[b]&&excelMgr[b].total)||((s.byManager[b]||{}).total)||0;
+          return bt-at;
+        });
+        const topTotal = excelStatsMaster ? Number(excelStatsMaster.totalOwners||0) : s.totalOwners;
+        const topCum = excelStatsMaster ? Number(excelStatsMaster.contactedOwners||0) : s.contactedOwnersCum;
+        const topUncontacted = excelStatsMaster ? Number(excelStatsMaster.uncontactedOwners||0) : s.uncontactedOwners;
+        const topRate = excelStatsMaster ? Number(excelStatsMaster.contactRate||0).toFixed(1) : s.contactRate;
         const ROLE_PRIORITY = ['위원장','감사','위원'];
         const roleNames = Object.keys(s.byRole).sort((a,b)=>{
           const ai = ROLE_PRIORITY.indexOf(a), bi = ROLE_PRIORITY.indexOf(b);
@@ -6223,7 +6233,7 @@ function renderDetailPanel(site){
           </div>
           <div class="cstat-period-toggle no-print">
             ${['month','week','day'].map(p=>`<button type="button" class="cstat-period-btn${cstatPeriod===p?' active':''}" data-period="${p}">${({month:'월별',week:'주별',day:'일별'})[p]}</button>`).join('')}
-            <span style="font-size:10.5px;color:var(--text-dim);margin-left:8px;">· 아래 담당별/직책별 집계가 ${periodLabel} 기준으로 나와요 (상단 요약은 항상 누계/금일 기준)</span>
+            <span style="font-size:10.5px;color:var(--text-dim);margin-left:8px;">· 누계/명부는 ${excelStatsMaster?'✓ Excel 원장 '+escapeHtml(excelStatsMaster.syncedAt||''):'대시보드 명부'} 기준 · 기간 실적은 ${periodLabel} 보고서 기준</span>
           </div>
           <div class="cstat-nav-row no-print">
             <button type="button" class="cstat-nav-btn" id="cstatNavPrevBtn">◀</button>
@@ -6233,32 +6243,37 @@ function renderDetailPanel(site){
             ${!isRealToday ? `<button type="button" class="cstat-nav-today-btn" id="cstatNavTodayBtn">오늘</button>` : ''}
           </div>
           <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0 18px;">
-            <div class="cstat-box"><div class="cstat-num">${s.totalOwners}명</div><div class="cstat-lbl">소유주</div></div>
+            <div class="cstat-box"><div class="cstat-num">${topTotal}명</div><div class="cstat-lbl">소유주${excelStatsMaster?' · Excel':''}</div></div>
             <div class="cstat-box">
-              <div class="cstat-num-split"><span style="color:var(--pos);">누계 ${s.contactedOwnersCum}명</span><span style="color:var(--pos);">금일 ${s.contactedOwnersToday}명</span></div>
+              <div class="cstat-num-split"><span style="color:var(--pos);">누계 ${topCum}명</span><span style="color:var(--pos);">금일 ${s.contactedOwnersToday}명</span></div>
               <div class="cstat-lbl">접촉</div>
             </div>
-            <div class="cstat-box"><div class="cstat-num" style="color:var(--neg);">${s.uncontactedOwners}명</div><div class="cstat-lbl">미접촉</div></div>
-            <div class="cstat-box"><div class="cstat-num" style="color:var(--accent);">${s.contactRate}%</div><div class="cstat-lbl">접촉률</div></div>
+            <div class="cstat-box"><div class="cstat-num" style="color:var(--neg);">${topUncontacted}명</div><div class="cstat-lbl">미접촉</div></div>
+            <div class="cstat-box"><div class="cstat-num" style="color:var(--accent);">${topRate}%</div><div class="cstat-lbl">접촉률</div></div>
           </div>
 
           <div class="cstat-section">
             <div class="cstat-section-title">① 담당별 집계표</div>
             <div class="cstat-table-scroll"><table class="cstat-table" style="width:auto;min-width:280px;"><thead><tr><th style="width:70px;">담당</th><th style="width:56px;">인원</th><th style="width:70px;">접촉<br>(누계)</th><th style="width:56px;">접촉률</th><th style="width:56px;">미접촉</th></tr></thead>
             <tbody>${managerNames.length ? managerNames.map(m=>{
-              const d = s.byManager[m];
-              const cumContacted = d.cumulativeContactedSet.size;
-              const cumRate = d.total ? (cumContacted/d.total*100).toFixed(1) : '0.0';
-              return `<tr><td>${escapeHtml(m)}</td><td>${d.total}</td><td><span class="cstat-clickable-num" data-mgr="${escapeHtml(m)}" data-method="누계" data-table="top">${cumContacted}</span></td><td>${cumRate}%</td><td>${d.total-cumContacted}</td></tr>`;
+              const d = s.byManager[m] || {total:0,cumulativeContactedSet:new Set(),contactedSet:new Set(),cumMethodCounts:{'상담':0,'단순':0,'TM':0,'거부':0,'부재':0,'불명':0},periodMethodCounts:{'상담':0,'단순':0,'TM':0,'거부':0,'부재':0,'불명':0},logs:[]};
+              const xd = excelMgr[m] || null;
+              const mTotal = xd ? Number(xd.total||0) : d.total;
+              const cumContacted = xd ? Number(xd.contacted||0) : d.cumulativeContactedSet.size;
+              const cumRate = mTotal ? (cumContacted/mTotal*100).toFixed(1) : '0.0';
+              return `<tr><td>${escapeHtml(m)}</td><td>${mTotal}</td><td>${cumContacted}</td><td>${cumRate}%</td><td>${Math.max(0,mTotal-cumContacted)}</td></tr>`;
             }).join('') : `<tr><td colspan="5" style="color:var(--text-dim);">명단에 담당이 기재된 사람이 없어요.</td></tr>`}</tbody></table></div>
 
             <div class="cstat-section-title" style="margin-top:16px;">담당별 접촉(누계) 방법</div>
             <div class="cstat-table-scroll"><table class="cstat-table" style="width:auto;min-width:480px;"><thead><tr><th style="width:70px;">담당</th><th style="width:50px;">인원</th><th style="width:60px;">접촉<br>(누계)</th><th style="width:50px;">상담</th><th style="width:50px;">단순</th><th style="width:50px;">TM</th><th style="width:50px;">거부</th><th style="width:50px;">부재</th></tr></thead>
             <tbody>${managerNames.length ? managerNames.map(m=>{
-              const d = s.byManager[m];
-              const c = d.cumMethodCounts;
-              const cellHtml = (method, val) => val ? `<span class="cstat-clickable-num" data-mgr="${escapeHtml(m)}" data-method="${method}" data-table="cum">${val}</span>` : '-';
-              return `<tr><td>${escapeHtml(m)}</td><td>${d.total}</td><td><span class="cstat-clickable-num" data-mgr="${escapeHtml(m)}" data-method="누계" data-table="top">${d.cumulativeContactedSet.size}</span></td><td>${cellHtml('상담',c['상담'])}</td><td>${cellHtml('단순',c['단순'])}</td><td>${cellHtml('TM',c['TM'])}</td><td>${cellHtml('거부',c['거부'])}</td><td>${cellHtml('부재',c['부재'])}</td></tr>`;
+              const d = s.byManager[m] || {total:0,cumulativeContactedSet:new Set(),cumMethodCounts:{'상담':0,'단순':0,'TM':0,'거부':0,'부재':0,'불명':0}};
+              const xd = excelMgr[m] || null;
+              const c = xd ? (xd.methods||{}) : d.cumMethodCounts;
+              const mTotal = xd ? Number(xd.total||0) : d.total;
+              const mContacted = xd ? Number(xd.contacted||0) : d.cumulativeContactedSet.size;
+              const cellHtml = (method, val) => val ? `${val}` : '-';
+              return `<tr><td>${escapeHtml(m)}</td><td>${mTotal}</td><td>${mContacted}</td><td>${cellHtml('상담',c['상담'])}</td><td>${cellHtml('단순',c['단순'])}</td><td>${cellHtml('TM',c['TM'])}</td><td>${cellHtml('거부',c['거부'])}</td><td>${cellHtml('부재',c['부재'])}</td></tr>`;
             }).join('') : `<tr><td colspan="8" style="color:var(--text-dim);">명단에 담당이 기재된 사람이 없어요.</td></tr>`}</tbody></table></div>
 
             <div class="cstat-section-title" style="margin-top:16px;">담당별 접촉(${escapeHtml(navLabel)}) 방법</div>
@@ -10373,9 +10388,10 @@ function renderDetailPanel(site){
     function logInRange(l){ return l && l.date && l.date>=`${range.start.getFullYear()}-${String(range.start.getMonth()+1).padStart(2,'0')}-${String(range.start.getDate()).padStart(2,'0')}` && l.date<=`${range.end.getFullYear()}-${String(range.end.getMonth()+1).padStart(2,'0')}-${String(range.end.getDate()).padStart(2,'0')}`; }
     allSites.forEach(s=>{
       const roster=(s.ownerRoster||[]).map(normalizeRosterEntry).filter(r=>r.name);
+      const excelStats=(s.excelStats && s.excelStats.source==='excel-master') ? s.excelStats : null;
       const logs=(s.logs||[]).filter(l=>!isTourBookingLog(l));
       const periodLogs=logs.filter(logInRange);
-      rosterTotal += roster.length;
+      rosterTotal += excelStats ? Number(excelStats.totalOwners||0) : roster.length;
       periodReportCount += periodLogs.length;
       if(periodLogs.length) visitedSites++;
       logs.forEach(l=>{ const mk=String(l.date||'').slice(0,7); if(monthMap[mk]!==undefined) monthMap[mk]++; });
@@ -10391,7 +10407,7 @@ function renderDetailPanel(site){
         });
       }
       logs.forEach(l=>addPeople(l,cumPeople)); periodLogs.forEach(l=>addPeople(l,perPeople));
-      cumulativePeopleTotal += cumPeople.size; periodPeopleTotal += perPeople.size;
+      cumulativePeopleTotal += excelStats ? Number(excelStats.contactedOwners||0) : cumPeople.size; periodPeopleTotal += perPeople.size;
       periodLogs.forEach(l=>{
         const m=String(l.contactMethod||'').trim(); if(methodCounts[m]!==undefined) methodCounts[m]++;
         const names=summaryManagerTokens((l.author||'').trim() || s.manager || '');
@@ -10402,9 +10418,11 @@ function renderDetailPanel(site){
         });
       });
       roster.forEach(r=>summaryManagerTokens(r.manager).forEach(name=>{ if(!mgrMap[name]) mgrMap[name]={reports:0,people:new Set(),sites:new Set(),assigned:0}; mgrMap[name].assigned++; }));
-      const rate=roster.length ? Math.min(100,(cumPeople.size/roster.length*100)) : 0;
+      const authoritativeRoster=excelStats ? Number(excelStats.totalOwners||0) : roster.length;
+      const authoritativeCum=excelStats ? Number(excelStats.contactedOwners||0) : cumPeople.size;
+      const rate=excelStats ? Number(excelStats.contactRate||0) : (roster.length ? Math.min(100,(cumPeople.size/roster.length*100)) : 0);
       const mc=Object.fromEntries(methods.map(m=>[m,0])); periodLogs.forEach(l=>{ if(mc[l.contactMethod]!==undefined) mc[l.contactMethod]++; });
-      siteRows.push({name:s.name,office:s.office,roster:roster.length,cum:cumPeople.size,period:perPeople.size,reports:periodLogs.length,rate,methods:mc});
+      siteRows.push({name:s.name,office:s.office,roster:authoritativeRoster,cum:authoritativeCum,period:perPeople.size,reports:periodLogs.length,rate,methods:mc,excelSynced:!!excelStats,excelSyncedAt:excelStats?excelStats.syncedAt:''});
     });
     siteRows.sort((a,b)=>b.period-a.period || b.reports-a.reports || a.name.localeCompare(b.name,'ko'));
     const managerRows=Object.entries(mgrMap).sort((a,b)=>b[1].people.size-a[1].people.size || b[1].reports-a[1].reports).slice(0,8);
@@ -10415,14 +10433,14 @@ function renderDetailPanel(site){
     const methodHtml=methods.map(m=>`<div class="sum-method-row"><div class="sum-method-name">${m}</div><div class="sum-track"><div class="sum-fill" style="width:${Math.round(methodCounts[m]/maxMethod*100)}%"></div></div><div class="sum-method-val">${methodCounts[m]||'-'}</div></div>`).join('');
     const mgrHtml=managerRows.length?managerRows.map(([name,d],i)=>`<div class="sum-manager-row"><div class="sum-rank">${i+1}</div><div class="sum-manager-name">${escapeHtml(name)}</div><div class="sum-manager-metric"><b>${d.people.size}</b>접촉자</div><div class="sum-manager-metric"><b>${d.reports}</b>보고</div></div>`).join(''):'<div class="sum-empty">이 기간 담당자 기록이 없습니다.</div>';
     const monthHtml=monthKeys.map(k=>{const v=monthMap[k]||0; return `<div class="sum-trend-col"><div class="sum-trend-val">${v||''}</div><div class="sum-trend-bar" style="height:${Math.max(v?6:2,Math.round(v/maxMonth*82))}px"></div><div class="sum-trend-label">${Number(k.slice(5))}월</div></div>`}).join('');
-    const rowsHtml=siteRows.map(r=>`<tr><td><div class="sum-site-name" title="${escapeHtml(r.name)}">${escapeHtml(r.name)}</div><div class="sum-office">${escapeHtml(r.office||'')}</div></td><td>${r.roster||'-'}</td><td>${r.cum||'-'}</td><td><b>${r.period||'-'}</b></td><td>${r.reports||'-'}</td><td>${r.methods['상담']||'-'}</td><td>${r.methods['단순']||'-'}</td><td>${r.methods['TM']||'-'}</td><td>${r.methods['거부']||'-'}</td><td>${r.methods['부재']||'-'}</td><td><span class="sum-rate">${r.roster?r.rate.toFixed(1)+'%':'-'}</span>${r.roster?`<div class="sum-rate-track"><div class="sum-rate-fill" style="width:${r.rate}%"></div></div>`:''}</td></tr>`).join('');
+    const rowsHtml=siteRows.map(r=>`<tr><td><div class="sum-site-name" title="${escapeHtml(r.name)}">${escapeHtml(r.name)}</div><div class="sum-office">${escapeHtml(r.office||'')} ${r.excelSynced?'· ✓ Excel':''}</div></td><td>${r.roster||'-'}</td><td>${r.cum||'-'}</td><td><b>${r.period||'-'}</b></td><td>${r.reports||'-'}</td><td>${r.methods['상담']||'-'}</td><td>${r.methods['단순']||'-'}</td><td>${r.methods['TM']||'-'}</td><td>${r.methods['거부']||'-'}</td><td>${r.methods['부재']||'-'}</td><td><span class="sum-rate">${r.roster?r.rate.toFixed(1)+'%':'-'}</span>${r.roster?`<div class="sum-rate-track"><div class="sum-rate-fill" style="width:${r.rate}%"></div></div>`:''}</td></tr>`).join('');
     body.innerHTML=`
       <div class="sum-hero">
-        <div class="sum-hero-top"><div><div class="sum-kicker">MARKET CONTACT INTELLIGENCE</div><div class="sum-title">${escapeHtml(officeLabel)} 통합 접촉 집계</div><div class="sum-sub">Excel 집계표의 핵심 지표를 웹에서 한눈에 보도록 재구성했습니다.</div></div><div class="sum-period-pill">${escapeHtml(modeLabel)} · ${escapeHtml(range.label)}</div></div>
+        <div class="sum-hero-top"><div><div class="sum-kicker">MARKET CONTACT INTELLIGENCE</div><div class="sum-title">${escapeHtml(officeLabel)} 통합 접촉 집계</div><div class="sum-sub">누계 인원·접촉·미접촉·접촉률은 Excel 원장을 기준으로 표시합니다. 기간 실적은 대시보드 보고 로그 기준입니다.</div></div><div class="sum-period-pill">${escapeHtml(modeLabel)} · ${escapeHtml(range.label)}</div></div>
         <div class="sum-kpis">
           <div class="sum-kpi"><div class="sum-kpi-label">관리 현장</div><div class="sum-kpi-value">${allSites.length}<small style="font-size:10px">곳</small></div><div class="sum-kpi-note">현재 선택 사업소 기준</div></div>
-          <div class="sum-kpi"><div class="sum-kpi-label">명부 인원</div><div class="sum-kpi-value">${rosterTotal.toLocaleString()}<small style="font-size:10px">명</small></div><div class="sum-kpi-note">소유주 명단 합계</div></div>
-          <div class="sum-kpi"><div class="sum-kpi-label">누계 접촉</div><div class="sum-kpi-value accent">${cumulativePeopleTotal.toLocaleString()}<small style="font-size:10px">명</small></div><div class="sum-kpi-note">중복 접촉자 제외</div></div>
+          <div class="sum-kpi"><div class="sum-kpi-label">명부 인원</div><div class="sum-kpi-value">${rosterTotal.toLocaleString()}<small style="font-size:10px">명</small></div><div class="sum-kpi-note">Excel 원장 동기화 합계</div></div>
+          <div class="sum-kpi"><div class="sum-kpi-label">누계 접촉</div><div class="sum-kpi-value accent">${cumulativePeopleTotal.toLocaleString()}<small style="font-size:10px">명</small></div><div class="sum-kpi-note">Excel 원장 누계</div></div>
           <div class="sum-kpi"><div class="sum-kpi-label">기간 접촉</div><div class="sum-kpi-value pos">${periodPeopleTotal.toLocaleString()}<small style="font-size:10px">명</small></div><div class="sum-kpi-note">${escapeHtml(modeLabel)} 고유 접촉자</div></div>
           <div class="sum-kpi"><div class="sum-kpi-label">보고서</div><div class="sum-kpi-value">${periodReportCount.toLocaleString()}<small style="font-size:10px">건</small></div><div class="sum-kpi-note">${visitedSites}개 현장 활동</div></div>
           <div class="sum-kpi"><div class="sum-kpi-label">누계 접촉률</div><div class="sum-kpi-value ${overallRate<40?'neg':'accent'}">${overallRate.toFixed(1)}%</div><div class="sum-kpi-note">명부 대비 누계</div></div>
@@ -10433,7 +10451,7 @@ function renderDetailPanel(site){
         <div class="sum-card"><div class="sum-card-head"><div class="sum-card-title">담당자 활동 TOP</div><div class="sum-card-hint">기간 접촉자 / 보고 건수</div></div><div class="sum-manager-list">${mgrHtml}</div></div>
       </div>
       <div class="sum-card" style="margin-bottom:12px"><div class="sum-card-head"><div class="sum-card-title">최근 6개월 보고 흐름</div><div class="sum-card-hint">월별 등록 보고서</div></div><div class="sum-trend">${monthHtml}</div></div>
-      <div class="sum-card-head" style="padding:0 2px 8px"><div class="sum-card-title">전체 현장별 집계</div><div class="sum-card-hint">누계 접촉률 + 현재 기간 실적</div></div>
+      <div class="sum-card-head" style="padding:0 2px 8px"><div class="sum-card-title">전체 현장별 집계</div><div class="sum-card-hint">누계 = Excel 원장 · 기간 = 보고 로그</div></div>
       <div class="sum-site-wrap"><table class="sum-site-table"><thead><tr><th>현장</th><th>명부</th><th>누계접촉</th><th>기간접촉</th><th>보고건수</th><th>상담</th><th>단순</th><th>TM</th><th>거부</th><th>부재</th><th>접촉률</th></tr></thead><tbody>${rowsHtml||'<tr><td colspan="11" class="sum-empty">집계할 현장이 없습니다.</td></tr>'}</tbody></table></div>
     `;
   }
