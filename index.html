@@ -4396,7 +4396,7 @@ body.theme-dark .name-item.active{
   <div class="modal" id="contactReportModalBox" style="max-width:min(97vw,1180px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">통합 접촉현황</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-10-v367</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-10-v368</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -11751,6 +11751,7 @@ function renderDetailPanel(site){
   // 주간 모드: 월~일 요일별로, 월간 모드: 1주차~N주차 별로 그날/그주에 어느 현장을 몇 번 방문했는지 묶는다
   // 사이트 상세 "보고서" 탭에 보여줄 담당자별 집계표(주간/월간 방문 매트릭스 + 요일·주차별 접촉자 목록)
   function buildExcelReportBreakdown(site,ex){
+    const periodPayloadReady=Array.isArray(ex&&ex.contactEvents) && ex&&ex.monthDateColumns && Object.keys(ex.monthDateColumns||{}).length>0;
     const rawEvents=Array.isArray(ex&&ex.contactEvents)?ex.contactEvents:[];
     const roster=Array.isArray(site&&site.ownerRoster)?site.ownerRoster.map(normalizeRosterEntry).filter(r=>r&&r.name):[];
     const now=mgrBreakdownNavDate;
@@ -11873,7 +11874,7 @@ function renderDetailPanel(site){
         if(!r.manager||r.manager==='(미지정)')r.manager=mgrKey(e.manager);if(!r.unit)r.unit=clean(e.unit);if(!r.role)r.role=clean(e.role);
       });
       const rows=Object.values(map).sort((a,b)=>String(b.last).localeCompare(String(a.last))||a.name.localeCompare(b.name,'ko'));
-      if(!rows.length)return `<div class="mgr-empty">${year}년 ${month}월 Excel 접촉기록이 없습니다.</div>`;
+      if(!rows.length)return `<div class="mgr-empty">${periodPayloadReady?`${year}년 ${month}월 Excel 접촉기록이 없습니다.`:'Excel 기간이력 동기화가 아직 완료되지 않았습니다.'}</div>`;
       return `<div class="mgr-owner-search-row no-print"><input type="text" id="mgrOwnerSearchInput" placeholder="🔍 이름 · 담당 · 동호수 검색"></div>
       <div style="overflow-x:auto;"><table class="mgr-breakdown-table mgr-owner-table" id="mgrOwnerTable" style="min-width:660px;">
         <thead><tr><th style="text-align:left;">접촉자</th><th>담당</th><th>동호수</th><th>접촉일수</th><th>건수</th><th>최근접촉</th><th>방법</th></tr></thead>
@@ -11900,7 +11901,9 @@ function renderDetailPanel(site){
     const total=Number(ex.totalOwners||0),contacted=Number(ex.contactedOwners||0),uncontacted=Number(ex.uncontactedOwners||Math.max(0,total-contacted)),rate=Number(ex.contactRate||0);
     const sourceHtml=`<div class="mgr-report-source excel-first">
       <span class="mgr-report-source-badge">📗 Excel 원장 기준</span>
-      <span class="mgr-report-source-desc">이 현장의 접촉 집계는 Dashboard 보고서 로그를 사용하지 않습니다. 상단 숫자와 아래 일자별·주별·월별·접촉자별 모두 Excel 원장/월 날짜열 기준입니다.</span>
+      <span class="mgr-report-source-desc">${periodPayloadReady
+        ? '이 현장의 접촉 집계는 Dashboard 보고서 로그를 사용하지 않습니다. 상단 숫자와 아래 일자별·주별·월별·접촉자별 모두 Excel 원장/월 날짜열 기준입니다.'
+        : 'Excel 누계는 연결되어 있지만 일/주/월 날짜이력은 아직 새 형식으로 동기화되지 않았습니다. v3.68 최초 백그라운드 동기화가 끝나면 자동 표시됩니다.'}</span>
     </div>
     <div class="mgr-report-kpis excel-first">
       <div class="mgr-report-kpi"><div class="k">조합원/소유주</div><div class="v">${total}명</div><div class="s">Excel 명부</div></div>
@@ -11908,7 +11911,9 @@ function renderDetailPanel(site){
       <div class="mgr-report-kpi"><div class="k">미접촉</div><div class="v">${uncontacted}명</div><div class="s">Excel 원장</div></div>
       <div class="mgr-report-kpi"><div class="k">접촉률</div><div class="v">${rate.toFixed(1)}%</div><div class="s">동기화 ${escapeHtml(String(ex.syncedAt||'').slice(5,16).replace('T',' ')||'-')}</div></div>
     </div>
-    <div class="mgr-report-activity"><b>📗 ${month}월 Excel 접촉</b><span>${uniquePeople(monthEventsRaw)}명</span><span class="sep">·</span><span>상담 ${currentMonthMethods.상담}</span><span class="sep">·</span><span>단순 ${currentMonthMethods.단순}</span><span class="sep">·</span><span>TM ${currentMonthMethods.TM}</span></div>`;
+    <div class="mgr-report-activity">${periodPayloadReady
+      ? `<b>📗 ${month}월 Excel 접촉</b><span>${uniquePeople(monthEventsRaw)}명</span><span class="sep">·</span><span>상담 ${currentMonthMethods.상담}</span><span class="sep">·</span><span>단순 ${currentMonthMethods.단순}</span><span class="sep">·</span><span>TM ${currentMonthMethods.TM}</span>`
+      : `<b>⏳ Excel 기간이력 동기화 중</b><span>완료 후 일자별·주별·월별·접촉자별이 자동 갱신됩니다.</span>`}</div>`;
 
     return `<div class="mgr-breakdown-wrap no-print-collapse">${sourceHtml}${managerHeaderHtml}${tabHtml}${navHtml}<div class="mgr-subtab-body">${bodyHtml}</div></div>`;
   }
