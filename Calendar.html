@@ -4311,14 +4311,16 @@ function computeDateHeadcount(key){
     display:flex;flex-direction:column;justify-content:center;gap:10px;
   }
   #mobileMockApp .m13-date-card label{font-size:9.8px;font-weight:850;color:#8a9aa0;line-height:1;padding-left:2px}
-  #mobileMockApp .m13-date-line{display:flex;align-items:center;gap:10px}
+  #mobileMockApp .m13-date-line{display:flex;align-items:center;gap:10px;min-width:0}
   #mobileMockApp .m13-date-line svg{width:22px;height:22px;stroke:#39545b;fill:none;stroke-width:1.8;flex:0 0 22px}
+  #mobileMockApp .m13-date-text{min-width:0;flex:1;color:#203f49;font-size:17px;font-weight:900;line-height:1;white-space:nowrap;letter-spacing:-.02em}
   #mobileMockApp .m13-date-card input{
-    width:100%;min-width:0;border:0;background:transparent;padding:0;margin:0;
-    color:#203f49;font-size:17px;font-weight:900;line-height:1;font-family:inherit;
+    position:absolute!important;inset:0!important;width:100%!important;height:100%!important;
+    opacity:0!important;cursor:pointer!important;border:0!important;padding:0!important;margin:0!important;
+    -webkit-appearance:none!important;appearance:none!important;background:transparent!important;color:transparent!important;
   }
-  #mobileMockApp .m13-date-card input::-webkit-calendar-picker-indicator{opacity:0;position:absolute;left:0;right:0;width:100%;height:100%}
-  #mobileMockApp .m13-date-card{position:relative}
+  #mobileMockApp .m13-date-card input::-webkit-calendar-picker-indicator{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;opacity:0!important;cursor:pointer!important}
+  #mobileMockApp .m13-date-card{position:relative;overflow:hidden}
   #mobileMockApp .m13-apply{
     height:84px;border:0;border-radius:16px;background:linear-gradient(145deg,var(--m13-teal2),var(--m13-teal));
     color:#fff;font-size:18px;font-weight:950;box-shadow:0 10px 24px rgba(12,143,133,.18);
@@ -4429,15 +4431,16 @@ function computeDateHeadcount(key){
   #mobileMockApp .m13-title{font-size:25px}
   #mobileMockApp .m13-range{padding:16px 14px 14px}
   #mobileMockApp .m13-month-chip{height:40px;padding:0 12px;font-size:10.8px}
-  #mobileMockApp .m13-range-grid{grid-template-columns:minmax(0,1fr) 14px minmax(0,1fr) 92px;gap:10px}
-  #mobileMockApp .m13-date-card{height:74px;padding:10px 12px;gap:8px}
-  #mobileMockApp .m13-date-line svg{width:18px;height:18px;flex-basis:18px}
-  #mobileMockApp .m13-date-card input{font-size:13px}
+  #mobileMockApp .m13-range-grid{grid-template-columns:minmax(0,1fr) 12px minmax(0,1fr) 88px;gap:8px}
+  #mobileMockApp .m13-date-card{height:74px;padding:10px 9px;gap:8px}
+  #mobileMockApp .m13-date-line{gap:6px}
+  #mobileMockApp .m13-date-line svg{width:15px;height:15px;flex-basis:15px}
+  #mobileMockApp .m13-date-text{font-size:10.6px;letter-spacing:-.035em}
   #mobileMockApp .m13-apply{height:74px;font-size:14px}
   #mobileMockApp .m13-quick button{height:52px;font-size:13px}
   #mobileMockApp .m13-filters{gap:10px;padding:12px}
-  #mobileMockApp .m13-filter{height:48px;font-size:11px;gap:8px}
-  #mobileMockApp .m13-filter i{width:14px;height:14px;flex-basis:14px}
+  #mobileMockApp .m13-filter{height:48px;font-size:9.6px;gap:6px;padding:0 6px}
+  #mobileMockApp .m13-filter i{width:12px;height:12px;flex-basis:12px}
   #mobileMockApp .m13-cal-title{font-size:26px}
   #mobileMockApp .m13-cal-actions button{height:42px;min-width:42px;font-size:14px}
   #mobileMockApp .m13-cal-actions .today{min-width:58px;padding:0 12px}
@@ -4470,6 +4473,7 @@ function computeDateHeadcount(key){
   };
   function key(d){return (d.getMonth()+1)+'-'+d.getDate()}
   function iso(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+  function prettyDate(v){if(!v)return'';const p=v.split('-').map(Number);return `${p[0]}. ${p[1]}. ${p[2]}.`;}
   function monthText(){const v=(document.getElementById('rangeStart')||{}).value||range?.start||'';if(!v)return'';const p=v.split('-');return Number(p[0])+'년 '+Number(p[1])+'월';}
   function currentMonthDate(){const v=(document.getElementById('rangeStart')||{}).value||range?.start;return v?new Date(v+'T00:00:00'):new Date()}
   function uniqueManagers(){const s=new Set();Object.values(GALLERY_ROWS||{}).forEach(rs=>rs.forEach(r=>r[4]&&s.add(r[4])));Object.values(TOUR_ROWS||{}).forEach(rs=>rs.forEach(r=>r[5]&&s.add(r[5])));return s.size}
@@ -4501,12 +4505,12 @@ function computeDateHeadcount(key){
         <div class="m13-range-grid">
           <div class="m13-date-card">
             <label>시작일</label>
-            <div class="m13-date-line">${svgCal}<input type="date" id="m13Start"></div>
+            <div class="m13-date-line">${svgCal}<span class="m13-date-text" id="m13StartText"></span><input type="date" id="m13Start" aria-label="시작일"></div>
           </div>
           <div class="m13-wave">~</div>
           <div class="m13-date-card">
             <label>종료일</label>
-            <div class="m13-date-line">${svgCal}<input type="date" id="m13End"></div>
+            <div class="m13-date-line">${svgCal}<span class="m13-date-text" id="m13EndText"></span><input type="date" id="m13End" aria-label="종료일"></div>
           </div>
           <button type="button" class="m13-apply" id="m13Apply">적용</button>
         </div>
@@ -4563,6 +4567,8 @@ function computeDateHeadcount(key){
   function bindShell(){
     const rs=document.getElementById('m13Start');
     const re=document.getElementById('m13End');
+    rs.onchange=()=>{document.getElementById('m13StartText').textContent=prettyDate(rs.value);};
+    re.onchange=()=>{document.getElementById('m13EndText').textContent=prettyDate(re.value);};
     document.getElementById('m13Apply').onclick=()=>{
       document.getElementById('rangeStart').value=rs.value;
       document.getElementById('rangeEnd').value=re.value;
@@ -4661,6 +4667,8 @@ function computeDateHeadcount(key){
     const rs=document.getElementById('rangeStart'), re=document.getElementById('rangeEnd');
     document.getElementById('m13Start').value=rs?.value||'';
     document.getElementById('m13End').value=re?.value||'';
+    document.getElementById('m13StartText').textContent=prettyDate(rs?.value||'');
+    document.getElementById('m13EndText').textContent=prettyDate(re?.value||'');
     document.getElementById('m13ManagerSub').textContent='총 '+uniqueManagers()+'명의 담당자가 있습니다.';
     renderFilters();
     renderCalendar();
