@@ -4210,169 +4210,470 @@ function computeDateHeadcount(key){
 })();
 </script>
 
-\n<style id="calendar-mobile-v12-shell-style">
-/* ===== MOBILE V12: separate app shell, matched to approved mockup ===== */
+
+<style id="calendar-mobile-v13-shell-style">
+/* ===== MOBILE V13: exact mockup-oriented app shell ===== */
 #mobileMockApp,#mobileMockNav{display:none}
 @media (max-width:560px){
-  html,body{background:#eef8f6!important}
-  body{padding:10px 10px calc(88px + env(safe-area-inset-bottom))!important;background:
-    radial-gradient(circle at 9% 3%,rgba(50,188,172,.13),transparent 24%),
-    radial-gradient(circle at 96% 31%,rgba(116,194,214,.10),transparent 24%),
-    linear-gradient(180deg,#eff9f7 0%,#f9fcfb 58%,#eef7f5 100%)!important}
+  :root{
+    --m13-bg:#edf8f6;
+    --m13-card:#ffffff;
+    --m13-line:#dbe9e6;
+    --m13-line2:#e7f0ee;
+    --m13-ink:#173d46;
+    --m13-sub:#7f9196;
+    --m13-teal:#0c8f85;
+    --m13-teal2:#23b7aa;
+    --m13-orange:#f6a348;
+    --m13-orange-bg:#fff1e4;
+    --m13-pink:#f06a8a;
+    --m13-pink-bg:#fff1f6;
+    --m13-blue:#2f85f3;
+    --m13-shadow:0 12px 30px rgba(27,76,80,.055);
+  }
+  html,body{background:var(--m13-bg)!important}
+  body{
+    padding:14px 14px calc(104px + env(safe-area-inset-bottom))!important;
+    background:
+      radial-gradient(circle at 8% 2%, rgba(72,198,184,.10), transparent 24%),
+      radial-gradient(circle at 94% 16%, rgba(136,212,224,.09), transparent 24%),
+      linear-gradient(180deg, #eff9f8 0%, #f8fbfb 54%, #eef8f6 100%)!important;
+    color:var(--m13-ink)!important;
+  }
   .wrap{width:100%!important;max-width:none!important;margin:0!important}
 
-  /* Hide only the legacy top UI on phones. Core data/functions remain alive. */
+  /* hide legacy mobile top and details until requested */
   .wrap>header,.wrap>.rangebar,.wrap>.legend,.wrap>.danjiToggleBar,.wrap>#calendarArea{display:none!important}
   .mobile-app-nav{display:none!important}
-  #mobileMockApp{display:block!important;margin:0 0 12px!important}
+  .checklist-section,.car{display:none!important}
+  body.m13-show-details .checklist-section,
+  body.m13-show-details .car{display:block!important}
 
-  .m12-card{background:rgba(255,255,255,.985);border:1px solid #dbe8e6;border-radius:20px;box-shadow:0 10px 28px rgba(28,78,81,.055)}
-  .m12-hero{position:relative;min-height:92px;padding:18px 16px 16px 76px;margin-bottom:10px;overflow:hidden;background:linear-gradient(108deg,#fbfefd 0%,#edf8f5 57%,#eef7fa 100%)}
-  .m12-hero:after{content:"";position:absolute;right:-28px;bottom:-38px;width:185px;height:90px;border-radius:60% 0 0 0;background:
-      linear-gradient(160deg,transparent 0 23%,rgba(100,200,191,.12) 24% 38%,transparent 39% 100%),
-      linear-gradient(115deg,rgba(126,203,220,.11),rgba(120,208,177,.16));transform:skewX(-12deg);opacity:.85}
-  .m12-hero-icon{position:absolute;left:16px;top:18px;width:46px;height:46px;border-radius:15px;background:linear-gradient(145deg,#18aa9c,#087a72);box-shadow:0 8px 20px rgba(9,126,117,.22);display:grid;place-items:center;color:#fff;z-index:1}
-  .m12-hero-icon svg{width:25px;height:25px;stroke:currentColor;fill:none;stroke-width:1.9}
-  .m12-title{position:relative;z-index:1;margin:2px 0 6px;font-size:22px;line-height:1.05;font-weight:950;letter-spacing:-.06em;color:#123846}
-  .m12-sub{position:relative;z-index:1;margin:0;font-size:10.5px;line-height:1.3;font-weight:700;color:#7c9196}
+  #mobileMockApp{display:block!important;margin:0 0 14px!important}
 
-  .m12-range{padding:14px 14px 13px;margin-bottom:10px}
-  .m12-range-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 10px}
-  .m12-section-title{font-size:16px;font-weight:950;letter-spacing:-.04em;color:#183e47}
-  .m12-month-chip{height:34px;padding:0 11px;border:1px solid #dce7e5;border-radius:11px;background:#fbfdfd;color:#35545b;font-size:10.5px;font-weight:900;display:flex;align-items:center;gap:6px;white-space:nowrap}
-  .m12-range-row{display:grid;grid-template-columns:minmax(0,1fr) 16px minmax(0,1fr) 82px;gap:7px;align-items:end}
-  .m12-date-field{display:flex;flex-direction:column;gap:5px;min-width:0}
-  .m12-date-field label{padding-left:2px;font-size:9px;font-weight:850;color:#819397}
-  .m12-date-field input{width:100%;min-width:0;height:48px;padding:0 8px;border:1px solid #dce7e5;border-radius:13px;background:#fff;color:#254951;text-align:center;font-size:10.5px;font-weight:900;box-shadow:none}
-  .m12-wave{align-self:center;text-align:center;padding-top:19px;color:#688187;font-size:13px;font-weight:900}
-  .m12-apply{height:48px;border:0;border-radius:14px;background:linear-gradient(135deg,#1ba99b,#078078);color:#fff;font-size:11.5px;font-weight:950;box-shadow:0 7px 16px rgba(8,132,123,.17)}
-  .m12-month-buttons{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:8px}
-  .m12-month-buttons button{height:40px;border:1px solid #dce7e5;border-radius:12px;background:#fbfdfd;color:#36555c;font-size:10.5px;font-weight:900}
+  #mobileMockApp .m13-card{
+    background:rgba(255,255,255,.985);
+    border:1px solid var(--m13-line);
+    border-radius:22px;
+    box-shadow:var(--m13-shadow);
+  }
 
-  .m12-filters{padding:10px;margin-bottom:10px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
-  .m12-filter{height:43px;min-width:0;border:1px solid #dfe8e7;border-radius:13px;background:#fff;color:#3f5960;font-size:9.5px;font-weight:900;display:flex;align-items:center;justify-content:center;gap:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .m12-filter i{width:11px;height:11px;border-radius:50%;border:2px solid #bdcbd0;background:#fff;flex:0 0 11px}
-  .m12-filter.gallery i{border-color:#25b4a6}.m12-filter.tour i{border-color:#ffa04b}.m12-filter.closed i{border-color:#ef6b8a}
-  .m12-filter.on.gallery{border-color:#4bc4b8;background:#f3fbf9;color:#087b73}.m12-filter.on.gallery i{background:#23b5a8}
-  .m12-filter.on.tour{border-color:#ffc17f;background:#fffaf4;color:#c66e2d}.m12-filter.on.tour i{background:#ffa04b}
-  .m12-filter.on.closed{border-color:#f2a0b4;background:#fff8fa;color:#c4516d}.m12-filter.on.closed i{background:#ef6b8a}
-  .m12-filter.danji.on{border-color:#8dcfc7;background:#f2faf8;color:#14796f}.m12-filter.danji.on i{background:#a7d9d2;border-color:#78bdb4}
+  /* hero */
+  #mobileMockApp .m13-hero{
+    position:relative;overflow:hidden;
+    min-height:118px;
+    padding:18px 18px 18px 102px;
+    margin-bottom:14px;
+    background:linear-gradient(112deg,#ffffff 0%,#f1fbf8 52%,#f2f8fb 100%);
+  }
+  #mobileMockApp .m13-hero-icon{
+    position:absolute;left:16px;top:18px;
+    width:60px;height:60px;border-radius:18px;
+    background:linear-gradient(145deg,#1fc0b0,#078177);
+    display:grid;place-items:center;color:#fff;
+    box-shadow:0 10px 24px rgba(7,129,119,.22);
+    z-index:2;
+  }
+  #mobileMockApp .m13-hero-icon svg{width:30px;height:30px;stroke:currentColor;fill:none;stroke-width:1.9}
+  #mobileMockApp .m13-title{
+    position:relative;z-index:2;
+    margin:4px 0 8px;
+    font-size:30px;line-height:1.02;font-weight:950;letter-spacing:-.065em;color:#123946;
+  }
+  #mobileMockApp .m13-sub{
+    position:relative;z-index:2;
+    margin:0;font-size:10px;line-height:1.35;font-weight:700;color:#7f9196;
+  }
+  #mobileMockApp .m13-hero-scene{
+    position:absolute;right:0;bottom:0;width:46%;height:72%;z-index:1;opacity:.96;
+    background-repeat:no-repeat;background-position:right bottom;background-size:contain;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 110'%3E%3Cdefs%3E%3ClinearGradient id='g1' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23d5f4f0'/%3E%3Cstop offset='1' stop-color='%239bded7'/%3E%3C/linearGradient%3E%3ClinearGradient id='g2' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23d9eef6'/%3E%3Cstop offset='1' stop-color='%23bde5ee'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='240' height='110' fill='none'/%3E%3Cg opacity='.92'%3E%3Crect x='122' y='18' width='16' height='54' rx='2' fill='url(%23g2)'/%3E%3Crect x='144' y='28' width='22' height='44' rx='2' fill='url(%23g1)'/%3E%3Crect x='170' y='10' width='26' height='62' rx='2' fill='url(%23g2)'/%3E%3Crect x='199' y='22' width='19' height='50' rx='2' fill='url(%23g1)'/%3E%3Crect x='220' y='35' width='12' height='37' rx='2' fill='url(%23g2)'/%3E%3C/g%3E%3Cg fill='%23b7eadf'%3E%3Cellipse cx='110' cy='82' rx='9' ry='6'/%3E%3Cellipse cx='136' cy='88' rx='10' ry='7'/%3E%3Cellipse cx='163' cy='86' rx='10' ry='6'/%3E%3Cellipse cx='197' cy='90' rx='11' ry='7'/%3E%3Cellipse cx='224' cy='87' rx='9' ry='6'/%3E%3C/g%3E%3Cg fill='%2394d6b4'%3E%3Ccircle cx='111' cy='76' r='10'/%3E%3Ccircle cx='136' cy='79' r='11'/%3E%3Ccircle cx='162' cy='78' r='11'/%3E%3Ccircle cx='197' cy='80' r='12'/%3E%3Ccircle cx='224' cy='77' r='10'/%3E%3C/g%3E%3Cg fill='%236cb794'%3E%3Crect x='109' y='83' width='4' height='10' rx='2'/%3E%3Crect x='134' y='86' width='4' height='10' rx='2'/%3E%3Crect x='160' y='85' width='4' height='10' rx='2'/%3E%3Crect x='195' y='87' width='4' height='10' rx='2'/%3E%3Crect x='222' y='84' width='4' height='10' rx='2'/%3E%3C/g%3E%3C/svg%3E");
+  }
+  #mobileMockApp .m13-hero::after{
+    content:"";position:absolute;right:-30px;top:-20px;width:190px;height:120px;border-radius:50%;
+    background:radial-gradient(circle at 45% 55%, rgba(152,227,216,.22), rgba(152,227,216,0) 62%);
+    z-index:0;
+  }
 
-  .m12-calendar{padding:14px 11px 15px;margin-bottom:10px}
-  .m12-cal-head{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:0 2px}
-  .m12-cal-title{font-size:20px;line-height:1;font-weight:950;letter-spacing:-.055em;color:#143b45}
-  .m12-cal-actions{display:flex;align-items:center;gap:5px;margin-left:auto}
-  .m12-cal-actions button{height:34px;min-width:34px;padding:0 8px;border:1px solid #dce7e5;border-radius:11px;background:#fbfdfd;color:#31535a;font-size:10.5px;font-weight:900}
-  .m12-cal-actions .today{min-width:48px}
-  .m12-weekdays,.m12-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
-  .m12-weekdays{margin-bottom:4px}
-  .m12-weekday{height:20px;display:flex;align-items:center;justify-content:center;font-size:8.8px;font-weight:900;color:#809397}.m12-weekday.sun{color:#ef4f72}.m12-weekday.sat{color:#3385f0}
-  .m12-day{position:relative;aspect-ratio:1/.95;min-width:0;padding:6px 5px;border:1px solid #e0e9e7;border-radius:11px;background:#fff;overflow:hidden;text-align:left}
-  .m12-day.other{background:#fbfcfc;border-color:#eef2f2}.m12-day.other .m12-daynum{color:#b8c4c8}
-  .m12-day.selected{border:2px solid #17a093;background:linear-gradient(180deg,#effaf7,#fff);box-shadow:0 0 0 2px rgba(23,160,147,.06)}
-  .m12-daynum{font-size:11.5px;line-height:1;font-weight:950;color:#203947}.m12-day.sun .m12-daynum{color:#ed4f71}.m12-day.sat .m12-daynum{color:#3185ef}
-  .m12-event{position:absolute;left:5px;right:5px;bottom:5px;height:18px;padding:0 4px;border-radius:999px;display:flex;align-items:center;justify-content:center;gap:3px;font-size:6.8px;line-height:1;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .m12-event:before{content:"";width:5px;height:5px;border-radius:50%;flex:0 0 5px}.m12-event.gallery{background:#e2f7f2;color:#087d74}.m12-event.gallery:before{background:#20b3a5}.m12-event.tour{background:#fff0e2;color:#d67728}.m12-event.tour:before{background:#ff941f}.m12-event.closed{background:#ffeaf0;color:#d65372}.m12-event.closed:before{background:#ee6483}
-  .m12-more{position:absolute;right:5px;bottom:4px;font-size:6.5px;font-weight:900;color:#7a8e93}
+  /* date range */
+  #mobileMockApp .m13-range{padding:18px 16px 16px;margin-bottom:14px}
+  #mobileMockApp .m13-range-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+  #mobileMockApp .m13-section-title{font-size:18px;font-weight:950;letter-spacing:-.04em;color:#153d46}
+  #mobileMockApp .m13-month-chip{
+    height:42px;padding:0 14px;border:1px solid #dce8e6;border-radius:14px;background:#fbfdfd;
+    display:inline-flex;align-items:center;gap:8px;color:#35545b;font-size:11.5px;font-weight:900;white-space:nowrap;
+  }
+  #mobileMockApp .m13-month-chip svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.9}
+  #mobileMockApp .m13-range-grid{display:grid;grid-template-columns:minmax(0,1fr) 16px minmax(0,1fr) 110px;gap:12px;align-items:end}
+  #mobileMockApp .m13-wave{align-self:center;text-align:center;color:#3c5560;font-size:24px;font-weight:950;padding-bottom:14px}
+  #mobileMockApp .m13-date-card{
+    min-width:0;height:84px;padding:12px 14px;border:1px solid #dce8e6;border-radius:16px;background:#fff;
+    display:flex;flex-direction:column;justify-content:center;gap:10px;
+  }
+  #mobileMockApp .m13-date-card label{font-size:9.8px;font-weight:850;color:#8a9aa0;line-height:1;padding-left:2px}
+  #mobileMockApp .m13-date-line{display:flex;align-items:center;gap:10px}
+  #mobileMockApp .m13-date-line svg{width:22px;height:22px;stroke:#39545b;fill:none;stroke-width:1.8;flex:0 0 22px}
+  #mobileMockApp .m13-date-card input{
+    width:100%;min-width:0;border:0;background:transparent;padding:0;margin:0;
+    color:#203f49;font-size:17px;font-weight:900;line-height:1;font-family:inherit;
+  }
+  #mobileMockApp .m13-date-card input::-webkit-calendar-picker-indicator{opacity:0;position:absolute;left:0;right:0;width:100%;height:100%}
+  #mobileMockApp .m13-date-card{position:relative}
+  #mobileMockApp .m13-apply{
+    height:84px;border:0;border-radius:16px;background:linear-gradient(145deg,var(--m13-teal2),var(--m13-teal));
+    color:#fff;font-size:18px;font-weight:950;box-shadow:0 10px 24px rgba(12,143,133,.18);
+  }
+  #mobileMockApp .m13-quick{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+  #mobileMockApp .m13-quick button{
+    height:58px;border:1px solid #dde8e6;border-radius:16px;background:#fbfdfd;color:#304f58;font-size:16px;font-weight:900;
+  }
+  #mobileMockApp .m13-quick button .chev{font-size:24px;line-height:0;vertical-align:-2px;margin:0 10px 0 0}
+  #mobileMockApp .m13-quick button.next .chev{margin:0 0 0 10px}
 
-  .m12-manager{height:66px;padding:0 13px;margin-bottom:10px;display:flex;align-items:center;gap:11px}
-  .m12-manager-ico{width:38px;height:38px;border-radius:12px;background:#ebf8f5;color:#0c8a80;display:grid;place-items:center;font-size:18px;font-weight:900}
-  .m12-manager-copy{min-width:0}.m12-manager-title{font-size:11.5px;font-weight:950;color:#23464d}.m12-manager-sub{margin-top:3px;font-size:8.8px;font-weight:700;color:#86979a}.m12-manager-arr{margin-left:auto;color:#527077;font-size:20px}
+  /* filters */
+  #mobileMockApp .m13-filters{padding:14px 14px 14px;margin-bottom:14px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+  #mobileMockApp .m13-filter{
+    min-width:0;height:56px;border:1px solid #e0e9e8;border-radius:16px;background:#fff;
+    display:flex;align-items:center;justify-content:center;gap:11px;padding:0 10px;
+    font-size:13px;font-weight:900;color:#3e5860;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  #mobileMockApp .m13-filter i{width:18px;height:18px;border-radius:50%;display:block;flex:0 0 18px;border:2px solid #cad3d8;background:#cad3d8}
+  #mobileMockApp .m13-filter.gallery i{background:#2dc8b8;border-color:#2dc8b8}
+  #mobileMockApp .m13-filter.tour i{background:#ffab4f;border-color:#ffab4f}
+  #mobileMockApp .m13-filter.closed i{background:#f57395;border-color:#f57395}
+  #mobileMockApp .m13-filter.danji i{background:#cfd6df;border-color:#cfd6df}
+  #mobileMockApp .m13-filter.gallery{box-shadow:inset 0 0 0 1px #81d6cc;color:#177f74;background:#f8fffd}
+  #mobileMockApp .m13-filter.tour{box-shadow:inset 0 0 0 1px #f4c68d;color:#a9652d;background:#fffaf4}
+  #mobileMockApp .m13-filter.closed{box-shadow:inset 0 0 0 1px #f2b4c4;color:#bf5673;background:#fff7fa}
+  #mobileMockApp .m13-filter.on.danji{box-shadow:inset 0 0 0 1px #b8d8d3;background:#f9fcfb;color:#416168}
+  #mobileMockApp .m13-filter:not(.on).danji{background:#fff;color:#51666d}
+  #mobileMockApp .m13-filter.on.danji i{background:#cfd6df;border-color:#cfd6df}
 
-  /* Keep lower functional sections but harmonize them. */
-  .checklist-section{margin:0 0 10px!important;padding:14px 11px 15px!important;border:1px solid #dbe8e6!important;border-radius:20px!important;background:#fff!important;box-shadow:0 10px 28px rgba(28,78,81,.045)!important}
-  .checklist-section h2{font-size:16px!important;color:#183f48!important}.checklist-section h3{font-size:11.5px!important;color:#3c5d64!important}
-  .car{margin-bottom:10px!important;border-radius:18px!important}
+  /* calendar */
+  #mobileMockApp .m13-calendar{padding:18px 16px 16px;margin-bottom:14px}
+  #mobileMockApp .m13-cal-head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+  #mobileMockApp .m13-cal-title{font-size:30px;line-height:1;font-weight:950;letter-spacing:-.06em;color:#123946}
+  #mobileMockApp .m13-cal-actions{display:flex;align-items:center;gap:8px;margin-left:auto}
+  #mobileMockApp .m13-cal-actions button{
+    height:48px;min-width:48px;border:1px solid #dde8e6;border-radius:14px;background:#fff;color:#284750;
+    font-size:16px;font-weight:900;box-shadow:0 2px 8px rgba(27,76,80,.04);
+  }
+  #mobileMockApp .m13-cal-actions .today{padding:0 16px;min-width:64px}
+  #mobileMockApp .m13-weekdays,
+  #mobileMockApp .m13-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+  #mobileMockApp .m13-weekdays{margin-bottom:8px}
+  #mobileMockApp .m13-weekday{height:24px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:#95a1a5}
+  #mobileMockApp .m13-weekday.sun{color:#ea5b78}
+  #mobileMockApp .m13-weekday.sat{color:#3487f1}
+  #mobileMockApp .m13-day{
+    position:relative;min-width:0;height:88px;padding:11px 9px;border:1px solid #e0e9e7;border-radius:14px;background:#fff;
+    text-align:left;overflow:hidden;
+  }
+  #mobileMockApp .m13-day.other{background:#fbfcfc;border-color:#eef3f2}
+  #mobileMockApp .m13-day.other .m13-daynum{color:#c5cdd1}
+  #mobileMockApp .m13-day.selected{border:3px solid #16a091;background:linear-gradient(180deg,#f4fffd,#fff);box-shadow:0 0 0 3px rgba(22,160,145,.07)}
+  #mobileMockApp .m13-daynum{font-size:15px;line-height:1;font-weight:950;color:#203947}
+  #mobileMockApp .m13-day.sun .m13-daynum{color:#eb5374}
+  #mobileMockApp .m13-day.sat .m13-daynum{color:#2f86f3}
+  #mobileMockApp .m13-event{
+    position:absolute;left:8px;right:8px;bottom:8px;height:26px;padding:0 10px;border-radius:999px;
+    display:flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    font-size:10px;font-weight:900;line-height:1;
+  }
+  #mobileMockApp .m13-event:before{content:"";width:8px;height:8px;border-radius:50%;flex:0 0 8px}
+  #mobileMockApp .m13-event.gallery{background:#e8fbf6;color:#0a877b}#mobileMockApp .m13-event.gallery:before{background:#24b8a9}
+  #mobileMockApp .m13-event.tour{background:var(--m13-orange-bg);color:#d57929}#mobileMockApp .m13-event.tour:before{background:var(--m13-orange)}
+  #mobileMockApp .m13-event.closed{background:var(--m13-pink-bg);color:#d85d7c}#mobileMockApp .m13-event.closed:before{background:var(--m13-pink)}
+  #mobileMockApp .m13-more{position:absolute;right:10px;bottom:6px;font-size:9px;font-weight:900;color:#8ba0a5}
 
-  #mobileMockNav{position:fixed;left:0;right:0;bottom:0;height:66px;padding:6px 18px calc(7px + env(safe-area-inset-bottom));display:grid!important;grid-template-columns:repeat(4,1fr);background:rgba(255,255,255,.975);border-top:1px solid #dce7e5;box-shadow:0 -6px 20px rgba(35,74,78,.07);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);z-index:9998}
-  .m12-nav-btn{border:0;background:transparent;color:#788c92;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:8.4px;font-weight:850}.m12-nav-btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8}.m12-nav-btn.active{color:#07877e}
-  .mobile-admin-fab{right:12px!important;bottom:calc(75px + env(safe-area-inset-bottom))!important;height:44px!important;min-width:70px!important;padding:0 13px!important;border-radius:999px!important;z-index:9999!important;font-size:10.5px!important}
-  .bottom-toolbar{bottom:calc(126px + env(safe-area-inset-bottom))!important;left:10px!important;right:10px!important}
+  /* manager row */
+  #mobileMockApp .m13-manager{height:82px;padding:0 18px;display:flex;align-items:center;gap:14px;margin-bottom:16px}
+  #mobileMockApp .m13-manager-ico{width:52px;height:52px;border-radius:16px;background:#eefaf6;color:#0d8c81;display:grid;place-items:center;flex:0 0 52px}
+  #mobileMockApp .m13-manager-ico svg{width:28px;height:28px;stroke:currentColor;fill:none;stroke-width:1.9}
+  #mobileMockApp .m13-manager-copy{min-width:0}
+  #mobileMockApp .m13-manager-title{font-size:16px;font-weight:950;color:#1c454e;line-height:1.15}
+  #mobileMockApp .m13-manager-sub{margin-top:5px;font-size:11px;font-weight:700;color:#839497}
+  #mobileMockApp .m13-manager-arr{margin-left:auto;color:#60777d;font-size:28px;line-height:1}
+
+  /* details when opened */
+  body.m13-show-details .checklist-section,
+  body.m13-show-details .car{
+    margin:0 0 14px!important;padding:16px!important;border:1px solid var(--m13-line)!important;border-radius:22px!important;
+    background:#fff!important;box-shadow:var(--m13-shadow)!important;
+  }
+
+  /* bottom nav & fab */
+  #mobileMockNav{
+    position:fixed;left:0;right:0;bottom:0;z-index:9998;
+    display:grid!important;grid-template-columns:repeat(4,1fr);gap:0;
+    height:86px;padding:10px 18px calc(10px + env(safe-area-inset-bottom));
+    background:rgba(255,255,255,.96);border-top:1px solid #dde8e6;
+    box-shadow:0 -8px 24px rgba(33,72,76,.08);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  }
+  #mobileMockNav .m13-nav-btn{border:0;background:transparent;color:#8c9aa0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;font-size:10px;font-weight:850}
+  #mobileMockNav .m13-nav-btn svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.8}
+  #mobileMockNav .m13-nav-btn.active{color:#0a8a80}
+  .mobile-admin-fab{
+    right:18px!important;bottom:calc(96px + env(safe-area-inset-bottom))!important;
+    min-width:98px!important;height:56px!important;padding:0 18px!important;border-radius:999px!important;
+    background:linear-gradient(145deg,#20b7a9,#09827a)!important;color:#fff!important;font-size:17px!important;font-weight:950!important;
+    box-shadow:0 14px 30px rgba(10,130,122,.24)!important;z-index:9999!important;
+  }
+  .mobile-admin-fab::before{font-size:20px!important}
+  .bottom-toolbar{left:14px!important;right:14px!important;bottom:calc(162px + env(safe-area-inset-bottom))!important;border-radius:18px!important}
 }
-@media (max-width:390px){
-  .m12-range-row{grid-template-columns:minmax(0,1fr) 14px minmax(0,1fr) 72px;gap:5px}
-  .m12-date-field input{font-size:9.8px;padding:0 4px}.m12-apply{font-size:10.7px}
-  .m12-filter{font-size:8.8px;gap:5px}.m12-day{padding:5px 4px}.m12-daynum{font-size:10.8px}.m12-event{font-size:6.3px;left:4px;right:4px}
+@media (max-width:420px){
+  body{padding:12px 12px calc(100px + env(safe-area-inset-bottom))!important}
+  #mobileMockApp .m13-hero{min-height:108px;padding:18px 16px 16px 88px}
+  #mobileMockApp .m13-hero-icon{width:54px;height:54px;border-radius:17px}
+  #mobileMockApp .m13-title{font-size:25px}
+  #mobileMockApp .m13-range{padding:16px 14px 14px}
+  #mobileMockApp .m13-month-chip{height:40px;padding:0 12px;font-size:10.8px}
+  #mobileMockApp .m13-range-grid{grid-template-columns:minmax(0,1fr) 14px minmax(0,1fr) 92px;gap:10px}
+  #mobileMockApp .m13-date-card{height:74px;padding:10px 12px;gap:8px}
+  #mobileMockApp .m13-date-line svg{width:18px;height:18px;flex-basis:18px}
+  #mobileMockApp .m13-date-card input{font-size:13px}
+  #mobileMockApp .m13-apply{height:74px;font-size:14px}
+  #mobileMockApp .m13-quick button{height:52px;font-size:13px}
+  #mobileMockApp .m13-filters{gap:10px;padding:12px}
+  #mobileMockApp .m13-filter{height:48px;font-size:11px;gap:8px}
+  #mobileMockApp .m13-filter i{width:14px;height:14px;flex-basis:14px}
+  #mobileMockApp .m13-cal-title{font-size:26px}
+  #mobileMockApp .m13-cal-actions button{height:42px;min-width:42px;font-size:14px}
+  #mobileMockApp .m13-cal-actions .today{min-width:58px;padding:0 12px}
+  #mobileMockApp .m13-weekdays,#mobileMockApp .m13-days{gap:5px}
+  #mobileMockApp .m13-day{height:72px;padding:9px 7px;border-radius:13px}
+  #mobileMockApp .m13-daynum{font-size:12px}
+  #mobileMockApp .m13-event{height:22px;left:6px;right:6px;bottom:6px;padding:0 7px;font-size:8px;gap:5px}
+  #mobileMockApp .m13-event:before{width:6px;height:6px;flex-basis:6px}
+  #mobileMockApp .m13-manager{height:74px;padding:0 16px}
+  #mobileMockApp .m13-manager-ico{width:46px;height:46px;flex-basis:46px}
+  #mobileMockApp .m13-manager-title{font-size:14px}
+  #mobileMockApp .m13-manager-sub{font-size:9.6px}
+  .mobile-admin-fab{min-width:82px!important;height:50px!important;font-size:14px!important;bottom:calc(92px + env(safe-area-inset-bottom))!important}
+  #mobileMockNav{height:82px;padding-left:12px;padding-right:12px}
+  #mobileMockNav .m13-nav-btn{font-size:9.4px}
+  #mobileMockNav .m13-nav-btn svg{width:22px;height:22px}
 }
 </style>
-\n<script id="calendar-mobile-v12-shell-js">
+<script id="calendar-mobile-v13-shell-js">
 (function(){
   const mq=()=>window.matchMedia&&window.matchMedia('(max-width:560px)').matches;
   let selectedKey=null;
   const svgCal='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5.5" width="17" height="15" rx="2.5"></rect><path d="M7 3.5v4M17 3.5v4M3.5 10h17"></path><path d="M8 14h2M14 14h2M8 17h2M14 17h2"></path></svg>';
+  const svgPeople='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="9" r="3"></circle><circle cx="16.5" cy="8.5" r="2.5"></circle><path d="M4.5 19c.7-3.3 2.6-5 5.7-5s5 1.7 5.7 5"></path><path d="M14.3 18.6c.4-2.3 1.7-3.7 4-4.2"></path></svg>';
   const icons={
     schedule:'<svg viewBox="0 0 24 24"><rect x="3.5" y="5.5" width="17" height="15" rx="2.5"></rect><path d="M7 3.5v4M17 3.5v4M3.5 10h17"></path><path d="M8 14h2M14 14h2M8 17h2M14 17h2"></path></svg>',
     gallery:'<svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2"></rect><circle cx="9" cy="10" r="1.5"></circle><path d="m5.5 17 4.3-4 3 2.6 2.3-2 3.4 3.4"></path></svg>',
     tour:'<svg viewBox="0 0 24 24"><circle cx="12" cy="7.5" r="3"></circle><path d="M5.5 20c.6-4.4 2.8-6.5 6.5-6.5s5.9 2.1 6.5 6.5"></path></svg>',
     closed:'<svg viewBox="0 0 24 24"><path d="M6 20V9.5L12 5l6 4.5V20"></path><path d="M9.5 20v-5h5v5"></path></svg>'
   };
-  function monthText(){const v=(document.getElementById('rangeStart')||{}).value||range?.start||'';if(!v)return'';const p=v.split('-');return Number(p[0])+'년 '+Number(p[1])+'월';}
-  function iso(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
   function key(d){return (d.getMonth()+1)+'-'+d.getDate()}
+  function iso(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+  function monthText(){const v=(document.getElementById('rangeStart')||{}).value||range?.start||'';if(!v)return'';const p=v.split('-');return Number(p[0])+'년 '+Number(p[1])+'월';}
   function currentMonthDate(){const v=(document.getElementById('rangeStart')||{}).value||range?.start;return v?new Date(v+'T00:00:00'):new Date()}
   function uniqueManagers(){const s=new Set();Object.values(GALLERY_ROWS||{}).forEach(rs=>rs.forEach(r=>r[4]&&s.add(r[4])));Object.values(TOUR_ROWS||{}).forEach(rs=>rs.forEach(r=>r[5]&&s.add(r[5])));return s.size}
-  function shell(){
-    if(!mq())return;
-    let el=document.getElementById('mobileMockApp');
-    if(!el){
-      el=document.createElement('div');el.id='mobileMockApp';
-      const wrap=document.querySelector('.wrap');wrap.insertBefore(el,wrap.firstChild);
-      el.innerHTML=`
-        <section class="m12-card m12-hero"><div class="m12-hero-icon">${svgCal}</div><div class="m12-title" id="m12Title"></div><p class="m12-sub">일정과 현황을 한눈에 확인하세요.</p></section>
-        <section class="m12-card m12-range"><div class="m12-range-head"><div class="m12-section-title">일정 기간</div><div class="m12-month-chip" id="m12MonthChip">▣ <span></span>⌄</div></div><div class="m12-range-row"><div class="m12-date-field"><label>시작일</label><input type="date" id="m12Start"></div><div class="m12-wave">~</div><div class="m12-date-field"><label>종료일</label><input type="date" id="m12End"></div><button class="m12-apply" id="m12Apply">적용</button></div><div class="m12-month-buttons"><button id="m12This">‹　이번 달</button><button id="m12Next">다음 달　›</button></div></section>
-        <section class="m12-card m12-filters" id="m12Filters"></section>
-        <section class="m12-card m12-calendar"><div class="m12-cal-head"><div class="m12-cal-title" id="m12CalTitle"></div><div class="m12-cal-actions"><button id="m12Prev">‹</button><button class="today" id="m12Today">오늘</button><button id="m12Nxt">›</button></div></div><div class="m12-weekdays"><div class="m12-weekday sun">일</div><div class="m12-weekday">월</div><div class="m12-weekday">화</div><div class="m12-weekday">수</div><div class="m12-weekday">목</div><div class="m12-weekday">금</div><div class="m12-weekday sat">토</div></div><div class="m12-days" id="m12Days"></div></section>
-        <section class="m12-card m12-manager" id="m12Manager"><div class="m12-manager-ico">♙</div><div class="m12-manager-copy"><div class="m12-manager-title">담당자별 현황</div><div class="m12-manager-sub" id="m12ManagerSub"></div></div><div class="m12-manager-arr">›</div></section>`;
-      bind();
-      makeNav();
+  function uniqueDanjis(){const s=new Set(['목동11단지(신탁)','목동14단지(신탁)','화랑아파트']);Object.values(TOUR_ROWS||{}).forEach(rs=>rs.forEach(r=>r[1]&&s.add(r[1])));return Array.from(s).slice(0,3)}
+  function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+
+  function ensureShell(){
+    if(!mq()) return;
+    let shell=document.getElementById('mobileMockApp');
+    if(!shell){
+      shell=document.createElement('div');
+      shell.id='mobileMockApp';
+      const wrap=document.querySelector('.wrap');
+      wrap.insertBefore(shell,wrap.firstChild);
     }
-    render();
+    shell.dataset.ver='13';
+    shell.innerHTML=`
+      <section class="m13-card m13-hero">
+        <div class="m13-hero-icon">${svgCal}</div>
+        <div class="m13-title" id="m13Title"></div>
+        <p class="m13-sub">일정과 현황을 한눈에 확인하세요.</p>
+        <div class="m13-hero-scene" aria-hidden="true"></div>
+      </section>
+      <section class="m13-card m13-range">
+        <div class="m13-range-head">
+          <div class="m13-section-title">일정 기간</div>
+          <button type="button" class="m13-month-chip" id="m13MonthChip">${svgCal}<span></span>⌄</button>
+        </div>
+        <div class="m13-range-grid">
+          <div class="m13-date-card">
+            <label>시작일</label>
+            <div class="m13-date-line">${svgCal}<input type="date" id="m13Start"></div>
+          </div>
+          <div class="m13-wave">~</div>
+          <div class="m13-date-card">
+            <label>종료일</label>
+            <div class="m13-date-line">${svgCal}<input type="date" id="m13End"></div>
+          </div>
+          <button type="button" class="m13-apply" id="m13Apply">적용</button>
+        </div>
+        <div class="m13-quick">
+          <button type="button" id="m13This"><span class="chev">‹</span>이번 달</button>
+          <button type="button" class="next" id="m13Next">다음 달<span class="chev">›</span></button>
+        </div>
+      </section>
+      <section class="m13-card m13-filters" id="m13Filters"></section>
+      <section class="m13-card m13-calendar">
+        <div class="m13-cal-head">
+          <div class="m13-cal-title" id="m13CalTitle"></div>
+          <div class="m13-cal-actions">
+            <button type="button" id="m13Prev">‹</button>
+            <button type="button" class="today" id="m13Today">오늘</button>
+            <button type="button" id="m13Nxt">›</button>
+          </div>
+        </div>
+        <div class="m13-weekdays"><div class="m13-weekday sun">일</div><div class="m13-weekday">월</div><div class="m13-weekday">화</div><div class="m13-weekday">수</div><div class="m13-weekday">목</div><div class="m13-weekday">금</div><div class="m13-weekday sat">토</div></div>
+        <div class="m13-days" id="m13Days"></div>
+      </section>
+      <section class="m13-card m13-manager" id="m13Manager">
+        <div class="m13-manager-ico">${svgPeople}</div>
+        <div class="m13-manager-copy">
+          <div class="m13-manager-title">담당자별 현황</div>
+          <div class="m13-manager-sub" id="m13ManagerSub"></div>
+        </div>
+        <div class="m13-manager-arr">›</div>
+      </section>`;
+    bindShell();
+    ensureNav();
   }
-  function makeNav(){
-    if(document.getElementById('mobileMockNav'))return;
-    const n=document.createElement('nav');n.id='mobileMockNav';n.innerHTML=`<button class="m12-nav-btn active" data-a="top">${icons.schedule}<span>일정표</span></button><button class="m12-nav-btn" data-a="gallery">${icons.gallery}<span>갤러리</span></button><button class="m12-nav-btn" data-a="tour">${icons.tour}<span>투어</span></button><button class="m12-nav-btn" data-a="closed">${icons.closed}<span>휴관/불가</span></button>`;document.body.appendChild(n);
-    n.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;n.querySelectorAll('button').forEach(x=>x.classList.toggle('active',x===b));const a=b.dataset.a;if(a==='top')window.scrollTo({top:0,behavior:'smooth'});if(a==='gallery'&&!activeCategories.gallery)toggleCategory('gallery');if(a==='tour'&&!activeCategories.tour)toggleCategory('tour');if(a==='closed'&&!showClosedToggle)toggleClosedFilter();document.getElementById('m12Filters')?.scrollIntoView({behavior:'smooth',block:'center'});});
+
+  function ensureNav(){
+    let nav=document.getElementById('mobileMockNav');
+    if(!nav){ nav=document.createElement('nav'); nav.id='mobileMockNav'; document.body.appendChild(nav); }
+    nav.innerHTML=`
+      <button class="m13-nav-btn active" data-a="top">${icons.schedule}<span>일정표</span></button>
+      <button class="m13-nav-btn" data-a="gallery">${icons.gallery}<span>갤러리</span></button>
+      <button class="m13-nav-btn" data-a="tour">${icons.tour}<span>투어</span></button>
+      <button class="m13-nav-btn" data-a="closed">${icons.closed}<span>휴관/불가</span></button>`;
+    nav.onclick=(e)=>{
+      const b=e.target.closest('button'); if(!b) return;
+      nav.querySelectorAll('button').forEach(x=>x.classList.toggle('active',x===b));
+      const a=b.dataset.a;
+      if(a==='top') window.scrollTo({top:0,behavior:'smooth'});
+      else if(a==='gallery'){ if(!activeCategories.gallery) toggleCategory('gallery'); document.getElementById('m13Filters')?.scrollIntoView({behavior:'smooth',block:'center'}); }
+      else if(a==='tour'){ if(!activeCategories.tour) toggleCategory('tour'); document.getElementById('m13Filters')?.scrollIntoView({behavior:'smooth',block:'center'}); }
+      else if(a==='closed'){ if(!showClosedToggle) toggleClosedFilter(); document.getElementById('m13Filters')?.scrollIntoView({behavior:'smooth',block:'center'}); }
+      setTimeout(renderShell,0);
+    };
   }
-  function bind(){
-    document.getElementById('m12Apply').onclick=()=>{document.getElementById('rangeStart').value=document.getElementById('m12Start').value;document.getElementById('rangeEnd').value=document.getElementById('m12End').value;applyRange();setTimeout(render,0)};
-    document.getElementById('m12This').onclick=()=>{setThisMonth();setTimeout(render,0)};
-    document.getElementById('m12Next').onclick=()=>{setNextMonth();setTimeout(render,0)};
-    document.getElementById('m12Prev').onclick=()=>shift(-1);
-    document.getElementById('m12Nxt').onclick=()=>shift(1);
-    document.getElementById('m12Today').onclick=()=>{setThisMonth();const t=new Date();selectedKey=key(t);setTimeout(render,0)};
-    document.getElementById('m12Manager').onclick=()=>document.querySelector('.checklist-section')?.scrollIntoView({behavior:'smooth',block:'start'});
+
+  function bindShell(){
+    const rs=document.getElementById('m13Start');
+    const re=document.getElementById('m13End');
+    document.getElementById('m13Apply').onclick=()=>{
+      document.getElementById('rangeStart').value=rs.value;
+      document.getElementById('rangeEnd').value=re.value;
+      applyRange();
+      setTimeout(renderShell,0);
+    };
+    document.getElementById('m13This').onclick=()=>{ setThisMonth(); setTimeout(renderShell,0); };
+    document.getElementById('m13Next').onclick=()=>{ setNextMonth(); setTimeout(renderShell,0); };
+    document.getElementById('m13Prev').onclick=()=>shiftMonth(-1);
+    document.getElementById('m13Nxt').onclick=()=>shiftMonth(1);
+    document.getElementById('m13Today').onclick=()=>{
+      const t=new Date();
+      const f=new Date(t.getFullYear(),t.getMonth(),1), l=new Date(t.getFullYear(),t.getMonth()+1,0);
+      document.getElementById('rangeStart').value=iso(f);
+      document.getElementById('rangeEnd').value=iso(l);
+      applyRange();
+      selectedKey=key(t);
+      setTimeout(renderShell,0);
+    };
+    document.getElementById('m13MonthChip').onclick=()=>{ document.getElementById('m13Start')?.showPicker?.(); };
+    document.getElementById('m13Manager').onclick=()=>{
+      document.body.classList.toggle('m13-show-details');
+      const target=document.querySelector('.checklist-section');
+      if(document.body.classList.contains('m13-show-details') && target) setTimeout(()=>target.scrollIntoView({behavior:'smooth',block:'start'}),30);
+    };
   }
-  function shift(delta){const b=currentMonthDate();const f=new Date(b.getFullYear(),b.getMonth()+delta,1),l=new Date(f.getFullYear(),f.getMonth()+1,0);document.getElementById('rangeStart').value=iso(f);document.getElementById('rangeEnd').value=iso(l);applyRange();setTimeout(render,0)}
+
+  function shiftMonth(delta){
+    const b=currentMonthDate();
+    const f=new Date(b.getFullYear(), b.getMonth()+delta, 1);
+    const l=new Date(f.getFullYear(), f.getMonth()+1, 0);
+    document.getElementById('rangeStart').value=iso(f);
+    document.getElementById('rangeEnd').value=iso(l);
+    applyRange();
+    if(selectedKey){ const dt=new Date(f.getFullYear(),f.getMonth(),1); selectedKey=key(dt); }
+    setTimeout(renderShell,0);
+  }
+
   function renderFilters(){
-    const box=document.getElementById('m12Filters');if(!box)return;
-    const danjis=[];document.querySelectorAll('#danjiToggleBar>span').forEach(s=>{const text=(s.textContent||'').trim();if(text)danjis.push(text)});
-    const top=[['gallery',CAT_LABEL.gallery,'gallery',activeCategories.gallery],['tour',CAT_LABEL.tour,'tour',activeCategories.tour],['closed','휴관/불가','closed',showClosedToggle]];
-    let h=top.map(x=>`<button class="m12-filter ${x[2]} ${x[3]?'on':''}" data-kind="${x[0]}"><i></i><span>${x[1]}</span></button>`).join('');
-    danjis.slice(0,3).forEach(name=>{h+=`<button class="m12-filter danji ${activeDanjiFilter.has(name)?'on':''}" data-danji="${name.replace(/"/g,'&quot;')}"><i></i><span>${name}</span></button>`});box.innerHTML=h;
-    box.querySelectorAll('[data-kind]').forEach(b=>b.onclick=()=>{const k=b.dataset.kind;k==='closed'?toggleClosedFilter():toggleCategory(k);setTimeout(render,0)});
-    box.querySelectorAll('[data-danji]').forEach(b=>b.onclick=()=>{toggleDanjiFilter(b.dataset.danji);setTimeout(render,0)});
+    const box=document.getElementById('m13Filters'); if(!box) return;
+    const danjis=uniqueDanjis();
+    const top=[
+      ['gallery', CAT_LABEL.gallery||'갤러리', activeCategories.gallery],
+      ['tour', CAT_LABEL.tour||'21차투어', activeCategories.tour],
+      ['closed', '휴관/불가', showClosedToggle]
+    ];
+    let html='';
+    top.forEach(([kind,label,on])=>{ html+=`<button type="button" class="m13-filter ${kind} ${on?'on':''}" data-kind="${kind}"><i></i><span>${escapeHtml(label)}</span></button>`; });
+    danjis.forEach(name=>{ html+=`<button type="button" class="m13-filter danji ${activeDanjiFilter.has(name)?'on':''}" data-danji="${escapeHtml(name)}"><i></i><span>${escapeHtml(name)}</span></button>`; });
+    box.innerHTML=html;
+    box.querySelectorAll('[data-kind]').forEach(b=>b.onclick=()=>{
+      const k=b.dataset.kind; k==='closed'?toggleClosedFilter():toggleCategory(k); setTimeout(renderShell,0);
+    });
+    box.querySelectorAll('[data-danji]').forEach(b=>b.onclick=()=>{ toggleDanjiFilter(b.dataset.danji); setTimeout(renderShell,0); });
   }
+
   function eventFor(k){
-    const closed=!!GALLERY_CLOSED[k]&&showClosedToggle&&galleryMatchesDanjiFilter();
-    const hasG=!!(GALLERY_ROWS[k]&&GALLERY_ROWS[k].length)&&activeCategories.gallery&&galleryMatchesDanjiFilter();
-    const hasT=!!(TOUR_ROWS[k]&&TOUR_ROWS[k].length)&&activeCategories.tour&&tourMatchesDanjiFilter(k);
-    const list=[];if(closed)list.push(['closed','휴관']);if(hasG)list.push(['gallery',CAT_LABEL.gallery||'갤러리']);if(hasT)list.push(['tour','투어']);return list;
+    const closed=!!GALLERY_CLOSED[k] && showClosedToggle && galleryMatchesDanjiFilter();
+    const hasG=!!(GALLERY_ROWS[k]&&GALLERY_ROWS[k].length) && activeCategories.gallery && galleryMatchesDanjiFilter();
+    const hasT=!!(TOUR_ROWS[k]&&TOUR_ROWS[k].length) && activeCategories.tour && tourMatchesDanjiFilter(k);
+    const arr=[];
+    if(closed) arr.push(['closed','휴관/불가']);
+    if(hasG) arr.push(['gallery', CAT_LABEL.gallery||'갤러리']);
+    if(hasT) arr.push(['tour', '투어']);
+    return arr;
   }
+
   function renderCalendar(){
-    const base=currentMonthDate(),y=base.getFullYear(),m=base.getMonth();document.getElementById('m12CalTitle').textContent=y+'년 '+(m+1)+'월';
-    const days=document.getElementById('m12Days');days.innerHTML='';const first=new Date(y,m,1),start=new Date(y,m,1-first.getDay());const today=new Date();
-    if(!selectedKey){const tk=key(today);selectedKey=(today.getFullYear()===y&&today.getMonth()===m)?tk:null}
-    for(let i=0;i<42;i++){
-      const d=new Date(start);d.setDate(start.getDate()+i);const k=key(d),other=d.getMonth()!==m,ev=eventFor(k);const b=document.createElement('button');b.type='button';b.className='m12-day '+(other?'other ':'')+(d.getDay()===0?'sun ':'')+(d.getDay()===6?'sat ':'')+(selectedKey===k&&!other?'selected':'');let ih=`<span class="m12-daynum">${d.getDate()}</span>`;if(!other&&ev.length){const firstEv=ev[0];ih+=`<span class="m12-event ${firstEv[0]}">${firstEv[1]}</span>`;if(ev.length>1)ih+=`<span class="m12-more">+${ev.length-1}</span>`}b.innerHTML=ih;b.onclick=()=>{if(other){const f=new Date(d.getFullYear(),d.getMonth(),1),l=new Date(d.getFullYear(),d.getMonth()+1,0);document.getElementById('rangeStart').value=iso(f);document.getElementById('rangeEnd').value=iso(l);applyRange();selectedKey=k;setTimeout(render,0);return}selectedKey=k;currentDateKey=k;renderCalendar();openPreview(k)};days.appendChild(b)
+    const base=currentMonthDate(), y=base.getFullYear(), m=base.getMonth();
+    document.getElementById('m13CalTitle').textContent = y+'년 '+(m+1)+'월';
+    const days=document.getElementById('m13Days'); if(!days) return; days.innerHTML='';
+    const first=new Date(y,m,1), start=new Date(y,m,1-first.getDay()), today=new Date();
+    if(!selectedKey){ selectedKey = (today.getFullYear()===y && today.getMonth()===m) ? key(today) : key(first); }
+    for(let i=0;i<35;i++){
+      const d=new Date(start); d.setDate(start.getDate()+i);
+      const k=key(d), other=d.getMonth()!==m, ev=eventFor(k);
+      const b=document.createElement('button');
+      b.type='button';
+      b.className='m13-day '+(other?'other ':'')+(d.getDay()===0?'sun ':'')+(d.getDay()===6?'sat ':'')+((selectedKey===k && !other)?'selected':'');
+      let inner=`<span class="m13-daynum">${d.getDate()}</span>`;
+      if(!other && ev.length){ const e0=ev[0]; inner += `<span class="m13-event ${e0[0]}">${escapeHtml(e0[1])}</span>`; if(ev.length>1) inner += `<span class="m13-more">+${ev.length-1}</span>`; }
+      b.innerHTML=inner;
+      b.onclick=()=>{
+        if(other){ const f=new Date(d.getFullYear(), d.getMonth(), 1), l=new Date(d.getFullYear(), d.getMonth()+1, 0); document.getElementById('rangeStart').value=iso(f); document.getElementById('rangeEnd').value=iso(l); applyRange(); }
+        selectedKey=k; currentDateKey=k; renderShell(); openPreview(k);
+      };
+      days.appendChild(b);
     }
   }
-  function render(){if(!mq())return;const title=(document.getElementById('siteTitle')?.textContent||'(현장명)일정표').trim();document.getElementById('m12Title').textContent=title;const rs=document.getElementById('rangeStart'),re=document.getElementById('rangeEnd');document.getElementById('m12Start').value=rs.value;document.getElementById('m12End').value=re.value;document.querySelector('#m12MonthChip span').textContent=monthText();renderFilters();renderCalendar();document.getElementById('m12ManagerSub').textContent='총 '+uniqueManagers()+'명의 담당자가 있습니다.'}
-  // refresh shell after core operations
-  const wrapFn=(name)=>{const old=window[name];if(typeof old!=='function'||old.__m12)return;const f=function(){const r=old.apply(this,arguments);setTimeout(()=>{if(mq())render()},0);return r};f.__m12=true;window[name]=f};
+
+  function renderShell(){
+    if(!mq()) return;
+    ensureShell();
+    document.getElementById('m13Title').textContent=(document.getElementById('siteTitle')?.textContent||'(현장명)일정표').trim();
+    document.getElementById('m13MonthChip').querySelector('span').textContent=monthText();
+    const rs=document.getElementById('rangeStart'), re=document.getElementById('rangeEnd');
+    document.getElementById('m13Start').value=rs?.value||'';
+    document.getElementById('m13End').value=re?.value||'';
+    document.getElementById('m13ManagerSub').textContent='총 '+uniqueManagers()+'명의 담당자가 있습니다.';
+    renderFilters();
+    renderCalendar();
+  }
+
+  const wrapFn=(name)=>{const old=window[name]; if(typeof old!=='function'||old.__m13) return; const f=function(){const r=old.apply(this,arguments); setTimeout(renderShell,0); return r;}; f.__m13=true; window[name]=f;};
   ['applyRange','setThisMonth','setNextMonth','toggleCategory','toggleClosedFilter','toggleDanjiFilter','onScheduleDataChanged'].forEach(wrapFn);
-  function init(){if(mq())shell();window.addEventListener('resize',()=>{if(mq())shell()});}
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+
+  function init(){ if(mq()) renderShell(); window.addEventListener('resize',()=>{ if(mq()) renderShell(); }); }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
-</script>\n
+</script>
+
+
 </body>
 </html>
