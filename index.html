@@ -5264,7 +5264,7 @@ body.theme-dark .name-item.active{
 
 <style id="mobileReadabilityV381Style">
   /* =====================================================
-     v3.81 MOBILE READABILITY
+     v3.82 MOBILE READABILITY
      개요 카드 대비 / 높이 / 내부 스크롤 개선
      ===================================================== */
   @media(max-width:820px){
@@ -5470,6 +5470,66 @@ body.theme-dark .name-item.active{
       height:auto!important;
       max-height:none!important;
       overflow:visible!important;
+    }
+  }
+</style>
+
+<style id="mobileSiteManageV382Style">
+  /* v3.82 모바일 현장관리 드롭다운 겹침 수정 */
+  @media(max-width:820px){
+    .canva-detail-actions{
+      width:100%!important;
+      align-items:stretch!important;
+      gap:8px!important;
+    }
+    .canva-site-manage-wrap{
+      display:flex!important;
+      flex-direction:column!important;
+      align-items:stretch!important;
+      justify-content:flex-start!important;
+      flex:1 1 100%!important;
+      width:100%!important;
+      margin-left:0!important;
+    }
+    .canva-site-manage-wrap > .btn,
+    .canva-site-manage-wrap > #siteManageMenuBtn{
+      align-self:flex-end!important;
+    }
+    .canva-site-manage-wrap.open .canva-site-manage-panel{
+      position:relative!important;
+      left:auto!important;
+      right:auto!important;
+      top:auto!important;
+      bottom:auto!important;
+      width:100%!important;
+      min-width:0!important;
+      max-width:100%!important;
+      max-height:none!important;
+      margin-top:8px!important;
+      overflow:visible!important;
+      z-index:auto!important;
+      border-radius:14px!important;
+      padding:10px!important;
+      box-shadow:0 10px 26px rgba(0,0,0,.10)!important;
+    }
+    .canva-site-manage-wrap.open .canva-site-manage-panel .menu-item-btn{
+      width:100%!important;
+      min-height:42px!important;
+      justify-content:flex-start!important;
+      font-size:13px!important;
+      border-radius:10px!important;
+      margin:0 0 6px!important;
+    }
+    .canva-site-manage-wrap.open .canva-site-manage-panel .menu-item-btn:last-child{
+      margin-bottom:0!important;
+    }
+    body.theme-dark .canva-site-manage-wrap.open .canva-site-manage-panel{
+      background:#182c27!important;
+      border-color:#46655c!important;
+    }
+    body:not(.theme-dark) .canva-site-manage-wrap.open .canva-site-manage-panel{
+      background:#fffdf8!important;
+      border-color:#c9d4cd!important;
     }
   }
 </style>
@@ -5766,7 +5826,7 @@ body.theme-dark .name-item.active{
   <div class="modal" id="contactReportModalBox" style="max-width:min(97vw,1180px);">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <h3 style="margin:0;">통합 접촉현황</h3>
-      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-11-v381</span>
+      <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-11-v382</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
         <button class="btn btn-ghost btn-sm" id="reportModeMonthBtn" data-mode="month">월간</button>
@@ -8845,14 +8905,31 @@ function renderDetailPanel(site){
       if(!(await ensureUnlocked())) return;
       openModal(site);
     });
+    const siteManageWrap = document.getElementById('siteManageWrap');
     const siteManageMenuBtn = document.getElementById('siteManageMenuBtn');
     const siteManagePanel = document.getElementById('siteManagePanel');
-    if(siteManageMenuBtn && siteManagePanel){
+    if(siteManageWrap && siteManageMenuBtn && siteManagePanel){
+      const closeSiteManagePanel = ()=>{
+        siteManagePanel.style.display = 'none';
+        siteManageWrap.classList.remove('open');
+      };
+      const openSiteManagePanel = ()=>{
+        siteManagePanel.style.display = 'block';
+        siteManageWrap.classList.add('open');
+      };
       siteManageMenuBtn.addEventListener('click',(e)=>{
+        e.preventDefault();
         e.stopPropagation();
-        siteManagePanel.style.display = siteManagePanel.style.display==='none' ? 'block' : 'none';
+        const opening = siteManagePanel.style.display === 'none' || !siteManagePanel.style.display;
+        if(opening) openSiteManagePanel();
+        else closeSiteManagePanel();
       });
-      siteManagePanel.addEventListener('click',()=>{ siteManagePanel.style.display='none'; });
+      siteManagePanel.addEventListener('click',(e)=>{
+        if(e.target.closest('.menu-item-btn')) closeSiteManagePanel();
+      });
+      document.addEventListener('click',(e)=>{
+        if(!siteManageWrap.contains(e.target)) closeSiteManagePanel();
+      });
     }
 
     const galleryBtn = document.getElementById('galleryBookBtn');
