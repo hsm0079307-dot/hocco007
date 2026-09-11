@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -6880,6 +6880,7 @@ const L = (function(){
   }
 
   async function loadSites(){
+    uxLoadFailed=false;
     try{
       if(window.storage){
         const res = await window.storage.get(STORAGE_KEY, false);
@@ -6892,6 +6893,7 @@ const L = (function(){
         const res = await fetch(FIREBASE_DATA_URL + '?_=' + Date.now(), {cache:'no-store'});
         if(!res.ok) throw new Error('firebase status '+res.status);
         const data = await res.json();
+        if(data?.offices){uxLastRead=Date.now();uxServerLogCounts=new Map(Object.values(data.offices).filter(Array.isArray).flat().map(s=>[s.id,(s.logs||[]).length]));uxReadConfirmedIds=new Set(uxServerLogCounts.keys());}
         if(data && data.guests && typeof data.guests==='object') guestAccounts = data.guests;
         if(data && Array.isArray(data.changeLog)) changeLog = data.changeLog;
         if(data && typeof data.adminPasswordHash === 'string' && data.adminPasswordHash) adminPasswordHash = data.adminPasswordHash;
@@ -6937,6 +6939,7 @@ const L = (function(){
         localStorage.setItem(ADMIN_PW_KEY, adminPasswordHash);
       }
     }catch(e){
+      uxLoadFailed=true; syncState='bad';
       console.error('클라우드 데이터 불러오기 실패, 로컬 캐시로 대체합니다', e);
       try{
         const raw = localStorage.getItem(STORAGE_KEY);
@@ -6949,6 +6952,7 @@ const L = (function(){
       try{ const lraw = localStorage.getItem(CHANGELOG_KEY); if(lraw) changeLog = JSON.parse(lraw); }catch(le2){}
       try{ const araw = localStorage.getItem(ADMIN_PW_KEY); if(araw) adminPasswordHash = araw; }catch(ae2){}
     }
+    if(!uxLoadFailed){syncState='ok';}
     if(!guestAccounts || typeof guestAccounts!=='object') guestAccounts = {};
     { const defaults = defaultGuestAccounts(); Object.keys(defaults).forEach(k=>{ if(!guestAccounts[k]) guestAccounts[k] = defaults[k]; }); }
     if(!Array.isArray(changeLog)) changeLog = [];
@@ -7056,8 +7060,8 @@ const L = (function(){
         let fresh = {};
         try{
           const fr = await fetch(FIREBASE_DATA_URL + '?_=' + Date.now(), {cache:'no-store'});
-          if(fr.ok) fresh = await fr.json();
-        }catch(fe){ console.error('최신 데이터 선조회 실패, 로컬 데이터로 진행', fe); }
+          if(!fr.ok) throw new Error('최신 데이터 조회 실패'); fresh = await fr.json();
+        }catch(fe){ throw new Error('최신 데이터를 확인하지 못해 서버 저장을 멈췄습니다. 연결을 확인해 주세요.'); }
 
         // 관리자가 저장할 때는 항상 "내가 마지막으로 본 버전"과 "클라우드 최신 버전"이 같은지 확인한다.
         // (같은 현장을 폰/PC에서 동시에 고쳐도, 다른 현장을 고쳐도 전부 해당) 다르면 그 사이 다른 곳에서 뭔가 바뀐 것이므로,
@@ -7070,7 +7074,7 @@ const L = (function(){
         // 여기서 막고 새로고침을 안내한다.
         const isSafeSinglePatch = !saveBulkMode && !!editedSiteId;
         if(!guestMode && !isSafeSinglePatch && localDataVersion && fresh && fresh.dataVersion && fresh.dataVersion !== localDataVersion){
-          alert('그 사이 다른 곳(다른 기기 또는 담당자)에서 데이터가 바뀌었어요. 지금 저장하면 그 변경 내용을 덮어쓸 수 있어서 저장을 멈췄어요.\n\n"🔄 새로고침" 버튼을 눌러 최신 내용을 받아온 다음, 다시 수정해주세요.');
+          uxBulkConflict(fresh);
           syncState = 'bad';
           lastSaveBlockedByVersion = true;
           renderSyncStatus();
@@ -7081,7 +7085,7 @@ const L = (function(){
         if(guestMode && currentGuest && !isSafeSinglePatch){
           const freshGuestVer = fresh && fresh.guestDataVersions && fresh.guestDataVersions[currentGuest.key];
           if(localGuestDataVersion && freshGuestVer && freshGuestVer !== localGuestDataVersion){
-            alert('그 사이 다른 기기에서 내 사본을 수정했어요. 지금 저장하면 그 변경 내용을 덮어쓸 수 있어서 저장을 멈췄어요.\n\n"🔄 새로고침" 버튼을 눌러 최신 내용을 받아온 다음, 다시 수정해주세요.');
+            uxBulkConflict(fresh);
             syncState = 'bad';
             lastSaveBlockedByVersion = true;
             renderSyncStatus();
@@ -7089,6 +7093,15 @@ const L = (function(){
           }
         }
 
+        if(!guestMode && !saveBulkMode && editedSiteId){
+          const remote=Object.values(fresh?.offices||{}).filter(Array.isArray).flat().find(s=>s.id===editedSiteId);
+          const base=Object.values(lastSavedStateSnapshot||{}).filter(Array.isArray).flat().find(s=>s.id===editedSiteId);
+          if(remote && base){
+            const reviewed=await uxMergeReview(base,editedSiteSnapshot,remote);
+            if(!reviewed){lastSaveBlockedByVersion=true;syncState='bad';renderSyncStatus();return false;}
+            editedSiteSnapshot=reviewed;
+          }
+        }
         const mergedOffices = Object.assign({}, (fresh && fresh.offices && typeof fresh.offices==='object') ? fresh.offices : allOfficesData);
         if(!saveBulkMode && editedSiteId){
           // 일반적인 단일 현장 수정: 그 현장 하나만 최신 데이터 위에 patch (guest든 admin이든 동일하게 안전)
@@ -7148,6 +7161,7 @@ const L = (function(){
           else Object.assign(mergedOffices, allOfficesData);
         }
         allOfficesData = mergedOffices;
+        if(!guestMode)sites=currentOffice===ALL_OFFICE?OFFICES.flatMap(o=>allOfficesData[o]||[]):(allOfficesData[currentOffice]||[]);
         const json = JSON.stringify(allOfficesData);
         localStorage.setItem(STORAGE_KEY, json); // 오프라인이어도 즉시 로컬에 백업
         localStorage.setItem(GUEST_KEY, JSON.stringify(guestAccounts));
@@ -10388,8 +10402,7 @@ function renderDetailPanel(site){
 
       const contactStatsBtn = document.getElementById('contactStatsBtn');
       if(contactStatsBtn) contactStatsBtn.addEventListener('click', ()=>{
-        cstatNavDate = new Date();
-        cstatPeriod = 'month';
+        uxRestorePeriods();
         cstatExpandedWeek = null;
         cstatExpandedManager = null;
         cstatExpandedCell = null;
@@ -15514,6 +15527,7 @@ function renderDetailPanel(site){
   }
 
   async function openContactReport(targetTab){
+    const uxPeriodToRestore=uxClone(uxPrefs.period||{});
     // 접촉현황은 조회 전용이라 관리자 잠금해제 없이도 게스트가 열람 가능해야 함
     reportMode = 'week';
     reportBaseDate = new Date();
@@ -15530,6 +15544,7 @@ function renderDetailPanel(site){
     reportDayFilter = null;
     reportSelectedSiteId = null;
     reportSelectedDayKey = null;
+    uxPrefs.period=uxPeriodToRestore;uxRestorePeriods();
     document.getElementById('contactReportOverlay').classList.add('show');
     document.getElementById('contactReportBody').innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-dim);">최신 데이터 확인 중...</div>';
     await refreshAllOfficesDataForReport();
@@ -16424,7 +16439,7 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
 
         const brandEl = document.querySelector('.brand');
         if(brandEl) brandEl.textContent = currentOffice + ' 스크린';
-        syncState = 'ok';
+        syncState = uxLoadFailed ? 'bad' : 'ok';
         renderSyncStatus();
         renderOfficeSwitcher();
 
@@ -17060,7 +17075,7 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
     siteMgmtOffice=(currentOffice&&currentOffice!==ALL_OFFICE)?currentOffice:'__ALL__';
     const o=document.getElementById('globalStatsOfficeFilter');if(o)o.value=siteMgmtOffice;
     if(currentDetailId)siteMgmtSiteId=String(currentDetailId);
-    smFillSiteSelect();siteMgmtPeriod='all';siteMgmtDate=new Date();renderGlobalStats();
+    smFillSiteSelect();uxRestorePeriods();renderGlobalStats();
     document.getElementById('globalStatsOverlay').classList.add('show');
     const p=smSelected();if(p&&p.site)refreshLogsForSiteIfNeeded(p.site,true);
     setTimeout(()=>{try{renderGlobalStats();}catch(e){}},700);
@@ -17075,6 +17090,263 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
   const smClose=document.getElementById('globalStatsCloseBtn');if(smClose)smClose.addEventListener('click',()=>document.getElementById('globalStatsOverlay').classList.remove('show'));
   const smOverlay=document.getElementById('globalStatsOverlay');if(smOverlay)smOverlay.addEventListener('click',e=>{if(e.target===smOverlay)smOverlay.classList.remove('show');});
   (function bindSiteManagementButtons(){['globalStatsMenuBtn','mobileNavGlobalStatsBtn'].forEach(id=>{const e=document.getElementById(id);if(e)e.addEventListener('click',openGlobalStats);});})();
+
+// v383 enhancements live inside the original application scope.
+const uxKey='hocco-ui-v383';
+let uxPrefs={};try{uxPrefs=JSON.parse(localStorage.getItem(uxKey)||'{}')||{}}catch(e){}
+let uxFavoriteOnly=false,uxLastSelected=null,uxLastRead=null,uxLoadFailed=false,uxConflictOpen=false,uxRestoring=false;
+let uxFavoriteIds=new Set(Array.isArray(uxPrefs.favorites)?uxPrefs.favorites:[]);
+let uxRecentIds=Array.isArray(uxPrefs.recent)?uxPrefs.recent:[];
+let uxReadConfirmedIds=new Set();
+let uxServerLogCounts=new Map();
+const uxById=id=>document.getElementById(id);
+const uxClone=x=>JSON.parse(JSON.stringify(x));
+const uxSame=(a,b)=>JSON.stringify(a??null)===JSON.stringify(b??null);
+function uxStore(){try{localStorage.setItem(uxKey,JSON.stringify(uxPrefs))}catch(e){}}
+function uxAccountKey(){return currentGuest?'guest:'+currentGuest.key:guestMode?'viewer':'admin'}
+function uxSaveFilters(){
+ if(uxRestoring)return;
+ const key=uxAccountKey()+':'+currentOffice;uxPrefs.filters=uxPrefs.filters||{};
+ uxPrefs.filters[key]={managers:[...selectedManagers],stage:selectedStage,district:selectedDistrict,quick:quickFilter,sort:listSort};
+ uxPrefs.period={reportMode,reportBaseDate:reportBaseDate.toISOString(),reportSummaryMode,reportSummaryDate:reportSummaryDate.toISOString(),cstatPeriod,cstatDate:cstatNavDate.toISOString(),siteMgmtPeriod,siteMgmtDate:siteMgmtDate.toISOString()};
+ uxPrefs.favorites=[...uxFavoriteIds];uxPrefs.recent=uxRecentIds.slice(0,8);uxStore();
+}
+function uxRestoreFilters(){
+ const p=uxPrefs.filters?.[uxAccountKey()+':'+currentOffice];if(!p)return;
+ selectedManagers=new Set(Array.isArray(p.managers)?p.managers:[]);selectedStage=STAGES.includes(p.stage)?p.stage:'전체';
+ selectedDistrict=sites.some(s=>s.district===p.district)?p.district:null;
+ quickFilter=['all','stale','upcoming','updated','procurement'].includes(p.quick)?p.quick:'all';listSort=p.sort||'name';
+}
+function uxRestorePeriods(){
+ const p=uxPrefs.period||{};const d=(v,f)=>v&&!isNaN(Date.parse(v))?new Date(v):f;
+ if(['week','month'].includes(p.reportMode))reportMode=p.reportMode;
+ reportBaseDate=d(p.reportBaseDate,reportBaseDate);if(['week','month'].includes(p.reportSummaryMode))reportSummaryMode=p.reportSummaryMode;
+ reportSummaryDate=d(p.reportSummaryDate,reportSummaryDate);if(['day','week','month'].includes(p.cstatPeriod))cstatPeriod=p.cstatPeriod;
+ cstatNavDate=d(p.cstatDate,cstatNavDate);if(['all','day','week','month'].includes(p.siteMgmtPeriod))siteMgmtPeriod=p.siteMgmtPeriod;
+ siteMgmtDate=d(p.siteMgmtDate,siteMgmtDate);
+}
+function uxButton(text,fn,cls='btn btn-ghost'){const b=document.createElement('button');b.type='button';b.className=cls;b.textContent=text;b.onclick=fn;return b}
+function uxModal(title,body){
+ const overlay=document.createElement('div');overlay.className='ux-overlay';
+ const dialog=document.createElement('section');dialog.className='ux-modal';dialog.setAttribute('role','dialog');dialog.setAttribute('aria-modal','true');
+ const heading=document.createElement('h2');heading.id='ux-title-'+Date.now();heading.textContent=title;dialog.setAttribute('aria-labelledby',heading.id);
+ const head=document.createElement('div');head.className='ux-modal-head';head.append(heading);
+ const oldFocus=document.activeElement;let onClose=()=>{};
+ const close=()=>{overlay.remove();document.removeEventListener('keydown',key,true);onClose();if(oldFocus?.isConnected)oldFocus.focus()};
+ head.append(uxButton('닫기',close));dialog.append(head);if(typeof body==='string'){const div=document.createElement('div');div.innerHTML=body;dialog.append(div)}else if(body)dialog.append(body);
+ overlay.append(dialog);document.body.append(overlay);
+ function key(e){if(e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();close()}if(e.key==='Tab'){const a=[...dialog.querySelectorAll('button,input,select,textarea,a[href],summary,[tabindex="0"]')].filter(x=>!x.disabled&&x.getClientRects().length);if(!a.length)return;if(e.shiftKey&&document.activeElement===a[0]){e.preventDefault();a.at(-1).focus()}else if(!e.shiftKey&&document.activeElement===a.at(-1)){e.preventDefault();a[0].focus()}}}
+ document.addEventListener('keydown',key,true);overlay.addEventListener('click',e=>{if(e.target===overlay)close()});head.querySelector('button').focus();
+ return{dialog,close,setOnClose:fn=>onClose=fn};
+}
+function uxSetMap(hidden){document.body.classList.toggle('ux-map-hidden',hidden);uxPrefs.mapHidden=hidden;uxStore();const b=uxById('uxMapToggle');if(b){b.textContent=hidden?'지도 보기':'지도 접기';b.setAttribute('aria-expanded',String(!hidden))}setTimeout(()=>{try{map?.invalidateSize({pan:false,animate:false})}catch(e){}},50)}
+function uxOpenSite(id){
+ const s=sites.find(s=>s.id===id);if(!s)return;
+ // A quick link may be outside active filters: clear only filters obstructing this selection.
+ if(!filteredSites().some(x=>x.id===id)){selectedStage='전체';selectedDistrict=null;selectedManagers.clear();selectedNameIds.clear();searchText='';quickFilter='all';uxFavoriteOnly=false;const input=uxById('searchInput');if(input)input.value=''}
+ currentDetailId=id;currentView='detail';detailTab='개요';editMode=false;
+ document.body.classList.add('ux-mobile-detail');document.body.classList.remove('ux-mobile-list');renderAll();refreshLogsForSiteIfNeeded(s);
+}
+function uxDecorate(){
+ const active=sites.find(s=>s.id===currentDetailId);
+ if(active&&uxLastSelected!==active.id){uxLastSelected=active.id;uxRecentIds=[active.id,...uxRecentIds.filter(x=>x!==active.id)].slice(0,8);uxSaveFilters();document.body.classList.add('ux-mobile-detail');document.body.classList.remove('ux-mobile-list')}
+ document.querySelectorAll('.name-item[data-id]').forEach(row=>{
+  if(row.querySelector('.ux-star')||compareMode)return;const id=row.dataset.id;
+  const b=uxButton(uxFavoriteIds.has(id)?'★':'☆',e=>{e.stopPropagation();uxFavoriteIds.has(id)?uxFavoriteIds.delete(id):uxFavoriteIds.add(id);uxSaveFilters();renderAll()},'ux-star');
+  b.title='즐겨찾기';b.setAttribute('aria-label',`${sites.find(s=>s.id===id)?.name||'현장'} 즐겨찾기`);b.setAttribute('aria-pressed',String(uxFavoriteIds.has(id)));row.append(b);
+ });
+ const host=uxById('sidebar');if(uxFavoriteOnly&&host?.querySelector('.empty'))host.querySelector('.empty').textContent='즐겨찾기한 현장이 없습니다. 목록의 별을 눌러 추가해 주세요.';if(host&&!uxById('uxQuickSites')){
+  const q=document.createElement('div');q.id='uxQuickSites';q.className='ux-quick-list no-print';
+  const favorite=uxButton('즐겨찾기',()=>{uxFavoriteOnly=!uxFavoriteOnly;currentDetailId=null;renderAll()},'');favorite.setAttribute('aria-pressed',String(uxFavoriteOnly));q.append(favorite);
+  const label=document.createElement('span');label.textContent='최근 본 현장';q.append(label);
+  const recent=uxRecentIds.map(id=>sites.find(s=>s.id===id)).filter(Boolean).slice(0,5);
+  recent.forEach(s=>q.append(uxButton(s.name,()=>uxOpenSite(s.id),'')));
+  if(!recent.length){const hint=document.createElement('span');hint.textContent='현장을 선택하면 여기에 표시됩니다';q.append(hint)}host.prepend(q);
+ }
+ const heading=document.querySelector('.detail-head-top');if(heading&&!uxById('uxSiteMatch')){
+  const b=uxButton('매칭 확인',()=>uxMatching(active?.id));b.id='uxSiteMatch';b.hidden=guestMode;(heading.querySelector('.canva-detail-actions')||heading).append(b);
+ }
+ uxCleanIcons();
+}
+function uxCleanIcons(){
+ const paths={search:'M21 21l-5-5M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0',calendar:'M4 5h16v16H4zM4 9h16M8 3v4M16 3v4',grid:'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z',settings:'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2'};
+ document.querySelectorAll('.menu-item-btn,.view-switch-btn,.menu-section-title,#topbarMenuBtn,#siteManageMenuBtn,#galleryBookBtn').forEach(el=>{
+  const node=[...el.childNodes].find(n=>n.nodeType===3&&n.textContent.trim());if(!node)return;
+  const raw=node.textContent;if(!/[\p{Extended_Pictographic}]/u.test(raw.slice(0,5)))return;
+  node.textContent=raw.replace(/^[\s\p{Extended_Pictographic}\uFE0F\u200D]+/u,'');
+  if(el.querySelector('.ux-icon'))return;
+  const type=/검색|검사|확인/.test(raw)?'search':/일정|캘린더|투어/.test(raw)?'calendar':/설정|관리|계정/.test(raw)?'settings':'grid';
+  const icon=document.createElement('span');icon.className='ux-icon';icon.setAttribute('aria-hidden','true');icon.innerHTML=`<svg viewBox="0 0 24 24"><path d="${paths[type]}"/></svg>`;el.prepend(icon);
+ });
+}
+function uxReportSwitch(host,active){
+ if(!host||host.querySelector('.ux-report-switch'))return;
+ const bar=document.createElement('div');bar.className='ux-segment ux-report-switch no-print';
+ for(const [key,label] of [['summary','전체 요약'],['detail','현장 상세']])bar.append(uxButton(label,()=>{
+  uxSaveFilters();uxById('contactReportOverlay').classList.remove('show');uxById('globalStatsOverlay').classList.remove('show');
+  if(key==='summary')openContactReport('summary');else openGlobalStats();
+ },'btn btn-ghost'+(key===active?' active':'')));
+ host.prepend(bar);
+}
+function uxSearch(){
+ const wrap=document.createElement('div');wrap.innerHTML='<p>현재 사업소에서 현장·담당자·접촉자·상담내용을 검색합니다.</p><input aria-label="통합 검색" placeholder="현장명, 성함 또는 상담내용" style="width:100%;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text-main);font:inherit"><div class="ux-search-results" aria-live="polite"></div>';
+ const modal=uxModal('통합 검색',wrap),input=wrap.querySelector('input'),result=wrap.querySelector('.ux-search-results');
+ let timer;input.oninput=()=>{clearTimeout(timer);timer=setTimeout(run,180)};
+ function run(){const q=input.value.trim().toLocaleLowerCase();result.replaceChildren();if(!q)return;let count=0,shown=0;
+  for(const s of sites){
+   const hay=[s.name,s.manager,s.district,s.memo,s.managementCompany,s.designCompany,s.trustCompany].filter(Boolean).join(' ').toLocaleLowerCase();
+   if(hay.includes(q)){count++;if(shown++<100){const b=uxButton(`${s.name} · ${s.manager||'담당 미지정'}`,()=>{modal.close();uxOpenSite(s.id)},'menu-item-btn');result.append(b)}}
+   for(const l of s.logs||[]){if(![l.author,l.contactName,l.text].filter(Boolean).join(' ').toLocaleLowerCase().includes(q))continue;count++;if(shown++>=100)continue;
+    const row=document.createElement('div');row.className='ux-result';const b=uxButton(`${s.name} · ${l.date||'날짜 없음'} · ${l.contactName||l.author||'보고서'}`,()=>{modal.close();uxOpenSite(s.id);detailTab='일지';renderAll()},'menu-item-btn');
+    const p=document.createElement('p');p.textContent=String(l.text||'').slice(0,220);row.append(b,p);result.append(row);
+   }
+  }
+  const total=document.createElement('p');total.textContent=count?`${count}건${count>100?' · 처음 100건 표시, 검색어를 더 입력해 주세요':''}`:'검색 결과가 없습니다.';result.prepend(total);
+ }
+ input.focus();
+}
+function uxReceipt(){
+ const container=document.createElement('div');const modal=uxModal('보고서 반영 확인',container);
+ function draw(){
+  const known=sites.filter(s=>uxReadConfirmedIds.has(s.id));
+  container.innerHTML=`<p>대시보드에서 확인한 기록과 Excel에서 받은 집계를 표시합니다. 봇 수신 여부와 개별 보고서의 Excel 입력 완료 여부는 현재 연결에서 확인할 수 없습니다.</p><div class="ux-toolbar"><span class="ux-status">${uxLastRead?'최근 서버 조회 '+new Date(uxLastRead).toLocaleString('ko-KR'):'서버 조회 확인 전'}</span></div><div class="ux-scroll"><table><thead><tr><th>현장</th><th>봇 수신</th><th>대시보드 기록</th><th>Excel 집계 수신</th><th>개별 Excel 입력</th></tr></thead><tbody>${sites.map(s=>`<tr><td>${escapeHtml(s.name)}</td><td>확인 불가</td><td>${known.includes(s)?uxServerLogCounts.get(s.id):(s.logs||[]).length}건<br><span class="ux-muted">${known.includes(s)?'서버 조회 기준':'현재 화면 기준'}</span></td><td>${s.excelStats?.source==='excel-master'?escapeHtml(s.excelStats.syncedAt||'수신 시각 없음'):'수신 기록 없음'}</td><td>확인 불가</td></tr>`).join('')}</tbody></table></div><p class="ux-muted">Excel 집계 수신은 해당 보고서가 Excel에 입력되었다는 뜻이 아닙니다. 이름 연결이 불명확한 보고서는 매칭 확인에서 검토할 수 있습니다.</p>`;
+  const bar=container.querySelector('.ux-toolbar');bar.append(uxButton('최신 기록 확인',async e=>{e.currentTarget.disabled=true;await loadSites();renderAll();draw()}),uxButton('매칭 확인',()=>{modal.close();uxMatching()}));
+ }
+ draw();
+}
+function uxMatching(siteId){
+ if(guestMode){uxModal('매칭 확인','<p>명단과 보고서 이름 변경은 관리자 로그인 후 이용할 수 있습니다.</p>');return}
+ const host=document.createElement('div');host.innerHTML='<p>명단과 정확히 연결되지 않은 이름을 원문과 비교해 주세요. 선택한 보고서 한 건만 변경하며, 명단은 자동으로 수정하지 않습니다.</p>';
+ const filters=document.createElement('div');filters.className='ux-toolbar';const sel=document.createElement('select');sel.setAttribute('aria-label','검토 현장');sel.className='btn';sel.innerHTML='<option value="">전체 현장</option>'+sites.map(s=>`<option value="${escapeHtml(s.id)}">${escapeHtml(s.name)}</option>`).join('');sel.value=siteId||'';filters.append(sel);host.append(filters);const results=document.createElement('div');host.append(results);const modal=uxModal('매칭 확인',host);
+ const resolved=new Set();
+ function draw(){results.replaceChildren();let total=0,shown=0;
+  for(const s of sites.filter(s=>!sel.value||s.id===sel.value)){
+   const roster=(s.ownerRoster||[]).map(normalizeRosterEntry).filter(r=>r.name);const canonical=new Set(roster.map(r=>extractCoreName(r.name)));
+   for(const l of s.logs||[]){if(resolved.has(s.id+':'+l.id))continue;
+    const parts=splitMultiNames(String(l.contactName||''));const unmatched=parts.filter(n=>!canonical.has(extractCoreName(fullyStripRoles(n).name)));
+    if(!unmatched.length&&parts.length)continue;total++;if(shown++>=100)continue;
+    const row=document.createElement('details');row.className='ux-result';
+    const summary=document.createElement('summary');summary.textContent=`${s.name} · ${l.date||'날짜 없음'} · ${l.contactName||'접촉자 미입력'}`;row.append(summary);
+    const raw=document.createElement('pre');raw.textContent=l.text||'상담내용 없음';row.append(raw);
+    const picks=[];for(const part of unmatched.length?unmatched:['']){
+     const label=document.createElement('label');label.style.display='block';label.textContent=(part||'미입력 이름')+' → ';
+     const select=document.createElement('select');select.setAttribute('aria-label','연결할 명단 이름');select.innerHTML='<option value="">명단에서 선택</option>'+roster.map((r,i)=>`<option value="${i}">${escapeHtml(r.name+(r.role?' · '+r.role:'')+(r.manager?' · '+r.manager:''))}</option>`).join('');label.append(select);row.append(label);picks.push({part,select});
+    }
+    const note=document.createElement('p');note.className='ux-muted';row.append(note);
+    const action=uxButton('이 보고서에 적용',async e=>{
+     if(!(await ensureUnlocked()))return;
+     if(picks.some(p=>p.select.value==='')){note.textContent='연결할 명단 이름을 모두 선택해 주세요.';return}
+     const original=l.contactName||'';const replacements=new Map(picks.map(p=>{const r=roster[Number(p.select.value)];return[p.part,r.role?`${r.name}(${r.role})`:r.name]}));
+     const next=parts.length?parts.map(p=>replacements.get(p)||p).join(', '):replacements.get('');
+     if(!confirm(`이 보고서의 접촉자를 변경합니다.\n${original||'(미입력)'} → ${next}`))return;
+     const button=e.currentTarget;button.disabled=true;
+     try{
+      const office=s.office||OFFICES.find(o=>(allOfficesData[o]||[]).some(x=>x.id===s.id))||currentOffice;const fresh=await getFreshIndexInOffice(office,s.id);const serverSite=fresh.freshArr?.[fresh.idx];
+      const serverLog=(serverSite?.logs||[]).find(x=>x.id===l.id);
+      if(!serverLog)throw new Error('서버에서 이 보고서를 찾지 못했습니다. 최신 기록을 확인해 주세요.');
+      if((serverLog.contactName||'')!==original)throw new Error('다른 곳에서 이름을 변경했습니다. 최신 기록을 확인한 뒤 다시 검토해 주세요.');
+      // Existing save flow retains concurrent new reports and version handling.
+      l.contactName=next;lastEditedSiteId=s.id;await saveSites();
+      if(syncState!=='ok'||lastSaveBlockedByVersion){note.textContent='서버 저장이 완료되지 않았습니다. 변경 내용을 유지했으니 저장 상태를 확인해 주세요.';return}
+      resolved.add(s.id+':'+l.id);note.textContent='저장 완료';draw();renderAll();
+     }catch(err){note.textContent=err.message}finally{button.disabled=false}
+    });action.disabled=!roster.length||!l.id;row.append(action);
+    if(!roster.length)note.textContent='이 현장에는 참조 명단이 없습니다. 먼저 명단을 등록해 주세요.';
+    row.append(uxButton('현장 명단·중복 검사',()=>{modal.close();uxOpenSite(s.id);detailTab='일지';renderAll();uxById('ownerRosterBtn')?.click()}));results.append(row);
+   }
+  }
+  const count=document.createElement('p');count.textContent=total?`확인할 보고서 ${total}건${total>100?' · 처음 100건 표시, 현장을 선택해 범위를 좁혀 주세요':''}`:'현재 명단 기준으로 확인할 이름이 없습니다.';results.prepend(count);
+ }
+ sel.onchange=draw;draw();
+}
+const uxFieldNames={name:'현장명',manager:'담당자',memo:'비고',stage:'단계',status:'사업 방식',stageDetail:'진행 내용',progressStage:'진행 단계',announcement:'공지',unionMembers:'조합원 수',households:'세대 수',area:'면적',logs:'보고서',ownerRoster:'명단',excelStats:'Excel 집계',events:'일정',lat:'위도',lng:'경도',salesNote:'영업 내용',progressNote:'진행 내용'};
+function uxValue(value){if(value===undefined||value===null)return '(없음)';if(typeof value==='object')return JSON.stringify(value,null,2);return String(value)}
+async function uxMergeReview(base,local,remote){
+ if(!base)return local;
+ const merged=uxClone(local),conflicts=[];
+ const skip=new Set(['id','logs','guestDrafts','__officialChanged']);
+ for(const key of new Set([...Object.keys(base),...Object.keys(local),...Object.keys(remote)])){
+  if(skip.has(key))continue;
+  if(uxSame(local[key],base[key])){if(key in remote)merged[key]=uxClone(remote[key]);else delete merged[key]}
+  else if(!uxSame(remote[key],base[key])&&!uxSame(local[key],remote[key]))conflicts.push({key,local:local[key],remote:remote[key]});
+ }
+ const logArrays=[base.logs||[],local.logs||[],remote.logs||[]];
+ if(logArrays.every(a=>Array.isArray(a)&&a.every(l=>l&&l.id))){
+  const [bm,lm,rm]=logArrays.map(a=>new Map(a.map(l=>[l.id,l])));merged.logs=[];
+  for(const id of new Set([...bm.keys(),...lm.keys(),...rm.keys()])){
+   const bv=bm.get(id),lv=lm.get(id),rv=rm.get(id);
+   let chosen=lv;
+   if(uxSame(lv,bv))chosen=rv;
+   else if(!uxSame(rv,bv)&&!uxSame(lv,rv))conflicts.push({key:'logs',logId:id,local:lv,remote:rv});
+   if(chosen)merged.logs.push(uxClone(chosen));
+  }
+ }
+ if(!conflicts.length)return merged;
+ uxConflictOpen=true;
+ return new Promise(resolve=>{
+  const host=document.createElement('div');host.innerHTML='<p>같은 현장이 다른 곳에서도 변경됐습니다. 항목별로 저장할 값을 선택해 주세요. 닫으면 저장을 멈추고 내 수정 내용을 유지합니다.</p>';
+  conflicts.forEach((c,i)=>{const row=document.createElement('div');row.className='ux-result';row.innerHTML=`<h3>${escapeHtml(uxFieldNames[c.key]||'현장 정보')}</h3><div class="ux-scroll"><table><thead><tr><th>내 수정</th><th>최신 저장</th></tr></thead><tbody><tr><td><pre>${escapeHtml(uxValue(c.local))}</pre></td><td><pre>${escapeHtml(uxValue(c.remote))}</pre></td></tr></tbody></table></div><label>저장할 값 <select aria-label="저장할 값" data-choice="${i}"><option value="">선택해 주세요</option><option value="local">내 수정</option><option value="remote">최신 저장</option></select></label>`;host.append(row)});
+  const m=uxModal('저장 충돌 비교',host);let settled=false;
+  m.setOnClose(()=>{uxConflictOpen=false;if(!settled)resolve(null)});
+  host.append(uxButton('선택한 내용으로 저장 계속',()=>{
+   const sels=[...host.querySelectorAll('select')];if(sels.some(s=>!s.value)){alert('모든 항목에서 저장할 값을 선택해 주세요.');return}
+   sels.forEach((sel,i)=>{const c=conflicts[i],v=c[sel.value];if(c.logId){merged.logs=merged.logs.filter(l=>l.id!==c.logId);if(v){merged.logs.push(uxClone(v));deletedLogIds.delete(c.logId)}else deletedLogIds.add(c.logId)}else if(v===undefined)delete merged[c.key];else merged[c.key]=uxClone(v)});
+   settled=true;m.close();resolve(merged);
+  },'btn btn-primary'));
+ });
+}
+function uxBulkConflict(fresh){
+ uxConflictOpen=true;const local=uxClone(allOfficesData);const host=document.createElement('div');
+ host.innerHTML='<p>현장 추가·삭제 등 전체 저장 중 다른 기기의 변경이 발견돼 저장을 멈췄습니다. 내 변경은 현재 화면에 남아 있습니다. 아래에서 차이를 확인하고, 필요한 내용을 보관한 뒤 최신 기록을 불러와 다시 적용해 주세요.</p>';
+ const rows=[];for(const office of OFFICES){const remote=fresh?.offices?.[office]||[];for(const s of local[office]||[]){const r=remote.find(x=>x.id===s.id);if(!uxSame(s,r))rows.push({office,s,r})}}
+ host.innerHTML+=`<div class="ux-scroll"><table><thead><tr><th>현장</th><th>내 화면</th><th>최신 저장</th></tr></thead><tbody>${rows.map(({office,s,r})=>`<tr><td>${escapeHtml(office+' · '+s.name)}</td><td>${(s.logs||[]).length}건 · ${escapeHtml(s.manager||'담당 없음')}</td><td>${r?`${(r.logs||[]).length}건 · ${escapeHtml(r.manager||'담당 없음')}`:'현장 없음'}</td></tr>`).join('')}</tbody></table></div>`;
+ const m=uxModal('저장 충돌 비교',host);m.setOnClose(()=>{uxConflictOpen=false});
+ host.append(uxButton('내 변경 내용 보관',()=>{const blob=new Blob([JSON.stringify({savedAt:new Date().toISOString(),offices:local},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='내-수정내용-백업.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}));
+}
+function uxInit(){
+ document.body.classList.add('ux383','ux-mobile-list');uxRestorePeriods();
+ const loginMode=uxById('modeOverlay');if(loginMode){document.body.append(loginMode);loginMode.style.position='fixed';loginMode.style.zIndex='9500'}
+ const nav=document.querySelector('.canva-nav-core');if(nav){const home=uxButton('현장',()=>{uxById('contactReportOverlay').classList.remove('show');uxById('globalStatsOverlay').classList.remove('show');uxById('calendarView').style.display='none';uxById('sheetView').style.display='none';document.body.classList.add('ux-mobile-list');document.body.classList.remove('ux-mobile-detail');renderAll()},'view-switch-btn');home.id='uxHome';nav.prepend(home)}
+ const report=uxById('contactReportTopBtn');if(report)report.textContent='접촉현황';
+ ['globalStatsTopBtn','globalStatsMenuBtn','mobileNavGlobalStatsBtn'].forEach(id=>uxById(id)?.classList.add('ux-hide'));
+ const settings=uxById('topbarMenuPanel');if(settings){
+  const section=document.createElement('details');section.className='menu-section';section.innerHTML='<summary class="menu-section-title">데이터 점검</summary><div class="menu-section-body"></div>';const group=section.lastElementChild;
+  ['missingCoordsBtn','dupIdCheckBtn','allSiteAuditBtn','labelEditBtn'].forEach(id=>{const e=uxById(id);if(e){e.removeAttribute('style');e.classList.remove('clear-filter');e.classList.add('menu-item-btn');group.append(e)}});
+  group.append(uxButton('보고서 반영 확인',uxReceipt,'menu-item-btn'),uxButton('매칭 확인',()=>uxMatching(),'menu-item-btn'));settings.append(section);
+  const handover=uxById('handoverBtn');if(handover&&report){const old=handover.closest('details');if(old)old.querySelector('summary').textContent='보고서 출력'}
+ }
+ const search=uxButton('통합 검색',uxSearch);search.id='uxGlobalSearch';document.querySelector('.topbar')?.insertBefore(search,uxById('topbarMenuWrap'));
+ const filters=document.createElement('div');filters.className='ux-filterbar no-print';filters.id='uxFilters';
+ const manager=uxById('managerFilterWrap');if(manager)filters.append(manager);
+ const reset=uxButton('필터 초기화',()=>{selectedManagers.clear();selectedNameIds.clear();selectedStage='전체';selectedDistrict=null;searchText='';quickFilter='all';uxFavoriteOnly=false;uxById('searchInput').value='';renderAll()});reset.id='uxResetFilters';filters.append(reset);
+ const toolbar=document.createElement('div');toolbar.className='ux-toolbar';toolbar.style.marginLeft='auto';
+ const mobile=uxButton('현장 목록',()=>{document.body.classList.add('ux-mobile-list');document.body.classList.remove('ux-mobile-detail')});mobile.classList.add('ux-mobile-switch');toolbar.append(mobile);
+ const mapToggle=uxButton('지도 접기',()=>uxSetMap(!document.body.classList.contains('ux-map-hidden')));mapToggle.id='uxMapToggle';toolbar.append(mapToggle);
+ const width=document.createElement('label');width.innerHTML='지도 너비 <input aria-label="지도 너비" type="range" min="22" max="44" value="32">';const range=width.querySelector('input');range.value=uxPrefs.mapWidth||32;range.oninput=()=>{document.body.style.setProperty('--ux-map-width',range.value+'vw');uxPrefs.mapWidth=Number(range.value);uxStore()};toolbar.append(width);filters.append(toolbar);document.querySelector('.view-switch-bar')?.after(filters);
+ document.body.style.setProperty('--ux-map-width',(uxPrefs.mapWidth||32)+'vw');uxSetMap(!!uxPrefs.mapHidden);
+ // Long roster instructions retain their content under a disclosure.
+ const rosterNote=document.querySelector('.roster-reference-note');if(rosterNote){const old=rosterNote.innerHTML;rosterNote.innerHTML='<span>이름·직책·담당 연결을 돕는 참조 명단입니다.</span><details><summary>집계 기준 안내</summary>'+old+'</details>'}
+ const bulk=uxById('ownerRosterBulkTextarea');if(bulk){const parent=bulk.parentElement;[...parent.children].filter(e=>e!==bulk&&e.tagName==='DIV'&&e.textContent.length>80).forEach(e=>{const d=document.createElement('details');d.innerHTML='<summary>명단 붙여넣기 사용 방법</summary>';e.before(d);d.append(e)})}
+ const audit=uxById('allSiteAuditOverlay');if(audit){audit.querySelectorAll('th').forEach(th=>{if(th.textContent.trim()==='people')th.textContent='명단 인원'});audit.querySelectorAll('div,p').forEach(el=>{if(el.children.length===0&&el.textContent.includes('excelStats.people')){const text=el.textContent;el.textContent='명단·담당자·직책·동별 집계와 접촉 이력의 숫자가 서로 맞는지 확인합니다.';const d=document.createElement('details');d.innerHTML='<summary>진단 상세 안내</summary>';const p=document.createElement('p');p.textContent=text;d.append(p);el.after(d)}})}
+ uxReportSwitch(uxById('contactReportBody')?.parentElement,'summary');uxReportSwitch(uxById('globalStatsOverlay')?.firstElementChild,'detail');
+ document.querySelectorAll('small,span,div').forEach(el=>{if(el.children.length===0&&/^build 20\d\d-/.test(el.textContent.trim()))el.classList.add('ux-hide')});
+ const originalAll=renderAll;renderAll=function(){originalAll();uxDecorate();uxSaveFilters()};
+ const originalDetail=renderDetailPanel;renderDetailPanel=function(...args){const r=originalDetail(...args);uxDecorate();return r};
+ const originalFilter=filteredSites;filteredSites=function(){const r=originalFilter();return uxFavoriteOnly?r.filter(s=>uxFavoriteIds.has(s.id)):r};
+ const originalOffice=switchOffice;switchOffice=async function(...args){uxSaveFilters();uxRestoring=true;let r;try{r=await originalOffice(...args);uxRestoreFilters()}finally{uxRestoring=false}renderAll();return r};
+ const originalLoad=loadSites;loadSites=async function(...args){const r=await originalLoad(...args);if(currentGuest)sites=buildGuestShadowSites();uxRestoreFilters();renderSyncStatus();return r};
+ const oldReport=renderContactReport;renderContactReport=function(...args){const r=oldReport(...args);uxSaveFilters();uxCleanIcons();return r};
+ const oldStats=renderGlobalStats;renderGlobalStats=function(...args){const r=oldStats(...args);uxSaveFilters();return r};
+ const oldGuest=applyGuestRestrictions;applyGuestRestrictions=function(...args){const r=oldGuest(...args);uxRestoreFilters();return r};
+ const oldAdmin=removeGuestRestrictions;removeGuestRestrictions=function(...args){const r=oldAdmin(...args);uxRestoreFilters();return r};
+ const originalSync=renderSyncStatus;renderSyncStatus=function(){originalSync();const e=uxById('syncStatus');if(e){e.querySelectorAll('.sync-pill').forEach((p,i)=>{if(i)p.remove()});e.setAttribute('aria-live','polite')}};
+ document.addEventListener('click',e=>{if(e.target.closest('.name-item[data-id]')&&!e.target.closest('.ux-star')&&!compareMode){document.body.classList.add('ux-mobile-detail');document.body.classList.remove('ux-mobile-list')}},true);
+ document.addEventListener('click',()=>{setTimeout(()=>{uxCleanIcons();uxSaveFilters()},0)});
+ document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='k'&&uxById('entryGate')?.style.display==='none'){e.preventDefault();uxSearch()}});
+ window.addEventListener('pagehide',uxSaveFilters);
+ uxCleanIcons();
+}
+uxInit();
 
 })();
 
@@ -17318,6 +17590,170 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
   if(overlay)overlay.addEventListener('click',e=>{if(e.target===overlay)closeAudit();});
 })();
 </script>
+<style id="ux383-final">
+/* v383: unified working surface, responsive layout and accessible controls */
+body.ux383{font-family:'Pretendard','Apple SD Gothic Neo',sans-serif;font-size:14px;line-height:1.5;--ux-map-width:32vw;--ux-radius:12px}
+body.ux383:not(.theme-dark){--bg-side:#f3f4f0;--bg-side-2:#e9eeea;--card:#fffefa;--line:#ced7d1;--text-main:#283a32;--text-dim:#596b62;--accent:#446e5d;--card-hover:#edf2ee;--accent-soft:#e3ece6}
+body.ux383.theme-dark{--bg-side:#18251f;--bg-side-2:#213129;--card:#24372e;--line:#486153;--text-main:#f0f4f0;--text-dim:#b7c8be;--accent:#93c9ad;--accent-ink:#17291f;--card-hover:#2d4438;--accent-soft:#304b3c}
+body.ux383 .blueprint-grid{background-image:none!important}
+body.ux383 .topbar{gap:12px!important;padding:14px 18px!important;flex-wrap:wrap!important;border-radius:12px!important;box-shadow:none!important;overflow:visible!important}
+body.ux383 .brand{font-size:21px!important;font-weight:750!important;letter-spacing:-.5px!important}
+body.ux383 .btn,body.ux383 .view-switch-btn,body.ux383 .menu-item-btn,body.ux383 .tab,body.ux383 .dtab{font-size:14px!important;min-height:40px!important;line-height:1.4!important;padding:9px 12px!important;border-radius:8px!important;font-weight:600!important}
+body.ux383 .menu-item-btn{display:flex;align-items:center;gap:9px;text-align:left;width:100%;white-space:normal!important}
+body.ux383 button:focus-visible,body.ux383 input:focus-visible,body.ux383 select:focus-visible,body.ux383 summary:focus-visible{outline:2px solid var(--accent)!important;outline-offset:3px}
+body.ux383 .search-box{flex:1 1 260px!important;max-width:520px!important;min-width:160px!important;padding:8px 12px!important;border-radius:9px!important}
+body.ux383 .search-box input{font-size:14px!important;min-height:28px;width:100%}
+body.ux383 .view-switch-bar{display:flex!important;flex-wrap:wrap!important;overflow:visible!important;gap:8px!important;padding:8px 14px!important}
+body.ux383 .canva-nav-core{display:flex!important;gap:8px!important;flex-wrap:wrap!important}
+body.ux383 .ux-filterbar{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid var(--line);background:var(--card);flex-wrap:wrap}
+body.ux383 .ux-filterbar .manager-filter-wrap{margin:0!important}
+body.ux383 #topbarMenuPanel{width:292px!important;max-width:calc(100vw - 24px)!important;max-height:75vh;overflow:auto;z-index:3000!important;background:var(--card)!important;box-shadow:var(--shadow-md)!important}
+body.ux383 .menu-section-title{font-size:13px!important;padding:11px 9px!important}
+body.ux383 .stats-bar{gap:8px!important;padding:8px 14px!important}
+body.ux383 .stat-chip{box-shadow:none!important;border-radius:9px!important;padding:8px 14px!important;min-height:56px!important}
+body.ux383 .stat-chip .lbl,body.ux383 .summary-label{font-size:12px!important;color:var(--text-dim)!important}
+body.ux383 .tabs{padding:4px 14px!important;gap:5px!important;overflow-x:auto!important;flex-wrap:nowrap!important}
+body.ux383 .main{gap:12px!important;padding:12px!important;min-width:0!important}
+body.ux383 .sidebar{min-width:0!important;flex:1 1 0!important;width:auto!important;border-radius:12px!important;box-shadow:none!important;overflow:hidden!important}
+body.ux383 .master-detail{display:grid!important;grid-template-columns:220px minmax(0,1fr)!important;gap:0!important;min-width:0!important}
+body.ux383 .master-list{width:auto!important;min-width:0!important;max-width:none!important;border-right:1px solid var(--line)!important;border-radius:0!important;box-shadow:none!important;background:var(--bg-side)!important;padding:8px!important;overflow-y:auto!important}
+body.ux383 .master-panel{min-width:0!important;border-radius:0!important;box-shadow:none!important;overflow:auto!important}
+body.ux383 .name-item{font-size:14px!important;min-height:62px!important;padding:10px!important;margin:3px 0!important;border-radius:8px!important;box-shadow:none!important;gap:8px!important}
+body.ux383 .name-item.active{background:var(--accent-soft)!important;border-color:var(--accent)!important;box-shadow:inset 3px 0 var(--accent)!important}
+body.ux383 .name-item-text{font-size:14px!important;font-weight:650!important;white-space:normal!important;line-height:1.4!important}
+body.ux383 .name-item-meta,body.ux383 .detail-manager,body.ux383 .detail-sub{font-size:12px!important;line-height:1.4!important}
+body.ux383 .detail{padding:18px!important;max-width:none!important}
+body.ux383 .detail-head-top,body.ux383 .detail-head-info{display:flex!important;flex-wrap:wrap!important;gap:9px 14px!important;min-width:0!important}
+body.ux383 .detail-name{font-size:23px!important;line-height:1.35!important;font-weight:750!important;white-space:normal!important;overflow-wrap:anywhere!important}
+body.ux383 .detail-head-line1{display:flex!important;flex-wrap:wrap!important;gap:12px!important}
+body.ux383 .stepper{overflow-x:auto!important;justify-content:flex-start!important;padding:8px 0!important;max-width:100%!important}
+body.ux383 .step-label{font-size:12px!important;white-space:normal!important;min-width:48px}
+body.ux383 .summary-strip{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:8px!important}
+body.ux383 .summary-item{padding:12px!important;min-height:76px!important;border-radius:9px!important;box-shadow:none!important}
+body.ux383 .summary-value{font-size:22px!important}
+body.ux383 .detail-tabs{gap:8px!important;overflow-x:auto!important;flex-wrap:nowrap!important}
+body.ux383 .dtab{flex:none!important;border-radius:0!important}
+body.ux383 .detail-quad-box{box-shadow:none!important;border-radius:10px!important;border:1px solid var(--line)!important;background:var(--card)!important}
+body.ux383 .detail-quad-box .spec-heading{font-size:14px!important;background:var(--bg-side-2)!important;padding:11px 13px!important;font-weight:650!important}
+body.ux383 .detail-quad-box .spec-line,body.ux383 .detail-quad-box .spec-stage-detail,body.ux383 .log-text{font-size:14px!important;line-height:1.65!important;font-weight:400!important}
+body.ux383 .detail-quad-box .spec-label{font-size:12px!important;font-weight:500!important}
+body.ux383 .detail-quad-box .num-value{font-size:15px!important;font-weight:650!important}
+body.ux383 .modal{max-height:90dvh!important;overflow:auto!important;border-radius:14px!important;background:var(--card)!important;color:var(--text-main)!important}
+body.ux383 .modal input:not([type=checkbox]):not([type=radio]),body.ux383 .modal select,body.ux383 .modal textarea{font-size:16px!important;min-height:42px!important;line-height:1.5!important}
+body.ux383 table{font-size:13px!important}
+body.ux383 th,body.ux383 td{font-size:13px!important;line-height:1.5!important}
+body.ux383 .map-wrap{flex:0 0 clamp(280px,var(--ux-map-width),560px)!important;width:clamp(280px,var(--ux-map-width),560px)!important;min-width:280px!important;max-width:560px!important;border-radius:12px!important;box-shadow:none!important;position:relative!important}
+body.ux383.ux-map-hidden .map-wrap{display:none!important}
+body.ux383 .ux-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+body.ux383 .ux-toolbar label{display:flex;gap:7px;align-items:center;font-size:12px}
+body.ux383 .ux-toolbar input[type=range]{width:90px;accent-color:var(--accent)}
+body.ux383 .ux-icon{display:inline-flex;width:17px;height:17px;flex:none;vertical-align:middle;align-items:center;justify-content:center}
+body.ux383 .ux-icon svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+body.ux383 .ux-star{flex:none;border:0;background:transparent;color:var(--text-dim);width:32px;min-height:38px;padding:4px;cursor:pointer;font-size:20px}
+body.ux383 .ux-star[aria-pressed=true]{color:var(--accent)}
+body.ux383 .ux-quick-list{display:flex;align-items:center;gap:6px;padding:8px 12px;overflow:auto;border-bottom:1px solid var(--line);background:var(--card);min-height:48px}
+body.ux383 .ux-quick-list button{white-space:nowrap;flex:none;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text-main);padding:7px 10px;font-size:13px;cursor:pointer;min-height:36px}
+body.ux383 .ux-quick-list button[aria-pressed=true]{background:var(--accent-soft);border-color:var(--accent)}
+body.ux383 .ux-quick-list span{font-size:12px;white-space:nowrap;color:var(--text-dim)}
+body.ux383 .ux-modal{width:min(940px,96vw);max-height:88dvh;overflow:auto;padding:22px;border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--text-main);box-shadow:var(--shadow-md)}
+body.ux383 .ux-overlay{position:fixed;inset:0;z-index:12000;background:rgba(15,25,20,.48);display:flex;align-items:center;justify-content:center;padding:12px}
+body.ux383 .ux-overlay[hidden]{display:none}
+body.ux383 .ux-modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+body.ux383 .ux-modal h2{font-size:20px;margin:0;font-weight:700}
+body.ux383 .ux-modal h3{font-size:15px;margin:18px 0 8px}
+body.ux383 .ux-modal p{font-size:14px;line-height:1.65;color:var(--text-dim)}
+body.ux383 .ux-modal table{width:100%;border-collapse:collapse}
+body.ux383 .ux-modal th,body.ux383 .ux-modal td{border-bottom:1px solid var(--line);padding:11px;text-align:left;vertical-align:top;white-space:normal;overflow-wrap:anywhere}
+body.ux383 .ux-modal th{background:var(--bg-side-2);font-weight:600}
+body.ux383 .ux-scroll{overflow-x:auto;max-width:100%}
+body.ux383 .ux-muted{font-size:12px;color:var(--text-dim)}
+body.ux383 .ux-result{padding:13px 0;border-bottom:1px solid var(--line)}
+body.ux383 .ux-result summary{cursor:pointer;font-size:14px;font-weight:600}
+body.ux383 .ux-result select{max-width:100%;min-height:42px;font:inherit;background:var(--card);color:var(--text-main);border:1px solid var(--line);border-radius:7px;padding:6px}
+body.ux383 .ux-result pre{white-space:pre-wrap;font:inherit;line-height:1.6;background:var(--bg-side);padding:12px;border-radius:8px}
+body.ux383 .ux-status{display:inline-flex;border-radius:7px;padding:4px 8px;font-size:12px;background:var(--bg-side-2);color:var(--text-main)}
+body.ux383 .ux-segment{display:flex;gap:7px;align-items:center;margin:0 0 14px;flex-wrap:wrap}
+body.ux383 .ux-report-switch{padding:8px 12px;border-bottom:1px solid var(--line);margin:0}
+body.ux383 .ux-report-switch .active{background:var(--accent-soft)!important;border-color:var(--accent)!important}
+body.ux383 #modeOverlay .modal{max-width:320px!important;width:calc(100% - 24px)!important;padding:20px!important}
+body.ux383 #modeOverlay button{font-size:14px!important;min-height:44px!important;margin:5px 0!important}
+body.ux383 #entryGate{background:rgba(22,37,29,.94)!important}
+body.ux383 #entryGate>div{max-width:360px!important;padding:28px!important;border-radius:16px!important}
+body.ux383 #entryGate input{font-size:16px!important;min-height:46px!important}
+body.ux383 .ux-hide{display:none!important}
+body.ux383 .ux-mobile-switch{display:none}
+@media(max-width:1200px) and (min-width:821px){body.ux383 .master-detail{grid-template-columns:190px minmax(0,1fr)!important}body.ux383 .summary-strip{grid-template-columns:repeat(2,minmax(0,1fr))!important}body.ux383 .detail-quad-grid{grid-template-columns:1fr!important}}
+@media(max-width:820px){
+ body.ux383 #app{padding:0!important;height:auto!important;min-height:100dvh!important;overflow:visible!important}
+ body.ux383{overflow:auto!important;height:auto!important}
+ body.ux383 .topbar{padding:12px!important;gap:8px!important}
+ body.ux383 .brand{font-size:18px!important;flex:1 1 auto}
+ body.ux383 .search-box{order:5!important;flex:1 0 100%!important;max-width:none!important;width:100%!important}
+ body.ux383 .view-switch-bar{padding:8px!important;flex-wrap:nowrap!important}
+ body.ux383 .canva-nav-core{display:flex!important;flex:1!important;flex-wrap:nowrap!important;gap:4px!important}
+ body.ux383 .view-switch-btn{padding:9px 10px!important;white-space:nowrap!important;min-height:44px!important}
+ body.ux383 .main{display:flex!important;flex-direction:column!important;height:auto!important;min-height:60vh!important;padding:8px!important;overflow:visible!important}
+ body.ux383 .sidebar{width:100%!important;flex:none!important;max-height:none!important;overflow:visible!important;min-height:200px!important}
+ body.ux383 .master-detail{display:flex!important;flex-direction:column!important;height:auto!important;overflow:visible!important}
+ body.ux383 .master-list{width:100%!important;max-height:42dvh!important;min-height:80px!important;border-right:0!important;border-bottom:1px solid var(--line)!important;display:block!important}
+ body.ux383 .master-panel{width:100%!important;overflow:visible!important;max-height:none!important}
+ body.ux383.ux-mobile-detail .master-list{display:none!important}
+ body.ux383.ux-mobile-list .master-panel{display:none!important}
+ body.ux383 .map-wrap{flex:none!important;width:100%!important;max-width:none!important;min-width:0!important;height:350px!important;min-height:350px!important;display:block!important}
+ body.ux383.ux-map-hidden .map-wrap{display:none!important}
+ body.ux383 .ux-mobile-switch{display:flex;margin-right:auto}
+ body.ux383 .detail{padding:14px!important}
+ body.ux383 .detail-name{font-size:21px!important}
+ body.ux383 .detail-quad-grid,body.ux383 .summary-strip{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ body.ux383 .detail-quad-box{min-width:0!important}
+ body.ux383 .canva-detail-actions{width:100%!important;flex-wrap:wrap!important;justify-content:flex-start!important}
+ body.ux383 .btn,body.ux383 .dtab,body.ux383 .menu-item-btn{min-height:44px!important}
+ body.ux383 .ux-filterbar{padding:6px 10px;gap:6px}
+ body.ux383 .ux-toolbar label{display:none}
+ body.ux383 .ux-modal{padding:16px;width:100%;max-height:92dvh}
+ body.ux383 .ux-overlay{padding:8px}
+ body.ux383 .ux-star{min-height:44px;min-width:38px}
+ body.ux383 .mobile-nav-wrap,body.ux383 #mobileSummaryBtn{display:none!important}
+ body.ux383 #addBtn{font-size:13px!important;padding:8px!important;min-width:0!important}
+ body.ux383 .canva-nav-spacer{display:none!important}
+}
+@media(max-width:480px){body.ux383 .detail-quad-grid{grid-template-columns:1fr!important}body.ux383 .ux-report-switch .btn{padding:8px!important;font-size:13px!important}body.ux383 .stats-bar{overflow-x:auto!important;flex-wrap:nowrap!important}body.ux383 .stat-chip{flex:1 0 auto!important}body.ux383 #uxResetFilters{font-size:12px!important}}
+@media(prefers-reduced-motion:reduce){body.ux383 *,body.ux383 *::before,body.ux383 *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+@media print{body.ux383 .ux-filterbar,body.ux383 .ux-quick-list,body.ux383 .ux-report-switch,body.ux383 .ux-star{display:none!important}}
+/* Final layout fixes against legacy specificity. */
+body.ux383 .name-item{display:flex!important;align-items:center!important;white-space:normal!important}
+body.ux383 .detail-head-top{align-items:flex-start!important;justify-content:flex-start!important;flex-direction:row!important;gap:10px!important}
+body.ux383 .detail-head-info{order:0!important;flex:1 1 100%!important;margin:0!important;align-items:baseline!important}
+body.ux383 .canva-detail-actions{order:1!important;flex:1 1 100%!important;width:100%!important;justify-content:flex-start!important;align-items:center!important;flex-wrap:wrap!important;gap:7px!important}
+body.ux383 .canva-site-manage-wrap{display:block!important;width:auto!important;flex:none!important;position:relative!important}
+body.ux383 .canva-site-manage-wrap>button{width:auto!important;margin:0!important}
+body.ux383 .search-box{display:flex!important}
+body.ux383 #mobileNavWrap{display:none!important}
+body.ux383 #contactReportTopBtn{display:inline-flex!important}
+body.ux383 .summary-strip{display:grid!important}
+body.ux383 #uxGlobalSearch{flex:0 0 auto!important;width:auto!important}
+body.ux383 .ux-mobile-switch{display:none!important}
+body.ux383 .detail-head-info .detail-name{flex-shrink:1!important;min-width:0!important}
+body.ux383 .ux-status,body.ux383 .sync-pill{font-size:12px!important;line-height:1.5!important}
+@media(max-width:820px){body.ux383 .ux-mobile-switch{display:inline-flex!important}body.ux383 .detail-head-info{gap:6px 10px!important}body.ux383 .detail-head-info .detail-name{flex-basis:100%!important}body.ux383 .canva-detail-actions{gap:6px!important}body.ux383 .canva-detail-actions .btn{font-size:13px!important;padding:8px 10px!important}body.ux383 #uxGlobalSearch{order:0!important}body.ux383 .topbar-menu-wrap{margin-left:0!important}body.ux383 .topbar{gap:6px!important}body.ux383 .search-box{flex-basis:100%!important}body.ux383 .detail-head-top{margin-bottom:0!important}}
+body.ux383.theme-dark .summary-strip .summary-item{background:var(--bg-side-2)!important;border-color:var(--line)!important}
+body.ux383.theme-dark .summary-strip .summary-label{color:var(--text-dim)!important}
+body.ux383.theme-dark .summary-strip .summary-value{color:var(--text-main)!important}
+body.ux383:not(.theme-dark) .summary-strip .summary-item{background:var(--card)!important;border-color:var(--line)!important}
+body.ux383:not(.theme-dark) .summary-strip .summary-value{color:var(--text-main)!important}
+@media(max-width:820px){
+ body.ux383 .topbar{display:grid!important;grid-template-columns:minmax(0,1fr) auto auto!important;grid-template-rows:auto auto!important;align-items:center!important;gap:10px 6px!important}
+ body.ux383 .topbar .brand{grid-column:1!important;grid-row:1!important;font-size:16px!important;min-width:0!important;white-space:normal!important}
+ body.ux383 .topbar #syncStatus{grid-column:2!important;grid-row:1!important;min-width:0!important}
+ body.ux383 .topbar #syncStatus .sync-pill{font-size:10px!important;padding:4px 6px!important}
+ body.ux383 .topbar #topbarMenuWrap{grid-column:3!important;grid-row:1!important;margin:0!important}
+ body.ux383 .topbar .search-box{grid-column:1 / 3!important;grid-row:2!important;width:100%!important;max-width:none!important;min-width:0!important;box-sizing:border-box!important;margin:0!important;order:0!important}
+ body.ux383 .topbar #uxGlobalSearch{grid-column:3!important;grid-row:2!important;padding:8px!important;font-size:12px!important;min-width:0!important}
+ body.ux383 .topbar #topbarMenuBtn{padding:8px!important;font-size:12px!important}
+ body.ux383 .topbar #guestLogoutBtn{grid-column:1 / -1}
+}
+
+</style>
 </body>
 </html>
 
