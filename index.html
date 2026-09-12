@@ -6784,6 +6784,35 @@ const L = (function(){
     for(let i=1;i<=10;i++){ obj['guest'+i] = { name: '게스트'+i, password: '', siteIds: [] }; }
     return obj;
   }
+// Large Excel ledgers must not turn a successful server read into an offline error.
+let mfCacheWarning=false,mfSyncError='',mfRetryBusy=false;
+function mfIDB(mode,key,value){
+ return new Promise((resolve,reject)=>{
+  if(!window.indexedDB){reject(new Error('Device cache unavailable'));return}
+  let done=false,db;const finish=(err,v)=>{if(done)return;done=true;clearTimeout(timer);try{db?.close()}catch(e){}err?reject(err):resolve(v)};
+  const timer=setTimeout(()=>finish(new Error('Device cache timeout')),6000);
+  let request;try{request=indexedDB.open('hocco-ledger-cache-v1',1)}catch(e){finish(e);return}
+  request.onupgradeneeded=()=>request.result.createObjectStore('cache');
+  request.onerror=()=>finish(request.error);request.onblocked=()=>finish(new Error('Device cache blocked'));
+  request.onsuccess=()=>{db=request.result;if(done){db.close();return}try{const tx=db.transaction('cache',mode==='get'?'readonly':'readwrite'),store=tx.objectStore('cache');const op=mode==='get'?store.get(key):mode==='delete'?store.delete(key):store.put(value,key);let result;op.onsuccess=()=>result=op.result;tx.oncomplete=()=>finish(null,result);tx.onerror=()=>finish(tx.error);tx.onabort=()=>finish(tx.error||new Error('Device cache cancelled'))}catch(e){finish(e)}};
+ });
+}
+async function mfCacheWrite(key,value){
+ try{localStorage.setItem(key,value);try{await mfIDB('delete',key)}catch(e){}return true}catch(e){}
+ try{await mfIDB('put',key,value);try{localStorage.removeItem(key)}catch(e){}return true}catch(e){mfCacheWarning=true;return false}
+}
+async function mfCacheRead(key){
+ try{const value=localStorage.getItem(key);if(value!==null)return value}catch(e){}
+ try{const value=await mfIDB('get',key);if(typeof value==='string')return value}catch(e){}
+ return null;
+}
+async function mfRetrySync(){
+ if(mfRetryBusy)return;
+ if(editMode||logFormOpen){alert('입력 중인 내용을 저장하거나 취소한 뒤 다시 연결해 주세요.');return}
+ mfRetryBusy=true;syncState='unknown';renderSyncStatus();
+ try{await loadSites();renderAll()}finally{mfRetryBusy=false;renderSyncStatus()}
+}
+
   let syncState = 'unknown'; // 'ok' | 'bad' | 'unknown' - 클라우드(JSONBin) 저장 성공 여부
   let lastSaveBlockedByVersion = false; // 버전 충돌로 저장이 막혔을 때 true. 이땐 전용 경고를 이미 띄웠으니 다른 곳에서 중복 알림 안 띄우게 한다.
   let localDataVersion = null; // 이 탭이 마지막으로 확인한 클라우드 데이터 버전. 저장 직전 클라우드 최신 버전과 다르면 "다른 곳에서 바뀜"으로 판단해 경고한다.
@@ -7089,7 +7118,7 @@ const L = (function(){
   }
 
   async function loadSites(){
-    uxLoadFailed=false;
+    uxLoadFailed=false;mfCacheWarning=false;mfSyncError='';
     try{
       if(window.storage){
         const res = await window.storage.get(STORAGE_KEY, false);
@@ -7116,7 +7145,7 @@ const L = (function(){
           // 방금 받아온 클라우드 데이터(현장 목록)로 그냥 덮어쓰면 그 변경사항이 조용히 사라지므로,
           // offices만큼은 로컬에 남겨둔 값을 그대로 쓰고, 다시 저장하라고 알려준다 (저장 성공하면 이 표시는 지워짐).
           try{
-            const raw = localStorage.getItem(STORAGE_KEY);
+            const raw = await mfCacheRead(STORAGE_KEY);
             if(raw) allOfficesData = JSON.parse(raw);
           }catch(e3){}
           setTimeout(()=>{ alert('지난번에 인터넷 연결 없이 저장했던 변경사항이 아직 클라우드에 반영 안 됐어요.\n지금 화면엔 그 변경사항이 남아있으니, 상단 "저장" 버튼을 한 번 눌러 클라우드에 반영해주세요.'); }, 300);
@@ -7133,7 +7162,7 @@ const L = (function(){
           if(!hasAny){
             // 클라우드가 아직 비어있으면, 이 PC에 이미 저장돼있던 데이터가 있는지 먼저 확인해서
             // (기존에 쓰시던 내용을 잃지 않도록) 그걸 그대로 클라우드로 올려줌
-            const raw = localStorage.getItem(STORAGE_KEY);
+            const raw = await mfCacheRead(STORAGE_KEY);
             if(raw){
               try{
                 const parsed = JSON.parse(raw);
@@ -7141,25 +7170,25 @@ const L = (function(){
               }catch(e3){ allOfficesData = {}; }
             }
           }
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(allOfficesData));
+          await mfCacheWrite(STORAGE_KEY, JSON.stringify(allOfficesData));
         }
-        localStorage.setItem(GUEST_KEY, JSON.stringify(guestAccounts));
-        localStorage.setItem(CHANGELOG_KEY, JSON.stringify(changeLog));
-        localStorage.setItem(ADMIN_PW_KEY, adminPasswordHash);
+        await mfCacheWrite(GUEST_KEY, JSON.stringify(guestAccounts));
+        await mfCacheWrite(CHANGELOG_KEY, JSON.stringify(changeLog));
+        await mfCacheWrite(ADMIN_PW_KEY, adminPasswordHash);
       }
     }catch(e){
-      uxLoadFailed=true; syncState='bad';
+      uxLoadFailed=true; syncState='bad';mfSyncError=/status (\d+)/.test(e.message||'')?'서버 응답 '+(e.message.match(/status (\d+)/)||[])[1]:'서버 연결 확인 필요';
       console.error('클라우드 데이터 불러오기 실패, 로컬 캐시로 대체합니다', e);
       try{
-        const raw = localStorage.getItem(STORAGE_KEY);
+        const raw = await mfCacheRead(STORAGE_KEY);
         if(raw){
           const parsed = JSON.parse(raw);
           allOfficesData = Array.isArray(parsed) ? {'강서사업소': parsed} : parsed;
         }
       }catch(e2){ allOfficesData = {}; }
-      try{ const graw = localStorage.getItem(GUEST_KEY); if(graw) guestAccounts = JSON.parse(graw); }catch(ge2){}
-      try{ const lraw = localStorage.getItem(CHANGELOG_KEY); if(lraw) changeLog = JSON.parse(lraw); }catch(le2){}
-      try{ const araw = localStorage.getItem(ADMIN_PW_KEY); if(araw) adminPasswordHash = araw; }catch(ae2){}
+      try{ const graw = await mfCacheRead(GUEST_KEY); if(graw) guestAccounts = JSON.parse(graw); }catch(ge2){}
+      try{ const lraw = await mfCacheRead(CHANGELOG_KEY); if(lraw) changeLog = JSON.parse(lraw); }catch(le2){}
+      try{ const araw = await mfCacheRead(ADMIN_PW_KEY); if(araw) adminPasswordHash = araw; }catch(ae2){}
     }
     if(!uxLoadFailed){syncState='ok';}
     if(!guestAccounts || typeof guestAccounts!=='object') guestAccounts = {};
@@ -7372,10 +7401,10 @@ const L = (function(){
         allOfficesData = mergedOffices;
         if(!guestMode)sites=currentOffice===ALL_OFFICE?OFFICES.flatMap(o=>allOfficesData[o]||[]):(allOfficesData[currentOffice]||[]);
         const json = JSON.stringify(allOfficesData);
-        localStorage.setItem(STORAGE_KEY, json); // 오프라인이어도 즉시 로컬에 백업
-        localStorage.setItem(GUEST_KEY, JSON.stringify(guestAccounts));
-        localStorage.setItem(CHANGELOG_KEY, JSON.stringify(changeLog));
-        localStorage.setItem(ADMIN_PW_KEY, adminPasswordHash);
+        await mfCacheWrite(STORAGE_KEY, json); // 오프라인이어도 즉시 로컬에 백업
+        await mfCacheWrite(GUEST_KEY, JSON.stringify(guestAccounts));
+        await mfCacheWrite(CHANGELOG_KEY, JSON.stringify(changeLog));
+        await mfCacheWrite(ADMIN_PW_KEY, adminPasswordHash);
         // 담당자(게스트) 저장은 관리자가 보는 원본을 안 건드리니, 전체 버전은 새로 안 올려서 관리자 저장이 불필요하게 막히지 않게 한다.
         // 대신 담당자 개인 버전(guestDataVersions[내 key])만 올려서, 그 담당자 자신의 폰/PC 충돌은 잡아낸다.
         const newDataVersion = guestMode ? (fresh && fresh.dataVersion) : (Date.now() + '-' + Math.random().toString(36).slice(2,8));
@@ -7403,7 +7432,7 @@ const L = (function(){
     }catch(e){
       console.error('클라우드 저장 실패(오프라인일 수 있음), 로컬에는 저장되었습니다', e);
       try{
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(allOfficesData));
+        await mfCacheWrite(STORAGE_KEY, JSON.stringify(allOfficesData));
         localStorage.setItem(PENDING_OFFLINE_KEY, String(Date.now())); // 다음에 열 때 이 로컬 변경사항을 클라우드로 덮어쓰지 않게 표시
       }
       catch(e2){ console.error('로컬 저장도 실패', e2); }
@@ -7423,11 +7452,13 @@ const L = (function(){
     const pct = Math.min(999, Math.round((bytes/SYNC_CAPACITY_BYTES)*100));
     const capClass = pct>=90 ? 'bad' : pct>=70 ? 'warn' : 'ok';
     const syncClass = syncState==='ok' ? 'ok' : syncState==='bad' ? 'bad' : '';
-    const syncLabel = syncState==='ok' ? '☁ 동기화됨' : syncState==='bad' ? '⚠ 동기화 실패(오프라인)' : '☁ 동기화 대기중';
+    const pending=(()=>{try{return !!localStorage.getItem(PENDING_OFFLINE_KEY)}catch(e){return false}})();
+    const syncLabel = syncState==='ok' ? (pending?'미전송 변경 있음':mfCacheWarning?'서버 연결됨 · 기기 저장 제한':'☁ 동기화됨') : syncState==='bad' ? ('⚠ '+(mfSyncError||'서버 확인 필요')) : '서버 확인 중';
     el.innerHTML = `
-      <span class="sync-pill ${syncClass}">${syncLabel}</span>
+      <button type="button" id="mfRetrySync" class="sync-pill ${syncClass}" title="서버에서 최신 자료 다시 불러오기" ${mfRetryBusy?'disabled':''}>${syncLabel} ↻</button>
       <span class="sync-pill ${capClass}" title="${bytes.toLocaleString()} bytes / ${SYNC_CAPACITY_BYTES.toLocaleString()} bytes">▲ 동기화 용량 ${pct}% 사용중</span>
     `;
+    el.querySelector('#mfRetrySync')?.addEventListener('click',mfRetrySync);
   }
 
   // ---------- init form selects ----------
@@ -17645,7 +17676,7 @@ async function miOpen(){
    // Commit UI only after the server confirms the complete batch.
    allOfficesData=fresh.offices;sites=currentOffice===ALL_OFFICE?OFFICES.flatMap(o=>allOfficesData[o]||[]):(allOfficesData[currentOffice]||[]);
    localDataVersion=fresh.dataVersion;changeLog=fresh.changeLog;lastSavedStateSnapshot=uxClone(allOfficesData);syncState='ok';
-   let cacheFailed=false;try{localStorage.setItem(STORAGE_KEY,JSON.stringify(allOfficesData))}catch(e){cacheFailed=true}
+   const cacheFailed=!(await mfCacheWrite(STORAGE_KEY,JSON.stringify(allOfficesData)));
    chosen.forEach(c=>{const p=pairs[c.target];prefs[c.sheetName+'|'+miParser.siteKey(c.title)]={office:p.office,id:p.site.id,scope:c.scope,signature:JSON.stringify(c.schema.labels),schema:c.schema}});
    try{localStorage.setItem(miPrefsKey,JSON.stringify(prefs))}catch(e){}
    renderAll();renderSyncStatus();try{renderContactReport();renderGlobalStats()}catch(e){}
@@ -18225,7 +18256,19 @@ body.ux383 #contactReportBody .rd-stats-mini small{color:var(--text-dim)!importa
 body.ux383 #contactReportBody .report-manager-card-head>span:first-child{font-size:13px!important;font-weight:600!important}
 body.ux383 #contactReportBody .report-manager-card-head>span:last-child{font-size:12px!important}
 </style>
-</body>
+<style id="mobileCompactFactsV4">
+body.ux383 #syncStatus button.sync-pill{font:inherit;font-size:11px;cursor:pointer;color:inherit;background:var(--bg-side);border:1px solid var(--line);border-radius:20px;padding:5px 8px;max-width:100%;white-space:normal}
+@media(max-width:820px){
+body.ux383 #detailBody .summary-strip{display:flex!important;flex-direction:column!important;gap:0!important;padding:3px 10px!important;margin:8px 0!important;background:var(--bg-side)!important;border:1px solid var(--line)!important;border-radius:8px!important}
+body.ux383 #detailBody .summary-strip .summary-item{display:grid!important;grid-template-columns:76px minmax(0,1fr)!important;align-items:baseline!important;gap:8px!important;padding:5px 0!important;min-height:0!important;height:auto!important;border:0!important;border-bottom:1px solid var(--line)!important;border-radius:0!important;background:transparent!important;text-align:left!important;box-shadow:none!important}
+body.ux383 #detailBody .summary-strip .summary-item:last-child{border-bottom:0!important}
+body.ux383 #detailBody .summary-strip .summary-label{font-size:12px!important;line-height:1.4!important;margin:0!important;padding:0!important;text-align:left!important}
+body.ux383 #detailBody .summary-strip .summary-value{font-size:14px!important;font-weight:600!important;line-height:1.4!important;margin:0!important;padding:0!important;text-align:left!important;white-space:normal!important;word-break:keep-all!important;overflow-wrap:anywhere!important}
+body.ux383 .detail-head-row{gap:6px!important;margin:6px 0!important;padding:0!important}
+body.ux383 .stepper{padding:5px 0!important;margin:0!important}
+body.ux383 .detail-tabs{margin:5px 0 0!important;padding:0!important}
+}
+</style></body>
 </html>
 
 <!-- v241 visual detail pass: JS syntax checked; duplicate IDs checked; source preserved. -->
