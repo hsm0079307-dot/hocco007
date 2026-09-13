@@ -4683,5 +4683,80 @@ function computeDateHeadcount(key){
 </script>
 
 
+
+<style id="calendarMobileScrollC19">
+@media screen and (max-width:760px){
+ body.calendar-dialog-open{overflow:hidden!important}
+ body.calendar-dialog-open #mobileMockNav,
+ body.calendar-dialog-open .mobile-app-nav,
+ body.calendar-dialog-open .mobile-admin-fab,
+ body.calendar-dialog-open .bottom-toolbar{visibility:hidden!important;pointer-events:none!important}
+ body>.overlay{
+ z-index:10020!important;position:fixed!important;left:0!important;right:0!important;
+ top:var(--calendar-vtop,0px)!important;bottom:auto!important;
+ height:var(--calendar-vheight,100dvh)!important;
+ padding:12px 0 0!important;box-sizing:border-box!important;
+ align-items:flex-end!important;overflow:hidden!important;
+ }
+ body>.overlay>.modal,body>#overlay>.modal{
+ position:relative!important;display:flex!important;flex-direction:column!important;
+ width:100%!important;max-width:100%!important;min-width:0!important;
+ height:auto!important;max-height:calc(var(--calendar-vheight,100dvh) - 24px)!important;
+ box-sizing:border-box!important;overflow:hidden!important;margin:0!important;
+ padding:16px 14px calc(14px + env(safe-area-inset-bottom,0px))!important;
+ background:#fff!important;border-radius:22px 22px 0 0!important;backdrop-filter:none!important;
+ }
+ body>.overlay>.modal::before{flex:0 0 auto!important}
+ body>.overlay>.modal>h2{
+ flex:0 0 auto!important;margin:0 48px 14px 0!important;line-height:1.4!important;
+ font-size:19px!important;padding:0!important;
+ }
+ body>.overlay>.modal>.close{
+ position:absolute!important;right:12px!important;top:12px!important;
+ width:40px!important;height:40px!important;z-index:5!important;margin:0!important;
+ }
+ body>.overlay #modalBody,body>.overlay #statusBody,
+ body>.overlay #formFields,body>.overlay #memoBody{
+ flex:1 1 auto!important;min-height:0!important;max-height:none!important;
+ overflow-y:auto!important;overflow-x:auto!important;
+ -webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:auto!important;
+ box-sizing:border-box!important;padding:0 2px 20px!important;
+ box-shadow:none!important;border:0!important;border-radius:0!important;
+ }
+ body>.overlay .modal-actions,body>.overlay #memoActions{flex:0 0 auto!important}
+ body>.overlay .table-scroll{max-width:100%!important;overflow-x:auto!important}
+ body>.overlay #modalBody table{min-width:580px!important;table-layout:auto!important}
+ body>.overlay #modalBody table th,body>.overlay #modalBody table td{white-space:nowrap!important}
+}
+</style>
+<script id="calendarMobileScrollLifecycleC19">
+(function(){
+ const ids=['overlay','formOverlay','statusOverlay','memoOverlay'];
+ const overlays=ids.map(id=>document.getElementById(id)).filter(Boolean);
+ overlays.forEach(el=>document.body.appendChild(el));
+ function viewport(){
+  const v=window.visualViewport;
+  document.documentElement.style.setProperty('--calendar-vheight',(v?v.height:innerHeight)+'px');
+  document.documentElement.style.setProperty('--calendar-vtop',(v?v.offsetTop:0)+'px');
+ }
+ function update(){
+  document.body.classList.toggle('calendar-dialog-open',overlays.some(el=>el.classList.contains('on')));
+  viewport();
+ }
+ overlays.forEach(el=>{
+  let wasOpen=el.classList.contains('on');
+  new MutationObserver(()=>{
+   const open=el.classList.contains('on');
+   if(open&&!wasOpen){const area=el.querySelector('#modalBody,#statusBody,#formFields,#memoBody');if(area)area.scrollTop=0}
+   wasOpen=open;update();
+  }).observe(el,{attributes:true,attributeFilter:['class']});
+ });
+ window.addEventListener('resize',viewport);
+ window.visualViewport?.addEventListener('resize',viewport);
+ window.visualViewport?.addEventListener('scroll',viewport);
+ update();
+ document.documentElement.dataset.calendarVersion='C19';
+})();
+</script>
 </body>
 </html>
