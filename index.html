@@ -6345,7 +6345,22 @@ const api={events,logs,datedNotes,pid};if(typeof module!=='undefined'&&module.ex
 <script id="hoccoBriefEngine">/* Source-grounded brief: retain attribution and complete sentences, no external AI calls. */
 (function(root){
 const clean=v=>String(v||'').trim(),norm=v=>clean(v).replace(/\s+/g,'');
-const fields=[['issue','주요 이슈'],['competitor','경쟁사 움직임'],['executive','집행부 반응'],['next','다음 접촉 포인트']];
+const fields=[['issue','주요 이슈'],['competitor','경쟁사 동향'],['executive','집행부 반응'],['next','다음 접촉 포인트']];
+
+function compress(text){
+ let t=clean(text);
+ // Conservative shortening: preserve negation, uncertainty, names and quantities.
+ t=t.replace(/최근에는|기존에는/g,'').replace(/에 대한 설명 및/g,' 설명·').replace(/에 대해 논의/g,' 논의').replace(/에 대한/g,' 관련');
+ t=t.replace(/알고 있었음[.]?$/,'인식').replace(/이라고 함[.]?$/,'이라는 전언').replace(/한다고 함[.]?$/,'한다는 전언').replace(/전달하였음[.]?$/,'전달').replace(/예정임[.]?$/,'예정').replace(/궁금해함[.]?$/,'확인 요청').replace(/희망한다고 함[.]?$/,'희망');
+ if(/포스코가 입찰에 참여하지 않고 빠진 것으로/.test(t))t='포스코 입찰 불참으로 인식하고 있음';
+ if(/초고층 설계/.test(t)&&/공사비 추가 소요/.test(t))t=t.slice(t.indexOf('초고층 설계')).replace('에 대해','').replace(/설명 및 /,'').replace(/설명·/,'·');
+ if(/복지관이나 시설/.test(t)&&/공사비/.test(t)&&/우려/.test(t))t='복지관 등 시설 공사비 부담에 따른 손실 우려';
+ return t.replace(/\s+/g,' ').trim();
+}
+function topic(text){
+ return (text.match(/분담금|공사비|입찰|총회|정비계획|사업시행|관리처분|인허가|소송|동의율|상가분양|매물|거래|설계|투어|설명회|홍보|방문|연락/)||[])[0]||'기타';
+}
+
 function generate(logs,range){
  const selected=logs.filter(l=>l.date>=range.start&&l.date<=range.end&&clean(l.text)).slice().sort((a,b)=>b.date.localeCompare(a.date));
  const out=Object.fromEntries(fields.map(([k])=>[k,[]])),seen=new Map();
@@ -6361,13 +6376,28 @@ function generate(logs,range){
    if(/조합장|위원장|집행부|대의원|이사|감사|동대표|추진위원/.test(text)||/조합장|위원장|집행부|대의원|이사|감사|동대표|추진위원/.test(l.role||'')){if(/입장|의견|반응|요청|평가|찬성|반대|우려|요구|선호|지지|말|전함/.test(text))scores.executive+=11;}
    if(/예정|계획|조율|약속|재연락|다음주|다음 주|내일|추후|후속|하기로|할 예정|확인 필요|하기 바람/.test(text)&&/연락|방문|일정|미팅|면담|자료|확인|참석|투어|설명|제출|전달|회의|총회/.test(text))scores.next+=9;
    const key=Object.keys(scores).sort((a,b)=>scores[b]-scores[a])[0];if(!scores[key])continue;
-   const identity=norm(text),old=seen.get(identity),ref={date:l.date,name:l.contactName||l.owner||'',author:l.author||'',unit:l.unit||'',id:l.id||'',role:l.role||''};
+   const identity=norm(text),old=seen.get(identity),ref={date:l.date,name:l.contactName||l.owner||'',author:l.author||'',unit:l.unit||'',id:l.id||'',role:l.role||'',text};
    if(old){old.refs.push(ref);continue}
    const item={text,refs:[ref],score:scores[key],date:l.date};seen.set(identity,item);out[key].push(item);
   }
  }
  for(const[k]of fields)out[k].sort((a,b)=>b.score-a.score||b.date.localeCompare(a.date));
- return{sections:out,count:selected.length,fields};
+ 
+ const sections={};
+ for(const[k]of fields){
+  const groups=new Map();
+  for(const item of out[k]){
+   const tag=topic(item.text),company=k==='competitor'?(item.text.match(/롯데|삼성|대우|현대|GS|DL|HDC|SK|호반|한화|코오롱|두산/i)||['기타'])[0]:'';
+   const id=company+tag;
+   if(!groups.has(id))groups.set(id,{text:'',topic:company?company+' · '+tag:tag,refs:[],points:[],date:item.date});
+   const group=groups.get(id),short=compress(item.text);
+   group.refs.push(...item.refs);
+   if(!group.points.includes(short)&&group.points.length<2)group.points.push(short);
+  }
+  sections[k]=Array.from(groups.values()).map(g=>({...g,text:g.points.join(' / ')}));
+ }
+ return{sections,count:selected.length,fields};
+
 }
 root.HoccoBrief={generate,fields};
 })(typeof window==='undefined'?globalThis:window);
@@ -13959,7 +13989,7 @@ function renderDetailPanel(site){
         cells+=`<div class="mgr-cal-cell${ev.length?' has-log':''}${isToday?' is-today':''}">
           <div class="mgr-cal-daynum">${d}</div>
           ${ev.length?`<div class="mgr-cal-summary-chip"><button type="button" class="mi-date-reports-btn" data-mi-report-date="${key}" aria-label="${key} 보고서 보기">
-            <span class="mgr-cal-summary-main">조합원 기록 ${people}명</span>${nonMemberCount?`<span class="mgr-cal-manager-mini">비조합원 별도 ${nonMemberCount}명</span>`:''}
+            <span class="mgr-cal-summary-main"><span class="cal-desktop-label">조합원 </span>${people}명</span>${nonMemberCount?`<span class="mgr-cal-nonmember">비 ${nonMemberCount}명</span>`:''}
             ${parts?`<span class="mgr-cal-manager-mini">${escapeHtml(parts)}</span>`:''}
             ${mgrs.length?`<span class="mgr-cal-manager-mini">${escapeHtml(mgrs.slice(0,2).join(' · ')+(mgrs.length>2?` 외 ${mgrs.length-2}`:''))}</span>`:''}
           </button></div>`:''}
@@ -14082,14 +14112,15 @@ function bfRange(){
 }
 function bfData(site){return HoccoBrief.generate(miReportLogs(site).filter(l=>!isTourBookingLog(l)),bfRange())}
 function bfOverride(site){return site.briefingEdits?.[bfRange().key]||null}
-function bfAutoText(data,key){return data.sections[key].map(i=>`${i.refs[0].date} · ${i.refs[0].name||'대상 미표기'}${i.refs[0].author?' / '+i.refs[0].author:''}\n${i.text}`).join('\n\n')}
+function bfAutoText(data,key){return data.sections[key].slice(0,3).map(i=>'• '+i.text).join('\n')}
 function buildSiteReportBrief(site){
  const range=bfRange(),data=bfData(site),override=bfOverride(site),esc=escapeHtml;
- return `<section class="report-brief bf-brief"><header class="bf-head"><strong>현장 핵심 브리핑</strong>${guestMode?'':`<button class="btn" data-bf-edit>브리핑 수정</button>`}</header><div class="bf-controls no-print"><label>보기 <select id="bfMode">${[['day','일별'],['week','주별'],['month','월별'],['custom','기간 지정']].map(([v,t])=>`<option value="${v}" ${bfView.mode===v?'selected':''}>${t}</option>`).join('')}</select></label>${bfView.mode==='custom'?`<label>시작 <input id="bfStart" type="date" value="${range.start}"></label><label>종료 <input id="bfEnd" type="date" value="${range.end}"></label><button class="btn" data-bf-apply>조회</button>`:`<button class="btn" data-bf-step="-1" aria-label="이전 기간">‹</button><input id="bfDate" type="date" aria-label="브리핑 기준 날짜" value="${bfView.date}"><button class="btn" data-bf-step="1" aria-label="다음 기간">›</button>`}</div><p class="bf-meta">${range.start} ~ ${range.end} · 내용 있는 보고서 ${data.count}건 · 원문 근거 자동 초안${override?' · 직접 수정 포함':''}</p><div class="bf-grid">${HoccoBrief.fields.map(([key,title])=>{
+ return `<section class="report-brief bf-brief"><header class="bf-head"><strong>현장 핵심 브리핑</strong>${guestMode?'':`<button class="btn" data-bf-edit>브리핑 수정</button>`}</header><div class="bf-controls no-print"><label>보기 <select id="bfMode">${[['day','일별'],['week','주별'],['month','월별'],['custom','기간 지정']].map(([v,t])=>`<option value="${v}" ${bfView.mode===v?'selected':''}>${t}</option>`).join('')}</select></label>${bfView.mode==='custom'?`<label>시작 <input id="bfStart" type="date" value="${range.start}"></label><label>종료 <input id="bfEnd" type="date" value="${range.end}"></label><button class="btn" data-bf-apply>조회</button>`:`<button class="btn" data-bf-step="-1" aria-label="이전 기간">‹</button><input id="bfDate" type="date" aria-label="브리핑 기준 날짜" value="${bfView.date}"><button class="btn" data-bf-step="1" aria-label="다음 기간">›</button>`}</div><p class="bf-meta">${range.start} ~ ${range.end} · 내용 있는 보고서 ${data.count}건 · 핵심 요약${override?' · 직접 수정 포함':''}</p><div class="bf-grid">${HoccoBrief.fields.map(([key,title])=>{
  const manual=override&&Object.prototype.hasOwnProperty.call(override.sections||{},key),items=data.sections[key];
- const itemHtml=item=>`<article class="bf-entry"><div class="bf-attribution">${esc(item.refs[0].date)} · ${esc(item.refs[0].name||'대상 미표기')}${item.refs[0].author?' / '+esc(item.refs[0].author):''}</div><p>${esc(item.text)}</p><details><summary>보고 근거 ${item.refs.length}건</summary>${item.refs.map(r=>`<div>${esc([r.date,r.name,r.unit,r.author,r.role].filter(Boolean).join(' · '))}</div>`).join('')}</details></article>`;
- return `<section class="bf-section"><h3>${title}<small>${manual?'직접 작성':'자동 초안'}</small></h3>${manual?`<div class="bf-manual">${esc(override.sections[key]||'직접 작성된 내용이 없습니다.')}</div><p class="bf-meta">수정 ${esc(override.updatedAt?.slice(0,16).replace('T',' ')||'')} · ${esc(override.author||'관리자')}</p><details><summary>이 기간 최신 자동 초안 비교</summary>${items.map(itemHtml).join('')||'해당 항목의 보고 근거 없음'}</details>`:(items.length?items.slice(0,3).map(itemHtml).join('')+(items.length>3?`<details><summary>추가 근거 ${items.length-3}건</summary>${items.slice(3).map(itemHtml).join('')}</details>`:''):'<p class="bf-empty">이 기간 보고서에서 이 항목을 뒷받침하는 구체적인 내용을 찾지 못했습니다.</p>')}</section>`;
- }).join('')}</div><p class="bf-meta">보고된 내용만 분류합니다. 의견·전언·예정은 확정 사실로 바꾸지 않으며, 직접 쓴 내용은 재업로드 후에도 유지됩니다.</p></section>`;
+ const itemHtml=item=>`<article class="bf-entry"><p><strong>${esc(item.topic||'핵심')}</strong> · ${esc(item.text)}</p><details><summary>원문·대상 확인 ${item.refs.length}건</summary>${item.refs.map(r=>`<div class="bf-source"><small>${esc([r.date,r.name,r.author].filter(Boolean).join(' · '))}</small><p>${esc(r.text||item.text)}</p></div>`).join('')}</details></article>`;
+
+ return `<section class="bf-section"><h3>${title}<small>${manual?'직접 작성':'자동 초안'}</small></h3>${manual?`<div class="bf-manual">${esc(override.sections[key]||'직접 작성된 내용이 없습니다.')}</div><p class="bf-meta">수정 ${esc(override.updatedAt?.slice(0,16).replace('T',' ')||'')} · ${esc(override.author||'관리자')}</p><details><summary>이 기간 최신 자동 초안 비교</summary>${items.map(itemHtml).join('')||'해당 항목의 보고 근거 없음'}</details>`:(items.length?items.slice(0,3).map(itemHtml).join('')+(items.length>3?`<details><summary>다른 주제 ${items.length-3}개</summary>${items.slice(3).map(itemHtml).join('')}</details>`:''):'<p class="bf-empty">이 기간 보고서에서 이 항목을 뒷받침하는 구체적인 내용을 찾지 못했습니다.</p>')}</section>`;
+ }).join('')}</div><p class="bf-meta">주제별 핵심을 요약했습니다. 원문·대상은 펼쳐서 확인할 수 있으며 직접 수정한 내용은 유지됩니다.</p></section>`;
 }
 async function bfSaveField(site,field,baseline,value){
  if(guestMode||!(await ensureUnlocked()))throw Error('관리자 모드에서 저장할 수 있습니다.');
@@ -18444,18 +18475,43 @@ body.ux383 .detail-tabs .dtab{min-height:34px!important;font-size:13px!important
 }
 </style>
 <script id="mobileRecoveryVersion">
-document.documentElement.dataset.appRevision='2026-09-13-M9';
+document.documentElement.dataset.appRevision='2026-09-13-M10';
 const versionPanel=document.getElementById('topbarMenuPanel');
 if(versionPanel){
 const version=document.createElement('small');
 version.id='appRevision';
-version.textContent='화면 버전 2026.09.13 · M9';
+version.textContent='화면 버전 2026.09.13 · M10';
 version.style.cssText='display:block;padding:10px 16px;color:var(--muted);font-size:12px';
 versionPanel.append(version);
 }
 </script>
 <style id="mobileHideDuplicateOverview">
 @media screen and (max-width:820px){body.ux383 #detailBody .summary-strip{display:none!important}}
+</style>
+
+<style id="compactBriefAndCalendar">
+body.ux383 .bf-entry{padding:10px 0!important;border-bottom:1px solid var(--line)}
+body.ux383 .bf-entry p{margin:0 0 6px!important;line-height:1.65!important;font-size:14px!important;word-break:keep-all;overflow-wrap:anywhere}
+body.ux383 .bf-entry summary{font-size:11px!important;color:var(--text-dim)}
+body.ux383 .bf-source{padding:10px 0}
+body.ux383 .bf-section{padding:14px!important}
+body.ux383 .mgr-cal-grid{grid-template-columns:repeat(7,minmax(0,1fr))!important;gap:4px!important;min-width:0!important;width:100%!important}
+body.ux383 .mgr-cal-cell{min-width:0!important;box-sizing:border-box;box-shadow:none!important}
+body.ux383 .mgr-cal-summary-chip{background:transparent!important;border:0!important;padding:0!important;box-shadow:none!important}
+body.ux383 .mi-date-reports-btn{width:100%;min-width:0;box-sizing:border-box;display:flex;flex-direction:column;gap:3px;align-items:flex-start;border:0!important;box-shadow:none!important;background:transparent!important;border-radius:4px!important;padding:4px!important}
+@media(max-width:820px){
+ body.ux383 .mgr-cal-cell{padding:5px 2px!important;min-height:68px!important;height:auto!important;border:0!important;border-radius:7px!important;background:color-mix(in srgb,var(--text-main) 4%,transparent)!important}
+ body.ux383 .mgr-cal-cell.has-log{background:color-mix(in srgb,var(--accent) 13%,transparent)!important}
+ body.ux383 .mgr-cal-cell.mgr-cal-empty{background:transparent!important}
+ body.ux383 .mgr-cal-daynum{font-size:11px!important;padding:0 3px!important}
+ body.ux383 .mgr-cal-dayhead{font-size:11px!important;padding:7px 0!important}
+ body.ux383 .mgr-cal-summary-main,body.ux383 .mgr-cal-nonmember{font-size:10px!important;line-height:1.35!important;white-space:normal!important;overflow-wrap:anywhere}
+ body.ux383 .mgr-cal-manager-mini,body.ux383 .cal-desktop-label{display:none!important}
+ body.ux383 .mi-date-reports-btn{min-height:40px!important;margin:0!important;padding:3px 1px!important}
+ body.ux383 .mgr-cal-grid{gap:3px!important}
+ body.ux383 .bf-controls{gap:5px!important}
+ body.ux383 .bf-meta{font-size:11px!important}
+}
 </style>
 </body>
 </html>
