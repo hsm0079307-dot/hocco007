@@ -7161,22 +7161,10 @@ async function mfRetrySync(){
   // 접촉현황에서 입력한 "현장 특이사항"을 그 현장 레코드에 직접 저장한다. 지금 보고 있는 기간(월/주) 키로
   // 따로 저장해서, 8월에 요약한 내용이 9월에도 그대로 나오는 일이 없게 한다.
   async function saveSiteReportNote(siteId, officeName, text, periodKey){
-    if(!siteId || !officeName || guestMode || !periodKey) return;
-    // 화면(로컬)에 먼저 반영 - 다른 뷰(현장별 카드 등)에서도 바로 최신으로 보이게
-    const officeArrLocal = allOfficesData[officeName];
-    if(Array.isArray(officeArrLocal)){
-      const localIdx = officeArrLocal.findIndex(s=>s && s.id===siteId);
-      if(localIdx>-1){
-        if(!officeArrLocal[localIdx].reportSpecialNotesByPeriod) officeArrLocal[localIdx].reportSpecialNotesByPeriod = {};
-        officeArrLocal[localIdx].reportSpecialNotesByPeriod[periodKey] = text;
-      }
-    }
-    try{
-      const {idx} = await getFreshIndexInOffice(officeName, siteId);
-      if(idx<0) return;
-      const url = `${FIREBASE_DB_URL}/offices/${encodeURIComponent(officeName)}/${idx}/reportSpecialNotesByPeriod/${encodeURIComponent(periodKey)}.json?auth=${encodeURIComponent(FIREBASE_DB_SECRET)}`;
-      await fetch(url, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(text)});
-    }catch(e){ console.error('현장 특이사항 저장 실패', e); }
+    const site=(allOfficesData[officeName]||[]).find(s=>s.id===siteId);
+    if(!site||guestMode)throw Error('관리자 모드와 현장을 확인해 주세요.');
+    const before=site.reportSpecialNotesByPeriod||null;
+    await bfSaveField(site,'reportSpecialNotesByPeriod',JSON.parse(JSON.stringify(before)),{...before,[periodKey]:text});
   }
 
   async function loadSites(){
@@ -15308,28 +15296,11 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
       return `m-${range.start.getFullYear()}-${String(range.start.getMonth()+1).padStart(2,'0')}`;
     }
     function siteSpecialNote(r){
-      // 문장을 날짜별로 그 달의 몇 주차인지 계산해서, 주차별로 묶어 "1주차: ~~" 형식으로 보여준다.
-      // (주간 보기일 땐 자연히 그 한 주만 나오고, 월간 보기일 땐 여러 주차가 줄바꿈으로 나뉘어 나온다)
-      const firstDow = new Date(range.start.getFullYear(), range.start.getMonth(), 1).getDay();
-      const mondayOffset = (firstDow + 6) % 7;
-      const byWeek = {};
-      (r.logs||[]).forEach(l=>{
-        if(!l.date) return;
-        const sentences = splitSentences(l.text||'');
-        const hits = sentences.filter(s=>SPECIAL_KEYWORDS.some(k=>s.includes(k)));
-        if(!hits.length) return;
-        const dayNum = parseInt(l.date.slice(8,10),10);
-        if(!dayNum) return;
-        const wk = Math.ceil((dayNum + mondayOffset) / 7);
-        if(!byWeek[wk]) byWeek[wk] = [];
-        byWeek[wk].push(...hits);
-      });
-      const weekNums = Object.keys(byWeek).map(Number).sort((a,b)=>a-b);
-      if(!weekNums.length) return '';
-      // 월간 보기에선 걸린 주차가 하나뿐이어도 항상 "N주차:"를 붙이고, 주간 보기에선 애초에 한 주뿐이라 라벨이 필요 없으니 안 붙인다.
-      // (전에는 걸린 주차 개수에 따라 라벨을 붙였다 안 붙였다 해서, 같은 리포트 안에서 현장마다 형식이 들쭉날쭉해 보였음)
-      if(reportMode!=='month') return weekNums.map(wk=>byWeek[wk].slice(0,4).join(' ')).join('\n');
-      return weekNums.map(wk=>`${wk}주차: ${byWeek[wk].slice(0,4).join(' ')}`).join('\n');
+      const data=HoccoBrief.generate(r.logs||[],{start:smDateKey(range.start),end:smDateKey(range.end)});
+      return data.fields.map(([k,title])=>{
+        const items=data.sections[k].slice(0,2);
+        return items.length?title+'\n'+items.map(i=>'• '+i.text).join('\n'):'';
+      }).filter(Boolean).join('\n\n');
     }
     function buildMatrixTable(groupRows, missedNames){
       const missedHtml = missedNames.length
@@ -15391,8 +15362,8 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
       </div>
       <div class="report-site-notes-summary">
         <div class="report-missed-label" style="display:flex;align-items:center;justify-content:space-between;color:var(--accent);margin-bottom:8px;">
-          <span>현장별 특이사항${reportSelectedSiteId && groupRows.some(r=>r.id===reportSelectedSiteId) ? ` <span style="font-weight:400;color:var(--text-dim);font-size:10.5px;">· 선택한 현장만 보는 중 <button type="button" class="report-notes-show-all-btn no-print" style="background:none;border:1px solid var(--line);color:var(--text-dim);border-radius:6px;padding:1px 7px;font-size:9.5px;cursor:pointer;">전체보기</button></span>` : ''}</span>
-          ${(!guestMode && groupRows.length) ? `<button type="button" class="report-site-note-bulk-ai-btn no-print" data-site-ids="${escapeHtml(groupRows.map(r=>r.id).join(','))}" title="이 목록의 현장들을 한 번에 AI로 요약">🤖 전체 AI 요약</button>` : ''}
+          <span>현장별 핵심 정리${reportSelectedSiteId && groupRows.some(r=>r.id===reportSelectedSiteId) ? ` <span style="font-weight:400;color:var(--text-dim);font-size:10.5px;">· 선택한 현장만 보는 중 <button type="button" class="report-notes-show-all-btn no-print" style="background:none;border:1px solid var(--line);color:var(--text-dim);border-radius:6px;padding:1px 7px;font-size:9.5px;cursor:pointer;">전체보기</button></span>` : ''}</span>
+          ${(!guestMode && groupRows.length) ? `<button type="button" class="report-site-note-bulk-ai-btn no-print" data-site-ids="${escapeHtml(groupRows.map(r=>r.id).join(','))}" title="저장된 메모가 없는 현장의 정리 초안 만들기">전체 핵심 정리</button>` : ''}
         </div>
         ${(reportSelectedSiteId && groupRows.some(r=>r.id===reportSelectedSiteId) ? groupRows.filter(r=>r.id===reportSelectedSiteId) : groupRows).map(r=>{
           const periodKey = currentReportPeriodKey();
@@ -15404,10 +15375,10 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
             <div class="report-site-note-edit-head">
               <b>${escapeHtml(r.site)}</b>
               ${guestMode?'':`<button type="button" class="report-site-note-pencil no-print" data-target="${sid}" title="수정">✏️</button>`}
-              ${guestMode?'':`<button type="button" class="report-site-note-ai-btn no-print" data-ai-target="${sid}" data-ai-office="${escapeHtml(r.office||'')}" title="AI가 로그를 읽고 다시 요약">🤖 AI 요약</button>`}
+              ${guestMode?'':`<button type="button" class="report-site-note-ai-btn no-print" data-ai-target="${sid}" data-ai-office="${escapeHtml(r.office||'')}" title="선택 기간의 기록을 주제별로 정리">핵심 정리</button>`}
             </div>
             <div class="report-site-note-view" data-view-for="${sid}">${displayValue ? escapeHtml(displayValue) : '<span style="color:var(--text-dim);">특이사항 없음</span>'}</div>
-            ${guestMode ? '' : `<textarea class="report-site-note-textarea" style="display:none;" data-site-id="${sid}" data-office="${escapeHtml(r.office||'')}" data-saved="${escapeHtml(saved||'')}" rows="2" placeholder="이 현장 특이사항을 입력하세요">${escapeHtml(displayValue||'')}</textarea>`}
+            ${guestMode ? '' : `<textarea class="report-site-note-textarea" style="display:none;" data-site-id="${sid}" data-office="${escapeHtml(r.office||'')}" data-saved="${escapeHtml(saved||'')}" rows="2" placeholder="이 현장 특이사항을 입력하세요">${escapeHtml(displayValue||'')}</textarea><div class="visit-note-controls no-print" style="display:none"><button type="button" class="btn visit-note-save">저장</button><button type="button" class="btn visit-note-cancel">취소</button><small role="status"></small></div>`}
           </div>`;
         }).join('')}
       </div>
@@ -15667,95 +15638,52 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
         if(viewEl) viewEl.style.display = 'none';
         ta.style.display = 'block';
         ta.style.height = 'auto'; ta.style.height = (ta.scrollHeight) + 'px';
+        ta.closest('.report-site-note-edit').querySelector('.visit-note-controls').style.display='flex';
         ta.focus();
         ta.setSelectionRange(ta.value.length, ta.value.length);
       });
     });
-    async function summarizeOneSite(sid, officeName){
-      const row = filteredRows.find(r=>r.id===sid) || rows.find(r=>r.id===sid);
-      if(!row) return {ok:false, error:'현장 정보를 찾을 수 없어요.'};
-      const logsText = (row.logs||[]).map(l=>{
-        const who = l.contactName || l.author || '';
-        const when = l.date || '';
-        return `[${when}${who?' / '+who:''}] ${l.text||''}`;
-      }).join('\n');
-      if(!logsText.trim()) return {ok:false, error:'이번 기간 기록된 보고서가 없어요.'};
-      try{
-        const res = await fetch(`${AI_PROXY_URL}?action=summarize-note`, {
-          method: 'POST',
-          headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({ site: row.site, logsText }),
-        });
-        let data = null;
-        try{ data = await res.json(); }catch(e){}
-        if(!res.ok) throw new Error((data && data.error) ? data.error : ('프록시 응답 오류 (' + res.status + ')'));
-        if(data && data.error) throw new Error(data.error);
-        const summary = (data && data.summary || '').trim();
-        if(!summary) throw new Error('빈 응답을 받았어요');
-        const ta = body.querySelector(`.report-site-note-textarea[data-site-id="${CSS.escape(sid)}"]`);
-        const viewEl = body.querySelector(`.report-site-note-view[data-view-for="${CSS.escape(sid)}"]`);
-        if(ta){ ta.value = summary; ta.style.display='none'; ta.dataset.saved = summary; }
-        if(viewEl){ viewEl.textContent = summary; viewEl.style.display='block'; }
-        await saveSiteReportNote(sid, officeName, summary, currentReportPeriodKey());
-        return {ok:true};
-      }catch(e){
-        console.error('AI 요약 실패', row.site, e);
-        return {ok:false, error: (e && e.message) ? e.message : String(e)};
-      }
+
+    function makeVisitDraft(sid){
+      const row=filteredRows.find(r=>r.id===sid)||rows.find(r=>r.id===sid);
+      if(!row)return false;
+      const ta=body.querySelector('.report-site-note-textarea[data-site-id="'+CSS.escape(sid)+'"]');
+      if(!ta)return false;
+      const summary=siteSpecialNote(row);
+      if(!summary)return false;
+      ta.value=summary;ta.style.display='block';ta.style.height='auto';ta.style.height=ta.scrollHeight+'px';
+      const card=ta.closest('.report-site-note-edit');card.querySelector('.report-site-note-view').style.display='none';
+      card.querySelector('.visit-note-controls').style.display='flex';
+      card.querySelector('[role="status"]').textContent='주제별 정리 초안 · 확인 후 저장';
+      return true;
     }
-    body.querySelectorAll('.report-site-note-ai-btn').forEach(btn=>{
-      btn.addEventListener('click', async ()=>{
-        const sid = btn.dataset.aiTarget;
-        const officeName = btn.dataset.aiOffice;
-        const originalLabel = btn.textContent;
-        btn.disabled = true; btn.textContent = '🤖 요약 중...';
-        const result = await summarizeOneSite(sid, officeName);
-        if(!result.ok){
-          alert('AI 요약을 가져오지 못했어요: ' + result.error + '\n(아직 프록시에 이 기능이 배포 안 됐을 수도 있어요)');
-        }else{
-          const ta = body.querySelector(`.report-site-note-textarea[data-site-id="${CSS.escape(sid)}"]`);
-          if(ta) ta.focus();
-        }
-        btn.disabled = false; btn.textContent = originalLabel;
-      });
+    body.querySelectorAll('.report-site-note-ai-btn').forEach(btn=>btn.onclick=()=>{
+      const ta=body.querySelector('.report-site-note-textarea[data-site-id="'+CSS.escape(btn.dataset.aiTarget)+'"]');
+      if(ta&&(ta.dataset.saved||ta.style.display==='block')&&!confirm('현재 편집 내용 대신 새 정리 초안을 표시할까요? 저장 전까지 기존 저장 내용은 유지됩니다.'))return;
+      if(!makeVisitDraft(btn.dataset.aiTarget))alert('선택 기간에 정리할 내용이 없습니다. 연필 버튼으로 직접 작성할 수 있습니다.');
     });
-    body.querySelectorAll('.report-site-note-bulk-ai-btn').forEach(btn=>{
-      btn.addEventListener('click', async ()=>{
-        const ids = (btn.dataset.siteIds||'').split(',').filter(Boolean);
-        if(!ids.length) return;
-        if(!confirm(`이 목록의 현장 ${ids.length}곳을 전부 AI로 요약할까요? (현장마다 순서대로 처리돼서 시간이 좀 걸려요)`)) return;
-        const originalLabel = btn.textContent;
-        btn.disabled = true;
-        let okCount = 0, failCount = 0;
-        for(let i=0;i<ids.length;i++){
-          const sid = ids[i];
-          const row = filteredRows.find(r=>r.id===sid) || rows.find(r=>r.id===sid);
-          btn.textContent = `🤖 요약 중... (${i+1}/${ids.length}) ${row?row.site:''}`;
-          const result = await summarizeOneSite(sid, row ? row.office : currentOffice);
-          if(result.ok) okCount++; else failCount++;
-        }
-        btn.disabled = false; btn.textContent = originalLabel;
-        alert(`완료: ${okCount}곳 성공${failCount?`, ${failCount}곳 실패(기록 없음 등)`:''}`);
-      });
+    body.querySelectorAll('.report-site-note-bulk-ai-btn').forEach(btn=>btn.onclick=()=>{
+      let made=0,skipped=0;
+      for(const sid of (btn.dataset.siteIds||'').split(',')){
+        const ta=body.querySelector('.report-site-note-textarea[data-site-id="'+CSS.escape(sid)+'"]');
+        if(!ta||ta.dataset.saved||ta.style.display==='block'){skipped++;continue}
+        if(makeVisitDraft(sid))made++;else skipped++;
+      }
+      alert(made+'곳의 정리 초안을 만들었습니다. 각 현장에서 확인 후 저장하세요. / 기존 메모·편집 중·내용 없음 '+skipped+'곳 유지');
     });
     body.querySelectorAll('.report-site-note-textarea').forEach(ta=>{
-      // 입력 중엔 줄 수에 맞춰 자동으로 높이가 늘어나게
-      const autoGrow = ()=>{ ta.style.height='auto'; ta.style.height=(ta.scrollHeight)+'px'; };
-      ta.addEventListener('input', autoGrow);
-      let lastSaved = ta.dataset.saved || '';
-      ta.addEventListener('blur', async ()=>{
-        const val = ta.value;
-        const sid = ta.dataset.siteId;
-        const viewEl = body.querySelector(`.report-site-note-view[data-view-for="${CSS.escape(sid)}"]`);
-        if(val !== lastSaved){
-          lastSaved = val;
-          await saveSiteReportNote(sid, ta.dataset.office, val, currentReportPeriodKey());
-        }
-        // 다시 일반 텍스트 보기로 되돌리기 (입력창은 숨김)
-        if(viewEl) viewEl.innerHTML = val.trim() ? escapeHtml(val.trim()) : '<span style="color:var(--text-dim);">특이사항 없음</span>';
-        if(viewEl) viewEl.style.display = 'block';
-        ta.style.display = 'none';
-      });
+      const card=ta.closest('.report-site-note-edit'),controls=card.querySelector('.visit-note-controls'),view=card.querySelector('.report-site-note-view');
+      let savedView=view.textContent;
+      ta.addEventListener('input',()=>{ta.style.height='auto';ta.style.height=ta.scrollHeight+'px'});
+      controls.querySelector('.visit-note-save').onclick=async e=>{
+        const button=e.currentTarget,status=controls.querySelector('[role="status"]');button.disabled=true;status.textContent='저장 중…';
+        try{
+          await saveSiteReportNote(ta.dataset.siteId,ta.dataset.office,ta.value,currentReportPeriodKey());
+          ta.dataset.saved=ta.value;savedView=ta.value;view.textContent=ta.value||'특이사항 없음';view.style.display='block';ta.style.display='none';controls.style.display='none';
+          const row=rows.find(r=>r.id===ta.dataset.siteId);if(row){row.reportSpecialNotesByPeriod={...(row.reportSpecialNotesByPeriod||{}),[currentReportPeriodKey()]:ta.value}}
+        }catch(error){status.textContent='저장 실패: '+error.message+' (입력 내용 유지)'}finally{button.disabled=false}
+      };
+      controls.querySelector('.visit-note-cancel').onclick=()=>{ta.value=savedView;view.style.display='block';ta.style.display='none';controls.style.display='none'};
     });
     body.querySelectorAll('.rd-bar-clickable').forEach(col=>{
       col.addEventListener('click', ()=>{
@@ -17299,16 +17227,16 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
     }else{
       rows=smWeeklyRows(site).map(w=>({label:`${w.n}주차`,...w}));title='④ 주별 접촉현황';
     }
-    if(!rows.length)return`<div class="pdf-section pdf-period-card"><div class="pdf-section-title">${title}</div><div class="pdf-empty">접촉 기록 없음</div></div>`;
+    if(!rows.length)return`<div class="pdf-section pdf-period-card"><div class="pdf-section-title"><span class="section-heading-text">${title}</span></div><div class="pdf-empty">접촉 기록 없음</div></div>`;
     const body=rows.map((r,i)=>{const lab=r.label||String(r.date||'').slice(5),start=r.start||r.date||range.start,end=r.end||r.date||range.end;const sum=Number(r.상담||0)+Number(r.단순||0)+Number(r.TM||0);return`<tr><td>${i+1}</td><td class="left">${escapeHtml(lab)}</td><td ${r.상담?smDrillAttr('period_method',{method:'상담',start,end,label:lab}):''}>${r.상담||'-'}</td><td ${r.단순?smDrillAttr('period_method',{method:'단순',start,end,label:lab}):''}>${r.단순||'-'}</td><td ${r.TM?smDrillAttr('period_method',{method:'TM',start,end,label:lab}):''}>${r.TM||'-'}</td><td ${sum?smDrillAttr('period_total',{start,end,label:lab}):''}>${sum||'-'}</td></tr>`;}).join('');
     const sum={상담:0,단순:0,TM:0};rows.forEach(r=>{sum.상담+=Number(r.상담||0);sum.단순+=Number(r.단순||0);sum.TM+=Number(r.TM||0);});
-    return`<div class="pdf-section"><div class="pdf-section-title">${title}</div><table class="pdf-table pdf-week"><thead><tr><th style="width:28px">No</th><th class="left">${siteMgmtPeriod==='week'||siteMgmtPeriod==='day'?'일자':'주별'}</th><th>상담</th><th>단순</th><th>TM</th><th>계</th></tr></thead><tbody>${body}<tr class="pdf-total"><td colspan="2">합계</td><td>${sum.상담||'-'}</td><td>${sum.단순||'-'}</td><td>${sum.TM||'-'}</td><td>${sum.상담+sum.단순+sum.TM||'-'}</td></tr></tbody></table></div>`;
+    return`<div class="pdf-section"><div class="pdf-section-title"><span class="section-heading-text">${title}</span></div><table class="pdf-table pdf-week"><thead><tr><th style="width:28px">No</th><th class="left">${siteMgmtPeriod==='week'||siteMgmtPeriod==='day'?'일자':'주별'}</th><th>상담</th><th>단순</th><th>TM</th><th>계</th></tr></thead><tbody>${body}<tr class="pdf-total"><td colspan="2">합계</td><td>${sum.상담||'-'}</td><td>${sum.단순||'-'}</td><td>${sum.TM||'-'}</td><td>${sum.상담+sum.단순+sum.TM||'-'}</td></tr></tbody></table></div>`;
   }
 
   function smIssuesSection(site,range){
     const logs=smIssueLogs(site,range);
     const body=logs.length?logs.slice(0,8).map(l=>`<div class="pdf-issue"><span class="pdf-issue-date">${escapeHtml(l.date||'')}</span><b>${escapeHtml(l.contactName||l.owner||'')}</b>${l.author?' · '+escapeHtml(smManagerKey(l.author)):''}<br>${escapeHtml(l.text||'')}</div>`).join(''):'<div class="pdf-empty">특이사항 없음</div>';
-    return`<div class="pdf-section pdf-issues-card"><div class="pdf-section-title">⑥ 특이사항</div><div class="pdf-issues">${body}</div></div>`;
+    return`<div class="pdf-section pdf-issues-card"><div class="pdf-section-title"><span class="section-heading-text">⑥ 특이사항</span></div><div class="pdf-issues">${body}</div></div>`;
   }
 
   function smCharts(site,x,events,periodMode,managerRows){
@@ -17334,7 +17262,7 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
     const ev=events.filter(e=>e.date===targetDate),allEvents=smEvents(site,{start:'0000-01-01',end:'9999-12-31'});
     const counts={};allEvents.forEach(e=>{counts[miPersonKey(e)]=(counts[miPersonKey(e)]||0)+1;});
     const rows=ev.map((e,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(smManagerKey(e.manager))}</td><td class="left">${escapeHtml(e.name)}</td><td>${escapeHtml(e.unit||'-')}</td><td>${escapeHtml(e.role||'-')}</td><td>${counts[miPersonKey(e)]||1}</td><td>${escapeHtml(e.method||'-')}</td><td>${escapeHtml(smLogTextForPerson(site,e.date,e.name)||'')}</td></tr>`).join('');
-    return`<div class="pdf-section pdf-today-wrap"><div class="pdf-section-title">⑤ ${siteMgmtPeriod==='day'?'선택일':'금일/최근'} 접촉 상세 <span class="sub">${escapeHtml(targetDate||'')} · ${ev.length}명</span></div><div class="pdf-today-body"><table class="pdf-table pdf-today pdf-today-table"><thead><tr><th style="width:32px">No</th><th style="width:62px">담당</th><th style="width:100px">성명</th><th style="width:78px">동호수</th><th style="width:62px">직책</th><th style="width:60px">접촉횟수</th><th style="width:48px">접촉</th><th>접촉 내용</th></tr></thead><tbody>${rows||'<tr><td colspan="8" class="pdf-empty">접촉 기록 없음</td></tr>'}</tbody></table></div></div>`;
+    return`<div class="pdf-section pdf-today-wrap"><div class="pdf-section-title"><span class="section-heading-text">⑤ ${siteMgmtPeriod==='day'?'선택일':'금일/최근'} 접촉 상세 </span><span class="sub">${escapeHtml(targetDate||'')} · ${ev.length}명</span></div><div class="pdf-today-body"><table class="pdf-table pdf-today pdf-today-table"><thead><tr><th style="width:32px">No</th><th style="width:62px">담당</th><th style="width:100px">성명</th><th style="width:78px">동호수</th><th style="width:62px">직책</th><th style="width:60px">접촉횟수</th><th style="width:48px">접촉</th><th>접촉 내용</th></tr></thead><tbody>${rows||'<tr><td colspan="8" class="pdf-empty">접촉 기록 없음</td></tr>'}</tbody></table></div></div>`;
   }
 
   function renderGlobalStats(){
@@ -17351,7 +17279,7 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
     const managerRows=mr.rows.map((r,i)=>{const miss=Math.max(0,r.total-r.contacted);return`<tr><td>${i+1}</td><td class="sm-drill sm-drill-link" data-drill="manager_contacted" data-manager="${escapeHtml(r.name)}">${escapeHtml(r.name)}</td><td ${smDrillAttr('manager_total',{manager:r.name})}>${r.total}</td><td class="pdf-contact-good sm-drill" data-drill="manager_contacted" data-manager="${escapeHtml(r.name)}">${r.contacted||'-'}</td><td class="pdf-rate-good sm-drill" data-drill="manager_rate" data-manager="${escapeHtml(r.name)}">${r.rate.toFixed(1)}%</td><td ${r.today?smDrillAttr('manager_today',{manager:r.name}):''}>${r.today||'-'}</td><td ${r.methods.상담?smDrillAttr('manager_method',{manager:r.name,method:'상담'}):''}>${r.methods.상담||'-'}</td><td ${r.methods.단순?smDrillAttr('manager_method',{manager:r.name,method:'단순'}):''}>${r.methods.단순||'-'}</td><td ${r.methods.TM?smDrillAttr('manager_method',{manager:r.name,method:'TM'}):''}>${r.methods.TM||'-'}</td><td ${miss?smDrillAttr('manager_uncontacted',{manager:r.name}):''}>${miss||'-'}</td><td ${r.methods.거부?smDrillAttr('manager_method',{manager:r.name,method:'거부'}):''}>${r.methods.거부||'-'}</td><td ${r.methods.부재?smDrillAttr('manager_method',{manager:r.name,method:'부재'}):''}>${r.methods.부재||'-'}</td><td ${r.methods.불명?smDrillAttr('manager_method',{manager:r.name,method:'불명'}):''}>${r.methods.불명||'-'}</td></tr>`;}).join('');
     const managerTotal={total:0,contacted:0,today:0,상담:0,단순:0,TM:0,거부:0,부재:0,불명:0};
     mr.rows.forEach(r=>{managerTotal.total+=r.total;managerTotal.contacted+=r.contacted;managerTotal.today+=r.today;['상담','단순','TM','거부','부재','불명'].forEach(k=>managerTotal[k]+=Number(r.methods[k]||0));});
-    const managerTable=`<div class="pdf-section pdf-manager-card"><div class="pdf-section-title">① 담당별 접촉현황</div>
+    const managerTable=`<div class="pdf-section pdf-manager-card"><div class="pdf-section-title"><span class="section-heading-text">① 담당별 접촉현황</span></div>
       <table class="pdf-table pdf-manager">
         <colgroup>
           <col style="width:5.2%"><col style="width:13.2%"><col style="width:7.0%"><col style="width:9.3%">
@@ -17363,7 +17291,7 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
       </table><div class="pdf-note-line">＊ 같은 현장에 '이름' + '이름 직급'이 함께 있으면 기존 이름으로 합산 (예: 오지현 + 오지현 차장 → 오지현)</div>${mr.unassigned?`<div class="pdf-note-line">＊ 담당 미지정 접촉 ${mr.unassigned}명 · 담당별 합계는 담당 입력된 인원만 표시</div>`:''}</div>`;
 
     const roleRows=roles.map((r,i)=>`<tr><td>${i+1}</td><td class="sm-drill sm-drill-link" data-drill="role_contacted" data-role="${escapeHtml(r.name)}">${escapeHtml(r.name)}</td><td ${smDrillAttr('role_total',{role:r.name})}>${r.total}</td><td ${r.contacted?smDrillAttr('role_contacted',{role:r.name}):''}>${r.contacted||'-'}</td><td ${r.uncontacted?smDrillAttr('role_uncontacted',{role:r.name}):''}>${r.uncontacted||'-'}</td><td ${r.total?smDrillAttr('role_rate',{role:r.name}):''}>${r.rate.toFixed(1)}%</td></tr>`).join('');
-    const roleTable=`<div class="pdf-section pdf-role-card"><div class="pdf-section-title">② 집행부·직책별 접촉현황${guestMode?'':'<button class="btn no-print" data-bf-role-edit>항목 편집</button>'}</div><table class="pdf-table pdf-role"><thead><tr><th style="width:28px">No</th><th class="left">직책</th><th>인원</th><th>접촉</th><th>미접촉</th><th>접촉률</th></tr></thead><tbody>${roleRows||'<tr><td colspan="6" class="pdf-empty">직책 집계 없음</td></tr>'}</tbody></table></div>`;
+    const roleTable=`<div class="pdf-section pdf-role-card"><div class="pdf-section-title"><span class="section-heading-text">② 집행부·직책별 접촉현황</span>${guestMode?'':'<button class="btn no-print" data-bf-role-edit>항목 편집</button>'}</div><table class="pdf-table pdf-role"><thead><tr><th style="width:28px">No</th><th class="left">직책</th><th>인원</th><th>접촉</th><th>미접촉</th><th>접촉률</th></tr></thead><tbody>${roleRows||'<tr><td colspan="6" class="pdf-empty">직책 집계 없음</td></tr>'}</tbody></table></div>`;
 
     const source=x.source==='excel-master'
       ? `Excel 원장 기준 · ${escapeHtml(String(x.syncedAt||'').replace('T',' ').slice(0,16))}${x.importInfo ? '<br>'+escapeHtml(x.importInfo.fileName+' › '+x.importInfo.sheetName+' · '+(x.importInfo.scope==='members'?'조합원 표시 1':'명부 전체')+' · 금일 기준 '+x.importInfo.asOfDate+' · 확인 필요 '+(x.importInfo.unresolved||[]).length+'건') : ''}`
@@ -17380,7 +17308,7 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
       <div class="pdf-manager-row">${managerTable}</div>${rfNonMemberBlock(site,periodMode?range:null)}
       <div class="pdf-middle-grid">
         ${roleTable}
-        <div class="pdf-section pdf-dong-card"><div class="pdf-section-title">③ 동별 접촉현황</div>${smDongSection(dongs)}</div>
+        <div class="pdf-section pdf-dong-card"><div class="pdf-section-title"><span class="section-heading-text">③ 동별 접촉현황</span></div>${smDongSection(dongs)}</div>
       </div>
       <div class="pdf-bottom-grid">
         ${smTrendSection(site,range)}
@@ -18505,12 +18433,12 @@ body.ux383 .detail-tabs .dtab{min-height:34px!important;font-size:13px!important
 }
 </style>
 <script id="mobileRecoveryVersion">
-document.documentElement.dataset.appRevision='2026-09-13-M15';
+document.documentElement.dataset.appRevision='2026-09-13-M17';
 const versionPanel=document.getElementById('topbarMenuPanel');
 if(versionPanel){
 const version=document.createElement('small');
 version.id='appRevision';
-version.textContent='화면 버전 2026.09.13 · M15';
+version.textContent='화면 버전 2026.09.13 · M17';
 version.style.cssText='display:block;padding:10px 16px;color:var(--muted);font-size:12px';
 versionPanel.append(version);
 }
@@ -18689,6 +18617,37 @@ body.ux383 .mi-date-reports-btn{width:100%;min-width:0;box-sizing:border-box;dis
  height:clamp(300px,calc(100svh - 350px),620px)!important;
  min-height:300px!important;
  }
+}
+</style>
+<style id="visitCoreNotes">.visit-note-controls{gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}.report-site-note-view{white-space:pre-wrap!important;line-height:1.65!important}.visit-note-controls small{font-size:12px;color:var(--text-dim)}@media(max-width:820px){body.ux383 .report-site-note-textarea{font-size:16px!important;box-sizing:border-box;width:100%!important}body.ux383 .report-site-note-view{font-size:13px!important}}</style>
+<style id="alignedContactSectionTitles">
+body.ux383 #globalStatsBody .pdf-section-title{
+ position:relative!important;display:grid!important;
+ grid-template-columns:minmax(0,1fr) auto!important;align-items:center!important;
+ justify-content:start!important;text-align:left!important;
+ gap:6px 10px!important;padding:10px 12px 10px 22px!important;
+ min-height:44px!important;height:auto!important;box-sizing:border-box!important;
+ }
+body.ux383 #globalStatsBody .pdf-section-title:before{
+ position:absolute!important;left:10px!important;top:13px!important;
+ width:3px!important;height:16px!important;margin:0!important;transform:none!important;
+ }
+body.ux383 #globalStatsBody .section-heading-text{
+ display:block!important;min-width:0!important;text-align:left!important;
+ font-size:14px!important;line-height:1.5!important;white-space:normal!important;
+ word-break:keep-all!important;overflow-wrap:anywhere!important;
+ }
+body.ux383 #globalStatsBody .pdf-section-title>.btn{
+ grid-column:2!important;justify-self:end!important;margin:0!important;
+ min-height:32px!important;height:auto!important;padding:5px 8px!important;
+ font-size:12px!important;line-height:1.4!important;white-space:nowrap!important;
+ }
+body.ux383 #globalStatsBody .pdf-section-title>.sub{
+ grid-column:1/-1!important;margin:0!important;text-align:left!important;
+ font-size:11px!important;line-height:1.4!important;
+ }
+@media(max-width:820px){
+ body.ux383 #globalStatsBody .section-heading-text{font-size:13px!important}
 }
 </style>
 </body>
