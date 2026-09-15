@@ -6421,8 +6421,19 @@ function schema(rows,X){
  // Only property columns before the primary owner name identify the owned unit; later addresses may be residences.
  const propertyCol=names=>{for(let c=0;c<s.name;c++)if([headers[c],rows[hr+1]?.[c]].some(v=>names.includes(norm(v))))return c;return -1};
  s.unit=propertyCol(['동호수','동-호수']);s.dong=propertyCol(['동','동명']);s.hosu=propertyCol(['호수','호']);s.parcel=propertyCol(['지번','번지']);
+ // M20 role-one-cell fix: '직책'은 Excel의 실제 직책 셀 1칸만 읽는다.
+ // 상단 '직책'이 병합돼 있어도 옆의 동반장/선관위/부인/임대의원 등의 칸을 임의로 합치지 않는다.
  const rg=headers.findIndex(v=>/^직책(등)?$/.test(norm(v)));s.roleLabels={};
- if(rg>=0){s.roles=[];for(let c=rg;c<headers.length;c++){if(c>rg&&norm(headers[c]))break;const h=text(rows[hr+1]?.[c])||text(headers[c]);if(!h||/후보|^전|19기/.test(norm(h)))continue;s.roles.push(c);s.roleLabels[c]=h}}
+ if(rg>=0){
+   let primary=rg;
+   // 현재 헤더가 병합 그룹의 시작점이면 다음 헤더 전까지의 하위 행에서 '직책'이라고 적힌 정확한 칸만 고른다.
+   let end=rg+1;while(end<headers.length&&!norm(headers[end]))end++;
+   for(let c=rg;c<end;c++){
+     if(/^직책(등)?$/.test(norm(rows[hr+1]?.[c]))){primary=c;break;}
+   }
+   s.roles=[primary];
+   s.roleLabels[primary]=text(rows[hr+1]?.[primary])||text(headers[primary])||'직책';
+ }
  s.labels=Array.from({length:Math.max(...rows.slice(hr,hr+3).map(r=>r.length))},(_,c)=>`${X.utils.encode_col(c)} · ${text(headers[c])||text(rows[hr+1]?.[c])||'열'}`);
  return s;
 }
@@ -7252,6 +7263,22 @@ async function mfRetrySync(){
     if(currentOffice!==ALL_OFFICE && !OFFICES.includes(currentOffice)){ currentOffice = '강서사업소'; }
     sites = currentOffice===ALL_OFFICE ? OFFICES.flatMap(o=>allOfficesData[o]||[]) : (allOfficesData[currentOffice]||[]);
     sites.forEach(s=>{ s.district = migrateDistrict(s.district); });
+    // M20 role-one-cell fix: 과거에 합쳐 저장된 직책값도 현재 화면에서는 1셀 기준으로 정리한다.
+    try{
+      const primaryRole=v=>{
+        const t=String(v||'').replace(/\s+/g,' ').trim();if(!t)return '';
+        const roles=['부조합장','추진위원장','부위원장','대표이사','대의원','조합장','위원장','부회장','이사','감사','회장','위원','임원','대표','총무'];
+        for(const r of roles){if(t===r||t.startsWith(r+' ')||t.startsWith(r+' /')||t.startsWith(r+'/'))return r;}return t;
+      };
+      OFFICES.forEach(o=>(allOfficesData[o]||[]).forEach(site=>{
+        [site&&site.ownerRoster,site&&site.excelStats&&site.excelStats.people].forEach(list=>{
+          if(!Array.isArray(list))return;
+          list.forEach(p=>{if(p&&typeof p==='object'&&('role' in p||'roleType' in p||'primaryRole' in p)){
+            const role=primaryRole(p.primaryRole||p.role||p.roleType||'');p.role=role;p.roleType=role;p.primaryRole=role;p.roleFlag=!!role;
+          }});
+        });
+      }));
+    }catch(e){console.warn('직책 1셀 표시 정리 실패',e);}
     if(!guestMode){ try{ lastSavedStateSnapshot = JSON.parse(JSON.stringify(allOfficesData)); }catch(e4){} }
     // 이미 저장돼있던 기존 데이터에도(=새로고침만 해도) 목동1단지 구역경계가 채워지도록 1회성 보정 (강서사업소 한정)
     const gangseoSites = allOfficesData['강서사업소'];
@@ -16737,6 +16764,17 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
     const s=new Date(d.getFullYear(),d.getMonth(),1),e=new Date(d.getFullYear(),d.getMonth()+1,0);return{start:smDateKey(s),end:smDateKey(e),label:`${s.getFullYear()}년 ${s.getMonth()+1}월`};
   }
   function smInRangeDate(k,r){return k&&k>=r.start&&k<=r.end;}
+  // M20 role-one-cell fix: 대시보드 직책은 Excel의 실제 '직책' 1셀만 표시/집계한다.
+  // 이전 동기화 데이터에 옆 셀 값이 붙어 남아 있더라도 화면에서는 주 직책만 사용한다.
+  function smPrimaryRoleOnly(v){
+    const s=String(v||'').replace(/\s+/g,' ').trim();
+    if(!s)return '';
+    const roles=['부조합장','추진위원장','부위원장','대표이사','대의원','조합장','위원장','부회장','이사','감사','회장','위원','임원','대표','총무'];
+    for(const r of roles){
+      if(s===r || s.startsWith(r+' ') || s.startsWith(r+' /') || s.startsWith(r+'/')) return r;
+    }
+    return s;
+  }
   function smRoster(site){
     const ex=smExcel(site);
     const source=(ex&&Array.isArray(ex.people))
@@ -16747,7 +16785,7 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
       : {
           personId:r&&r.personId||'',note:r&&r.note||'',parcel:r&&r.parcel||'',
           name:String(r&&r.name||'').trim(),
-          role:String(r&&r.role||r&&r.roleType||'').trim(),
+          role:smPrimaryRoleOnly(r&&r.primaryRole||r&&r.role||r&&r.roleType||''),
           manager:String(r&&r.manager||'').trim().replace(/\s+/g,' '),
           unit:String(r&&r.unit||'').trim(),
           dong:String(r&&r.dong||'').trim(),
@@ -16925,7 +16963,7 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
       people[pk].count++;if(e.date)people[pk].dates.add(e.date);if(e.date>people[pk].last)people[pk].last=e.date;if(people[pk].methods[method]!==undefined)people[pk].methods[method]++;
       if(!mgr[manager])mgr[manager]={people:new Set(),count:0,dates:new Set(),methods:{상담:0,단순:0,TM:0}};
       mgr[manager].people.add(pk);mgr[manager].count++;if(e.date)mgr[manager].dates.add(e.date);if(mgr[manager].methods[method]!==undefined)mgr[manager].methods[method]++;
-      const rv=String(e.role||'').trim();if(rv){if(!role[rv])role[rv]={people:new Set(),count:0};role[rv].people.add(pk);role[rv].count++;}
+      const rv=smPrimaryRoleOnly(e.role||'');if(rv){if(!role[rv])role[rv]={people:new Set(),count:0};role[rv].people.add(pk);role[rv].count++;}
       const dv=String(e.dong||'').trim();if(dv){if(!dong[dv])dong[dv]={people:new Set(),count:0};dong[dv].people.add(pk);dong[dv].count++;}
     });
     return{people,mgr,role,dong,methods,visitDays:dates.size,uniquePeople:Object.keys(people).length,totalEvents:events.length};
@@ -16956,12 +16994,20 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
   }
 
   function smRoleRows(site,x,events,periodMode){
+    // 직책별 숫자도 캐시된 byRole을 그대로 쓰지 않고 실제 명단의 '직책' 1셀로 다시 계산한다.
+    const roster=smRoster(site),totals={};
+    roster.forEach(r=>{
+      const name=smPrimaryRoleOnly(r.role);
+      if(!name)return;
+      if(!totals[name])totals[name]={total:0,contacted:0};
+      totals[name].total++;
+      if(r.contacted||['상담','단순','TM'].includes(String(r.contactMethod||'')))totals[name].contacted++;
+    });
     if(!periodMode){
-      return Object.entries(x.byRole||{}).map(([name,d])=>({name,total:Number(d.total||0),contacted:Number(d.contacted||0),uncontacted:Number(d.uncontacted||0),rate:Number(d.contactRate||0)}));
+      return Object.entries(totals).map(([name,d])=>({name,total:d.total,contacted:d.contacted,uncontacted:Math.max(0,d.total-d.contacted),rate:d.total?d.contacted/d.total*100:0}));
     }
-    const a=smAggregateEvents(events),all=x.byRole||{};
-    const keys=Array.from(new Set(Object.keys(all).concat(Object.keys(a.role))));
-    return keys.map(name=>{const total=Number(all[name]&&all[name].total||0),contacted=(a.role[name]&&a.role[name].people.size)||0;return{name,total,contacted,uncontacted:Math.max(0,total-contacted),rate:total?contacted/total*100:0};});
+    const a=smAggregateEvents(events),keys=Array.from(new Set(Object.keys(totals).concat(Object.keys(a.role))));
+    return keys.map(name=>{const total=Number(totals[name]&&totals[name].total||0),contacted=(a.role[name]&&a.role[name].people.size)||0;return{name,total,contacted,uncontacted:Math.max(0,total-contacted),rate:total?contacted/total*100:0};});
   }
   function smDongRows(site,x,events,periodMode){
     if(!periodMode){
@@ -17115,7 +17161,7 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
         : (r.contactMethod?['상담','단순','TM'].includes(r.contactMethod):(r.contacted||['상담','단순','TM'].includes(method)));
       return{
         personId:r.personId||'',name:r.name,manager:smManagerAlias(r.manager,managerAliases),unit:r.unit||latest.unit||'',dong:r.dong||latest.dong||'',
-        role:r.role||latest.role||'',method,contacted,todayMethod:r.todayContactMethod||'',
+        role:smPrimaryRoleOnly(r.role||latest.role||''),method,contacted,todayMethod:r.todayContactMethod||'',
         count:ev.length,last:latest.date||'',note:excelMaster?r.note:(log?String(log.text||''):'')
       };
     });
@@ -17125,9 +17171,9 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
     const map={};
     events.forEach(e=>{
       const k=miPersonKey(e);
-      if(!map[k])map[k]={personId:e.personId||'',name:e.name||'-',manager:smManagerKey(e.manager),unit:e.unit||'',dong:e.dong||'',role:e.role||'',count:0,last:'',methods:new Set(),note:''};
+      if(!map[k])map[k]={personId:e.personId||'',name:e.name||'-',manager:smManagerKey(e.manager),unit:e.unit||'',dong:e.dong||'',role:smPrimaryRoleOnly(e.role||''),count:0,last:'',methods:new Set(),note:''};
       const r=map[k];r.count++;
-      if(String(e.date||'')>r.last){r.last=String(e.date||'');r.manager=smManagerKey(e.manager);r.unit=e.unit||r.unit;r.dong=e.dong||r.dong;r.role=e.role||r.role;}
+      if(String(e.date||'')>r.last){r.last=String(e.date||'');r.manager=smManagerKey(e.manager);r.unit=e.unit||r.unit;r.dong=e.dong||r.dong;r.role=smPrimaryRoleOnly(e.role||r.role);}
       if(e.method)r.methods.add(e.method);
     });
     Object.values(map).forEach(r=>{
