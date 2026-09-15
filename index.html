@@ -17848,8 +17848,44 @@ function rfPrintCard(site){
  if(!site)return;const w=window.open('','_blank','width=900,height=1000');if(!w){alert('인쇄 창을 열 수 없습니다. 팝업 차단 설정을 확인해 주세요.');return}
  const mapEl=document.getElementById('map'),rect=mapEl?.getBoundingClientRect(),clone=mapEl?.cloneNode(true);if(clone)clone.querySelectorAll('[id]').forEach(e=>e.removeAttribute('id'));
  const pairs=[['사업단계',site.progressStage||site.stage],['담당',site.manager],['조합원',site.unionMembers],['신축세대',site.households],['구역면적',site.area],['연면적',site.totalFloorArea],['규모',site.scale],['정비업체',site.managementCompany],['설계업체',site.designCompany],['신탁사',site.trustCompany]];
- const note=(title,value)=>`<section><h3>${title}</h3><div>${escapeHtml(String(value||'입력된 내용 없음').slice(0,420))}${String(value||'').length>420?'… (이하 원문은 대시보드 참고)':''}</div></section>`;
- w.document.write(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${escapeHtml(site.name)} 현장카드</title><style>@page{size:A4 portrait;margin:10mm}*{box-sizing:border-box;print-color-adjust:exact}body{margin:0;color:#253d32;background:white;font:11px/1.5 'Apple SD Gothic Neo','Malgun Gothic',sans-serif}.page{width:190mm;height:276mm;display:flex;flex-direction:column;gap:10px}h1{font-size:23px;margin:0}h3{font-size:12px;margin:0 0 5px}p{margin:0;color:#617169}.facts{display:grid;grid-template-columns:repeat(2,1fr);border-top:1px solid #ced7d1}.fact{display:grid;grid-template-columns:80px 1fr;padding:5px;border-bottom:1px solid #ced7d1}.map{height:88mm;flex:none;background:#eef1ed;position:relative;overflow:hidden;border:1px solid #ced7d1}.notes{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(2,minmax(0,1fr));gap:10px;min-height:0;flex:1}.notes section{min-height:0;overflow:hidden;border:1px solid #ced7d1;padding:9px;overflow-wrap:anywhere;white-space:pre-wrap}.footer{font-size:9px;color:#617169}nav{margin:12px}button{padding:9px 20px}@media print{nav{display:none}}@media screen{body{background:#e8ece8}.page{background:white;margin:15px auto;padding:0}}</style></head><body><nav><button onclick="window.print()">인쇄 / PDF 저장</button></nav><main class="page"><header><h1>${escapeHtml(site.name)}</h1><p>${escapeHtml(site.district||'')} · ${new Date().toLocaleDateString('ko-KR')}</p></header><div class="facts">${pairs.map(([k,v])=>`<div class="fact"><b>${k}</b><span>${escapeHtml(String(v||'-'))}</span></div>`).join('')}</div><div class="map" id="printMap"></div><div class="notes">${note('진행단계',site.stageDetail)}${note('주요 비고',site.salesNote||site.memo)}${note('타사활동',site.progressNote)}${note('최근 보고 · 발췌',miReportLogs(site).find(l=>l.text)?.text)}</div><div class="footer">지도는 현재 대시보드에 표시된 범위입니다. 긴 내용은 발췌하여 표시합니다.</div></main></body></html>`);w.document.close();
+ const note=(title,value)=>`<section class="note-card"><h3>${title}</h3><div class="note-body">${escapeHtml(String(value||'입력된 내용 없음').slice(0,420))}${String(value||'').length>420?'… (이하 원문은 대시보드 참고)':''}</div></section>`;
+ const stageLabel=site.progressStage||site.stage||'단계 미입력';
+ w.document.write(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${escapeHtml(site.name)} 현장카드</title><style>
+ @page{size:A4 portrait;margin:9mm}
+ *{box-sizing:border-box;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+ :root{--ink:#26352f;--sub:#6d7c76;--accent:#4f7f6f;--accent-dark:#365f51;--accent-soft:#e8f0ec;--line:#d7e0db;--paper:#fffdf9;--panel:#f8faf8}
+ html,body{margin:0;padding:0}
+ body{color:var(--ink);background:#e9eeeb;font:10.5px/1.55 'Pretendard','Apple SD Gothic Neo','Malgun Gothic',sans-serif;letter-spacing:-.05px}
+ nav{position:sticky;top:0;z-index:10;display:flex;justify-content:flex-start;padding:10px 12px;background:rgba(233,238,235,.96);backdrop-filter:blur(6px);border-bottom:1px solid #d4ddd8}
+ nav button{border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:9px;padding:9px 18px;font-weight:800;font-size:12px;cursor:pointer;box-shadow:0 3px 10px rgba(79,127,111,.18)}
+ .page{width:192mm;min-height:279mm;margin:14px auto;background:var(--paper);border-radius:14px;box-shadow:0 10px 32px rgba(29,52,43,.14);overflow:hidden;display:flex;flex-direction:column}
+ .hero{position:relative;padding:14mm 12mm 8mm;background:linear-gradient(135deg,#f7faf8 0%,#edf4f0 58%,#e5efe9 100%);border-bottom:1px solid var(--line)}
+ .hero:before{content:'';position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--accent)}
+ .eyebrow{font-size:9px;font-weight:800;letter-spacing:1.5px;color:var(--accent);margin-bottom:3px}
+ .hero-row{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+ .hero h1{font-size:25px;line-height:1.08;letter-spacing:-.7px;margin:0;color:#1f332b;font-weight:900}
+ .hero-meta{margin-top:6px;color:var(--sub);font-size:10px}
+ .stage-chip{flex:none;display:inline-flex;align-items:center;padding:6px 10px;border-radius:999px;border:1px solid #b8cdc3;background:#fff;color:var(--accent-dark);font-size:9.5px;font-weight:800;white-space:nowrap}
+ .content{display:flex;flex-direction:column;gap:7mm;padding:7mm 12mm 8mm;min-height:0;flex:1}
+ .facts{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+ .fact{display:grid;grid-template-columns:29mm 1fr;min-height:9mm;border-bottom:1px solid var(--line)}
+ .fact:nth-child(odd){border-right:1px solid var(--line)}
+ .fact:nth-last-child(-n+2){border-bottom:none}
+ .fact-label{display:flex;align-items:center;padding:6px 9px;background:var(--panel);color:#567066;font-size:9.4px;font-weight:800}
+ .fact-value{display:flex;align-items:center;padding:6px 10px;color:#263b32;font-weight:650;overflow-wrap:anywhere}
+ .section-kicker{display:flex;align-items:center;gap:7px;margin-bottom:4px;color:#395f51;font-weight:900;font-size:10px}
+ .section-kicker:before{content:'';width:3px;height:11px;border-radius:2px;background:var(--accent)}
+ .map-card{border:1px solid var(--line);border-radius:11px;overflow:hidden;background:#eef3ef}
+ .map{height:70mm;position:relative;overflow:hidden;background:#edf2ee}
+ .notes-wrap{min-height:0;display:flex;flex-direction:column;flex:1}
+ .notes{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(2,minmax(0,1fr));gap:6mm;min-height:0;flex:1}
+ .note-card{min-height:0;overflow:hidden;border:1px solid var(--line);border-radius:10px;background:#fff;box-shadow:0 1px 0 rgba(54,95,81,.03)}
+ .note-card h3{margin:0;padding:7px 10px;background:var(--panel);border-bottom:1px solid var(--line);font-size:10.5px;color:#355f50;font-weight:900}
+ .note-body{padding:8px 10px;white-space:pre-wrap;overflow-wrap:anywhere;color:#33483f;font-size:9.8px;line-height:1.58}
+ .footer{padding-top:2mm;border-top:1px solid #e3e9e5;font-size:8.7px;color:#83908b;display:flex;justify-content:space-between;gap:8px}
+ .footer b{color:#5e766c;font-weight:700}
+ @media print{body{background:#fff}.page{width:auto;min-height:0;height:279mm;margin:0;border-radius:0;box-shadow:none}nav{display:none}.hero{padding-top:9mm}.content{padding-bottom:4mm}.map{height:70mm}}
+ </style></head><body><nav><button onclick="window.print()">인쇄 / PDF 저장</button></nav><main class="page"><header class="hero"><div class="eyebrow">SITE BRIEF · 현장카드</div><div class="hero-row"><div><h1>${escapeHtml(site.name)}</h1><div class="hero-meta">${escapeHtml(site.district||'지역 미입력')} · ${new Date().toLocaleDateString('ko-KR')}</div></div><span class="stage-chip">${escapeHtml(stageLabel)}</span></div></header><div class="content"><div class="facts">${pairs.map(([k,v])=>`<div class="fact"><div class="fact-label">${k}</div><div class="fact-value">${escapeHtml(String(v||'-'))}</div></div>`).join('')}</div><section><div class="section-kicker">현장 위치</div><div class="map-card"><div class="map" id="printMap"></div></div></section><section class="notes-wrap"><div class="section-kicker">핵심 현황</div><div class="notes">${note('진행단계',site.stageDetail)}${note('주요 비고',site.salesNote||site.memo)}${note('타사활동',site.progressNote)}${note('최근 보고 · 발췌',miReportLogs(site).find(l=>l.text)?.text)}</div></section><div class="footer"><span><b>${escapeHtml(site.name)}</b> 현장카드</span><span>지도는 현재 대시보드 표시 범위 기준 · 긴 내용은 일부 발췌</span></div></div></main></body></html>`);w.document.close();
  if(clone&&rect.width&&rect.height){clone.removeAttribute('id');clone.style.cssText=`position:absolute;width:${rect.width}px;height:${rect.height}px;transform-origin:top left;overflow:hidden`;w.document.getElementById('printMap').append(w.document.importNode(clone,true));const box=w.document.getElementById('printMap'),c=box.firstChild;const scale=Math.min(box.clientWidth/rect.width,box.clientHeight/rect.height);c.style.transform=`scale(${scale})`;c.style.left=(box.clientWidth-rect.width*scale)/2+'px';c.style.top=(box.clientHeight-rect.height*scale)/2+'px'}else w.document.getElementById('printMap').textContent='지도를 표시한 뒤 현장카드를 다시 인쇄해 주세요.';
 }
 const rfObserver=new MutationObserver(()=>{if(rfObserver.pending)return;rfObserver.pending=true;requestAnimationFrame(()=>{rfObserver.pending=false;rfDecorate()})});rfObserver.observe(document.body,{childList:true,subtree:true});rfDecorate();
