@@ -17887,8 +17887,13 @@ function rfPrintCard(site){
  :root{--ink:#1f312b;--sub:#788680;--accent:#3f7966;--accent2:#6d9a88;--pale:#edf4f0;--pale2:#f6f8f6;--line:#d9e2dd;--paper:#fffefb;--white:#fff}
  html,body{margin:0;padding:0}
  body{background:#e8ece9;color:var(--ink);font-family:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:10px;line-height:1.48;letter-spacing:-.15px}
- nav{position:sticky;top:0;z-index:20;padding:9px 12px;background:rgba(232,236,233,.94);backdrop-filter:blur(8px);border-bottom:1px solid #d5ddd8}
+ nav{position:sticky;top:0;z-index:20;padding:9px 12px;background:rgba(232,236,233,.94);backdrop-filter:blur(8px);border-bottom:1px solid #d5ddd8;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
  nav button{height:36px;padding:0 16px;border:0;border-radius:9px;background:#315f51;color:#fff;font:800 11px/1 'Pretendard',sans-serif;cursor:pointer;box-shadow:0 5px 14px rgba(42,83,68,.14)}
+ .print-map-controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;color:#53675f;font-size:10px;font-weight:700}
+ .print-map-controls label{display:flex;align-items:center;gap:6px;white-space:nowrap}
+ .print-map-controls input[type=range]{width:105px;accent-color:#3f7966}
+ .print-map-controls output{min-width:34px;color:#284f42;font-weight:800;text-align:right}
+ nav .map-reset{height:30px;padding:0 10px;background:#f7faf8;color:#3c6557;border:1px solid #cddbd4;box-shadow:none;font-size:9.5px}
  .page{width:196mm;min-height:283mm;margin:14px auto;background:var(--paper);box-shadow:0 12px 34px rgba(38,58,49,.12);overflow:hidden}
  .sheet{padding:10mm 10.5mm 7mm}
  .hero{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10mm;align-items:end;padding:0 0 5mm;border-bottom:1.6px solid #507c6d}
@@ -17916,15 +17921,28 @@ function rfPrintCard(site){
  .stage-card .note-body{font-size:9px;line-height:1.53}
  .lower-grid .note-card:not(.wide){min-height:38mm}
  .lower-grid .note-card.wide{min-height:31mm}
- .footer{margin-top:4mm;padding-top:2.8mm;border-top:1px solid #e4e9e6;display:flex;justify-content:space-between;gap:12px;color:#89958f;font-size:7.6px}
- .footer b{color:#64766e;font-weight:750}
  @media print{
    body{background:#fff}
    nav{display:none}
    .page{width:auto;min-height:0;margin:0;box-shadow:none}
    .sheet{padding:3mm 3.5mm 1mm}
  }
- </style></head><body><nav><button onclick="window.print()">인쇄 / PDF 저장</button></nav><main class="page"><div class="sheet"><header class="hero"><div><div class="eyebrow">SITE BRIEF · 현장카드</div><h1>${escapeHtml(site.name)}</h1><div class="hero-meta">${escapeHtml(site.district||'지역 미입력')} · ${new Date().toLocaleDateString('ko-KR')}</div></div><span class="stage-chip">${escapeHtml(stageLabel)}</span></header><div class="facts">${pairs.map(([k,v])=>`<div class="fact"><div class="fact-label">${escapeHtml(k)}</div><div class="fact-value">${escapeHtml(String(v||'-'))}</div></div>`).join('')}</div><div class="main-grid"><section class="panel"><div class="panel-head">현장 위치</div><div class="map-card"><div class="map" id="printMap"></div></div></section>${note('진행단계',site.stageDetail,300,'stage-card')}</div><div class="lower-grid">${note('주요 비고',site.salesNote||site.memo,330)}${note('타사활동',site.progressNote,300)}${note('최근 보고 · 발췌',recent,360,'wide')}</div><div class="footer"><span><b>${escapeHtml(site.name)}</b> · 현장 브리프</span><span>지도는 현재 대시보드 표시 범위 기준 · 긴 내용은 요약 발췌</span></div></div></main></body></html>`);
+ </style></head><body><nav><button onclick="window.print()">인쇄 / PDF 저장</button><div class="print-map-controls"><label>지도 높이 <input id="mapHeightRange" type="range" min="42" max="76" value="59"><output id="mapHeightVal">59mm</output></label><label>지도 폭 <input id="mapWidthRange" type="range" min="54" max="74" value="64"><output id="mapWidthVal">64%</output></label><button type="button" class="map-reset" onclick="resetPrintMapSize()">기본 크기</button></div></nav><main class="page"><div class="sheet"><header class="hero"><div><div class="eyebrow">SITE BRIEF · 현장카드</div><h1>${escapeHtml(site.name)}</h1><div class="hero-meta">${escapeHtml(site.district||'지역 미입력')} · ${new Date().toLocaleDateString('ko-KR')}</div></div><span class="stage-chip">${escapeHtml(stageLabel)}</span></header><div class="facts">${pairs.map(([k,v])=>`<div class="fact"><div class="fact-label">${escapeHtml(k)}</div><div class="fact-value">${escapeHtml(String(v||'-'))}</div></div>`).join('')}</div><div class="main-grid"><section class="panel"><div class="panel-head">현장 위치</div><div class="map-card"><div class="map" id="printMap"></div></div></section>${note('진행단계',site.stageDetail,300,'stage-card')}</div><div class="lower-grid">${note('주요 비고',site.salesNote||site.memo,330)}${note('타사활동',site.progressNote,300)}${note('최근 보고 · 발췌',recent,360,'wide')}</div></div></main><script>
+(function(){
+ var h=document.getElementById('mapHeightRange'),wv=document.getElementById('mapWidthRange'),ho=document.getElementById('mapHeightVal'),wo=document.getElementById('mapWidthVal');
+ function apply(){
+  var hv=Number(h.value)||59,p=Number(wv.value)||64;
+  var card=document.querySelector('.map-card'),grid=document.querySelector('.main-grid');
+  if(card)card.style.height=hv+'mm';
+  if(grid)grid.style.gridTemplateColumns=p+'fr '+(100-p)+'fr';
+  if(ho)ho.value=hv+'mm';
+  if(wo)wo.value=p+'%';
+  if(typeof window.refitPrintMap==='function')requestAnimationFrame(window.refitPrintMap);
+ }
+ window.resetPrintMapSize=function(){h.value=59;wv.value=64;apply();};
+ h.addEventListener('input',apply);wv.addEventListener('input',apply);apply();
+})();
+<\/script></body></html>`);
  w.document.close();
  if(clone&&rect.width&&rect.height){
    clone.removeAttribute('id');
@@ -17939,6 +17957,7 @@ function rfPrintCard(site){
      c.style.left=(bw-rect.width*scale)/2+'px';
      c.style.top=(bh-rect.height*scale)/2+'px';
    };
+   w.refitPrintMap=fit;
    requestAnimationFrame(()=>requestAnimationFrame(fit));
  }else{
    const box=w.document.getElementById('printMap');
