@@ -988,7 +988,7 @@
     #modeOverlay{position:fixed !important;inset:0 !important;align-items:center !important;justify-content:center !important;padding:16px !important;background:rgba(3,12,22,.6) !important;pointer-events:auto !important;z-index:900;}
     #modeOverlay .modal{width:100%;max-width:240px;}
     #modeOverlay .modal button{font-size:13px !important;padding:9px !important;}
-    #modeOverlay #guestSelect,#modeOverlay #pwInput,#modeOverlay #guestPwInput{font-size:13px !important;padding:8px 10px !important;}
+    #modeOverlay #guestSelect,#modeOverlay #pwInput,#modeOverlay #guestPwInput{font-size:16px !important;padding:8px 10px !important;}
   }
   @media (max-width:480px){
     .stats-bar{overflow-x:auto;}
@@ -13232,6 +13232,7 @@ function renderDetailPanel(site){
     const pw = guestPwInput.value;
     const g = guestAccounts[key];
     if(g && pw && g.password && g.password===pw){
+      try{ guestPwInput.blur(); }catch(e){}
       currentGuest = Object.assign({key}, g);
       guestMode = true;
       localGuestDataVersion = guestDataVersions[key] || null;
@@ -13318,6 +13319,7 @@ function renderDetailPanel(site){
     const pw = pwInput.value;
     const hash = await sha256Hex(pw);
     if(hash===adminPasswordHash){
+      try{ pwInput.blur(); }catch(e){}
       try{ localStorage.setItem('editUnlocked','1'); }catch(e){}
       guestMode = false;
       currentGuest = null;
