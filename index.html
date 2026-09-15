@@ -17912,6 +17912,10 @@ function rfPrintCard(site){
  .panel-head:before,.note-head:before{content:'';width:3px;height:10px;border-radius:2px;background:var(--accent)}
  .map-card{position:relative;height:59mm;background:#edf2ee;overflow:hidden}
  .map{position:absolute;inset:0;overflow:hidden;background:#edf2ee}
+ .print-map-zoom{position:absolute;right:8px;top:8px;z-index:30;display:flex;flex-direction:column;border:1px solid #c8d4cf;border-radius:8px;overflow:hidden;background:#fff;box-shadow:0 3px 10px rgba(36,59,50,.14)}
+ .print-map-zoom button{width:30px;height:30px;border:0;background:#fff;color:#344f45;font:800 19px/1 'Pretendard',sans-serif;cursor:pointer;padding:0;box-shadow:none;border-radius:0}
+ .print-map-zoom button+button{border-top:1px solid #dce4e0}
+ .print-map-zoom button:hover{background:#f1f6f3}
  .stage-card{display:flex;flex-direction:column;min-height:67.5mm}
  .stage-card .note-body{flex:1}
  .lower-grid{margin-top:4mm;display:grid;grid-template-columns:1fr 1fr;gap:4mm}
@@ -17923,11 +17927,11 @@ function rfPrintCard(site){
  .lower-grid .note-card.wide{min-height:31mm}
  @media print{
    body{background:#fff}
-   nav{display:none}
+   nav,.print-map-zoom{display:none!important}
    .page{width:auto;min-height:0;margin:0;box-shadow:none}
    .sheet{padding:3mm 3.5mm 1mm}
  }
- </style></head><body><nav><button onclick="window.print()">인쇄 / PDF 저장</button><div class="print-map-controls"><label>지도 높이 <input id="mapHeightRange" type="range" min="42" max="76" value="59"><output id="mapHeightVal">59mm</output></label><label>지도 폭 <input id="mapWidthRange" type="range" min="54" max="74" value="64"><output id="mapWidthVal">64%</output></label><button type="button" class="map-reset" onclick="resetPrintMapSize()">기본 크기</button></div></nav><main class="page"><div class="sheet"><header class="hero"><div><div class="eyebrow">SITE BRIEF · 현장카드</div><h1>${escapeHtml(site.name)}</h1><div class="hero-meta">${escapeHtml(site.district||'지역 미입력')} · ${new Date().toLocaleDateString('ko-KR')}</div></div><span class="stage-chip">${escapeHtml(stageLabel)}</span></header><div class="facts">${pairs.map(([k,v])=>`<div class="fact"><div class="fact-label">${escapeHtml(k)}</div><div class="fact-value">${escapeHtml(String(v||'-'))}</div></div>`).join('')}</div><div class="main-grid"><section class="panel"><div class="panel-head">현장 위치</div><div class="map-card"><div class="map" id="printMap"></div></div></section>${note('진행단계',site.stageDetail,300,'stage-card')}</div><div class="lower-grid">${note('주요 비고',site.salesNote||site.memo,330)}${note('타사활동',site.progressNote,300)}${note('최근 보고 · 발췌',recent,360,'wide')}</div></div></main><script>
+ </style></head><body><nav><button onclick="window.print()">인쇄 / PDF 저장</button><div class="print-map-controls"><label>지도 높이 <input id="mapHeightRange" type="range" min="42" max="76" value="59"><output id="mapHeightVal">59mm</output></label><label>지도 폭 <input id="mapWidthRange" type="range" min="54" max="74" value="64"><output id="mapWidthVal">64%</output></label><button type="button" class="map-reset" onclick="resetPrintMapSize()">기본 크기</button></div></nav><main class="page"><div class="sheet"><header class="hero"><div><div class="eyebrow">SITE BRIEF · 현장카드</div><h1>${escapeHtml(site.name)}</h1><div class="hero-meta">${escapeHtml(site.district||'지역 미입력')} · ${new Date().toLocaleDateString('ko-KR')}</div></div><span class="stage-chip">${escapeHtml(stageLabel)}</span></header><div class="facts">${pairs.map(([k,v])=>`<div class="fact"><div class="fact-label">${escapeHtml(k)}</div><div class="fact-value">${escapeHtml(String(v||'-'))}</div></div>`).join('')}</div><div class="main-grid"><section class="panel"><div class="panel-head">현장 위치</div><div class="map-card"><div class="map" id="printMap"></div><div class="print-map-zoom" aria-label="지도 확대 축소"><button type="button" id="printMapZoomIn" title="지도 확대">+</button><button type="button" id="printMapZoomOut" title="지도 축소">−</button></div></div></section>${note('진행단계',site.stageDetail,300,'stage-card')}</div><div class="lower-grid">${note('주요 비고',site.salesNote||site.memo,330)}${note('타사활동',site.progressNote,300)}${note('최근 보고 · 발췌',recent,360,'wide')}</div></div></main><script>
 (function(){
  var h=document.getElementById('mapHeightRange'),wv=document.getElementById('mapWidthRange'),ho=document.getElementById('mapHeightVal'),wo=document.getElementById('mapWidthVal');
  function apply(){
@@ -17939,7 +17943,7 @@ function rfPrintCard(site){
   if(wo)wo.value=p+'%';
   if(typeof window.refitPrintMap==='function')requestAnimationFrame(window.refitPrintMap);
  }
- window.resetPrintMapSize=function(){h.value=59;wv.value=64;apply();};
+ window.resetPrintMapSize=function(){h.value=59;wv.value=64;window.__printMapZoom=1;apply();};
  h.addEventListener('input',apply);wv.addEventListener('input',apply);apply();
 })();
 <\/script></body></html>`);
@@ -17950,14 +17954,21 @@ function rfPrintCard(site){
    const box=w.document.getElementById('printMap');
    box.append(w.document.importNode(clone,true));
    const c=box.firstChild;
+   w.__printMapZoom=1;
    const fit=()=>{
      const bw=box.clientWidth||1,bh=box.clientHeight||1;
-     const scale=Math.max(bw/rect.width,bh/rect.height);
+     const base=Math.max(bw/rect.width,bh/rect.height);
+     const zoom=Math.max(.72,Math.min(2.2,Number(w.__printMapZoom)||1));
+     const scale=base*zoom;
      c.style.transform=`scale(${scale})`;
      c.style.left=(bw-rect.width*scale)/2+'px';
      c.style.top=(bh-rect.height*scale)/2+'px';
    };
    w.refitPrintMap=fit;
+   const zin=w.document.getElementById('printMapZoomIn');
+   const zout=w.document.getElementById('printMapZoomOut');
+   if(zin) zin.addEventListener('click',()=>{w.__printMapZoom=Math.min(2.2,(Number(w.__printMapZoom)||1)+.12);fit();});
+   if(zout) zout.addEventListener('click',()=>{w.__printMapZoom=Math.max(.72,(Number(w.__printMapZoom)||1)-.12);fit();});
    requestAnimationFrame(()=>requestAnimationFrame(fit));
  }else{
    const box=w.document.getElementById('printMap');
