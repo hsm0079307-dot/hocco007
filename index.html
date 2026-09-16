@@ -5846,6 +5846,14 @@ body.ux383 .bf-section h3 small{
 }
 </style>
 
+
+<style id="guest-clean-v1">
+body.guest-mode .bf-section h3 small,
+body.guest-mode .pdf-note-line{
+  display:none!important;
+}
+</style>
+
 </head>
 <body>
 <div id="entryGate" style="position:fixed;inset:0;background:rgba(3,12,22,.94);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;">
@@ -14491,7 +14499,7 @@ function buildSiteReportBrief(site){
    return `<article class="bf-entry"><p><strong>${esc(item.topic||'핵심')}</strong> · ${esc(item.text)}</p>${context?`<div class="bf-entry-context">${esc(context)} · 근거 ${item.refs.length}건</div>`:''}<details><summary>원문·대상 확인 ${item.refs.length}건</summary>${item.refs.map(r=>`<div class="bf-source"><small>${esc([r.date,r.name,r.author].filter(Boolean).join(' · '))}</small><p>${esc(r.text||item.text)}</p></div>`).join('')}</details></article>`;
  };
 
- return `<section class="bf-section"><h3>${title}<small>${manual?'직접 작성':'보고서 자동 정리'}</small></h3>${manual?`<div class="bf-manual">${esc(override.sections[key]||'직접 작성된 내용이 없습니다.')}</div><p class="bf-meta">수정 ${esc(override.updatedAt?.slice(0,16).replace('T',' ')||'')} · ${esc(override.author||'관리자')}</p><details><summary>이 기간 최신 자동 정리 비교</summary>${items.map(itemHtml).join('')||'해당 항목의 보고 근거 없음'}</details>`:(items.length?items.slice(0,3).map(itemHtml).join('')+(items.length>3?`<details><summary>추가 핵심 ${items.length-3}개</summary>${items.slice(3).map(itemHtml).join('')}</details>`:''):'<p class="bf-empty">이 기간 보고서에서 이 항목을 뒷받침하는 구체적인 내용을 찾지 못했습니다.</p>')}</section>`;
+ return `<section class="bf-section"><h3>${title}${guestMode?'':`<small>${manual?'직접 작성':'보고서 자동 정리'}</small>`}</h3>${manual?`<div class="bf-manual">${esc(override.sections[key]||'직접 작성된 내용이 없습니다.')}</div><p class="bf-meta">수정 ${esc(override.updatedAt?.slice(0,16).replace('T',' ')||'')} · ${esc(override.author||'관리자')}</p><details><summary>이 기간 최신 자동 정리 비교</summary>${items.map(itemHtml).join('')||'해당 항목의 보고 근거 없음'}</details>`:(items.length?items.slice(0,3).map(itemHtml).join('')+(items.length>3?`<details><summary>추가 핵심 ${items.length-3}개</summary>${items.slice(3).map(itemHtml).join('')}</details>`:''):'<p class="bf-empty">이 기간 보고서에서 이 항목을 뒷받침하는 구체적인 내용을 찾지 못했습니다.</p>')}</section>`;
  }).join('')}</div><p class="bf-meta">보고서 원문에서 확인되는 사실·입장·후속 계획만 정리했습니다. 각 항목의 근거는 펼쳐서 바로 확인할 수 있습니다.</p></section>`;
 }
 async function bfSaveField(site,field,baseline,value){
@@ -17695,7 +17703,7 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
         </colgroup>
         <thead><tr><th>No</th><th>담당</th><th>인원</th><th>누계접촉</th><th>접촉률</th><th>금일접촉</th><th>상담</th><th>단순</th><th>TM</th><th>미접촉</th><th>거부</th><th>부재</th><th>불명</th></tr></thead>
         <tbody>${managerRows||'<tr><td colspan="13" class="pdf-empty">담당별 집계 없음</td></tr>'}${mr.rows.length?`<tr class="pdf-total"><td colspan="2">합계</td><td>${managerTotal.total}</td><td>${managerTotal.contacted}</td><td>${managerTotal.total?(managerTotal.contacted/managerTotal.total*100).toFixed(1):'0.0'}%</td><td>${managerTotal.today||'-'}</td><td>${managerTotal.상담||'-'}</td><td>${managerTotal.단순||'-'}</td><td>${managerTotal.TM||'-'}</td><td>${Math.max(0,managerTotal.total-managerTotal.contacted)||'-'}</td><td>${managerTotal.거부||'-'}</td><td>${managerTotal.부재||'-'}</td><td>${managerTotal.불명||'-'}</td></tr>`:''}</tbody>
-      </table><div class="pdf-note-line">＊ 같은 현장에 '이름' + '이름 직급'이 함께 있으면 기존 이름으로 합산 (예: 오지현 + 오지현 차장 → 오지현)</div>${mr.unassigned?`<div class="pdf-note-line">＊ 담당 미지정 접촉 ${mr.unassigned}명 · 담당별 합계는 담당 입력된 인원만 표시</div>`:''}</div>`;
+      </table>${guestMode?'':`<div class="pdf-note-line">＊ 같은 현장에 '이름' + '이름 직급'이 함께 있으면 기존 이름으로 합산 (예: 오지현 + 오지현 차장 → 오지현)</div>${mr.unassigned?`<div class="pdf-note-line">＊ 담당 미지정 접촉 ${mr.unassigned}명 · 담당별 합계는 담당 입력된 인원만 표시</div>`:''}`}</div>`;
 
     const roleRows=roles.map((r,i)=>`<tr><td>${i+1}</td><td class="sm-drill sm-drill-link" data-drill="role_contacted" data-role="${escapeHtml(r.name)}">${escapeHtml(r.name)}</td><td ${smDrillAttr('role_total',{role:r.name})}>${r.total}</td><td ${r.contacted?smDrillAttr('role_contacted',{role:r.name}):''}>${r.contacted||'-'}</td><td ${r.uncontacted?smDrillAttr('role_uncontacted',{role:r.name}):''}>${r.uncontacted||'-'}</td><td ${r.total?smDrillAttr('role_rate',{role:r.name}):''}>${r.rate.toFixed(1)}%</td></tr>`).join('');
     const roleTable=`<div class="pdf-section pdf-role-card"><div class="pdf-section-title"><span class="section-heading-text">② 집행부·직책별 접촉현황</span>${guestMode?'':'<button class="btn no-print" data-bf-role-edit>항목 편집</button>'}</div><table class="pdf-table pdf-role"><thead><tr><th style="width:28px">No</th><th class="left">직책</th><th>인원</th><th>접촉</th><th>미접촉</th><th>접촉률</th></tr></thead><tbody>${roleRows||'<tr><td colspan="6" class="pdf-empty">직책 집계 없음</td></tr>'}</tbody></table></div>`;
