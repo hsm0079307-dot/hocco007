@@ -5854,6 +5854,26 @@ body.guest-mode .pdf-note-line{
 }
 </style>
 
+<style id="dashboard-polish-all-v1">
+body.sooni-guest-view #modeOverlay.mode-collapsed #modeReopenBtn{position:fixed!important;right:10px!important;top:max(10px,env(safe-area-inset-top,0px))!important;bottom:auto!important;width:38px!important;height:38px!important;min-height:38px!important;padding:0!important;border-radius:50%!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;font-size:0!important;opacity:.88;transition:opacity .18s ease,transform .18s ease}
+body.sooni-guest-view #modeOverlay.mode-collapsed #modeReopenBtn::before{content:'🔐';font-size:17px;line-height:1}
+body.sooni-guest-view.guest-login-hidden #modeOverlay.mode-collapsed #modeReopenBtn{opacity:0!important;transform:translateY(-8px)!important;pointer-events:none!important}
+@media(min-width:821px){body.sooni-guest-view #modeOverlay.mode-collapsed #modeReopenBtn{width:auto!important;height:34px!important;min-height:34px!important;padding:0 10px!important;border-radius:999px!important;font-size:11px!important}body.sooni-guest-view #modeOverlay.mode-collapsed #modeReopenBtn::before{content:'';font-size:0}}
+body.ux383 .bf-snapshot{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0 12px}
+body.ux383 .bf-snapshot>div{min-width:0;padding:10px 12px;border:1px solid color-mix(in srgb,var(--accent) 25%,var(--line));border-radius:9px;background:color-mix(in srgb,var(--accent) 5%,var(--card))}
+body.ux383 .bf-snapshot span{display:block;margin-bottom:4px;color:var(--accent);font-size:11px;font-weight:800}
+body.ux383 .bf-snapshot strong{display:block;color:var(--text-main);font-size:13px;line-height:1.55;font-weight:650;word-break:keep-all;overflow-wrap:anywhere}
+body.ux383 .bf-period-display{min-width:180px;min-height:36px;padding:6px 14px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text-main);font:700 14px/1.2 inherit;cursor:pointer;text-align:center}
+body.ux383 .bf-period-display:hover{border-color:var(--accent)}
+body.ux383 .bf-date-native{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important;clip:rect(0 0 0 0)!important}
+body.ux383 .bf-extra{margin-top:4px;border-top:1px solid var(--line)}body.ux383 .bf-extra>summary{font-size:12px!important;font-weight:700}
+@media(max-width:820px){
+body.ux383 .bf-snapshot{grid-template-columns:1fr;gap:6px;margin:8px 0 10px}body.ux383 .bf-snapshot>div{padding:9px 10px}body.ux383 .bf-snapshot strong{font-size:12.5px;line-height:1.5}
+body.ux383 .bf-controls:has(#bfDate){display:grid!important;grid-template-columns:38px minmax(0,1fr) 38px!important;gap:6px!important}body.ux383 .bf-controls:has(#bfDate)>label{grid-column:1/-1}body.ux383 .bf-period-display{width:100%;min-width:0;font-size:15px;min-height:40px}
+body.ux383 #globalStatsBody .pdf-section{padding:9px!important}body.ux383 #globalStatsBody .pdf-table th,body.ux383 #globalStatsBody .pdf-table td{font-size:11px!important;line-height:1.32!important;padding:5px 3px!important}body.ux383 #globalStatsBody .pdf-manager th,body.ux383 #globalStatsBody .pdf-manager td{font-size:10.5px!important;padding:4px 2px!important}body.ux383 #globalStatsBody .pdf-section-title{font-size:13px!important;margin-bottom:6px!important}body.ux383 #globalStatsBody .pdf-summary-cell{padding:7px 5px!important}body.ux383 #globalStatsBody .pdf-summary-cell .h{font-size:10px!important}body.ux383 #globalStatsBody .pdf-summary-cell .n{font-size:14px!important}
+body.ux383 .rf-nonmember{padding:10px!important;margin:9px 0!important}body.ux383 .rf-nonmember h3{font-size:14px!important}body.ux383 .rf-nonmember p{font-size:11px!important;margin-bottom:7px!important}body.ux383 .rf-nonmember td,body.ux383 .rf-nonmember th{font-size:11px!important;padding:5px 5px!important}body.ux383 .rf-metrics{gap:6px!important}body.ux383 .rf-metrics span{padding:7px 8px!important;font-size:11px!important}
+}
+</style>
 </head>
 <body>
 <div id="entryGate" style="position:fixed;inset:0;background:rgba(3,12,22,.94);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;">
@@ -13566,6 +13586,8 @@ function renderDetailPanel(site){
   });
 
   function applyGuestRestrictions(){
+    // 로그인하지 않은 '게스트로 보기' 상태만 별도 클래스를 줘서 UI를 더 단순하게 만든다.
+    document.body.classList.toggle('sooni-guest-view', !currentGuest);
     const hideIds = ['templateBtn','exportBtn','addBtn','guestManageBtn','changeAdminPwBtn','changeEntryPwBtn','changeLogBtn','undoBtn','dupIdCheckBtn','handoverBtn','missingCoordsBtn','managerFilterWrap','clearDistrictBtn','labelEditBtn','adminLogoutBtn'];
     hideIds.forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display='none'; });
     const excelLabel = document.querySelector('.file-label'); if(excelLabel) excelLabel.style.display='none';
@@ -13594,6 +13616,7 @@ function renderDetailPanel(site){
   }
   // 관리자로 로그인 성공 시, 로그인 전 기본으로 걸어둔 게스트 제한을 풀고 원래 관리자 화면으로 복원
   function removeGuestRestrictions(){
+    document.body.classList.remove('sooni-guest-view','guest-login-hidden');
     const showIds = ['templateBtn','exportBtn','addBtn','guestManageBtn','changeAdminPwBtn','changeEntryPwBtn','changeLogBtn','undoBtn','dupIdCheckBtn','handoverBtn','missingCoordsBtn','managerFilterWrap','labelEditBtn','adminLogoutBtn','sheetViewBtn','calendarBtn','tabs'];
     showIds.forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display=''; });
     const cdBtn = document.getElementById('clearDistrictBtn');
@@ -13602,6 +13625,17 @@ function renderDetailPanel(site){
     const officeSwitcherEl = document.getElementById('officeSwitcher'); if(officeSwitcherEl) officeSwitcherEl.style.display='';
     const guestLogoutBtn = document.getElementById('guestLogoutBtn'); if(guestLogoutBtn) guestLogoutBtn.remove();
   }
+
+  // 게스트 화면에서는 작은 로그인 버튼이 내용을 가리지 않도록 스크롤 중 잠시 숨긴다.
+  let guestLoginHideTimer = null;
+  document.addEventListener('scroll', ()=>{
+    if(!document.body.classList.contains('sooni-guest-view')) return;
+    const ov=document.getElementById('modeOverlay');
+    if(!ov || !ov.classList.contains('mode-collapsed')) return;
+    document.body.classList.add('guest-login-hidden');
+    clearTimeout(guestLoginHideTimer);
+    guestLoginHideTimer=setTimeout(()=>document.body.classList.remove('guest-login-hidden'),650);
+  }, true);
 
   function maybeAutoBackup(){
     try{
@@ -14489,9 +14523,25 @@ function bfGroupItems(items){
  return groups.sort((a,b)=>b.score-a.score||b.date.localeCompare(a.date)).map(g=>({...g,text:g.texts.join(' ')}));
 }
 function bfAutoText(data,key){return bfGroupItems(data.sections[key]).slice(0,3).map(i=>'• '+i.topic+' · '+i.text).join('\n')}
+function bfPeriodDisplay(range){
+ const d=new Date(bfView.date+'T12:00:00');
+ if(bfView.mode==='month')return `${d.getFullYear()}년 ${d.getMonth()+1}월`;
+ if(bfView.mode==='week'){
+   const s=new Date(range.start+'T12:00:00'),e=new Date(range.end+'T12:00:00');
+   return s.getFullYear()===e.getFullYear()?`${s.getMonth()+1}.${s.getDate()} ~ ${e.getMonth()+1}.${e.getDate()}`:`${s.getFullYear()}.${s.getMonth()+1}.${s.getDate()} ~ ${e.getFullYear()}.${e.getMonth()+1}.${e.getDate()}`;
+ }
+ if(bfView.mode==='day')return `${d.getMonth()+1}월 ${d.getDate()}일`;
+ return `${range.start} ~ ${range.end}`;
+}
+function bfSnapshot(data){
+ const currentPool=['issue','competitor','executive'].flatMap(k=>bfGroupItems(data.sections[k]||[])).sort((a,b)=>(b.score||0)-(a.score||0)||String(b.date||'').localeCompare(String(a.date||'')));
+ const now=currentPool[0],next=bfGroupItems(data.sections.next||[])[0];
+ const trim=s=>String(s||'').length>150?String(s).slice(0,147).replace(/[\s,.;]+$/,'')+'…':String(s||'');
+ return {current:now?`${now.topic} · ${trim(now.text)}`:'이 기간 보고서에서 우선 확인할 핵심 이슈가 뚜렷하게 잡히지 않음.',next:next?`${next.topic} · ${trim(next.text)}`:'후속 일정·추가 확인 과제가 명시된 보고가 없어 다음 접촉 시 확인 필요.'};
+}
 function buildSiteReportBrief(site){
- const range=bfRange(),data=bfData(site),override=bfOverride(site),esc=escapeHtml;
- return `<section class="report-brief bf-brief"><header class="bf-head"><strong>현장 핵심 브리핑</strong>${guestMode?'':`<button class="btn" data-bf-edit>브리핑 수정</button>`}</header><div class="bf-controls no-print"><label>보기 <select id="bfMode">${[['day','일별'],['week','주별'],['month','월별'],['custom','기간 지정']].map(([v,t])=>`<option value="${v}" ${bfView.mode===v?'selected':''}>${t}</option>`).join('')}</select></label>${bfView.mode==='custom'?`<label>시작 <input id="bfStart" type="date" value="${range.start}"></label><label>종료 <input id="bfEnd" type="date" value="${range.end}"></label><button class="btn" data-bf-apply>조회</button>`:`<button class="btn" data-bf-step="-1" aria-label="이전 기간">‹</button><input id="bfDate" type="date" aria-label="브리핑 기준 날짜" value="${bfView.date}"><button class="btn" data-bf-step="1" aria-label="다음 기간">›</button>`}</div><p class="bf-meta">${range.start} ~ ${range.end} · 내용 있는 보고서 ${data.count}건 · 핵심 요약${override?' · 직접 수정 포함':''}</p><div class="bf-grid">${HoccoBrief.fields.map(([key,title])=>{
+ const range=bfRange(),data=bfData(site),override=bfOverride(site),esc=escapeHtml,snapshot=bfSnapshot(data),periodLabel=bfPeriodDisplay(range);
+ return `<section class="report-brief bf-brief"><header class="bf-head"><strong>현장 핵심 브리핑</strong>${guestMode?'':`<button class="btn" data-bf-edit>브리핑 수정</button>`}</header><div class="bf-controls no-print"><label>보기 <select id="bfMode">${[['day','일별'],['week','주별'],['month','월별'],['custom','기간 지정']].map(([v,t])=>`<option value="${v}" ${bfView.mode===v?'selected':''}>${t}</option>`).join('')}</select></label>${bfView.mode==='custom'?`<label>시작 <input id="bfStart" type="date" value="${range.start}"></label><label>종료 <input id="bfEnd" type="date" value="${range.end}"></label><button class="btn" data-bf-apply>조회</button>`:`<button class="btn" data-bf-step="-1" aria-label="이전 기간">‹</button><button type="button" class="bf-period-display" data-bf-date-picker aria-label="기준 날짜 선택">${esc(periodLabel)}</button><input id="bfDate" class="bf-date-native" type="date" aria-label="브리핑 기준 날짜" value="${bfView.date}"><button class="btn" data-bf-step="1" aria-label="다음 기간">›</button>`}</div><p class="bf-meta">${range.start} ~ ${range.end} · 내용 있는 보고서 ${data.count}건 · 핵심 요약${override?' · 직접 수정 포함':''}</p><div class="bf-snapshot"><div><span>현재 핵심</span><strong>${esc(snapshot.current)}</strong></div><div><span>다음 확인</span><strong>${esc(snapshot.next)}</strong></div></div><div class="bf-grid">${HoccoBrief.fields.map(([key,title])=>{
  const manual=override&&Object.prototype.hasOwnProperty.call(override.sections||{},key),rawItems=data.sections[key],items=bfGroupItems(rawItems);
  const itemHtml=item=>{
    const latest=item.refs?.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')))[0];
@@ -14499,7 +14549,8 @@ function buildSiteReportBrief(site){
    return `<article class="bf-entry"><p><strong>${esc(item.topic||'핵심')}</strong> · ${esc(item.text)}</p>${context?`<div class="bf-entry-context">${esc(context)} · 근거 ${item.refs.length}건</div>`:''}<details><summary>원문·대상 확인 ${item.refs.length}건</summary>${item.refs.map(r=>`<div class="bf-source"><small>${esc([r.date,r.name,r.author].filter(Boolean).join(' · '))}</small><p>${esc(r.text||item.text)}</p></div>`).join('')}</details></article>`;
  };
 
- return `<section class="bf-section"><h3>${title}${guestMode?'':`<small>${manual?'직접 작성':'보고서 자동 정리'}</small>`}</h3>${manual?`<div class="bf-manual">${esc(override.sections[key]||'직접 작성된 내용이 없습니다.')}</div><p class="bf-meta">수정 ${esc(override.updatedAt?.slice(0,16).replace('T',' ')||'')} · ${esc(override.author||'관리자')}</p><details><summary>이 기간 최신 자동 정리 비교</summary>${items.map(itemHtml).join('')||'해당 항목의 보고 근거 없음'}</details>`:(items.length?items.slice(0,3).map(itemHtml).join('')+(items.length>3?`<details><summary>추가 핵심 ${items.length-3}개</summary>${items.slice(3).map(itemHtml).join('')}</details>`:''):'<p class="bf-empty">이 기간 보고서에서 이 항목을 뒷받침하는 구체적인 내용을 찾지 못했습니다.</p>')}</section>`;
+ const topItems=items.slice(0,3),extraItems=items.slice(3);
+ return `<section class="bf-section"><h3>${title}${guestMode?'':`<small>${manual?'직접 작성':'보고서 자동 정리'}</small>`}</h3>${manual?`<div class="bf-manual">${esc(override.sections[key]||'직접 작성된 내용이 없습니다.')}</div><p class="bf-meta">수정 ${esc(override.updatedAt?.slice(0,16).replace('T',' ')||'')} · ${esc(override.author||'관리자')}</p><details><summary>이 기간 최신 자동 정리 비교</summary>${items.map(itemHtml).join('')||'해당 항목의 보고 근거 없음'}</details>`:(topItems.length?topItems.map(itemHtml).join('')+(extraItems.length?`<details class="bf-extra"><summary>추가 핵심 ${extraItems.length}개</summary>${extraItems.map(itemHtml).join('')}</details>`:''):'<p class="bf-empty">이 기간 보고서에서 이 항목을 뒷받침하는 구체적인 내용을 찾지 못했습니다.</p>')}</section>`;
  }).join('')}</div><p class="bf-meta">보고서 원문에서 확인되는 사실·입장·후속 계획만 정리했습니다. 각 항목의 근거는 펼쳐서 바로 확인할 수 있습니다.</p></section>`;
 }
 async function bfSaveField(site,field,baseline,value){
@@ -14536,6 +14587,8 @@ document.addEventListener('click',e=>{
  const site=sites.find(s=>s.id===currentDetailId);
  if(e.target.closest('[data-bf-edit]')&&site)bfEdit(site);
  if(e.target.closest('[data-bf-role-edit]')){const selected=smSelected();if(selected)bfRoleEdit(selected.site)}
+ const datePick=e.target.closest('[data-bf-date-picker]');
+ if(datePick&&site){const native=document.getElementById('bfDate');if(native){try{native.showPicker?native.showPicker():native.click()}catch(_){native.click()}}}
  const step=e.target.closest('[data-bf-step]');if(step&&site){const d=new Date(bfView.date+'T12:00:00'),n=Number(step.dataset.bfStep);if(bfView.mode==='month'){d.setDate(1);d.setMonth(d.getMonth()+n)}else d.setDate(d.getDate()+n*(bfView.mode==='week'?7:1));bfView.date=smDateKey(d);renderDetailBody(site)}
  if(e.target.closest('[data-bf-apply]')&&site){const start=document.getElementById('bfStart').value,end=document.getElementById('bfEnd').value;if(!start||!end||start>end){alert('시작일과 종료일을 확인해 주세요.');return}bfView.start=start;bfView.end=end;renderDetailBody(site)}
 });
