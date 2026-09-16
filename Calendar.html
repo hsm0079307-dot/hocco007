@@ -1704,6 +1704,26 @@ body.dark-mode .modal input,body.dark-mode .modal textarea,body.dark-mode .modal
 }
 </style>
 
+
+<style id="calendar-manual-save-v1">
+#adminToolbar .calendar-save-btn{
+  background:#177f77!important;
+  color:#fff!important;
+  border-color:#177f77!important;
+  font-weight:850!important;
+}
+#adminToolbar .calendar-save-btn:hover{background:#126c66!important;color:#fff!important;}
+.calendar-save-toast{
+  position:fixed;left:50%;bottom:76px;transform:translate(-50%,12px);z-index:99999;
+  padding:10px 16px;border-radius:999px;background:#153f3b;color:#fff;font-size:12px;font-weight:800;
+  box-shadow:0 10px 28px rgba(0,0,0,.18);opacity:0;pointer-events:none;transition:.18s ease;
+}
+.calendar-save-toast.show{opacity:1;transform:translate(-50%,0);}
+.calendar-save-toast.error{background:#b74242;}
+@media(max-width:560px){
+  .calendar-save-toast{bottom:calc(132px + env(safe-area-inset-bottom));}
+}
+</style>
 </head>
 <body>
 <div id="lockScreen">
@@ -1794,6 +1814,7 @@ body.dark-mode .modal input,body.dark-mode .modal textarea,body.dark-mode .modal
   </div>
 
   <div class="toolbar bottom-toolbar" id="adminToolbar">
+    <button class="calendar-save-btn" onclick="saveAllCalendarData();closeMobileAdminMenu()">저장</button>
     <button onclick="exportExcel();closeMobileAdminMenu()">엑셀</button>
     <button onclick="window.print();closeMobileAdminMenu()">인쇄</button>
     <button onclick="openCapacitySettings();closeMobileAdminMenu()">정원</button>
@@ -1995,49 +2016,67 @@ function persistScheduleData(){
   localStorage.setItem(SCHEDULE_DATA_KEY, JSON.stringify({GALLERY_ROWS, TOUR_ROWS, GALLERY_CLOSED}));
 }
 
-// 오래된/잘못 분류된 일정 자동 복구:
-// 갤러리 형식 [시간, 픽업/자가, 성함, 동반, 담당] 자리에
-// 투어 성격의 값이 들어가면(예: [1:30, 목동11단지(신탁), -, 김경자, -])
-// 화랑아파트 + 목동11단지가 한 카드에 섞여 보일 수 있다.
-// 이름 칸이 비어 있고, 픽업/자가 칸이 현장명처럼 보이는 경우에만 투어 일정으로 안전하게 이동한다.
-function repairMisclassifiedGalleryRows(){
-  let changed = false;
-  const isBlankish = (v)=>{
-    const t = String(v==null ? '' : v).trim();
-    return !t || /^-+$/.test(t);
-  };
-  const looksLikeSite = (v)=>{
-    const t = String(v==null ? '' : v).trim();
-    if(!t || t === '화랑아파트') return false;
-    return /(단지|구역|아파트|신탁|재건축|재개발)/.test(t);
-  };
+// ---- 전체 수동 저장 ----
+// 일정은 입력 즉시 자동 저장되지만, 하단의 "저장" 버튼으로 현재 편집 상태를
+// 한 번 더 확정 저장할 수 있다. 제목/부제/직원표처럼 blur 시 저장되는 값도 함께 반영한다.
+function saveAllCalendarData(){
+  try{
+    // 현재 편집 중인 contenteditable 값을 메모리/스토리지에 먼저 동기화
+    const titleEl = document.getElementById("siteTitle");
+    const subtitleEl = document.getElementById("siteSubtitle");
+    const footEl = document.getElementById("footNote");
+    const gEl = document.getElementById("labelGallery");
+    const tEl = document.getElementById("labelTour");
 
-  Object.keys(GALLERY_ROWS || {}).forEach(key=>{
-    const rows = Array.isArray(GALLERY_ROWS[key]) ? GALLERY_ROWS[key] : [];
-    const keep = [];
-    rows.forEach(r=>{
-      if(Array.isArray(r)){
-        const [time, spot, name, plus, manager] = r;
-        // 잘못 저장된 대표 패턴: 현장명이 spot에 있고, name은 '-', 실제 성함이 plus에 있음
-        if(looksLikeSite(spot) && isBlankish(name) && !isBlankish(plus)){
-          const converted = [time || '-', String(spot).trim(), '-', String(plus).trim(), '-', isBlankish(manager) ? '-' : String(manager).trim()];
-          if(!TOUR_ROWS[key]) TOUR_ROWS[key] = [];
-          const sig = JSON.stringify(converted);
-          if(!TOUR_ROWS[key].some(x=>JSON.stringify(x)===sig)) TOUR_ROWS[key].push(converted);
-          changed = true;
-          return;
-        }
-      }
-      keep.push(r);
-    });
-    if(keep.length) GALLERY_ROWS[key] = keep;
-    else delete GALLERY_ROWS[key];
-  });
-  return changed;
+    if(titleEl){
+      localStorage.setItem(SITE_TITLE_KEY, titleEl.textContent.trim());
+      document.title = titleEl.textContent.trim() || document.title;
+    }
+    if(subtitleEl) localStorage.setItem(SITE_SUBTITLE_KEY, subtitleEl.textContent.trim());
+    if(footEl) localStorage.setItem(FOOTNOTE_KEY, footEl.textContent);
+
+    if(gEl){ CAT_LABEL.gallery = gEl.textContent.trim() || "갤러리"; gEl.textContent = CAT_LABEL.gallery; }
+    if(tEl){ CAT_LABEL.tour = tEl.textContent.trim() || "21차투어"; tEl.textContent = CAT_LABEL.tour; }
+
+    // 직원표가 편집 중이어도 현재 화면 값을 직접 읽어서 저장
+    if(typeof staffList !== "undefined" && Array.isArray(staffList)){
+      document.querySelectorAll("#staffBody td[contenteditable][data-field][data-idx]").forEach(td=>{
+        const idx = Number(td.dataset.idx);
+        const field = td.dataset.field;
+        if(staffList[idx] && field) staffList[idx][field] = td.textContent.trim();
+      });
+    }
+
+    persistScheduleData();
+    if(typeof persistCheck === "function") persistCheck();
+    if(typeof persistMemos === "function") persistMemos();
+    if(typeof persistRange === "function") persistRange();
+    if(typeof persistStaff === "function") persistStaff();
+    if(typeof persistCatLabel === "function") persistCatLabel();
+    if(typeof persistDateCapacity === "function") persistDateCapacity();
+
+    localStorage.setItem("calendar_last_manual_save_v1", new Date().toISOString());
+    showCalendarSaveToast("저장 완료");
+  }catch(err){
+    console.error("calendar manual save failed", err);
+    showCalendarSaveToast("저장 중 오류가 발생했습니다", true);
+  }
 }
-
+function showCalendarSaveToast(message, isError){
+  let toast = document.getElementById("calendarSaveToast");
+  if(!toast){
+    toast = document.createElement("div");
+    toast.id = "calendarSaveToast";
+    toast.className = "calendar-save-toast";
+    document.body.appendChild(toast);
+  }
+  toast.textContent = message;
+  toast.classList.toggle("error", !!isError);
+  toast.classList.add("show");
+  clearTimeout(showCalendarSaveToast._timer);
+  showCalendarSaveToast._timer = setTimeout(()=>toast.classList.remove("show"), 1600);
+}
 loadScheduleData();
-if(repairMisclassifiedGalleryRows()) persistScheduleData();
 
 const DATA = {}; // 캘린더 배지 표시용
 function rebuildDATA(){
@@ -2061,7 +2100,6 @@ function rebuildDATA(){
 rebuildDATA();
 
 function onScheduleDataChanged(){
-  repairMisclassifiedGalleryRows();
   persistScheduleData();
   rebuildDATA();
   buildCalendarArea();
@@ -4726,183 +4764,6 @@ function computeDateHeadcount(key){
 })();
 </script>
 
-
-
-
-<!-- MOBILE INTERACTION FIX v3: modal stacking + reliable month selector -->
-<style id="calendar-mobile-interaction-fix-v3">
-@media (max-width:560px){
-  /* 일정 상세/입력창이 하단 네비와 관리 버튼보다 반드시 위에 오도록 */
-  .overlay{z-index:12050!important;}
-  .overlay.on{display:flex!important;}
-  #overlay .modal,
-  #formOverlay .modal,
-  #statusOverlay .modal,
-  #memoOverlay .modal{
-    max-height:calc(100dvh - 28px)!important;
-    overflow-y:auto!important;
-    -webkit-overflow-scrolling:touch!important;
-    overscroll-behavior:contain;
-    padding-bottom:calc(28px + env(safe-area-inset-bottom))!important;
-  }
-  /* 상세/입력창이 열린 동안 뒤의 고정 메뉴가 버튼을 가리지 않게 숨김 */
-  body.mobile-modal-open #mobileMockNav,
-  body.mobile-modal-open .mobile-admin-fab,
-  body.mobile-modal-open .bottom-toolbar,
-  body.mobile-modal-open .mobile-admin-scrim{display:none!important;}
-
-  /* 월 선택 전용 시트 */
-  #m13MonthOverlay{z-index:12100!important;align-items:flex-end!important;padding:0!important;}
-  #m13MonthOverlay .m13-month-sheet{
-    width:100%;max-height:76dvh;overflow:auto;
-    background:#fff;border-radius:26px 26px 0 0;
-    padding:12px 16px calc(22px + env(safe-area-inset-bottom));
-    box-shadow:0 -22px 58px rgba(23,52,58,.17);
-  }
-  #m13MonthOverlay .m13-month-sheet:before{
-    content:"";display:block;width:38px;height:4px;border-radius:999px;
-    background:#d5e0df;margin:0 auto 14px;
-  }
-  .m13-month-picker-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;}
-  .m13-month-picker-head button{width:42px;height:42px;border:1px solid #dce8e6;border-radius:12px;background:#f8fbfa;color:#31545b;font-size:22px;font-weight:900;}
-  .m13-month-picker-year{font-size:22px;font-weight:950;letter-spacing:-.04em;color:#153d46;}
-  .m13-month-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;}
-  .m13-month-grid button{height:48px;border:1px solid #dce8e6;border-radius:13px;background:#fff;color:#35545b;font-size:13px;font-weight:850;}
-  .m13-month-grid button.active{background:#0b978b;color:#fff;border-color:#0b978b;box-shadow:0 7px 18px rgba(11,151,139,.18);}
-  .m13-month-picker-close{width:100%;height:44px;margin-top:12px;border:0;border-radius:13px;background:#eef6f4;color:#31545b;font-size:12px;font-weight:900;}
-}
-</style>
-<script id="calendar-mobile-interaction-fix-v3-js">
-(function(){
-  const isMobile=()=>window.matchMedia&&window.matchMedia('(max-width:560px)').matches;
-  const overlayIds=['overlay','formOverlay','statusOverlay','memoOverlay','m13MonthOverlay'];
-
-  function syncModalState(){
-    const anyOpen=overlayIds.some(id=>document.getElementById(id)?.classList.contains('on'));
-    document.body.classList.toggle('mobile-modal-open', !!(isMobile()&&anyOpen));
-  }
-
-  function observeOverlays(){
-    overlayIds.forEach(id=>{
-      const el=document.getElementById(id); if(!el||el.__mobileObs) return;
-      el.__mobileObs=true;
-      new MutationObserver(syncModalState).observe(el,{attributes:true,attributeFilter:['class']});
-    });
-    syncModalState();
-  }
-
-  function ensureMonthOverlay(){
-    let ov=document.getElementById('m13MonthOverlay');
-    if(ov) return ov;
-    ov=document.createElement('div');
-    ov.className='overlay';
-    ov.id='m13MonthOverlay';
-    ov.innerHTML='<div class="m13-month-sheet" role="dialog" aria-modal="true" aria-label="월 선택">'+
-      '<div class="m13-month-picker-head"><button type="button" data-y="-1" aria-label="이전 연도">‹</button><div class="m13-month-picker-year"></div><button type="button" data-y="1" aria-label="다음 연도">›</button></div>'+
-      '<div class="m13-month-grid"></div><button type="button" class="m13-month-picker-close">닫기</button></div>';
-    document.body.appendChild(ov);
-    ov.addEventListener('click',e=>{ if(e.target===ov) closeMonthPicker(); });
-    ov.querySelector('.m13-month-picker-close').onclick=closeMonthPicker;
-    ov.querySelectorAll('[data-y]').forEach(b=>b.onclick=()=>{ monthPickerYear+=Number(b.dataset.y); renderMonthPicker(); });
-    new MutationObserver(syncModalState).observe(ov,{attributes:true,attributeFilter:['class']});
-    return ov;
-  }
-
-  let monthPickerYear=(new Date()).getFullYear();
-  function activeMonth(){
-    const raw=(document.getElementById('rangeStart')||{}).value||'';
-    const m=raw.match(/^(\d{4})-(\d{2})/);
-    return m?{year:Number(m[1]),month:Number(m[2])}:{year:(new Date()).getFullYear(),month:(new Date()).getMonth()+1};
-  }
-  function renderMonthPicker(){
-    const ov=ensureMonthOverlay();
-    const a=activeMonth();
-    ov.querySelector('.m13-month-picker-year').textContent=monthPickerYear+'년';
-    const grid=ov.querySelector('.m13-month-grid');
-    grid.innerHTML='';
-    for(let m=1;m<=12;m++){
-      const b=document.createElement('button'); b.type='button'; b.textContent=m+'월';
-      if(monthPickerYear===a.year && m===a.month) b.classList.add('active');
-      b.onclick=()=>selectMonth(monthPickerYear,m);
-      grid.appendChild(b);
-    }
-  }
-  function openMonthPicker(){
-    if(!isMobile()) return;
-    const a=activeMonth(); monthPickerYear=a.year;
-    const ov=ensureMonthOverlay(); renderMonthPicker(); ov.classList.add('on'); syncModalState();
-  }
-  function closeMonthPicker(){
-    document.getElementById('m13MonthOverlay')?.classList.remove('on'); syncModalState();
-  }
-  function pad2(n){return String(n).padStart(2,'0');}
-  function selectMonth(y,m){
-    const first=y+'-'+pad2(m)+'-01';
-    const lastDay=new Date(y,m,0).getDate();
-    const last=y+'-'+pad2(m)+'-'+pad2(lastDay);
-    const rs=document.getElementById('rangeStart'), re=document.getElementById('rangeEnd');
-    if(rs) rs.value=first; if(re) re.value=last;
-    const ms=document.getElementById('m13Start'), me=document.getElementById('m13End');
-    if(ms) ms.value=first; if(me) me.value=last;
-    if(typeof applyRange==='function') applyRange();
-    if(typeof renderShell==='function') setTimeout(renderShell,0);
-    closeMonthPicker();
-  }
-
-  function bindMonthChip(){
-    if(!isMobile()) return;
-    const chip=document.getElementById('m13MonthChip'); if(!chip||chip.__monthFix) return;
-    chip.__monthFix=true;
-    chip.onclick=function(e){ e.preventDefault(); e.stopPropagation(); openMonthPicker(); };
-  }
-
-  function boot(){
-    ensureMonthOverlay(); observeOverlays(); bindMonthChip();
-    const root=document.body;
-    new MutationObserver(()=>{ bindMonthChip(); observeOverlays(); }).observe(root,{childList:true,subtree:true});
-  }
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot); else boot();
-  window.addEventListener('resize',()=>{ bindMonthChip(); syncModalState(); });
-})();
-</script>
-
-
-<!-- MOBILE SAVE BUTTON FIX v4 -->
-<style id="calendar-mobile-save-fix-v4">
-@media (max-width:560px){
-  #formOverlay .modal{
-    display:flex!important;
-    flex-direction:column!important;
-    max-height:calc(100dvh - 24px)!important;
-    overflow-y:auto!important;
-    padding-bottom:0!important;
-  }
-  #formOverlay #formFields{
-    flex:0 0 auto!important;
-    padding-bottom:8px!important;
-  }
-  #formOverlay .modal-actions{
-    position:sticky!important;
-    bottom:0!important;
-    z-index:20!important;
-    margin:10px -2px 0!important;
-    padding:10px 2px calc(12px + env(safe-area-inset-bottom))!important;
-    background:linear-gradient(180deg,rgba(255,255,255,.82) 0%,#fff 24%,#fff 100%)!important;
-    border-top:1px solid #e4eeec!important;
-  }
-  #formOverlay .modal-actions button{
-    display:block!important;
-    width:100%!important;
-    min-height:48px!important;
-    border-radius:13px!important;
-    background:#0b978b!important;
-    color:#fff!important;
-    font-size:13px!important;
-    font-weight:900!important;
-    box-shadow:0 8px 18px rgba(11,151,139,.18)!important;
-  }
-}
-</style>
 
 </body>
 </html>
