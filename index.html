@@ -7168,40 +7168,88 @@ async function mfRetrySync(){
     }
   }
 
-  // v10: 보고서 추가/수정/삭제는 현장 전체 saveSites()를 다시 거치지 않고
-  // logs 한 항목의 의도만 서버 최신값에 합쳐 저장한다.
-  // 텔레그램/Excel 동기화가 같은 현장의 명단·집계를 갱신한 직후에도
-  // 그 변경을 덮어쓰거나 '저장 충돌 비교'를 띄우지 않게 한다.
+  // v11: 보고서는 Firebase의 두 저장 경로를 함께 맞춘다.
+  // - /offices/... : 텔레그램 봇이 즉시 쓰는 경로
+  // - /data/offices/... : 대시보드 전체 저장/초기 로딩이 쓰는 경로
+  // 예전에는 삭제를 /offices에만 반영해서 /data에 남아 있던 같은 보고서가 새로고침 뒤 다시 살아날 수 있었다.
+  async function getFreshDataIndexInOffice(officeName, siteId){
+    try{
+      const url = `${FIREBASE_DB_URL}/data/offices/${encodeURIComponent(officeName)}.json?_=${Date.now()}`;
+      const res = await fetch(url, {cache:'no-store'});
+      if(!res.ok) return {idx:-1, freshArr:null};
+      const freshArr = await res.json();
+      if(!Array.isArray(freshArr)) return {idx:-1, freshArr:null};
+      const idx = freshArr.findIndex(s=>s && s.id===siteId);
+      return {idx, freshArr};
+    }catch(e){
+      console.error('data 현장 위치 재확인 실패', e);
+      return {idx:-1, freshArr:null};
+    }
+  }
+
   async function saveSiteLogsTargeted(site, opts){
     opts = opts || {};
     const officeName = site.office || currentOffice;
     const changedIds = new Set((opts.changedIds||[]).filter(Boolean));
     const removeIds = new Set((opts.deletedIds||[]).filter(Boolean));
-    const {idx:idxInOffice, freshArr} = await getFreshIndexInOffice(officeName, site.id);
-    if(idxInOffice<0 || !freshArr) throw new Error('서버에서 이 현장을 찾지 못했습니다.');
-    const remoteSite = freshArr[idxInOffice] || {};
-    const remoteLogs = Array.isArray(remoteSite.logs) ? remoteSite.logs : [];
+
+    // 두 경로를 모두 읽고 ID 기준으로 합친 뒤, 변경/삭제 의도를 한 번만 적용한다.
+    const [legacyInfo, dataInfo] = await Promise.all([
+      getFreshIndexInOffice(officeName, site.id),
+      getFreshDataIndexInOffice(officeName, site.id)
+    ]);
+    if((legacyInfo.idx<0 || !legacyInfo.freshArr) && (dataInfo.idx<0 || !dataInfo.freshArr)){
+      throw new Error('서버에서 이 현장을 찾지 못했습니다.');
+    }
+
+    const legacySite = legacyInfo.idx>=0 ? (legacyInfo.freshArr[legacyInfo.idx]||{}) : {};
+    const dataSite = dataInfo.idx>=0 ? (dataInfo.freshArr[dataInfo.idx]||{}) : {};
+    const legacyLogs = Array.isArray(legacySite.logs) ? legacySite.logs : [];
+    const dataLogs = Array.isArray(dataSite.logs) ? dataSite.logs : [];
     const localLogs = Array.isArray(site.logs) ? site.logs : [];
     const localById = new Map(localLogs.filter(l=>l&&l.id).map(l=>[l.id,l]));
-    const merged = remoteLogs
-      .filter(l=>l && !removeIds.has(l.id))
-      .map(l=>{
-        if(l.id && changedIds.has(l.id) && localById.has(l.id)){
-          return JSON.parse(JSON.stringify(localById.get(l.id)));
-        }
-        return l;
-      });
-    const mergedIds = new Set(merged.filter(l=>l&&l.id).map(l=>l.id));
-    changedIds.forEach(id=>{
-      if(removeIds.has(id) || mergedIds.has(id)) return;
-      const local = localById.get(id);
-      if(local){ merged.push(JSON.parse(JSON.stringify(local))); mergedIds.add(id); }
-    });
-    merged.sort((a,b)=>String(a?.date||'').localeCompare(String(b?.date||'')));
 
-    const url = `${FIREBASE_DB_URL}/offices/${encodeURIComponent(officeName)}/${idxInOffice}/logs.json?auth=${encodeURIComponent(FIREBASE_DB_SECRET)}`;
-    const res = await fetch(url, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(merged)});
-    if(!res.ok) throw new Error('클라우드 저장 실패 (상태코드 '+res.status+')');
+    // 같은 ID가 두 경로에 있으면 /data 내용을 우선하고, 텔레봇 경로에만 있는 새 보고서는 추가한다.
+    const remoteById = new Map();
+    dataLogs.forEach(l=>{ if(l&&l.id) remoteById.set(l.id,l); });
+    legacyLogs.forEach(l=>{ if(l&&l.id&&!remoteById.has(l.id)) remoteById.set(l.id,l); });
+
+    removeIds.forEach(id=>remoteById.delete(id));
+    changedIds.forEach(id=>{
+      if(removeIds.has(id)) return;
+      const local = localById.get(id);
+      if(local) remoteById.set(id, JSON.parse(JSON.stringify(local)));
+    });
+
+    const merged = [...remoteById.values()];
+    merged.sort((a,b)=>String(a?.date||'').localeCompare(String(b?.date||'')));
+    const writeBody = JSON.stringify(merged);
+    const writes=[];
+    if(legacyInfo.idx>=0){
+      writes.push(fetch(`${FIREBASE_DB_URL}/offices/${encodeURIComponent(officeName)}/${legacyInfo.idx}/logs.json?auth=${encodeURIComponent(FIREBASE_DB_SECRET)}`, {
+        method:'PUT', headers:{'Content-Type':'application/json'}, body:writeBody
+      }).then(r=>({kind:'bot',res:r})));
+    }
+    if(dataInfo.idx>=0){
+      writes.push(fetch(`${FIREBASE_DB_URL}/data/offices/${encodeURIComponent(officeName)}/${dataInfo.idx}/logs.json?auth=${encodeURIComponent(FIREBASE_DB_SECRET)}`, {
+        method:'PUT', headers:{'Content-Type':'application/json'}, body:writeBody
+      }).then(r=>({kind:'data',res:r})));
+    }
+    const results=await Promise.all(writes);
+    const failed=results.filter(x=>!x.res.ok);
+    if(failed.length) throw new Error('클라우드 저장 실패 ('+failed.map(x=>x.kind+':'+x.res.status).join(', ')+')');
+
+    // 삭제는 두 경로에서 실제로 사라졌는지 확인한다. 한쪽에 남아 있으면 다시 살아날 수 있으므로 성공 처리하지 않는다.
+    if(removeIds.size){
+      const verifyUrls=[];
+      if(legacyInfo.idx>=0) verifyUrls.push(`${FIREBASE_DB_URL}/offices/${encodeURIComponent(officeName)}/${legacyInfo.idx}/logs.json?_=${Date.now()}`);
+      if(dataInfo.idx>=0) verifyUrls.push(`${FIREBASE_DB_URL}/data/offices/${encodeURIComponent(officeName)}/${dataInfo.idx}/logs.json?_=${Date.now()}`);
+      const checks=await Promise.all(verifyUrls.map(async u=>{
+        const r=await fetch(u,{cache:'no-store'}); if(!r.ok) return null; const v=await r.json(); return Array.isArray(v)?v:[];
+      }));
+      const still=[...removeIds].filter(id=>checks.some(arr=>Array.isArray(arr)&&arr.some(l=>l&&l.id===id)));
+      if(still.length) throw new Error('삭제 확인 실패: 서버 한쪽에 보고서가 아직 남아 있습니다. 다시 삭제해 주세요.');
+    }
 
     site.logs = merged;
     site.lastDate = lastVisit(site);
@@ -15811,12 +15859,13 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
       localList.forEach(s=>{ if(s && s.id) localById[s.id] = s; });
       merged[office] = freshList.map(freshSite=>{
         const localSite = freshSite && freshSite.id ? localById[freshSite.id] : null;
-        if(!localSite) return freshSite;
-        const freshLogs = freshSite.logs || [];
-        const localLogs = localSite.logs || [];
+        // 이 세션에서 사용자가 삭제한 ID는 서버/로컬 어느 쪽에서 잠깐 다시 보여도 절대 되살리지 않는다.
+        const freshLogs = (freshSite.logs || []).filter(l=>l && !deletedLogIds.has(l.id));
+        if(!localSite) return Object.assign({}, freshSite, {logs:freshLogs});
+        const localLogs = (localSite.logs || []).filter(l=>l && !deletedLogIds.has(l.id));
         const freshIds = new Set(freshLogs.map(l=>l && l.id).filter(Boolean));
         const extraLocalLogs = localLogs.filter(l=>l && l.id && !freshIds.has(l.id));
-        return extraLocalLogs.length ? Object.assign({}, freshSite, {logs: freshLogs.concat(extraLocalLogs)}) : freshSite;
+        return Object.assign({}, freshSite, {logs: extraLocalLogs.length ? freshLogs.concat(extraLocalLogs) : freshLogs});
       });
     });
     return merged;
