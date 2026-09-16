@@ -5775,6 +5775,18 @@ body.ux383 .map-bottom-controls #officeSwitcher{position:static!important;margin
 body.ux383 .map-bottom-controls .office-btn{min-height:30px;padding:5px 9px;font-size:11px}
 @media print{.map-bottom-controls{display:none!important}}
 </style>
+
+<style id="reportDesktopPerfV13">
+/* 보고서 수백 건 현장의 초기 렌더링/첫 스크롤 최적화 */
+.report-log-more{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;margin:10px 0 14px;padding:10px 12px;border:1px dashed var(--line);border-radius:10px;background:var(--bg-side-2);color:var(--text-dim);font-size:10.5px}
+.report-log-more b{color:var(--accent)}
+.report-log-more-done{padding:7px 10px;opacity:.75}
+@media(min-width:821px){
+  #detailBody .report-brief,#detailBody .mgr-breakdown-wrap{contain:layout paint style}
+  #detailBody .log-list .log-author-group{content-visibility:auto;contain-intrinsic-size:260px;contain:layout paint style}
+  #detailBody .log-list .log-item{contain:content}
+}
+</style>
 </head>
 <body>
 <div id="entryGate" style="position:fixed;inset:0;background:rgba(3,12,22,.94);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;">
@@ -6395,8 +6407,6 @@ function pickClause(k,text,role){
  let t=(good.length?good.join(', '):clean(text)).trim();
  // Remove conversational wrappers while preserving the actual fact/action.
  t=t.replace(/^(?:그런데|그리고|또|또한|참고로)\s*/,'');
- t=t.replace(/^(?:아들|딸|남편|부인|배우자|가족)(?:이|가|은|는)?\s*/,'');
- t=t.replace(/관련\s*개인\s*의견/g,'관련 의견').replace(/개인\s*의견을\s*언급하며/g,'의견을 언급하며');
  t=t.replace(/\s*라고\s*(?:함|하심|말함|말했다)\.?$/,'').replace(/\s*한다고\s*(?:함|하심|말함|말했다)\.?$/,' 예정.');
  t=t.replace(/\s*문의했다고\s*(?:함|전함|말함|했다)\.?$/,' 문의.').replace(/\s*물어봤다고\s*(?:함|했다)\.?$/,' 문의.');
  t=t.replace(/\s+/g,' ').trim();
@@ -6894,6 +6904,10 @@ const L = (function(){
   let cstatExpandedCell = null; // 담당별 표에서 숫자 클릭해서 보고서 형식으로 펼친 셀 {mgr, method, table}
   let cstatDetailCollapsed = false; // "④ 접촉 상세" 목록을 접어둔 상태인지 (로그가 많으면 표들을 보려고 매번 스크롤해야 해서, 접었다 펼 수 있게)
   let logFormOpen = false; // "보고서 입력" 버튼을 눌러서 입력 폼을 펼친 상태인지
+  // 보고서가 수백 건인 현장은 처음부터 전부 DOM으로 만들면 첫 스크롤이 잠깐 끊길 수 있다.
+  // 최신 기록부터 80건씩 그려서 초기 렌더링 부담을 줄인다.
+  const REPORT_LOG_PAGE_SIZE = 80;
+  const reportLogVisibleLimitBySite = Object.create(null);
   let mgrBreakdownSubTab = '달력'; // 보고서 탭 상단 집계 영역의 하위 탭: 달력 | 주별집계 | 월별집계 | 소유자별
   let mgrBreakdownManagerFilter = null; // 담당자 이름 클릭시 그 사람 것만 필터링
   let mgrOwnerSubView = '전체'; // 소유자별 탭 안의 보기 방식: 전체 | 주별 | 월별
@@ -9956,6 +9970,9 @@ function renderDetailPanel(site){
 
     }else if(detailTab==='일지'){
       const logs = miReportLogs(site).filter(l=>!isTourBookingLog(l)).slice().sort((a,b)=>b.date.localeCompare(a.date));
+      const visibleLimit = Math.max(REPORT_LOG_PAGE_SIZE, Number(reportLogVisibleLimitBySite[site.id]) || REPORT_LOG_PAGE_SIZE);
+      const displayLogs = logs.slice(0, Math.min(logs.length, visibleLimit));
+      const hasMoreReportLogs = displayLogs.length < logs.length;
       const editingLog = editingLogId ? (site.logs||[]).find(l=>l.id===editingLogId) : null;
       const showForm = logFormOpen;
       body.innerHTML = `
@@ -10016,7 +10033,7 @@ function renderDetailPanel(site){
             if(!logs.length) return '<div class="empty">아직 기록된 보고서가 없습니다.</div>';
             // 같은 날짜 + 같은 접촉자를 담당자 여러 명이 각자 보고서로 남긴 경우, "공동방문"으로 묶어서 보여준다.
             const byDateContact = {};
-            logs.forEach(l=>{
+            displayLogs.forEach(l=>{
               const cn = (l.contactName||'').trim();
               if(!cn || !l.date) return;
               const k = l.date+'|'+cn+'|'+(l.unit||'');
@@ -10034,7 +10051,7 @@ function renderDetailPanel(site){
             // 담당자별로 묶어서 보여준다 (날짜순은 그대로 유지한 채, 그룹 안에서 최신순) — 공동방문 건은 위에서 만든 묶음으로
             const groups = {};
             const authorOrder = [];
-            logs.forEach(l=>{
+            displayLogs.forEach(l=>{
               const key = jointGroupKeyByLogId[l.id] || (l.author || '담당자 미상');
               if(!groups[key]){ groups[key] = []; authorOrder.push(key); }
               groups[key].push(l);
@@ -10083,6 +10100,7 @@ function renderDetailPanel(site){
               </div>`;
             }).join('');
           })()}
+          ${hasMoreReportLogs ? `<div class="report-log-more"><span>최근 <b>${displayLogs.length}</b> / 전체 <b>${logs.length}</b>건 표시</span><button type="button" class="btn btn-ghost btn-sm no-print" id="reportLogMoreBtn">이전 보고서 ${Math.min(REPORT_LOG_PAGE_SIZE, logs.length-displayLogs.length)}건 더 보기</button></div>` : (logs.length>REPORT_LOG_PAGE_SIZE ? `<div class="report-log-more report-log-more-done"><span>전체 ${logs.length}건을 표시했습니다.</span></div>` : '')}
         </div>`;
       const reportToolsBtn = document.getElementById('reportToolsBtn');
       const reportToolsPanel = document.getElementById('reportToolsPanel');
@@ -11819,6 +11837,14 @@ function renderDetailPanel(site){
           if(!(await ensureUnlocked())) return;
           await deleteLogById(btn.dataset.logid);
         });
+      });
+      const reportLogMoreBtn = body.querySelector('#reportLogMoreBtn');
+      if(reportLogMoreBtn) reportLogMoreBtn.addEventListener('click', ()=>{
+        const scroller=document.getElementById('masterPanel');
+        const keepTop=scroller ? scroller.scrollTop : 0;
+        reportLogVisibleLimitBySite[site.id] = Math.min(logs.length, displayLogs.length + REPORT_LOG_PAGE_SIZE);
+        renderDetailPanel(site);
+        requestAnimationFrame(()=>{ if(scroller) scroller.scrollTop=keepTop; });
       });
 
     }else if(detailTab==='공고'){
@@ -18032,7 +18058,7 @@ function rfDecorate(){
 
  const head=document.querySelector('.sidebar-head');if(head&&!head.querySelector('#rfEditList')){const b=uxButton('목록 편집',rfEditList);b.id='rfEditList';head.append(b)}
  const actions=document.querySelector('.detail-head-actions');if(actions&&!document.getElementById('rfPrintCard')){const b=uxButton('현장카드 인쇄',()=>rfPrintCard(sites.find(s=>s.id===currentDetailId)));b.id='rfPrintCard';b.classList.add('no-print');actions.prepend(b)}
- document.querySelectorAll('.log-item .log-field-line,.log-item .log-text,.report-log-card>div').forEach(el=>{if(el.closest('.rf-note')||(!el.classList.contains('log-text')&&!/^상담내용/.test(el.textContent.trim())))return;const d=document.createElement('details');d.className='rf-note';const sum=document.createElement('summary');sum.textContent='상담내용 펼치기';el.before(d);d.append(sum,el);while(d.nextElementSibling&&/^(타사활동|특이사항)/.test(d.nextElementSibling.textContent.trim()))d.append(d.nextElementSibling);d.ontoggle=()=>{sum.textContent=d.open?'상담내용 접기':'상담내용 펼치기'}});
+ document.querySelectorAll('.log-item .log-field-line:not([data-rf-note-checked]),.log-item .log-text:not([data-rf-note-checked]),.report-log-card>div:not([data-rf-note-checked])').forEach(el=>{el.dataset.rfNoteChecked='1';if(el.closest('.rf-note')||(!el.classList.contains('log-text')&&!/^상담내용/.test(el.textContent.trim())))return;const d=document.createElement('details');d.className='rf-note';const sum=document.createElement('summary');sum.textContent='상담내용 펼치기';el.before(d);d.append(sum,el);while(d.nextElementSibling&&/^(타사활동|특이사항)/.test(d.nextElementSibling.textContent.trim()))d.append(d.nextElementSibling);d.ontoggle=()=>{sum.textContent=d.open?'상담내용 접기':'상담내용 펼치기'}});
  const form=document.getElementById('logText');if(form&&!form.dataset.rf){form.dataset.rf='1';const fields=[['logDate','접촉일'],['logAuthor','담당자'],['logContactName','접촉대상 성명'],['logContactMethod','접촉방법'],['logUnit','동호수 / 지번'],['logOwner','소유자 (선택)'],['logExecutiveStance','집행부 성향 (선택)'],['logCloseness','친밀도 (선택)'],['logText','상담내용']];for(const[id,title]of fields){const el=document.getElementById(id);if(!el)continue;const l=document.createElement('label');l.className='rf-field';const t=document.createElement('span');t.textContent=title;el.before(l);l.append(t,el)}form.placeholder='예) 접촉한 내용, 현장의 주요 변화, 다음 연락·방문 계획';form.rows=4;const b=document.getElementById('logAddBtn');if(b)b.textContent=editingLogId?'수정 저장':'보고서 저장';const wrap=form.closest('.log-add');wrap.classList.add('rf-form-open');const basic=document.createElement('div');basic.className='rf-basic-grid';const optional=document.createElement('details');optional.className='rf-optional';optional.innerHTML='<summary>추가 정보 · 소유자 / 성향 / 친밀도</summary><div class="rf-basic-grid"></div>';const textLabel=form.parentElement;wrap.querySelector('.canva-report-commandbar').after(basic);for(const id of ['logDate','logAuthor','logContactName','logUnit','logContactMethod'])basic.append(document.getElementById(id).parentElement);for(const id of ['logOwner','logExecutiveStance','logCloseness'])optional.lastChild.append(document.getElementById(id).parentElement);textLabel.before(optional);wrap.querySelectorAll('.log-add-row2,.log-add-row3').forEach(r=>r.remove());requestAnimationFrame(()=>wrap.scrollIntoView({block:'start'}));}
 }
 function rfPrintCard(site){
@@ -18177,7 +18203,8 @@ ead><body><nav><button onclick="window.print()">인쇄 / PDF 저장</button><div
    if(box)box.innerHTML='<div style="height:100%;display:grid;place-items:center;color:#819089;font-size:10px">지도를 표시한 뒤 현장카드를 다시 인쇄해 주세요.</div>';
  }
 }
-const rfObserver=new MutationObserver(()=>{if(rfObserver.pending)return;rfObserver.pending=true;requestAnimationFrame(()=>{rfObserver.pending=false;rfDecorate()})});rfObserver.observe(document.body,{childList:true,subtree:true});rfDecorate();
+const rfScheduleDecorate=()=>{if(rfObserver.pending)return;rfObserver.pending=true;const run=()=>{rfObserver.pending=false;rfDecorate()};if('requestIdleCallback' in window)requestIdleCallback(run,{timeout:180});else setTimeout(run,32)};
+const rfObserver=new MutationObserver(rfScheduleDecorate);rfObserver.observe(document.body,{childList:true,subtree:true});rfDecorate();
 
 
 (function(){const wrap=document.querySelector('.map-wrap'),region=document.getElementById('regionPanel'),office=document.getElementById('officeSwitcher');if(!wrap||!region)return;const dock=document.createElement('div');dock.className='map-bottom-controls no-print';dock.setAttribute('aria-label','지도 지역 및 사업소 선택');dock.append(region);if(office)dock.append(office);wrap.append(dock);renderRegionPanel();})();
