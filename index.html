@@ -9474,16 +9474,26 @@ async function mfRetrySync(){
   // ---------- 현장명 목록 드래그로 순서 바꾸기 ----------
   let dragSrcId = null;
   function attachNameDragHandlers(){
-    const canDrag = !guestMode && localStorage.getItem('editUnlocked')==='1' && currentOffice!==ALL_OFFICE;
+    // 관리자 모드에서는 별도의 editUnlocked 저장값이 없어도 현장 순서 변경을 허용한다.
+    // 단, 여러 사업소가 한꺼번에 섞이는 '전체 사업소' 화면에서는 기존처럼 순서 변경을 막는다.
+    const canDrag = !guestMode && currentOffice!==ALL_OFFICE;
     sidebarEl.querySelectorAll('.name-item').forEach(item=>{
       item.setAttribute('draggable', canDrag ? 'true' : 'false');
+      item.style.cursor = canDrag ? 'grab' : 'pointer';
       if(!canDrag) return;
       item.addEventListener('dragstart', (e)=>{
         dragSrcId = item.dataset.id;
         e.dataTransfer.effectAllowed = 'move';
+        // Chromium/Safari 계열에서 setData가 없으면 dragstart가 불안정한 경우가 있어 명시한다.
+        try{ e.dataTransfer.setData('text/plain', dragSrcId || ''); }catch(_){}
+        item.style.cursor = 'grabbing';
         item.classList.add('dragging');
       });
-      item.addEventListener('dragend', ()=>{ item.classList.remove('dragging'); });
+      item.addEventListener('dragend', ()=>{
+        item.style.cursor = 'grab';
+        item.classList.remove('dragging');
+        sidebarEl.querySelectorAll('.name-item').forEach(x=>x.classList.remove('drag-over'));
+      });
       item.addEventListener('dragover', (e)=>{
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
