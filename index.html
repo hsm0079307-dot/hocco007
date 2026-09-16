@@ -7118,7 +7118,7 @@ async function mfRetrySync(){
   let selectedDistrict = null;
   let searchText = '';
   let quickFilter = 'all';
-  let listSort = 'name';
+  let listSort = 'manual';
   let sheetColumnFilters = {}; // 전체사업지 표 컬럼별 필터값: key -> Set<string> (담당자 필터와 동일한 검색+체크박스 방식)
   let sheetWeekBaseDate = null; // 금주/차주계획 기준일 (null이면 오늘 날짜 기준)
   let sheetColumnSearchText = {}; // key -> 드롭다운 안의 검색어
@@ -8535,11 +8535,14 @@ async function mfRetrySync(){
     return true;
   }
   function sortFiltered(arr){
+    // 현장 목록 기본값은 저장된 배열 순서(= 사용자가 드래그로 정한 순서)를 그대로 사용한다.
+    if(listSort==='manual') return arr.slice();
     return arr.slice().sort((a,b)=>{
       if(listSort==='recent') return (b.lastDate||'').localeCompare(a.lastDate||'');
       if(listSort==='stale') return (daysSinceDate(b.lastDate)||9999)-(daysSinceDate(a.lastDate)||9999);
       if(listSort==='manager') return (a.manager||'').localeCompare(b.manager||'','ko') || (a.name||'').localeCompare(b.name||'','ko');
-      return (a.name||'').localeCompare(b.name||'','ko');
+      if(listSort==='name') return (a.name||'').localeCompare(b.name||'','ko');
+      return 0;
     });
   }
 
@@ -9474,17 +9477,21 @@ async function mfRetrySync(){
   // ---------- 현장명 목록 드래그로 순서 바꾸기 ----------
   let dragSrcId = null;
   function attachNameDragHandlers(){
-    // 관리자 모드에서는 별도의 editUnlocked 저장값이 없어도 현장 순서 변경을 허용한다.
-    // 단, 여러 사업소가 한꺼번에 섞이는 '전체 사업소' 화면에서는 기존처럼 순서 변경을 막는다.
+    // 관리자 + 개별 사업소 화면이면 즉시 순서 변경 가능.
+    // 예전처럼 editUnlocked 로컬값이 있어야만 드래그되는 조건은 제거한다.
     const canDrag = !guestMode && currentOffice!==ALL_OFFICE;
     sidebarEl.querySelectorAll('.name-item').forEach(item=>{
       item.setAttribute('draggable', canDrag ? 'true' : 'false');
       item.style.cursor = canDrag ? 'grab' : 'pointer';
       if(!canDrag) return;
       item.addEventListener('dragstart', (e)=>{
+        // 즐겨찾기 별 버튼에서 시작한 동작은 드래그로 처리하지 않는다.
+        if(e.target && e.target.closest && e.target.closest('.ux-star')){
+          e.preventDefault();
+          return;
+        }
         dragSrcId = item.dataset.id;
         e.dataTransfer.effectAllowed = 'move';
-        // Chromium/Safari 계열에서 setData가 없으면 dragstart가 불안정한 경우가 있어 명시한다.
         try{ e.dataTransfer.setData('text/plain', dragSrcId || ''); }catch(_){}
         item.style.cursor = 'grabbing';
         item.classList.add('dragging');
@@ -9511,6 +9518,14 @@ async function mfRetrySync(){
         const [moved] = sites.splice(fromIdx, 1);
         sites.splice(toIdx, 0, moved);
         dragSrcId = null;
+        // 이름순 정렬이 다시 덮어쓰지 않도록, 드래그가 일어난 순간부터 저장된 수동 순서를 사용한다.
+        listSort = 'manual';
+        try{
+          const key = uxAccountKey()+':'+currentOffice;
+          uxPrefs.filters = uxPrefs.filters || {};
+          uxPrefs.filters[key] = Object.assign({}, uxPrefs.filters[key]||{}, {sort:'manual'});
+          uxStore();
+        }catch(_){}
         // 순서 바꾸기는 "그 현장 하나"가 아니라 목록 전체 배열 구조가 바뀌는 것이라, saveBulkMode로 저장해야
         // 실제로 클라우드에 새 순서가 반영된다 (안 하면 화면에서만 바뀐 것처럼 보이고 새로고침하면 되돌아감).
         saveBulkMode = true;
@@ -17637,7 +17652,7 @@ function uxRestoreFilters(){
  const p=uxPrefs.filters?.[uxAccountKey()+':'+currentOffice];if(!p)return;
  selectedManagers=new Set(Array.isArray(p.managers)?p.managers:[]);selectedStage=STAGES.includes(p.stage)?p.stage:'전체';
  selectedDistrict=sites.some(s=>s.district===p.district)?p.district:null;
- quickFilter=['all','stale','upcoming','updated','procurement'].includes(p.quick)?p.quick:'all';listSort=p.sort||'name';
+ quickFilter=['all','stale','upcoming','updated','procurement'].includes(p.quick)?p.quick:'all';listSort=guestMode?(p.sort||'name'):'manual';
 }
 function uxRestorePeriods(){
  const p=uxPrefs.period||{};const d=(v,f)=>v&&!isNaN(Date.parse(v))?new Date(v):f;
