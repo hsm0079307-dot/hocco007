@@ -13682,6 +13682,7 @@ function renderDetailPanel(site){
   let reportSummaryMode='week';
   let reportSummaryDate=new Date();
   let reportSummaryOffice='__ALL__';
+  let reportSummaryQuickFilter='all'; // all | activity | reportIssue
  // 현장 중심: 'sites' | 'contacts' | 'search' | 'tours'
   let reportSearchQuery = '';
   let reportSiteFullLogs = {}; // { 현장명: 전체(기간 무관) 로그 배열 } - 타임라인/검색/CRM에서 재사용
@@ -15048,6 +15049,13 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
     // 경쟁/순위용 정렬이 아니라 사업소 → 현장명 기준으로 안정적으로 표시.
     rows.sort((a,b)=>String(a.office).localeCompare(String(b.office),'ko')||String(a.site.name||'').localeCompare(String(b.site.name||''),'ko'));
 
+    // KPI 빠른 찾기: 숫자를 누르면 그 숫자를 만든 현장만 남겨서 잘못 입력된 보고/접촉을 즉시 찾는다.
+    const displayRows=reportSummaryQuickFilter==='activity'
+      ? rows.filter(x=>x.visits||x.reportCount||x.periodPeople)
+      : reportSummaryQuickFilter==='reportIssue'
+        ? rows.filter(x=>x.reportCount||x.issue)
+        : rows;
+
     const officeOptions=`<option value="__ALL__">전체 사업소</option>${OFFICES.map(o=>`<option value="${escapeHtml(o)}"${reportSummaryOffice===o?' selected':''}>${escapeHtml(o)}</option>`).join('')}`;
 
     function cardHtml(x){
@@ -15099,7 +15107,7 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
     }
 
     const groups={};
-    rows.forEach(x=>(groups[x.office]||(groups[x.office]=[])).push(x));
+    displayRows.forEach(x=>(groups[x.office]||(groups[x.office]=[])).push(x));
     const board=Object.keys(groups).map(o=>`
       <div class="cis-office-divider">${escapeHtml(o)} · ${groups[o].length}개 현장</div>
       <div class="cis-site-grid">${groups[o].map(cardHtml).join('')}</div>
@@ -15121,17 +15129,27 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
         <span class="cis-hint">현장 클릭 → 상세집계</span>
       </div>
       <div class="cis-kpis">
-        <div class="cis-kpi"><div class="k">기간 활동 현장</div><div class="v">${activeRows.length}곳</div><div class="s">${escapeHtml(r.label)}</div></div>
+        <div class="cis-kpi cis-kpi-clickable ${reportSummaryQuickFilter==='activity'?'active':''}" data-cis-quick-filter="activity" role="button" tabindex="0" title="클릭하면 이 기간에 활동이 잡힌 현장만 표시합니다. 다시 누르면 전체로 돌아갑니다."><div class="k">기간 활동 현장</div><div class="v">${activeRows.length}곳</div><div class="s">${escapeHtml(r.label)} · 클릭해서 찾기</div></div>
         <div class="cis-kpi"><div class="k">기간 접촉인원</div><div class="v">${totalPeriodPeople}명</div><div class="s">현장별 고유 접촉 합계</div></div>
         <div class="cis-kpi"><div class="k">현장 방문일수</div><div class="v">${totalVisitDays}일</div><div class="s">같은 날 여러 보고 = 1일</div></div>
-        <div class="cis-kpi"><div class="k">보고서 / 이슈현장</div><div class="v">${reportCount}건</div><div class="s">특이사항 ${issueSites}개 현장</div></div>
+        <div class="cis-kpi cis-kpi-clickable ${reportSummaryQuickFilter==='reportIssue'?'active':''}" data-cis-quick-filter="reportIssue" role="button" tabindex="0" title="클릭하면 이 기간에 보고서 또는 특이사항이 있는 현장만 표시합니다. 다시 누르면 전체로 돌아갑니다."><div class="k">보고서 / 이슈현장</div><div class="v">${reportCount}건</div><div class="s">특이사항 ${issueSites}개 현장 · 클릭해서 찾기</div></div>
       </div>
-      ${board||'<div class="cis-empty">표시할 현장이 없습니다.</div>'}
+      ${reportSummaryQuickFilter!=='all'?`<div class="cis-quick-filter-note"><b>${reportSummaryQuickFilter==='activity'?'기간 활동 현장':'보고서 / 이슈현장'}</b>만 표시 중 · 위 카드를 다시 누르면 전체 현장 표시</div>`:''}
+      ${board||'<div class="cis-empty">조건에 맞는 현장이 없습니다.</div>'}
     </div>`;
 
     const officeEl=document.getElementById('cisOffice');
     if(officeEl)officeEl.addEventListener('change',()=>{reportSummaryOffice=officeEl.value;renderIntegratedSummary();});
     body.querySelectorAll('[data-cis-mode]').forEach(btn=>btn.addEventListener('click',()=>{reportSummaryMode=btn.dataset.cisMode;renderIntegratedSummary();}));
+    const applyQuickFilter=(key)=>{
+      reportSummaryQuickFilter=reportSummaryQuickFilter===key?'all':key;
+      renderIntegratedSummary();
+      setTimeout(()=>{body.querySelector('.cis-office-divider,.cis-empty')?.scrollIntoView({block:'nearest',behavior:'smooth'});},0);
+    };
+    body.querySelectorAll('[data-cis-quick-filter]').forEach(kpi=>{
+      kpi.addEventListener('click',()=>applyQuickFilter(kpi.dataset.cisQuickFilter));
+      kpi.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();applyQuickFilter(kpi.dataset.cisQuickFilter);}});
+    });
     const prev=document.getElementById('cisPrev'),next=document.getElementById('cisNext');
     if(prev)prev.addEventListener('click',()=>{
       if(reportSummaryMode==='day')reportSummaryDate=new Date(reportSummaryDate.getFullYear(),reportSummaryDate.getMonth(),reportSummaryDate.getDate()-1);
@@ -17100,6 +17118,12 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
   }
 
   function smDongSection(rows){
+    // 동 값이 비어 있거나 '-', ':', 점 같은 구분문자만 있는 행은 동별 현황에서 제외한다.
+    // 실제 동(예: 1401, 1419)만 표에 보여주기 위한 표시용 정리이며 원본 집계 데이터는 건드리지 않는다.
+    rows=(rows||[]).filter(r=>{
+      const name=String(r&&r.name!=null?r.name:'').trim();
+      return !!name && !/^[-–—_:·.\s]+$/.test(name);
+    });
     if(!rows.length)return'<div class="pdf-empty">동별 집계 없음</div>';
     const half=Math.ceil(rows.length/2);
     const left=rows.slice(0,half), right=rows.slice(half);
@@ -17952,7 +17976,18 @@ function rfPrintCard(site){
    .page{width:auto;min-height:0;margin:0;box-shadow:none}
    .sheet{padding:3mm 3.5mm 1mm}
  }
- </style></head><body><nav><button onclick="window.print()">인쇄 / PDF 저장</button><div class="print-map-controls"><label>지도 높이 <input id="mapHeightRange" type="range" min="42" max="76" value="59"><output id="mapHeightVal">59mm</output></label><label>지도 폭 <input id="mapWidthRange" type="range" min="54" max="74" value="64"><output id="mapWidthVal">64%</output></label><button type="button" class="map-reset" onclick="resetPrintMapSize()">기본 크기</button></div></nav><main class="page"><div class="sheet"><header class="hero"><div><div class="eyebrow">SITE BRIEF · 현장카드</div><h1>${escapeHtml(site.name)}</h1><div class="hero-meta">${escapeHtml(site.district||'지역 미입력')} · ${new Date().toLocaleDateString('ko-KR')}</div></div><span class="stage-chip">${escapeHtml(stageLabel)}</span></header><div class="facts">${pairs.map(([k,v])=>`<div class="fact"><div class="fact-label">${escapeHtml(k)}</div><div class="fact-value">${escapeHtml(String(v||'-'))}</div></div>`).join('')}</div><div class="main-grid"><section class="panel"><div class="panel-head">현장 위치</div><div class="map-card"><div class="map" id="printMap"></div><div class="print-map-zoom" aria-label="지도 확대 축소"><button type="button" id="printMapZoomIn" title="지도 확대">+</button><button type="button" id="printMapZoomOut" title="지도 축소">−</button></div></div></section>${note('진행단계',site.stageDetail,300,'stage-card')}</div><div class="lower-grid">${note('주요 비고',site.salesNote||site.memo,330)}${note('타사활동',site.progressNote,300)}${note('최근 보고 · 발췌',recent,360,'wide')}</div></div></main><script>
+ </style></h
+<style id="cisQuickFindV9">
+/* 통합 접촉현황 KPI 빠른 찾기 */
+.cis-v374 .cis-kpi-clickable{cursor:pointer;user-select:none;transition:transform .12s ease,border-color .12s ease,box-shadow .12s ease,background .12s ease}
+.cis-v374 .cis-kpi-clickable:hover{transform:translateY(-1px);border-color:var(--accent)!important;box-shadow:0 5px 14px rgba(35,116,94,.12)!important}
+.cis-v374 .cis-kpi-clickable:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.cis-v374 .cis-kpi-clickable.active{border-color:var(--accent)!important;background:color-mix(in srgb,var(--accent-soft) 72%,var(--card))!important;box-shadow:inset 0 0 0 1px var(--accent),0 4px 12px rgba(35,116,94,.10)!important}
+.cis-v374 .cis-kpi-clickable.active:before{opacity:1!important;width:5px!important}
+.cis-quick-filter-note{margin:-1px 0 10px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg-side-2);font-size:9.5px;color:var(--text-dim)}
+.cis-quick-filter-note b{color:var(--accent)}
+</style>
+ead><body><nav><button onclick="window.print()">인쇄 / PDF 저장</button><div class="print-map-controls"><label>지도 높이 <input id="mapHeightRange" type="range" min="42" max="76" value="59"><output id="mapHeightVal">59mm</output></label><label>지도 폭 <input id="mapWidthRange" type="range" min="54" max="74" value="64"><output id="mapWidthVal">64%</output></label><button type="button" class="map-reset" onclick="resetPrintMapSize()">기본 크기</button></div></nav><main class="page"><div class="sheet"><header class="hero"><div><div class="eyebrow">SITE BRIEF · 현장카드</div><h1>${escapeHtml(site.name)}</h1><div class="hero-meta">${escapeHtml(site.district||'지역 미입력')} · ${new Date().toLocaleDateString('ko-KR')}</div></div><span class="stage-chip">${escapeHtml(stageLabel)}</span></header><div class="facts">${pairs.map(([k,v])=>`<div class="fact"><div class="fact-label">${escapeHtml(k)}</div><div class="fact-value">${escapeHtml(String(v||'-'))}</div></div>`).join('')}</div><div class="main-grid"><section class="panel"><div class="panel-head">현장 위치</div><div class="map-card"><div class="map" id="printMap"></div><div class="print-map-zoom" aria-label="지도 확대 축소"><button type="button" id="printMapZoomIn" title="지도 확대">+</button><button type="button" id="printMapZoomOut" title="지도 축소">−</button></div></div></section>${note('진행단계',site.stageDetail,300,'stage-card')}</div><div class="lower-grid">${note('주요 비고',site.salesNote||site.memo,330)}${note('타사활동',site.progressNote,300)}${note('최근 보고 · 발췌',recent,360,'wide')}</div></div></main><script>
 (function(){
  var h=document.getElementById('mapHeightRange'),wv=document.getElementById('mapWidthRange'),ho=document.getElementById('mapHeightVal'),wo=document.getElementById('mapWidthVal');
  function apply(){
@@ -18973,6 +19008,37 @@ body.ux383 .cal-manager-more summary{font-size:9px!important;min-height:24px}
     text-align:left!important;
     white-space:pre-wrap!important;
     line-height:1.6!important;
+  }
+}
+</style>
+
+<style id="desktopContactReportBottomV8">
+/* v8 desktop contact report: 마지막 ⑤ 상세표가 카드/모달 하단에서 잘려 보이지 않도록 전체 높이로 펼친다. */
+@media screen and (min-width:821px){
+  body.ux383 #globalStatsModalBox .sm-body{
+    padding-bottom:34px!important;
+    scroll-padding-bottom:34px!important;
+  }
+  body.ux383 #globalStatsBody .pdfsheet{
+    padding-bottom:18px!important;
+  }
+  body.ux383 #globalStatsBody .pdf-today-wrap{
+    height:auto!important;
+    min-height:0!important;
+    max-height:none!important;
+    margin-bottom:12px!important;
+  }
+  body.ux383 #globalStatsBody .pdf-today-body{
+    width:100%!important;
+    height:auto!important;
+    min-height:0!important;
+    max-height:none!important;
+    overflow-x:auto!important;
+    overflow-y:visible!important;
+    padding-bottom:2px!important;
+  }
+  body.ux383 #globalStatsBody .pdf-today-table{
+    margin-bottom:0!important;
   }
 }
 </style>
