@@ -17734,6 +17734,14 @@ async function miOpen(){
   const files=[...e.target.files];if(!files.length)return;
   if(files.length>30||files.some(f=>f.size>50*1024*1024)||files.reduce((n,f)=>n+f.size,0)>120*1024*1024){say('한 번에 30개 이하, 파일당 50MB 이하, 전체 120MB 이하로 선택해 주세요.');return}
   busy=true;candidates=[];el('miApply').disabled=true;el('miCards').replaceChildren();let skipped=0,failures=[];
+  // 파일을 고르는 순간 서버의 최신 excelStats를 기준점으로 잡는다.
+  // 페이지를 오래 열어둔 사이 텔레그램/다른 PC에서 데이터가 갱신돼도
+  // 파일 선택 전에 이미 끝난 정상 변경을 충돌로 오인하지 않게 한다.
+  let freshAtPick=null;
+  try{
+   const sr=await fetch(FIREBASE_DATA_WRITE_URL,{cache:'no-store'});
+   if(sr.ok) freshAtPick=await sr.json();
+  }catch(e){}
   try{
    if(!window.XLSX)throw Error('엑셀 읽기 기능을 불러오지 못했습니다. 파일을 다시 열어주세요.');
    for(let i=0;i<files.length;i++){
@@ -17745,7 +17753,18 @@ async function miOpen(){
      result.candidates.filter(c=>c.named).forEach(c=>{c.fileHash=hash;c.target=miSuggested(c,pairs,prefs);c.checked=c.selected;
       const prior=prefs[c.sheetName+'|'+miParser.siteKey(c.title)];
       if(prior){if(prior.scope==='all'||(prior.scope==='members'&&c.members))c.scope=prior.scope;if(prior.signature===JSON.stringify(c.schema.labels)&&prior.schema)c.schema=prior.schema}
-      c.baseline=c.target<0?null:JSON.stringify(pairs[c.target].site.excelStats||null);calculate(c);candidates.push(c)});
+      if(c.target<0){
+       c.baseline=null;
+      }else{
+       const p=pairs[c.target];
+       const arr=freshAtPick&&freshAtPick.offices&&freshAtPick.offices[p.office];
+       const remote=Array.isArray(arr)?arr.find(s=>String(s.id)===String(p.site.id)):null;
+       if(remote&&remote.name===p.site.name){
+        p.site.excelStats=remote.excelStats?uxClone(remote.excelStats):null;
+        c.baseline=JSON.stringify(remote.excelStats||null);
+       }else c.baseline=JSON.stringify(p.site.excelStats||null);
+      }
+      calculate(c);candidates.push(c)});
     }catch(error){failures.push(`${f.name}: ${error.message}`)}
    }
   }catch(error){failures.push(error.message)}
