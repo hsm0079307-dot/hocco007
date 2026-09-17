@@ -18545,9 +18545,27 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
         .concat(Object.keys(x.byManager||{}))
         .concat(ev.map(e=>e&&e.manager));
       const aliases=smManagerAliasMap(aliasValues);
+      // Excel의 월별 접촉 이벤트는 날짜/방법만 들어 있고 상담내용(text)은
+      // 비고·상담내용 열에서 복원되는 경우가 많다. 기존 접촉 건수/대상은 그대로 유지하면서
+      // MemberExcelReports가 복원한 같은 사람·날짜·방법의 text만 합쳐 준다.
+      let enriched=[];
+      try{
+        if(window.MemberExcelReports&&typeof window.MemberExcelReports.events==='function')
+          enriched=window.MemberExcelReports.events(x)||[];
+      }catch(err){ enriched=[]; }
+      const textFor=e=>{
+        const pid=String(e&&e.personId||'');
+        const name=smCore(e&&e.name||'');
+        const hit=enriched.find(a=>
+          String(a&&a.date||'')===String(e&&e.date||'')&&
+          String(a&&a.method||'')===String(e&&e.method||'')&&
+          (pid?(String(a&&a.personId||'')===pid):(smCore(a&&a.name||'')===name))
+        );
+        return String(e&&e.text||hit&&hit.text||'').trim();
+      };
       return ev
         .filter(e=>smInRangeDate(String(e.date||''),range))
-        .map(e=>({...e,manager:smManagerAlias(e.manager,aliases)}));
+        .map(e=>({...e,text:textFor(e),manager:smManagerAlias(e.manager,aliases)}));
     }
     const out=[];(site.logs||[]).filter(l=>!isTourBookingLog(l)&&smInRangeDate(String(l.date||''),range)).forEach(l=>{
       smSplit(l.contactName||l.owner).forEach(n=>out.push({date:l.date,name:n,manager:l.author||site.manager||'',unit:l.unit||'',dong:'',role:'',method:l.contactMethod||''}));
@@ -18918,10 +18936,11 @@ body.theme-dark .action-state.danger{background:rgba(255,123,123,.10)!important}
     }
     const ev=events.filter(e=>e.date===targetDate),allEvents=smEvents(site,{start:'0000-01-01',end:'9999-12-31'});
     const counts={};allEvents.forEach(e=>{counts[miPersonKey(e)]=(counts[miPersonKey(e)]||0)+1;});
-    const rows=ev.map((e,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(smManagerKey(e.manager))}</td><td class="left">${escapeHtml(e.name)}</td><td>${escapeHtml(e.unit||'-')}</td><td>${escapeHtml(e.role||'-')}</td><td>${counts[miPersonKey(e)]||1}</td><td>${escapeHtml(e.method||'-')}</td><td>${escapeHtml(smLogTextForPerson(site,e.date,e.name)||'')}</td></tr>`).join('');
+    const contactText=e=>String(e&&e.text||smLogTextForPerson(site,e.date,e.name)||'').trim();
+    const rows=ev.map((e,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(smManagerKey(e.manager))}</td><td class="left">${escapeHtml(e.name)}</td><td>${escapeHtml(e.unit||'-')}</td><td>${escapeHtml(e.role||'-')}</td><td>${counts[miPersonKey(e)]||1}</td><td>${escapeHtml(e.method||'-')}</td><td>${escapeHtml(contactText(e)||'-')}</td></tr>`).join('');
 
     const cards=ev.map((e,i)=>{
-      const text=smLogTextForPerson(site,e.date,e.name)||'';
+      const text=contactText(e);
       return `<article class="recent-person-card"><header><span class="recent-person-no">${i+1}</span><strong>${escapeHtml(e.name||'성명 미입력')}</strong></header><dl>
       <div><dt>담당</dt><dd>${escapeHtml(smManagerKey(e.manager)||'-')}</dd></div>
       <div><dt>동호수</dt><dd>${escapeHtml(e.unit||'-')}</dd></div>
@@ -20651,6 +20670,35 @@ body.ux383 .cal-manager-more summary{font-size:9px!important;min-height:24px}
   }
   body.ux383 #globalStatsBody .pdf-today-table{
     margin-bottom:0!important;
+  }
+}
+</style>
+
+<style id="desktopSelectedDayDetailFixV11">
+/* v11: 선택일 접촉 상세 제목의 날짜/인원 줄이 고정 높이에 잘리지 않도록 함. */
+@media screen and (min-width:821px){
+  body.ux383 #globalStatsBody .pdf-today-wrap{overflow:visible!important;}
+  body.ux383 #globalStatsBody .pdf-today-wrap>.pdf-section-title{
+    flex:0 0 auto!important;
+    height:auto!important;
+    min-height:58px!important;
+    max-height:none!important;
+    overflow:visible!important;
+    grid-template-rows:auto auto!important;
+    align-content:center!important;
+    padding-top:8px!important;
+    padding-bottom:8px!important;
+  }
+  body.ux383 #globalStatsBody .pdf-today-wrap>.pdf-section-title>.sub{
+    display:block!important;
+    min-height:16px!important;
+    line-height:1.45!important;
+    overflow:visible!important;
+  }
+  body.ux383 #globalStatsBody .pdf-today-table td:nth-child(8){
+    min-width:260px!important;
+    overflow:visible!important;
+    white-space:pre-wrap!important;
   }
 }
 </style>
