@@ -6422,8 +6422,11 @@ body.pro-show-legacy .checklist-section,body.pro-show-legacy .car{display:block!
     const box=document.getElementById('proDays');if(!box)return;
     const b=baseDate(),y=b.getFullYear(),m=b.getMonth(),first=new Date(y,m,1),start=new Date(y,m,1-first.getDay());
     document.getElementById('proMonthTitle').textContent=`${y}년 ${m+1}월`;
+    const daysInMonth=new Date(y,m+1,0).getDate();
+    const weeks=(first.getDay()+daysInMonth<=35)?5:6;
+    box.dataset.weeks=String(weeks);
     let html='';
-    for(let i=0;i<42;i++){
+    for(let i=0;i<weeks*7;i++){
       const d=new Date(start);d.setDate(start.getDate()+i);const k=key(d),other=d.getMonth()!==m,ev=other?[]:dayEvents(k),g=ev.some(x=>x.kind==='gallery'),t=ev.some(x=>x.kind==='tour'),dow=d.getDay();
       html+=`<button type="button" class="pro-day ${other?'other':''} ${dow===0?'sun':''} ${dow===6?'sat':''} ${!other&&k===selectedKey?'selected':''}" data-key="${k}" data-other="${other?1:0}" data-y="${d.getFullYear()}" data-m="${d.getMonth()}" data-d="${d.getDate()}"><span class="pro-daynum">${d.getDate()}</span>${(g||t)?`<span class="pro-day-dots">${g?'<i class="g"></i>':''}${t?'<i class="t"></i>':''}</span>`:''}</button>`;
     }
@@ -6437,7 +6440,10 @@ body.pro-show-legacy .checklist-section,body.pro-show-legacy .car{display:block!
   }
   function renderMini(){
     const box=document.getElementById('proMobileSummary');if(!box)return;const ev=dayEvents(selectedKey);const show=ev.slice(0,3);
-    box.innerHTML=`<div class="pro-mobile-summary-head"><strong>선택 일정 <span class="count">${ev.length}건</span></strong><button type="button" id="proMiniOpen">${esc(label(selectedKey))} ›</button></div><div class="pro-mini-events">${show.map(e=>`<div class="pro-mini-event"><i class="pro-dot ${e.kind}"></i><b>${esc(e.time)}</b><span>${esc(e.site)}</span><em>${esc(e.name)}</em></div>`).join('')||'<div class="pro-empty">등록된 일정이 없습니다.</div>'}</div>`;
+    const todayKey=key(new Date());
+    const summaryTitle=(selectedKey===todayKey?'오늘 일정':'선택 일정');
+    box.classList.toggle('is-empty',ev.length===0);
+    box.innerHTML=`<div class="pro-mobile-summary-head"><strong>${summaryTitle} <span class="count">${ev.length}건</span></strong><button type="button" id="proMiniOpen">${esc(label(selectedKey))} ›</button></div><div class="pro-mini-events">${show.map(e=>`<div class="pro-mini-event"><i class="pro-dot ${e.kind}"></i><b>${esc(e.time)}</b><span>${esc(e.site)}</span><em>${esc(e.name)}</em></div>`).join('')||'<div class="pro-empty">등록된 일정이 없습니다.</div>'}</div>`;
     document.getElementById('proMiniOpen').onclick=()=>openSheet();
   }
   function renderDetail(){
@@ -6625,5 +6631,71 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
 })();
 </script>
 
+
+<style id="calendar-pro-v22-mobile-fidelity">
+/* V22 — approved mobile mockup fidelity */
+@media (max-width:760px){
+  html,body{background:#fff!important}
+  body{padding-bottom:calc(58px + env(safe-area-inset-bottom))!important}
+  .pro-main{padding:0 15px 8px!important}
+  .pro-main-card{padding:11px 0 0!important}
+
+  .pro-main-head{margin:0 0 11px!important;gap:10px!important;align-items:center!important}
+  .pro-main-head .pro-title{font-size:22px!important;line-height:1!important;font-weight:950!important;letter-spacing:-.055em!important;color:#102f49!important}
+  .pro-main-head p{margin-top:4px!important;font-size:9.2px!important;color:#8296a2!important}
+  .pro-manage{height:38px!important;padding:0 10px!important;border-radius:11px!important;font-size:9.6px!important;border-color:#dce7eb!important;background:#fff!important}
+  .pro-manage svg{width:15px!important;height:15px!important}
+
+  .pro-monthbar{grid-template-columns:38px minmax(0,1fr) 48px 38px!important;gap:7px!important;margin-bottom:9px!important}
+  .pro-monthbar .pro-iconbtn,.pro-today{height:38px!important;border-radius:11px!important}
+  .pro-month-title{font-size:21px!important;line-height:1!important;font-weight:950!important;letter-spacing:-.055em!important}
+  .pro-today{font-size:9.4px!important}
+
+  .pro-site-row{display:grid!important;grid-template-columns:52px minmax(0,1fr) minmax(0,1fr) 84px!important;gap:6px!important;padding:0 0 9px!important;overflow:visible!important}
+  .pro-chip{height:31px!important;min-width:0!important;width:100%!important;padding:0 5px!important;border-radius:999px!important;font-size:8.1px!important;letter-spacing:-.035em!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;background:#fff!important}
+  .pro-chip.on{background:#f2fbfa!important;border-color:#18aa9f!important;color:#078d83!important;box-shadow:inset 0 0 0 .5px rgba(18,163,153,.08)!important}
+
+  .pro-calendar{border-radius:12px!important;border-color:#e5edef!important;background:#fff!important;box-shadow:0 3px 14px rgba(29,64,78,.025)!important}
+  .pro-weekday{height:27px!important;font-size:8.4px!important;border-color:#edf2f3!important}
+  .pro-days[data-weeks="5"] .pro-day{height:47px!important;min-height:47px!important}
+  .pro-days[data-weeks="6"] .pro-day{height:42px!important;min-height:42px!important}
+  .pro-day{padding:3px 2px!important;border-color:#edf2f3!important;background:#fff!important}
+  .pro-day.other{background:#fcfdfd!important;color:#b6c4cb!important}
+  .pro-daynum{width:27px!important;height:27px!important;font-size:9.2px!important;font-weight:900!important}
+  .pro-day.selected .pro-daynum{background:linear-gradient(145deg,#19b5aa,#0c938a)!important;box-shadow:0 5px 13px rgba(13,154,145,.21)!important}
+  .pro-day-dots{bottom:4px!important;gap:3px!important}
+  .pro-day-dots i{width:4.7px!important;height:4.7px!important}
+
+  .pro-legend{margin:7px 2px 0!important;gap:15px!important}
+  .pro-legend button{padding:1px 0!important;font-size:8.5px!important;gap:5px!important;color:#6f8390!important}
+  .pro-legend .pro-dot{width:7px!important;height:7px!important;flex-basis:7px!important}
+
+  .pro-mobile-summary{margin-top:7px!important;padding:9px 11px!important;border-radius:12px!important;border-color:#e2ebee!important;box-shadow:0 5px 18px rgba(29,64,78,.025)!important}
+  .pro-mobile-summary-head{margin-bottom:6px!important}
+  .pro-mobile-summary-head strong{font-size:12.3px!important;letter-spacing:-.03em!important}
+  .pro-mobile-summary-head button{font-size:8.5px!important}
+  .pro-mini-events{gap:5px!important}
+  .pro-mini-event{grid-template-columns:7px 53px minmax(0,1fr) auto!important;gap:6px!important;min-height:19px!important;font-size:8.7px!important}
+  .pro-mini-event b{font-size:8.8px!important}.pro-mini-event em{font-size:8.3px!important}
+  .pro-mobile-summary.is-empty{padding-bottom:8px!important}
+  .pro-mobile-summary.is-empty .pro-mobile-summary-head{margin-bottom:2px!important}
+  .pro-mobile-summary.is-empty .pro-empty{padding:7px 2px 3px!important;font-size:8.8px!important}
+
+  .pro-bottomnav{height:calc(56px + env(safe-area-inset-bottom))!important;padding:4px 10px env(safe-area-inset-bottom)!important;border-top-color:#e9eff1!important}
+  .pro-bottomnav button{gap:1px!important;font-size:8px!important}
+  .pro-bottomnav svg{width:17px!important;height:17px!important}
+
+  .pro-detail-panel{max-height:min(84dvh,700px)!important;padding:10px 14px calc(13px + env(safe-area-inset-bottom))!important;border-radius:23px 23px 0 0!important}
+  .pro-detail-panel:before{width:36px!important;height:4px!important;margin-bottom:10px!important}
+  .pro-detail-date{font-size:22px!important;margin-bottom:10px!important}
+  .pro-stat{height:36px!important;padding:0 11px!important;font-size:9.8px!important}
+  .pro-statrow{margin-bottom:10px!important}
+  .pro-event,.pro-event.gallery,.pro-event.tour{min-height:58px!important;grid-template-columns:62px minmax(0,1fr) 16px!important;padding:7px 8px!important;border-radius:13px!important}
+  .pro-time{height:36px!important;font-size:9.7px!important}
+  .pro-event-title{font-size:10.7px!important}.pro-event-meta{font-size:8.5px!important}
+  .pro-capacity{margin-top:8px!important;padding:9px 10px!important}
+  .pro-actions{margin-top:8px!important}.pro-actions button{height:40px!important}
+}
+</style>
 </body>
 </html>
