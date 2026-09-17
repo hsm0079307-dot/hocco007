@@ -1704,26 +1704,6 @@ body.dark-mode .modal input,body.dark-mode .modal textarea,body.dark-mode .modal
 }
 </style>
 
-
-<style id="calendar-manual-save-v1">
-#adminToolbar .calendar-save-btn{
-  background:#177f77!important;
-  color:#fff!important;
-  border-color:#177f77!important;
-  font-weight:850!important;
-}
-#adminToolbar .calendar-save-btn:hover{background:#126c66!important;color:#fff!important;}
-.calendar-save-toast{
-  position:fixed;left:50%;bottom:76px;transform:translate(-50%,12px);z-index:99999;
-  padding:10px 16px;border-radius:999px;background:#153f3b;color:#fff;font-size:12px;font-weight:800;
-  box-shadow:0 10px 28px rgba(0,0,0,.18);opacity:0;pointer-events:none;transition:.18s ease;
-}
-.calendar-save-toast.show{opacity:1;transform:translate(-50%,0);}
-.calendar-save-toast.error{background:#b74242;}
-@media(max-width:560px){
-  .calendar-save-toast{bottom:calc(132px + env(safe-area-inset-bottom));}
-}
-</style>
 </head>
 <body>
 <div id="lockScreen">
@@ -1814,7 +1794,6 @@ body.dark-mode .modal input,body.dark-mode .modal textarea,body.dark-mode .modal
   </div>
 
   <div class="toolbar bottom-toolbar" id="adminToolbar">
-    <button class="calendar-save-btn" onclick="saveAllCalendarData();closeMobileAdminMenu()">저장</button>
     <button onclick="exportExcel();closeMobileAdminMenu()">엑셀</button>
     <button onclick="window.print();closeMobileAdminMenu()">인쇄</button>
     <button onclick="openCapacitySettings();closeMobileAdminMenu()">정원</button>
@@ -2014,67 +1993,6 @@ function loadScheduleData(){
 }
 function persistScheduleData(){
   localStorage.setItem(SCHEDULE_DATA_KEY, JSON.stringify({GALLERY_ROWS, TOUR_ROWS, GALLERY_CLOSED}));
-}
-
-// ---- 전체 수동 저장 ----
-// 일정은 입력 즉시 자동 저장되지만, 하단의 "저장" 버튼으로 현재 편집 상태를
-// 한 번 더 확정 저장할 수 있다. 제목/부제/직원표처럼 blur 시 저장되는 값도 함께 반영한다.
-function saveAllCalendarData(){
-  try{
-    // 현재 편집 중인 contenteditable 값을 메모리/스토리지에 먼저 동기화
-    const titleEl = document.getElementById("siteTitle");
-    const subtitleEl = document.getElementById("siteSubtitle");
-    const footEl = document.getElementById("footNote");
-    const gEl = document.getElementById("labelGallery");
-    const tEl = document.getElementById("labelTour");
-
-    if(titleEl){
-      localStorage.setItem(SITE_TITLE_KEY, titleEl.textContent.trim());
-      document.title = titleEl.textContent.trim() || document.title;
-    }
-    if(subtitleEl) localStorage.setItem(SITE_SUBTITLE_KEY, subtitleEl.textContent.trim());
-    if(footEl) localStorage.setItem(FOOTNOTE_KEY, footEl.textContent);
-
-    if(gEl){ CAT_LABEL.gallery = gEl.textContent.trim() || "갤러리"; gEl.textContent = CAT_LABEL.gallery; }
-    if(tEl){ CAT_LABEL.tour = tEl.textContent.trim() || "21차투어"; tEl.textContent = CAT_LABEL.tour; }
-
-    // 직원표가 편집 중이어도 현재 화면 값을 직접 읽어서 저장
-    if(typeof staffList !== "undefined" && Array.isArray(staffList)){
-      document.querySelectorAll("#staffBody td[contenteditable][data-field][data-idx]").forEach(td=>{
-        const idx = Number(td.dataset.idx);
-        const field = td.dataset.field;
-        if(staffList[idx] && field) staffList[idx][field] = td.textContent.trim();
-      });
-    }
-
-    persistScheduleData();
-    if(typeof persistCheck === "function") persistCheck();
-    if(typeof persistMemos === "function") persistMemos();
-    if(typeof persistRange === "function") persistRange();
-    if(typeof persistStaff === "function") persistStaff();
-    if(typeof persistCatLabel === "function") persistCatLabel();
-    if(typeof persistDateCapacity === "function") persistDateCapacity();
-
-    localStorage.setItem("calendar_last_manual_save_v1", new Date().toISOString());
-    showCalendarSaveToast("저장 완료");
-  }catch(err){
-    console.error("calendar manual save failed", err);
-    showCalendarSaveToast("저장 중 오류가 발생했습니다", true);
-  }
-}
-function showCalendarSaveToast(message, isError){
-  let toast = document.getElementById("calendarSaveToast");
-  if(!toast){
-    toast = document.createElement("div");
-    toast.id = "calendarSaveToast";
-    toast.className = "calendar-save-toast";
-    document.body.appendChild(toast);
-  }
-  toast.textContent = message;
-  toast.classList.toggle("error", !!isError);
-  toast.classList.add("show");
-  clearTimeout(showCalendarSaveToast._timer);
-  showCalendarSaveToast._timer = setTimeout(()=>toast.classList.remove("show"), 1600);
 }
 loadScheduleData();
 
@@ -2295,6 +2213,71 @@ function buildCalendarArea(){
         if(info.tour && activeCategories.tour && tourMatchesDanjiFilter(key)) badges.innerHTML += "<div class='b tour'>투</div>";
       }
       el.appendChild(badges);
+
+      // 데스크탑: '투/갤' 배지만 보이지 않고, 현장·방문자·담당자를 바로 읽을 수 있게 표시
+      const scheduleList = document.createElement("div");
+      scheduleList.className = "desktop-schedule-list";
+
+      function addScheduleItem(kind, time, site, name, manager){
+        const item = document.createElement("div");
+        item.className = "desktop-schedule-item " + kind;
+
+        const timeEl = document.createElement("span");
+        timeEl.className = "desktop-schedule-time";
+        timeEl.textContent = (time && time !== "-") ? time : "일정";
+
+        const copy = document.createElement("span");
+        copy.className = "desktop-schedule-copy";
+
+        const main = document.createElement("strong");
+        main.textContent = [site, name].filter(Boolean).join(" · ");
+
+        const sub = document.createElement("small");
+        sub.textContent = manager && manager !== "-" ? ("담당 " + manager) : "담당 미지정";
+
+        copy.appendChild(main);
+        copy.appendChild(sub);
+        item.appendChild(timeEl);
+        item.appendChild(copy);
+        scheduleList.appendChild(item);
+      }
+
+      if(showClosed){
+        const closedItem = document.createElement("div");
+        closedItem.className = "desktop-schedule-item closed";
+        closedItem.innerHTML = "<span class='desktop-schedule-time'>휴관</span><span class='desktop-schedule-copy'><strong>갤러리 이용 불가</strong><small>일정 확인 필요</small></span>";
+        scheduleList.appendChild(closedItem);
+      }
+
+      if(activeCategories.gallery && galleryMatchesDanjiFilter() && Array.isArray(GALLERY_ROWS[key])){
+        GALLERY_ROWS[key].forEach(r=>{
+          const [time, spot, name, plus, manager] = r;
+          addScheduleItem("gallery", time, GALLERY_DANJI, name, manager);
+        });
+      }
+
+      if(activeCategories.tour && Array.isArray(TOUR_ROWS[key])){
+        TOUR_ROWS[key].forEach(r=>{
+          const [time, danji, ho, name, plus, manager] = r;
+          if(activeDanjiFilter.size>0 && !activeDanjiFilter.has(danji)) return;
+          addScheduleItem("tour", time, danji, name, manager);
+        });
+      }
+
+      if(scheduleList.children.length){
+        const maxVisible = 3;
+        const total = scheduleList.children.length;
+        Array.from(scheduleList.children).forEach((node, idx)=>{
+          if(idx >= maxVisible) node.style.display = "none";
+        });
+        if(total > maxVisible){
+          const more = document.createElement("div");
+          more.className = "desktop-schedule-more";
+          more.textContent = "+ " + (total-maxVisible) + "건 더보기";
+          scheduleList.appendChild(more);
+        }
+        el.appendChild(scheduleList);
+      }
 
       const capacity = getCapacityForKey(key);
       if(capacity>0 && info && !showClosed){
@@ -4543,7 +4526,8 @@ function computeDateHeadcount(key){
 </style>
 <script id="calendar-mobile-v13-shell-js">
 (function(){
-  const mq=()=>window.matchMedia&&window.matchMedia('(max-width:560px)').matches;
+  const mq=()=>true;
+  const isDesktop=()=>window.matchMedia&&window.matchMedia('(min-width:561px)').matches;
   let selectedKey=null;
   const svgCal='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5.5" width="17" height="15" rx="2.5"></rect><path d="M7 3.5v4M17 3.5v4M3.5 10h17"></path><path d="M8 14h2M14 14h2M8 17h2M14 17h2"></path></svg>';
   const svgPeople='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="9" r="3"></circle><circle cx="16.5" cy="8.5" r="2.5"></circle><path d="M4.5 19c.7-3.3 2.6-5 5.7-5s5 1.7 5.7 5"></path><path d="M14.3 18.6c.4-2.3 1.7-3.7 4-4.2"></path></svg>';
@@ -4559,7 +4543,7 @@ function computeDateHeadcount(key){
   function monthText(){const v=(document.getElementById('rangeStart')||{}).value||range?.start||'';if(!v)return'';const p=v.split('-');return Number(p[0])+'년 '+Number(p[1])+'월';}
   function currentMonthDate(){const v=(document.getElementById('rangeStart')||{}).value||range?.start;return v?new Date(v+'T00:00:00'):new Date()}
   function uniqueManagers(){const s=new Set();Object.values(GALLERY_ROWS||{}).forEach(rs=>rs.forEach(r=>r[4]&&s.add(r[4])));Object.values(TOUR_ROWS||{}).forEach(rs=>rs.forEach(r=>r[5]&&s.add(r[5])));return s.size}
-  function uniqueDanjis(){const s=new Set(['목동11단지(신탁)','목동14단지(신탁)','화랑아파트']);Object.values(TOUR_ROWS||{}).forEach(rs=>rs.forEach(r=>r[1]&&s.add(r[1])));return Array.from(s).slice(0,3)}
+  function uniqueDanjis(){const s=new Set(['목동11단지(신탁)','목동14단지(신탁)','화랑아파트']);Object.values(TOUR_ROWS||{}).forEach(rs=>rs.forEach(r=>r[1]&&s.add(r[1])));return isDesktop()?Array.from(s):Array.from(s).slice(0,3)}
   function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 
   function ensureShell(){
@@ -4597,7 +4581,7 @@ function computeDateHeadcount(key){
           <button type="button" class="m13-apply" id="m13Apply">적용</button>
         </div>
         <div class="m13-quick">
-          <button type="button" id="m13This"><span class="chev">‹</span>이번 달</button>
+          <button type="button" id="m13This"><span class="chev">‹</span>지난 달</button>
           <button type="button" class="next" id="m13Next">다음 달<span class="chev">›</span></button>
         </div>
       </section>
@@ -4611,6 +4595,7 @@ function computeDateHeadcount(key){
             <button type="button" id="m13Nxt">›</button>
           </div>
         </div>
+        <div class="m13-site-row" id="m13SiteRow"></div>
         <div class="m13-weekdays"><div class="m13-weekday sun">일</div><div class="m13-weekday">월</div><div class="m13-weekday">화</div><div class="m13-weekday">수</div><div class="m13-weekday">목</div><div class="m13-weekday">금</div><div class="m13-weekday sat">토</div></div>
         <div class="m13-days" id="m13Days"></div>
       </section>
@@ -4657,7 +4642,7 @@ function computeDateHeadcount(key){
       applyRange();
       setTimeout(renderShell,0);
     };
-    document.getElementById('m13This').onclick=()=>{ setThisMonth(); setTimeout(renderShell,0); };
+    document.getElementById('m13This').onclick=()=>shiftMonth(-1);
     document.getElementById('m13Next').onclick=()=>{ setNextMonth(); setTimeout(renderShell,0); };
     document.getElementById('m13Prev').onclick=()=>shiftMonth(-1);
     document.getElementById('m13Nxt').onclick=()=>shiftMonth(1);
@@ -4691,20 +4676,48 @@ function computeDateHeadcount(key){
 
   function renderFilters(){
     const box=document.getElementById('m13Filters'); if(!box) return;
-    const danjis=uniqueDanjis();
-    const top=[
-      ['gallery', CAT_LABEL.gallery||'갤러리', activeCategories.gallery],
-      ['tour', CAT_LABEL.tour||'21차투어', activeCategories.tour],
-      ['closed', '휴관/불가', showClosedToggle]
+
+    const cats=[
+      ['gallery','갤러리',activeCategories.gallery],
+      ['tour','투어',activeCategories.tour]
     ];
-    let html='';
-    top.forEach(([kind,label,on])=>{ html+=`<button type="button" class="m13-filter ${kind} ${on?'on':''}" data-kind="${kind}"><i></i><span>${escapeHtml(label)}</span></button>`; });
-    danjis.forEach(name=>{ html+=`<button type="button" class="m13-filter danji ${activeDanjiFilter.has(name)?'on':''}" data-danji="${escapeHtml(name)}"><i></i><span>${escapeHtml(name)}</span></button>`; });
-    box.innerHTML=html;
+    box.innerHTML=cats.map(([kind,label,on])=>
+      `<button type="button" class="m13-filter ${kind} ${on?'on':''}" data-kind="${kind}">
+        <i></i><span>${label}</span>
+      </button>`
+    ).join('');
+
     box.querySelectorAll('[data-kind]').forEach(b=>b.onclick=()=>{
-      const k=b.dataset.kind; k==='closed'?toggleClosedFilter():toggleCategory(k); setTimeout(renderShell,0);
+      toggleCategory(b.dataset.kind);
+      setTimeout(renderShell,0);
     });
-    box.querySelectorAll('[data-danji]').forEach(b=>b.onclick=()=>{ toggleDanjiFilter(b.dataset.danji); setTimeout(renderShell,0); });
+
+    renderSiteFilters();
+  }
+
+  function renderSiteFilters(){
+    const row=document.getElementById('m13SiteRow'); if(!row) return;
+    const danjis=uniqueDanjis();
+    let html=`<span class="m13-site-label">현장</span>
+      <button type="button" class="m13-site-chip ${activeDanjiFilter.size===0?'on':''}" data-site-all="1">전체</button>`;
+    danjis.forEach(name=>{
+      html+=`<button type="button" class="m13-site-chip ${activeDanjiFilter.has(name)?'on':''}" data-danji="${escapeHtml(name)}">${escapeHtml(name)}</button>`;
+    });
+    row.innerHTML=html;
+
+    const all=row.querySelector('[data-site-all]');
+    if(all) all.onclick=()=>{
+      activeDanjiFilter.clear();
+      populateDanjiToggleBar();
+      buildCalendarArea();
+      selectDate(currentDateKey,false);
+      renderShell();
+    };
+
+    row.querySelectorAll('[data-danji]').forEach(b=>b.onclick=()=>{
+      toggleDanjiFilter(b.dataset.danji);
+      setTimeout(renderShell,0);
+    });
   }
 
   function eventFor(k){
@@ -4718,24 +4731,112 @@ function computeDateHeadcount(key){
     return arr;
   }
 
+  function detailedEventsFor(k){
+    const rows=[];
+
+    if(showClosedToggle && GALLERY_CLOSED[k] && galleryMatchesDanjiFilter()){
+      rows.push({kind:'closed', time:'휴관', site:'갤러리', name:'이용 불가', manager:''});
+    }
+
+    if(activeCategories.gallery && galleryMatchesDanjiFilter() && Array.isArray(GALLERY_ROWS[k])){
+      GALLERY_ROWS[k].forEach(r=>{
+        const [time,spot,name,plus,manager]=r;
+        rows.push({
+          kind:'gallery',
+          time:(time&&time!=='-')?time:'일정',
+          site:GALLERY_DANJI||'갤러리',
+          name:(name&&name!=='-')?name:'성명 미입력',
+          manager:(manager&&manager!=='-')?manager:''
+        });
+      });
+    }
+
+    if(activeCategories.tour && Array.isArray(TOUR_ROWS[k])){
+      TOUR_ROWS[k].forEach(r=>{
+        const [time,danji,ho,name,plus,manager]=r;
+        if(activeDanjiFilter.size>0 && !activeDanjiFilter.has(danji)) return;
+        rows.push({
+          kind:'tour',
+          time:(time&&time!=='-')?time:'일정',
+          site:(danji&&danji!=='-')?danji:'현장 미입력',
+          name:(name&&name!=='-')?name:'성명 미입력',
+          manager:(manager&&manager!=='-')?manager:''
+        });
+      });
+    }
+
+    // 같은 시간·현장·담당이면 방문자 이름을 묶어서 한눈에 보이게 표시
+    const grouped=[];
+    const map=new Map();
+    rows.forEach(r=>{
+      const gk=[r.kind,r.time,r.site,r.manager].join('|');
+      if(!map.has(gk)){
+        const g={...r,names:[]};
+        map.set(gk,g);
+        grouped.push(g);
+      }
+      const g=map.get(gk);
+      if(r.name && !g.names.includes(r.name)) g.names.push(r.name);
+    });
+    grouped.forEach(g=>g.name=g.names.join(' · ') || g.name || '');
+    return grouped;
+  }
+
   function renderCalendar(){
     const base=currentMonthDate(), y=base.getFullYear(), m=base.getMonth();
     document.getElementById('m13CalTitle').textContent = y+'년 '+(m+1)+'월';
     const days=document.getElementById('m13Days'); if(!days) return; days.innerHTML='';
     const first=new Date(y,m,1), start=new Date(y,m,1-first.getDay()), today=new Date();
     if(!selectedKey){ selectedKey = (today.getFullYear()===y && today.getMonth()===m) ? key(today) : key(first); }
+
+    const desktop=isDesktop();
+
     for(let i=0;i<35;i++){
       const d=new Date(start); d.setDate(start.getDate()+i);
       const k=key(d), other=d.getMonth()!==m, ev=eventFor(k);
       const b=document.createElement('button');
       b.type='button';
       b.className='m13-day '+(other?'other ':'')+(d.getDay()===0?'sun ':'')+(d.getDay()===6?'sat ':'')+((selectedKey===k && !other)?'selected':'');
+
       let inner=`<span class="m13-daynum">${d.getDate()}</span>`;
-      if(!other && ev.length){ const e0=ev[0]; inner += `<span class="m13-event ${e0[0]}">${escapeHtml(e0[1])}</span>`; if(ev.length>1) inner += `<span class="m13-more">+${ev.length-1}</span>`; }
+
+      if(!other && desktop){
+        const detail=detailedEventsFor(k);
+        if(detail.length){
+          const show=detail.slice(0,3);
+          inner += `<div class="m13-desk-events">`;
+          show.forEach(x=>{
+            inner += `
+              <div class="m13-desk-event ${x.kind}">
+                <div class="m13-desk-time">${escapeHtml(x.time)}</div>
+                <div class="m13-desk-copy">
+                  <strong>${escapeHtml(x.site)}</strong>
+                  <span>${escapeHtml(x.name)}</span>
+                  <small>${x.manager?('담당 '+escapeHtml(x.manager)):'담당 미지정'}</small>
+                </div>
+              </div>`;
+          });
+          if(detail.length>3) inner += `<div class="m13-desk-more">+ ${detail.length-3}건 더보기</div>`;
+          inner += `</div>`;
+        }
+      } else if(!other && ev.length){
+        const e0=ev[0];
+        inner += `<span class="m13-event ${e0[0]}">${escapeHtml(e0[1])}</span>`;
+        if(ev.length>1) inner += `<span class="m13-more">+${ev.length-1}</span>`;
+      }
+
       b.innerHTML=inner;
       b.onclick=()=>{
-        if(other){ const f=new Date(d.getFullYear(), d.getMonth(), 1), l=new Date(d.getFullYear(), d.getMonth()+1, 0); document.getElementById('rangeStart').value=iso(f); document.getElementById('rangeEnd').value=iso(l); applyRange(); }
-        selectedKey=k; currentDateKey=k; renderShell(); openPreview(k);
+        if(other){
+          const f=new Date(d.getFullYear(), d.getMonth(), 1), l=new Date(d.getFullYear(), d.getMonth()+1, 0);
+          document.getElementById('rangeStart').value=iso(f);
+          document.getElementById('rangeEnd').value=iso(l);
+          applyRange();
+        }
+        selectedKey=k;
+        currentDateKey=k;
+        renderShell();
+        openPreview(k);
       };
       days.appendChild(b);
     }
@@ -4753,6 +4854,7 @@ function computeDateHeadcount(key){
     document.getElementById('m13EndText').textContent=prettyDate(re?.value||'');
     document.getElementById('m13ManagerSub').textContent='총 '+uniqueManagers()+'명의 담당자가 있습니다.';
     renderFilters();
+    renderSiteFilters();
     renderCalendar();
   }
 
@@ -4764,6 +4866,734 @@ function computeDateHeadcount(key){
 })();
 </script>
 
+
+
+
+<style id="calendar-desktop-v13-like-mobile">
+/* =========================================================
+   DESKTOP V13
+   모바일 V13의 색감·라운드·타이포·카드 감성을 그대로 유지하고
+   데스크탑에서는 정보 밀도와 글자 크기만 확장한다.
+   ========================================================= */
+@media (min-width:561px){
+  :root{
+    --d13-bg:#eef8f6;
+    --d13-card:#ffffff;
+    --d13-line:#dbe9e6;
+    --d13-line2:#e7f0ee;
+    --d13-ink:#173d46;
+    --d13-sub:#7f9196;
+    --d13-teal:#0c8f85;
+    --d13-teal2:#23b7aa;
+    --d13-orange:#f6a348;
+    --d13-orange-bg:#fff2e7;
+    --d13-pink:#f06a8a;
+    --d13-pink-bg:#fff2f6;
+    --d13-blue:#2f85f3;
+    --d13-shadow:0 14px 34px rgba(27,76,80,.06);
+  }
+
+  html,body{background:var(--d13-bg)!important}
+  body{
+    padding:24px 26px 72px!important;
+    background:
+      radial-gradient(circle at 8% 2%,rgba(72,198,184,.09),transparent 24%),
+      radial-gradient(circle at 94% 12%,rgba(136,212,224,.08),transparent 22%),
+      linear-gradient(180deg,#eff9f8 0%,#f8fbfb 52%,#eef8f6 100%)!important;
+    color:var(--d13-ink)!important;
+    font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic",sans-serif!important;
+    letter-spacing:-.025em!important;
+  }
+
+  .wrap{width:min(1480px,100%)!important;max-width:none!important;margin:0 auto!important}
+
+  /* 기존 데스크탑 UI는 숨기고 모바일 V13 쉘을 데스크탑용으로 확대 */
+  .wrap>header,
+  .wrap>.rangebar,
+  .wrap>.legend,
+  .wrap>.danjiToggleBar,
+  .wrap>#calendarArea{display:none!important}
+
+  #mobileMockApp{
+    display:grid!important;
+    grid-template-columns:minmax(0,1.35fr) minmax(350px,.65fr);
+    gap:16px!important;
+    margin:0 0 16px!important;
+  }
+  #mobileMockNav{display:none!important}
+
+  #mobileMockApp .m13-card{
+    background:rgba(255,255,255,.985)!important;
+    border:1px solid var(--d13-line)!important;
+    border-radius:22px!important;
+    box-shadow:var(--d13-shadow)!important;
+  }
+
+  /* hero */
+  #mobileMockApp .m13-hero{
+    grid-column:1/-1;
+    position:relative;overflow:hidden;
+    min-height:116px;
+    padding:24px 28px 24px 116px;
+    background:linear-gradient(112deg,#fff 0%,#f1fbf8 52%,#f2f8fb 100%)!important;
+  }
+  #mobileMockApp .m13-hero-icon{
+    position:absolute;left:26px;top:24px;
+    width:66px;height:66px;border-radius:19px;
+    background:linear-gradient(145deg,#1fc0b0,#078177);
+    display:grid;place-items:center;color:#fff;
+    box-shadow:0 10px 24px rgba(7,129,119,.20);
+  }
+  #mobileMockApp .m13-hero-icon svg{width:32px;height:32px;stroke:currentColor;fill:none;stroke-width:1.9}
+  #mobileMockApp .m13-title{
+    margin:7px 0 7px;
+    font-size:31px;line-height:1.04;font-weight:800;letter-spacing:-.055em;color:#123946;
+  }
+  #mobileMockApp .m13-sub{margin:0;font-size:13px;line-height:1.4;font-weight:600;color:#819296}
+  #mobileMockApp .m13-hero-scene{position:absolute;right:10px;bottom:0;width:34%;height:94%;opacity:.82;background-repeat:no-repeat;background-position:right bottom;background-size:contain}
+
+  /* 일정 기간 */
+  #mobileMockApp .m13-range{grid-column:1;padding:20px 20px 18px}
+  #mobileMockApp .m13-range-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+  #mobileMockApp .m13-section-title{font-size:20px;font-weight:800;letter-spacing:-.04em;color:#153d46}
+  #mobileMockApp .m13-month-chip{
+    height:42px;padding:0 14px;border:1px solid #dce8e6;border-radius:13px;background:#fbfdfd;
+    display:inline-flex;align-items:center;gap:8px;color:#35545b;font-size:12px;font-weight:700;white-space:nowrap;
+  }
+  #mobileMockApp .m13-month-chip svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.9}
+  #mobileMockApp .m13-range-grid{display:grid;grid-template-columns:minmax(0,1fr) 18px minmax(0,1fr) 116px;gap:12px;align-items:end}
+  #mobileMockApp .m13-wave{align-self:center;text-align:center;color:#60777d;font-size:23px;font-weight:800;padding-bottom:14px}
+  #mobileMockApp .m13-date-card{
+    position:relative;overflow:hidden;min-width:0;height:82px;padding:12px 14px;
+    border:1px solid #dce8e6;border-radius:15px;background:#fff;display:flex;flex-direction:column;justify-content:center;gap:9px;
+  }
+  #mobileMockApp .m13-date-card label{font-size:10px;font-weight:700;color:#8a9aa0;line-height:1}
+  #mobileMockApp .m13-date-line{display:flex;align-items:center;gap:9px;min-width:0}
+  #mobileMockApp .m13-date-line svg{width:20px;height:20px;stroke:#39545b;fill:none;stroke-width:1.8;flex:0 0 20px}
+  #mobileMockApp .m13-date-text{min-width:0;flex:1;color:#203f49;font-size:16px;font-weight:800;line-height:1;white-space:nowrap}
+  #mobileMockApp .m13-date-card input{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;opacity:0!important;cursor:pointer!important}
+  #mobileMockApp .m13-apply{
+    height:82px;border:0;border-radius:15px;background:linear-gradient(145deg,var(--d13-teal2),var(--d13-teal));
+    color:#fff;font-size:17px;font-weight:800;box-shadow:0 10px 22px rgba(12,143,133,.16);
+  }
+  #mobileMockApp .m13-quick{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+  #mobileMockApp .m13-quick button{
+    height:48px;border:1px solid #dde8e6;border-radius:14px;background:#fbfdfd;color:#304f58;font-size:14px;font-weight:700;
+  }
+  #mobileMockApp .m13-quick button .chev{font-size:20px;vertical-align:-1px;margin-right:7px}
+  #mobileMockApp .m13-quick button.next .chev{margin:0 0 0 7px}
+
+  /* 필터 */
+  #mobileMockApp .m13-filters{
+    grid-column:2;
+    padding:16px;
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:10px;align-content:start;
+  }
+  #mobileMockApp .m13-filter{
+    min-width:0;height:52px;border:1px solid #e0e9e8;border-radius:14px;background:#fff;
+    display:flex;align-items:center;justify-content:flex-start;gap:9px;padding:0 12px;
+    font-size:12px;font-weight:700;color:#3e5860;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  #mobileMockApp .m13-filter i{width:13px;height:13px;border-radius:50%;display:block;flex:0 0 13px;border:1px solid #cad3d8;background:#cad3d8}
+  #mobileMockApp .m13-filter.gallery i{background:#2dc8b8;border-color:#2dc8b8}
+  #mobileMockApp .m13-filter.tour i{background:#ffab4f;border-color:#ffab4f}
+  #mobileMockApp .m13-filter.closed i{background:#f57395;border-color:#f57395}
+  #mobileMockApp .m13-filter.danji i{background:#cfd6df;border-color:#cfd6df}
+  #mobileMockApp .m13-filter.gallery{box-shadow:inset 0 0 0 1px #81d6cc;color:#177f74;background:#f8fffd}
+  #mobileMockApp .m13-filter.tour{box-shadow:inset 0 0 0 1px #f4c68d;color:#a9652d;background:#fffaf4}
+  #mobileMockApp .m13-filter.closed{box-shadow:inset 0 0 0 1px #f2b4c4;color:#bf5673;background:#fff7fa}
+  #mobileMockApp .m13-filter.on.danji{box-shadow:inset 0 0 0 1px #b8d8d3;background:#f9fcfb;color:#416168}
+
+  /* 달력 */
+  #mobileMockApp .m13-calendar{grid-column:1/-1;padding:22px 20px 20px}
+  #mobileMockApp .m13-cal-head{display:flex;align-items:center;gap:12px;margin-bottom:15px}
+  #mobileMockApp .m13-cal-title{font-size:28px;line-height:1;font-weight:800;letter-spacing:-.05em;color:#123946}
+  #mobileMockApp .m13-cal-actions{display:flex;align-items:center;gap:7px;margin-left:auto}
+  #mobileMockApp .m13-cal-actions button{
+    height:42px;min-width:42px;border:1px solid #dde8e6;border-radius:12px;background:#fff;color:#284750;
+    font-size:15px;font-weight:800;box-shadow:0 2px 8px rgba(27,76,80,.04);
+  }
+  #mobileMockApp .m13-cal-actions .today{padding:0 15px;min-width:62px;font-size:12px}
+  #mobileMockApp .m13-weekdays,
+  #mobileMockApp .m13-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}
+  #mobileMockApp .m13-weekdays{margin-bottom:8px}
+  #mobileMockApp .m13-weekday{height:25px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#95a1a5}
+  #mobileMockApp .m13-weekday.sun{color:#ea5b78}
+  #mobileMockApp .m13-weekday.sat{color:#3487f1}
+  #mobileMockApp .m13-day{
+    position:relative;min-width:0;height:178px;padding:12px;
+    border:1px solid #e0e9e7;border-radius:15px;background:#fff;text-align:left;overflow:hidden;
+    transition:.15s ease;
+  }
+  #mobileMockApp .m13-day:hover{transform:translateY(-2px);border-color:#bfd9d4;box-shadow:0 10px 20px rgba(27,76,80,.07)}
+  #mobileMockApp .m13-day.other{background:#fbfcfc;border-color:#eef3f2}
+  #mobileMockApp .m13-day.other .m13-daynum{color:#c5cdd1}
+  #mobileMockApp .m13-day.selected{border:2px solid #16a091;background:linear-gradient(180deg,#f4fffd,#fff 44%);box-shadow:0 0 0 3px rgba(22,160,145,.06)}
+  #mobileMockApp .m13-daynum{display:block;font-size:16px;line-height:1;font-weight:800;color:#203947;margin-bottom:10px}
+  #mobileMockApp .m13-day.sun .m13-daynum{color:#eb5374}
+  #mobileMockApp .m13-day.sat .m13-daynum{color:#2f86f3}
+
+  .m13-desk-events{display:flex;flex-direction:column;gap:5px}
+  .m13-desk-event{
+    display:grid;grid-template-columns:40px minmax(0,1fr);gap:7px;align-items:center;
+    min-height:38px;padding:5px 7px;border-radius:10px;border:1px solid transparent;overflow:hidden;
+  }
+  .m13-desk-event.gallery{background:#eafaf6;border-color:#d6eee8}
+  .m13-desk-event.tour{background:var(--d13-orange-bg);border-color:#f4dfc8}
+  .m13-desk-event.closed{background:var(--d13-pink-bg);border-color:#f0d9e0}
+  .m13-desk-time{
+    display:flex;align-items:center;justify-content:center;height:24px;padding:0 5px;border-radius:7px;
+    background:rgba(255,255,255,.9);font-size:8.5px;font-weight:800;color:#60777d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .m13-desk-event.gallery .m13-desk-time{color:#0c877c}
+  .m13-desk-event.tour .m13-desk-time{color:#c56f2e}
+  .m13-desk-event.closed .m13-desk-time{color:#ca5873}
+  .m13-desk-copy{display:flex;flex-direction:column;gap:1px;min-width:0}
+  .m13-desk-copy strong{font-size:11.5px;line-height:1.05;font-weight:800;color:#23434b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .m13-desk-copy span{font-size:10.5px;line-height:1.05;font-weight:700;color:#3f5c63;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .m13-desk-copy small{font-size:9px;line-height:1.05;font-weight:600;color:#819397;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .m13-desk-more{height:23px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:#f5f9f8;color:#6d8388;font-size:9px;font-weight:700}
+
+  /* 담당자 현황 */
+  #mobileMockApp .m13-manager{
+    grid-column:1/-1;height:78px;padding:0 18px;display:flex;align-items:center;gap:13px;cursor:pointer;
+  }
+  #mobileMockApp .m13-manager-ico{width:48px;height:48px;border-radius:14px;background:#eefaf6;color:#0d8c81;display:grid;place-items:center;flex:0 0 48px}
+  #mobileMockApp .m13-manager-ico svg{width:25px;height:25px;stroke:currentColor;fill:none;stroke-width:1.9}
+  #mobileMockApp .m13-manager-title{font-size:15px;font-weight:800;color:#1c454e}
+  #mobileMockApp .m13-manager-sub{margin-top:4px;font-size:10.5px;font-weight:600;color:#839497}
+  #mobileMockApp .m13-manager-arr{margin-left:auto;color:#60777d;font-size:26px}
+
+  /* 아래 집계는 기본 숨김. 담당자별 현황을 눌렀을 때만 펼침 */
+  .checklist-section,.car{display:none!important}
+  body.m13-show-details .checklist-section,
+  body.m13-show-details .car{
+    display:block!important;
+    margin:0 auto 16px!important;
+    width:min(1480px,100%)!important;
+    padding:18px 20px!important;
+    border:1px solid var(--d13-line)!important;
+    border-radius:20px!important;
+    background:#fff!important;
+    box-shadow:var(--d13-shadow)!important;
+  }
+  body.m13-show-details .checklist-section h2{font-size:18px!important;color:#173e47!important}
+  body.m13-show-details .checklist-section h3{font-size:13px!important;color:#48646a!important}
+  body.m13-show-details .summary-card .num{font-size:22px!important}
+  body.m13-show-details table{font-size:12px!important}
+
+  /* 하단 관리 기능은 작은 유틸리티 도크로 유지 */
+  .bottom-toolbar{
+    position:sticky!important;bottom:14px!important;z-index:90!important;
+    display:flex!important;justify-content:center!important;gap:4px!important;
+    width:max-content!important;max-width:100%!important;margin:18px auto 0!important;padding:6px!important;
+    border:1px solid #dce7e5!important;border-radius:14px!important;background:rgba(255,255,255,.92)!important;
+    box-shadow:0 10px 26px rgba(27,76,80,.09)!important;backdrop-filter:blur(12px)!important;
+  }
+  .bottom-toolbar button{
+    min-height:34px!important;padding:0 10px!important;border:0!important;border-radius:9px!important;
+    background:transparent!important;color:#60777d!important;font-size:10px!important;font-weight:700!important;
+  }
+  .bottom-toolbar button:hover{background:#f1f8f6!important;color:#177f74!important}
+
+  /* 화면 폭이 좁아지는 데스크탑/태블릿 */
+  @media (max-width:1050px){
+    #mobileMockApp{grid-template-columns:1fr!important}
+    #mobileMockApp .m13-range,
+    #mobileMockApp .m13-filters{grid-column:1!important}
+    #mobileMockApp .m13-filters{grid-template-columns:repeat(3,minmax(0,1fr))}
+    #mobileMockApp .m13-day{height:160px}
+    .m13-desk-copy strong{font-size:10.5px}
+    .m13-desk-copy span{font-size:9.6px}
+  }
+}
+</style>
+
+
+<style id="calendar-v2-polish">
+/* ===== v2 polish: 카테고리 2개 + 현장 분리 + 날짜 상단 + 상세 모달 재설계 ===== */
+
+/* 카테고리는 딱 2개 */
+#mobileMockApp .m13-filters{
+  grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+}
+#mobileMockApp .m13-filter{
+  justify-content:flex-start !important;
+  padding-left:18px !important;
+}
+
+/* 현장 필터는 달력 카드 안에서 별도 한 줄 */
+#mobileMockApp .m13-site-row{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  min-width:0;
+  margin:0 0 12px;
+  padding:10px 11px;
+  border:1px solid #e3ecea;
+  border-radius:13px;
+  background:#f8fbfa;
+  overflow-x:auto;
+  scrollbar-width:none;
+}
+#mobileMockApp .m13-site-row::-webkit-scrollbar{display:none}
+#mobileMockApp .m13-site-label{
+  flex:0 0 auto;
+  padding:0 3px;
+  color:#7d9195;
+  font-size:10px;
+  font-weight:800;
+}
+#mobileMockApp .m13-site-chip{
+  flex:0 0 auto;
+  min-height:31px;
+  padding:0 11px;
+  border:1px solid #dce7e5;
+  border-radius:999px;
+  background:#fff;
+  color:#546d73;
+  font:700 10.5px/1 "Pretendard","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  cursor:pointer;
+  white-space:nowrap;
+}
+#mobileMockApp .m13-site-chip.on{
+  border-color:#78cfc4;
+  background:#eaf8f5;
+  color:#0d8177;
+  box-shadow:inset 0 0 0 1px rgba(12,143,133,.06);
+}
+
+/* 날짜는 항상 위쪽에 */
+#mobileMockApp .m13-day{
+  padding-top:38px !important;
+}
+#mobileMockApp .m13-daynum{
+  position:absolute !important;
+  left:12px !important;
+  top:11px !important;
+  z-index:4 !important;
+  margin:0 !important;
+}
+#mobileMockApp .m13-desk-events{
+  margin-top:0 !important;
+}
+
+/* 월 이동 버튼 */
+#mobileMockApp .m13-quick button{
+  letter-spacing:-.03em;
+}
+
+/* 상세 일정 모달 */
+#overlay{
+  background:rgba(26,53,59,.22) !important;
+  backdrop-filter:blur(8px) !important;
+}
+#overlay .modal{
+  width:min(540px,calc(100vw - 32px)) !important;
+  max-width:540px !important;
+  max-height:min(82vh,760px) !important;
+  padding:22px !important;
+  border:1px solid #dce9e6 !important;
+  border-radius:24px !important;
+  background:#fff !important;
+  box-shadow:0 24px 70px rgba(28,68,73,.18) !important;
+  overflow:auto !important;
+}
+#overlay .modal::before{display:none !important}
+#overlay .modal h2{
+  display:block !important;
+  margin:0 48px 4px 0 !important;
+  padding:0 !important;
+  color:#153d46 !important;
+  font-size:22px !important;
+  line-height:1.15 !important;
+  font-weight:800 !important;
+  letter-spacing:-.045em !important;
+}
+#overlay .modal .close{
+  position:absolute !important;
+  right:18px !important;
+  top:18px !important;
+  float:none !important;
+  width:36px !important;
+  height:36px !important;
+  border:1px solid #e0e9e7 !important;
+  border-radius:11px !important;
+  background:#f5f9f8 !important;
+  color:#6c8388 !important;
+  font-size:15px !important;
+}
+#modalBody{padding-top:10px !important}
+
+.preview-v2-summary{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  margin-bottom:15px;
+}
+.preview-v2-summary span{
+  display:inline-flex;
+  align-items:center;
+  height:27px;
+  padding:0 9px;
+  border-radius:999px;
+  background:#f1f7f6;
+  color:#6a8186;
+  font-size:9.5px;
+  font-weight:700;
+}
+.preview-v2-summary span strong{
+  margin-left:4px;
+  color:#214850;
+  font-weight:800;
+}
+
+.preview-v2-group{
+  margin:0 0 12px;
+}
+.preview-v2-group-head{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin:0 0 7px;
+  color:#6a8186;
+  font-size:10px;
+  font-weight:800;
+}
+.preview-v2-group-head::before{
+  content:"";
+  width:7px;height:7px;border-radius:50%;
+  background:#2bc1b2;
+}
+.preview-v2-group.tour .preview-v2-group-head::before{background:#ffad56}
+.preview-v2-group.closed .preview-v2-group-head::before{background:#ee6c8a}
+
+.preview-v2-list{
+  display:flex;
+  flex-direction:column;
+  gap:7px;
+}
+.preview-v2-item{
+  position:relative;
+  display:grid;
+  grid-template-columns:54px minmax(0,1fr) 30px;
+  gap:10px;
+  align-items:center;
+  min-height:66px;
+  padding:10px 10px;
+  border:1px solid #e2ecea;
+  border-radius:14px;
+  background:#fbfdfd;
+}
+.preview-v2-item.gallery{background:#f5fcfa}
+.preview-v2-item.tour{background:#fffaf5}
+.preview-v2-time{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  height:31px;
+  border-radius:9px;
+  background:#fff;
+  border:1px solid #e2ebe9;
+  color:#37575e;
+  font-size:10px;
+  font-weight:800;
+}
+.preview-v2-main{min-width:0}
+.preview-v2-title{
+  display:flex;
+  align-items:baseline;
+  gap:6px;
+  min-width:0;
+  margin-bottom:5px;
+}
+.preview-v2-site{
+  color:#173f48;
+  font-size:12px;
+  font-weight:800;
+  white-space:nowrap;
+}
+.preview-v2-name{
+  min-width:0;
+  color:#294a52;
+  font-size:11.5px;
+  font-weight:700;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.preview-v2-meta{
+  color:#809195;
+  font-size:9.5px;
+  line-height:1.35;
+  font-weight:600;
+}
+.preview-v2-del{
+  width:28px;height:28px;
+  border:0;
+  border-radius:9px;
+  background:#fff0f3;
+  color:#d75f78;
+  font-size:12px;
+  cursor:pointer;
+}
+.preview-v2-closed{
+  padding:12px 13px;
+  border:1px solid #f2d7df;
+  border-radius:13px;
+  background:#fff5f8;
+  color:#bd5570;
+  font-size:11px;
+  font-weight:700;
+}
+.preview-v2-settings{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin:14px 0 12px;
+  padding:11px 12px;
+  border:1px solid #e2ebe9;
+  border-radius:13px;
+  background:#f8fbfa;
+}
+.preview-v2-cap{
+  color:#71868a;
+  font-size:9.5px;
+  font-weight:650;
+}
+.preview-v2-cap strong{
+  margin-left:4px;
+  color:#264b53;
+  font-size:10.5px;
+  font-weight:800;
+}
+.preview-v2-settings button{
+  border:0;
+  background:transparent;
+  color:#13877e;
+  font-size:9.5px;
+  font-weight:800;
+  cursor:pointer;
+}
+.preview-v2-actions{
+  display:grid;
+  grid-template-columns:1fr 1fr 1.25fr;
+  gap:7px;
+}
+.preview-v2-actions button{
+  min-height:40px;
+  padding:0 8px;
+  border:1px solid #dce8e6;
+  border-radius:11px;
+  background:#fff;
+  color:#39575e;
+  font-size:10px;
+  font-weight:800;
+  cursor:pointer;
+}
+.preview-v2-actions button.gallery{border-color:#bfe6df;color:#0f8176;background:#f5fcfa}
+.preview-v2-actions button.tour{border-color:#f1d4b3;color:#b46a2f;background:#fffaf5}
+.preview-v2-actions button.primary{
+  border-color:#0e9186 !important;
+  background:#0e9186 !important;
+  color:#fff !important;
+}
+.preview-v2-secondary{
+  display:flex;
+  justify-content:flex-end;
+  margin-top:8px;
+}
+.preview-v2-secondary button{
+  border:0;
+  background:transparent;
+  color:#b65a70;
+  font-size:9.5px;
+  font-weight:750;
+  cursor:pointer;
+}
+
+/* 모바일에서는 바텀시트 감성 유지 */
+@media (max-width:560px){
+  #mobileMockApp .m13-filters{
+    grid-template-columns:1fr 1fr !important;
+    gap:7px !important;
+  }
+  #mobileMockApp .m13-filter{
+    height:42px !important;
+    justify-content:flex-start !important;
+    padding:0 10px !important;
+    font-size:10px !important;
+  }
+  #mobileMockApp .m13-site-row{
+    margin-bottom:8px;
+    padding:7px 8px;
+    border-radius:11px;
+  }
+  #mobileMockApp .m13-site-chip{
+    min-height:28px;
+    padding:0 9px;
+    font-size:9px;
+  }
+  #mobileMockApp .m13-day{
+    padding-top:27px !important;
+  }
+  #mobileMockApp .m13-daynum{
+    left:7px !important;
+    top:6px !important;
+    font-size:10px !important;
+  }
+  #overlay{
+    align-items:flex-end !important;
+    padding:0 !important;
+  }
+  #overlay .modal{
+    width:100% !important;
+    max-width:none !important;
+    max-height:88dvh !important;
+    margin:0 !important;
+    padding:17px 14px calc(18px + env(safe-area-inset-bottom)) !important;
+    border:0 !important;
+    border-radius:24px 24px 0 0 !important;
+    box-shadow:0 -20px 56px rgba(28,68,73,.16) !important;
+  }
+  #overlay .modal::before{
+    content:"" !important;
+    display:block !important;
+    width:36px !important;
+    height:4px !important;
+    margin:-3px auto 12px !important;
+    border-radius:999px !important;
+    background:#d5e1df !important;
+  }
+  #overlay .modal h2{font-size:18px !important}
+  .preview-v2-item{
+    grid-template-columns:47px minmax(0,1fr) 28px;
+    min-height:60px;
+    padding:8px;
+  }
+  .preview-v2-actions{
+    grid-template-columns:1fr 1fr;
+  }
+  .preview-v2-actions .primary{
+    grid-column:1/-1;
+  }
+}
+</style>
+
+
+<script id="calendar-v2-preview">
+(function(){
+  function esc2(s){
+    return String(s==null?'':s).replace(/[&<>"']/g,function(m){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];
+    });
+  }
+
+  window.openPreview=function(key){
+    previewKey=key;
+    const title=document.getElementById('modalTitle');
+    const body=document.getElementById('modalBody');
+    if(!body) return;
+
+    if(title) title.textContent=labelFor(key);
+
+    const gallery=(GALLERY_ROWS[key]||[]);
+    const tour=(TOUR_ROWS[key]||[]);
+    const total=gallery.length+tour.length;
+    const head=computeDateHeadcount(key);
+    const cap=getCapacityForKey(key);
+    const isClosed=!!GALLERY_CLOSED[key];
+
+    let html=`<div class="preview-v2-summary">
+      <span>일정 <strong>${total}건</strong></span>
+      ${head>0?`<span>예상 인원 <strong>${head}명</strong></span>`:''}
+    </div>`;
+
+    if(isClosed){
+      html+=`<div class="preview-v2-group closed">
+        <div class="preview-v2-group-head">휴관 / 이용 불가</div>
+        <div class="preview-v2-closed">${esc2(GALLERY_CLOSED[key])}</div>
+      </div>`;
+    }
+
+    if(gallery.length){
+      html+=`<section class="preview-v2-group gallery">
+        <div class="preview-v2-group-head">갤러리 · ${gallery.length}건</div>
+        <div class="preview-v2-list">`;
+      gallery.forEach((r,idx)=>{
+        const [time,spot,name,plus,manager]=r;
+        const meta=[
+          plus&&plus!=='-'?plus:'',
+          manager&&manager!=='-'?'담당 '+manager:'',
+          spot&&spot!=='-'?spot:''
+        ].filter(Boolean).join(' · ');
+        html+=`<div class="preview-v2-item gallery">
+          <div class="preview-v2-time">${esc2(time||'일정')}</div>
+          <div class="preview-v2-main">
+            <div class="preview-v2-title">
+              <span class="preview-v2-site">${esc2(GALLERY_DANJI||'갤러리')}</span>
+              <span class="preview-v2-name">${esc2(name||'성명 미입력')}</span>
+            </div>
+            <div class="preview-v2-meta">${esc2(meta||'상세 정보 없음')}</div>
+          </div>
+          <button class="preview-v2-del" title="삭제" onclick="deleteEntry('gallery','${key}',${idx},this)">×</button>
+        </div>`;
+      });
+      html+=`</div></section>`;
+    }
+
+    if(tour.length){
+      html+=`<section class="preview-v2-group tour">
+        <div class="preview-v2-group-head">투어 · ${tour.length}건</div>
+        <div class="preview-v2-list">`;
+      tour.forEach((r,idx)=>{
+        const [time,danji,ho,name,plus,manager]=r;
+        const meta=[
+          name&&name!=='-'?name:'',
+          ho&&ho!=='-'?ho:'',
+          plus&&plus!=='-'?plus:'',
+          manager&&manager!=='-'?'담당 '+manager:''
+        ].filter(Boolean).join(' · ');
+        html+=`<div class="preview-v2-item tour">
+          <div class="preview-v2-time">${esc2(time||'일정')}</div>
+          <div class="preview-v2-main">
+            <div class="preview-v2-title">
+              <span class="preview-v2-site">${esc2(danji||'현장 미입력')}</span>
+              <span class="preview-v2-name">${esc2(name||'성명 미입력')}</span>
+            </div>
+            <div class="preview-v2-meta">${esc2(meta||'상세 정보 없음')}</div>
+          </div>
+          <button class="preview-v2-del" title="삭제" onclick="deleteEntry('tour','${key}',${idx},this)">×</button>
+        </div>`;
+      });
+      html+=`</div></section>`;
+    }
+
+    if(!total && !isClosed){
+      html+=`<div class="preview-empty">등록된 일정이 없습니다.</div>`;
+    }
+
+    html+=`<div class="preview-v2-settings">
+      <div class="preview-v2-cap">정원 <strong>${cap>0?cap+'명':'미설정'}${head>0?' · 현재 '+head+'명':''}</strong></div>
+      <button onclick="openDateCapacitySettings()">이 날짜 정원 설정 ›</button>
+    </div>`;
+
+    html+=`<div class="preview-v2-actions">
+      <button class="gallery" onclick="addEntryFlow('gallery')">+ 갤러리 일정</button>
+      <button class="tour" onclick="addEntryFlow('tour')">+ 투어 일정</button>
+      <button class="primary" onclick="openInChecklist()">체크리스트 열기</button>
+    </div>
+    <div class="preview-v2-secondary">
+      <button onclick="toggleClosedDay()">${isClosed?'휴관 해제':'휴관 / 이용불가 지정'}</button>
+    </div>`;
+
+    body.innerHTML=html;
+    document.getElementById('overlay').classList.add('on');
+  };
+})();
+</script>
 
 </body>
 </html>
