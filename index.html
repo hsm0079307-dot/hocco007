@@ -6839,6 +6839,19 @@ body.guest-readonly .detail-quad-box{
 }
 </style>
 
+
+<style id="desktop-calendar-open-fix-v6">
+@media(min-width:821px){
+  body.ux383 #calendarView{
+    z-index:20000!important;
+    position:absolute!important;
+    inset:0!important;
+    background:var(--bg-side)!important;
+    overflow:auto!important;
+  }
+}
+</style>
+
 </head>
 <body>
 <div id="entryGate" style="position:fixed;inset:0;background:rgba(3,12,22,.94);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;">
@@ -9670,8 +9683,21 @@ async function mfRetrySync(){
 
       document.getElementById('desktopCalendarProxy')?.addEventListener('click', ()=>{
         if(schedulePanel) schedulePanel.style.display='none';
-        const calBtn = document.getElementById('calendarBtn');
-        if(calBtn) calBtn.click();
+
+        // v6: 숨겨진 기존 calendarBtn.click()에 의존하지 않고
+        // 캘린더 화면을 직접 연다. 데스크탑에서 view-switch-bar를 숨긴 상태에서도 확실히 동작.
+        try{ document.getElementById('contactReportOverlay')?.classList.remove('show'); }catch(e){}
+        try{ document.getElementById('globalStatsOverlay')?.classList.remove('show'); }catch(e){}
+        try{
+          const sheet = document.getElementById('sheetView');
+          if(sheet) sheet.style.display='none';
+        }catch(e){}
+
+        if(calendarViewEl){
+          calendarViewEl.style.display='block';
+          try{ renderCalendarView(); }catch(err){ console.error('calendar render failed', err); }
+          try{ calendarViewEl.scrollTop=0; }catch(e){}
+        }
       });
 
       document.getElementById('desktopTourProxy')?.addEventListener('click', ()=>{
