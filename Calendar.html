@@ -4543,7 +4543,7 @@ function computeDateHeadcount(key){
   function monthText(){const v=(document.getElementById('rangeStart')||{}).value||range?.start||'';if(!v)return'';const p=v.split('-');return Number(p[0])+'년 '+Number(p[1])+'월';}
   function currentMonthDate(){const v=(document.getElementById('rangeStart')||{}).value||range?.start;return v?new Date(v+'T00:00:00'):new Date()}
   function uniqueManagers(){const s=new Set();Object.values(GALLERY_ROWS||{}).forEach(rs=>rs.forEach(r=>r[4]&&s.add(r[4])));Object.values(TOUR_ROWS||{}).forEach(rs=>rs.forEach(r=>r[5]&&s.add(r[5])));return s.size}
-  function uniqueDanjis(){const s=new Set(['목동11단지(신탁)','목동14단지(신탁)','화랑아파트']);Object.values(TOUR_ROWS||{}).forEach(rs=>rs.forEach(r=>r[1]&&s.add(r[1])));return isDesktop()?Array.from(s):Array.from(s).slice(0,3)}
+  function uniqueDanjis(){const s=new Set();try{Object.values(TOUR_ROWS||{}).forEach(rs=>(rs||[]).forEach(r=>r[1]&&r[1]!=='-'&&s.add(r[1])));const hasG=Object.values(GALLERY_ROWS||{}).some(rs=>Array.isArray(rs)&&rs.length);if(hasG&&typeof GALLERY_DANJI!=='undefined'&&GALLERY_DANJI)s.add(GALLERY_DANJI)}catch(e){}const a=Array.from(s).sort((a,b)=>String(a).localeCompare(String(b),'ko',{numeric:true}));return isDesktop()?a:a.slice(0,6)}
   function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 
   function ensureShell(){
@@ -6302,9 +6302,8 @@ body.pro-show-legacy .checklist-section,body.pro-show-legacy .car{display:block!
   }
   function allSites(){
     const s=new Set();
-    if(typeof GALLERY_DANJI!=='undefined'&&GALLERY_DANJI)s.add(GALLERY_DANJI);
+    try{const hasGallery=typeof GALLERY_ROWS!=='undefined'&&Object.values(GALLERY_ROWS||{}).some(rs=>Array.isArray(rs)&&rs.length);if(hasGallery&&typeof GALLERY_DANJI!=='undefined'&&GALLERY_DANJI)s.add(GALLERY_DANJI)}catch(e){}
     if(typeof TOUR_ROWS!=='undefined')Object.values(TOUR_ROWS||{}).forEach(rs=>(rs||[]).forEach(r=>r[1]&&r[1]!=='-'&&s.add(r[1])));
-    ['목동11단지(신탁)','목동14단지(신탁)','화랑아파트'].forEach(x=>s.add(x));
     return Array.from(s).filter(Boolean).slice(0,8);
   }
   function dayEvents(k){
@@ -6614,14 +6613,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
   }
   function wireManage(){const b=q('#proManage');if(b)b.onclick=openTools}
   function fixSiteOrder(){
-    const row=q('#proSiteRow');if(!row)return;const buttons=qa('#proSiteRow .pro-chip');if(!buttons.length)return;
-    const wanted=['전체','목동11단지(신탁)','목동14단지(신탁)','화랑아파트'];
-    const texts=buttons.map(b=>b.textContent.trim());
-    const target=wanted.filter(t=>texts.includes(t)).concat(texts.filter(t=>!wanted.includes(t)));
-    if(texts.join('||')!==target.join('||')){
-      const byText=new Map(buttons.map(b=>[b.textContent.trim(),b]));target.forEach(t=>{if(byText.has(t))row.appendChild(byText.get(t))});
-    }
-    if(row.scrollLeft!==0)row.scrollLeft=0;
+    const row=q('#proSiteRow');if(!row)return;if(row.scrollLeft!==0)row.scrollLeft=0;
   }
   function refresh(){ensureUtility();wireManage();relabelBottomNav();fixSiteOrder()}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(refresh,60)});else setTimeout(refresh,60);
@@ -7174,5 +7166,147 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
 </script>
+
+<style id="calendar-pro-v25-functional-fix">
+/* V25 — functionality + truly dynamic site filters */
+@media (max-width:760px){
+  /* Legacy forms/settings must appear above the custom mobile sheet. */
+  .overlay{z-index:2200!important}
+  .overlay .modal{z-index:2201!important}
+  #lockScreen{z-index:3000!important}
+  .pro-tools-backdrop{z-index:2290!important}
+  .pro-tools-sheet,.pro-customer-sheet{z-index:2300!important}
+}
+</style>
+<script id="calendar-pro-v25-functional-fix-js">
+(function(){
+  const q=(s,r)=>(r||document).querySelector(s);
+  const qa=(s,r)=>Array.from((r||document).querySelectorAll(s));
+  const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  let syncing=false;
+
+  function dynamicSites(){
+    const set=new Set();
+    try{
+      Object.values(typeof TOUR_ROWS!=='undefined'?(TOUR_ROWS||{}):{}).forEach(rows=>{
+        (rows||[]).forEach(r=>{const n=String((r&&r[1])||'').trim();if(n&&n!=='-')set.add(n)});
+      });
+    }catch(e){}
+    try{
+      const hasGallery=Object.values(typeof GALLERY_ROWS!=='undefined'?(GALLERY_ROWS||{}):{}).some(rows=>Array.isArray(rows)&&rows.length);
+      const g=(typeof GALLERY_DANJI!=='undefined'?String(GALLERY_DANJI||'').trim():'');
+      if(hasGallery&&g)set.add(g);
+    }catch(e){}
+    return Array.from(set).sort((a,b)=>a.localeCompare(b,'ko',{numeric:true,sensitivity:'base'}));
+  }
+
+  function triggerProRender(){
+    // The pro renderer already listens to resize; using it avoids duplicating its private state.
+    try{window.dispatchEvent(new Event('resize'))}catch(e){}
+  }
+
+  function setSiteFilter(name){
+    try{
+      if(typeof activeDanjiFilter==='undefined')return;
+      activeDanjiFilter.clear();
+      if(name)activeDanjiFilter.add(name);
+      if(typeof buildCalendarArea==='function')buildCalendarArea();
+      if(typeof currentDateKey!=='undefined'&&currentDateKey&&typeof selectDate==='function')selectDate(currentDateKey,false);
+    }catch(e){console.error(e)}
+    triggerProRender();
+    setTimeout(syncSites,20);
+  }
+
+  function syncSites(){
+    if(syncing)return;
+    const row=q('#proSiteRow');if(!row)return;
+    syncing=true;
+    try{
+      const sites=dynamicSites();
+      let active=[];
+      try{active=(typeof activeDanjiFilter!=='undefined')?Array.from(activeDanjiFilter):[]}catch(e){}
+      // If old data/filter disappeared, don't leave the calendar silently filtered to nothing.
+      if(active.some(x=>!sites.includes(x))){
+        try{activeDanjiFilter.clear();active=[]}catch(e){}
+      }
+      const sig=JSON.stringify([sites,active]);
+      if(row.dataset.dynamicSig!==sig){
+        row.dataset.dynamicSig=sig;
+        row.innerHTML='<button class="pro-chip '+(active.length===0?'on':'')+'" type="button" data-v25-site="">전체</button>'+sites.map(n=>'<button class="pro-chip '+(active.includes(n)?'on':'')+'" type="button" data-v25-site="'+esc(n)+'">'+esc(n)+'</button>').join('');
+      }
+    }finally{syncing=false}
+  }
+
+  function openTools(){
+    document.body.classList.remove('pro-sheet-open','pro-customer-open');
+    if(typeof window.proOpenTools==='function'){window.proOpenTools();return}
+    const fab=q('#mobileAdminFab');if(fab)fab.click();
+  }
+  function openCustomers(){
+    document.body.classList.remove('pro-sheet-open','pro-tools-open');
+    if(typeof window.proOpenCustomers==='function'){window.proOpenCustomers();return}
+  }
+  function openChecklist(){
+    document.body.classList.remove('pro-sheet-open','pro-tools-open','pro-customer-open');
+    document.body.classList.add('pro-show-legacy');
+    try{
+      const sel=q('.pro-day.selected');const k=sel?.dataset?.key||(typeof currentDateKey!=='undefined'?currentDateKey:'');
+      if(k&&typeof selectDate==='function')selectDate(k,true);
+    }catch(e){}
+    setTimeout(()=>q('.checklist-section')?.scrollIntoView({behavior:'smooth',block:'start'}),80);
+  }
+
+  // Capture phase makes the visible app controls reliable even if older redesign layers
+  // attached conflicting handlers to the same buttons.
+  document.addEventListener('click',function(e){
+    const site=e.target.closest('#proSiteRow [data-v25-site]');
+    if(site){e.preventDefault();e.stopImmediatePropagation();setSiteFilter(site.getAttribute('data-v25-site')||'');return}
+
+    const manage=e.target.closest('#proManage');
+    if(manage){e.preventDefault();e.stopImmediatePropagation();openTools();return}
+
+    const nav=e.target.closest('.pro-bottomnav button');
+    if(nav){
+      const a=nav.dataset.mobile;
+      if(a==='more'||a==='customer'||a==='check'||a==='schedule'){
+        e.preventDefault();e.stopImmediatePropagation();
+        qa('.pro-bottomnav button').forEach(b=>b.classList.toggle('active',b===nav));
+        if(a==='more')openTools();
+        else if(a==='customer')openCustomers();
+        else if(a==='check')openChecklist();
+        else {document.body.classList.remove('pro-sheet-open','pro-tools-open','pro-customer-open','pro-show-legacy');window.scrollTo({top:0,behavior:'smooth'})}
+        return;
+      }
+    }
+  },true);
+
+  function relabelNav(){
+    const bs=qa('.pro-bottomnav button');if(bs.length<4)return;
+    const cfg=[['schedule','일정'],['customer','고객'],['check','체크리스트'],['more','더보기']];
+    cfg.forEach((x,i)=>{bs[i].dataset.mobile=x[0];const sp=q('span',bs[i]);if(sp)sp.textContent=x[1]});
+  }
+
+  function fixDetailActions(){
+    // Close custom sheet before opening legacy edit/settings overlays.
+    [['#proAddG','gallery'],['#proAddT','tour']].forEach(([sel,kind])=>{
+      const b=q(sel);if(!b||b.dataset.v25wired)return;b.dataset.v25wired='1';
+      b.addEventListener('click',function(e){e.preventDefault();e.stopImmediatePropagation();document.body.classList.remove('pro-sheet-open');setTimeout(()=>{try{const k=q('.pro-day.selected')?.dataset?.key;if(k)previewKey=k;if(typeof addEntryFlow==='function')addEntryFlow(kind)}catch(err){console.error(err)}},60)},true);
+    });
+    const cap=q('#proCapBtn');if(cap&&!cap.dataset.v25wired){cap.dataset.v25wired='1';cap.addEventListener('click',function(e){e.preventDefault();e.stopImmediatePropagation();document.body.classList.remove('pro-sheet-open');setTimeout(()=>{try{const k=q('.pro-day.selected')?.dataset?.key;if(k)previewKey=k;if(typeof openDateCapacitySettings==='function')openDateCapacitySettings()}catch(err){console.error(err)}},60)},true)}
+    const closed=q('#proClosedBtn');if(closed&&!closed.dataset.v25wired){closed.dataset.v25wired='1';closed.addEventListener('click',function(e){e.preventDefault();e.stopImmediatePropagation();document.body.classList.remove('pro-sheet-open');setTimeout(()=>{try{const k=q('.pro-day.selected')?.dataset?.key;if(k)previewKey=k;if(typeof toggleClosedDay==='function')toggleClosedDay()}catch(err){console.error(err)}},60)},true)}
+  }
+
+  function refresh(){relabelNav();syncSites();fixDetailActions()}
+  function init(){
+    setTimeout(refresh,80);
+    const root=q('#proCalendarApp');
+    if(root){new MutationObserver(()=>{clearTimeout(window.__v25t);window.__v25t=setTimeout(refresh,25)}).observe(root,{childList:true,subtree:true})}
+    // Changes to underlying schedule data may not mutate proSiteRow immediately.
+    window.addEventListener('resize',()=>setTimeout(refresh,25));
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+})();
+</script>
+
 </body>
 </html>
