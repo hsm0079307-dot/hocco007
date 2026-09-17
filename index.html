@@ -4671,6 +4671,15 @@ body.theme-dark .name-item.active{
     font-weight:800!important;
   }
 
+  /* 통합 접촉현황 KPI 빠른 찾기 */
+  .cis-v374 .cis-kpi-clickable{cursor:pointer;user-select:none;transition:transform .12s ease,border-color .12s ease,box-shadow .12s ease,background .12s ease}
+  .cis-v374 .cis-kpi-clickable:hover{transform:translateY(-1px);border-color:var(--accent)!important;box-shadow:0 5px 14px rgba(35,116,94,.12)!important}
+  .cis-v374 .cis-kpi-clickable:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .cis-v374 .cis-kpi-clickable.active{border-color:var(--accent)!important;background:color-mix(in srgb,var(--accent-soft) 72%,var(--card))!important;box-shadow:inset 0 0 0 1px var(--accent),0 4px 12px rgba(35,116,94,.10)!important}
+  .cis-v374 .cis-kpi-clickable.active:before{opacity:1!important;width:5px!important}
+  .cis-quick-filter-note{margin:-1px 0 10px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg-side-2);font-size:9.5px;color:var(--text-dim)}
+  .cis-quick-filter-note b{color:var(--accent)}
+
   @media(max-width:820px){
     .cis-v374 .cis-kpis{
       grid-template-columns:repeat(2,minmax(0,1fr))!important;
@@ -19567,18 +19576,7 @@ function rfPrintCard(site){
    .page{width:auto;min-height:0;margin:0;box-shadow:none}
    .sheet{padding:3mm 3.5mm 1mm}
  }
- </style></h
-<style id="cisQuickFindV9">
-/* 통합 접촉현황 KPI 빠른 찾기 */
-.cis-v374 .cis-kpi-clickable{cursor:pointer;user-select:none;transition:transform .12s ease,border-color .12s ease,box-shadow .12s ease,background .12s ease}
-.cis-v374 .cis-kpi-clickable:hover{transform:translateY(-1px);border-color:var(--accent)!important;box-shadow:0 5px 14px rgba(35,116,94,.12)!important}
-.cis-v374 .cis-kpi-clickable:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.cis-v374 .cis-kpi-clickable.active{border-color:var(--accent)!important;background:color-mix(in srgb,var(--accent-soft) 72%,var(--card))!important;box-shadow:inset 0 0 0 1px var(--accent),0 4px 12px rgba(35,116,94,.10)!important}
-.cis-v374 .cis-kpi-clickable.active:before{opacity:1!important;width:5px!important}
-.cis-quick-filter-note{margin:-1px 0 10px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg-side-2);font-size:9.5px;color:var(--text-dim)}
-.cis-quick-filter-note b{color:var(--accent)}
-</style>
-ead><body><nav><button onclick="window.print()">인쇄 / PDF 저장</button><div class="print-map-controls"><label>지도 높이 <input id="mapHeightRange" type="range" min="42" max="76" value="59"><output id="mapHeightVal">59mm</output></label><label>지도 폭 <input id="mapWidthRange" type="range" min="54" max="74" value="64"><output id="mapWidthVal">64%</output></label><button type="button" class="map-reset" onclick="resetPrintMapSize()">기본 크기</button></div></nav><main class="page"><div class="sheet"><header class="hero"><div><div class="eyebrow">SITE BRIEF · 현장카드</div><h1>${escapeHtml(site.name)}</h1><div class="hero-meta">${escapeHtml(site.district||'지역 미입력')} · ${new Date().toLocaleDateString('ko-KR')}</div></div><span class="stage-chip">${escapeHtml(stageLabel)}</span></header><div class="facts">${pairs.map(([k,v])=>`<div class="fact"><div class="fact-label">${escapeHtml(k)}</div><div class="fact-value">${escapeHtml(String(v||'-'))}</div></div>`).join('')}</div><div class="main-grid"><section class="panel"><div class="panel-head">현장 위치</div><div class="map-card"><div class="map" id="printMap"></div><div class="print-map-zoom" aria-label="지도 확대 축소"><button type="button" id="printMapZoomIn" title="지도 확대">+</button><button type="button" id="printMapZoomOut" title="지도 축소">−</button></div></div></section>${note('진행단계',site.stageDetail,300,'stage-card')}</div><div class="lower-grid">${note('주요 비고',site.salesNote||site.memo,330)}${note('타사활동',site.progressNote,300)}${note('최근 보고 · 발췌',recent,360,'wide')}</div></div></main><script>
+ </style></head><body><nav><button onclick="window.print()">인쇄 / PDF 저장</button><div class="print-map-controls"><label>지도 높이 <input id="mapHeightRange" type="range" min="42" max="76" value="59"><output id="mapHeightVal">59mm</output></label><label>지도 폭 <input id="mapWidthRange" type="range" min="54" max="74" value="64"><output id="mapWidthVal">64%</output></label><button type="button" class="map-reset" onclick="resetPrintMapSize()">기본 크기</button></div></nav><main class="page"><div class="sheet"><header class="hero"><div><div class="eyebrow">SITE BRIEF · 현장카드</div><h1>${escapeHtml(site.name)}</h1><div class="hero-meta">${escapeHtml(site.district||'지역 미입력')} · ${new Date().toLocaleDateString('ko-KR')}</div></div><span class="stage-chip">${escapeHtml(stageLabel)}</span></header><div class="facts">${pairs.map(([k,v])=>`<div class="fact"><div class="fact-label">${escapeHtml(k)}</div><div class="fact-value">${escapeHtml(String(v||'-'))}</div></div>`).join('')}</div><div class="main-grid"><section class="panel"><div class="panel-head">현장 위치</div><div class="map-card"><div class="map" id="printMap"></div><div class="print-map-zoom" aria-label="지도 확대 축소"><button type="button" id="printMapZoomIn" title="지도 확대">+</button><button type="button" id="printMapZoomOut" title="지도 축소">−</button></div></div></section>${note('진행단계',site.stageDetail,300,'stage-card')}</div><div class="lower-grid">${note('주요 비고',site.salesNote||site.memo,330)}${note('타사활동',site.progressNote,300)}${note('최근 보고 · 발췌',recent,360,'wide')}</div></div></main><script>
 (function(){
  var h=document.getElementById('mapHeightRange'),wv=document.getElementById('mapWidthRange'),ho=document.getElementById('mapHeightVal'),wo=document.getElementById('mapWidthVal');
  function apply(){
