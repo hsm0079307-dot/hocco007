@@ -4560,13 +4560,24 @@ function computeDateHeadcount(key){
       <section class="m13-card m13-hero">
         <div class="m13-hero-icon">${svgCal}</div>
         <div class="m13-title" id="m13Title"></div>
-        <p class="m13-sub">일정과 현황을 한눈에 확인하세요.</p>
+        <p class="m13-sub">언제 · 어느 현장 · 누가 방문하는지 한눈에 확인하세요.</p>
+        <div class="m13-hero-meta">
+          <span class="month" id="m13HeroMonth"></span>
+          <span>전체 <strong id="m13HeroTotal">0</strong>건</span>
+          <span class="g">갤러리 <strong id="m13HeroGallery">0</strong></span>
+          <span class="t">투어 <strong id="m13HeroTour">0</strong></span>
+        </div>
         <div class="m13-hero-scene" aria-hidden="true"></div>
       </section>
-      <section class="m13-card m13-range">
+      <section class="m13-card m13-range" id="m13RangeCard">
         <div class="m13-range-head">
-          <div class="m13-section-title">일정 기간</div>
-          <button type="button" class="m13-month-chip" id="m13MonthChip">${svgCal}<span></span>⌄</button>
+          <div class="m13-section-title">월 이동</div>
+          <button type="button" class="m13-range-toggle" id="m13RangeToggle">기간 설정</button>
+        </div>
+        <div class="m13-quick">
+          <button type="button" id="m13This"><span class="chev">‹</span>지난 달</button>
+          <button type="button" class="m13-month-chip" id="m13MonthChip">${svgCal}<span></span></button>
+          <button type="button" class="next" id="m13Next">다음 달<span class="chev">›</span></button>
         </div>
         <div class="m13-range-grid">
           <div class="m13-date-card">
@@ -4579,10 +4590,6 @@ function computeDateHeadcount(key){
             <div class="m13-date-line">${svgCal}<span class="m13-date-text" id="m13EndText"></span><input type="date" id="m13End" aria-label="종료일"></div>
           </div>
           <button type="button" class="m13-apply" id="m13Apply">적용</button>
-        </div>
-        <div class="m13-quick">
-          <button type="button" id="m13This"><span class="chev">‹</span>지난 달</button>
-          <button type="button" class="next" id="m13Next">다음 달<span class="chev">›</span></button>
         </div>
       </section>
       <section class="m13-card m13-filters" id="m13Filters"></section>
@@ -4655,7 +4662,17 @@ function computeDateHeadcount(key){
       selectedKey=key(t);
       setTimeout(renderShell,0);
     };
-    document.getElementById('m13MonthChip').onclick=()=>{ document.getElementById('m13Start')?.showPicker?.(); };
+    document.getElementById('m13MonthChip').onclick=()=>{
+      const card=document.getElementById('m13RangeCard');
+      if(card) card.classList.toggle('range-open');
+    };
+    const rangeToggle=document.getElementById('m13RangeToggle');
+    if(rangeToggle) rangeToggle.onclick=()=>{
+      const card=document.getElementById('m13RangeCard');
+      if(!card) return;
+      const open=card.classList.toggle('range-open');
+      rangeToggle.textContent=open?'기간 닫기':'기간 설정';
+    };
     document.getElementById('m13Manager').onclick=()=>{
       document.body.classList.toggle('m13-show-details');
       const target=document.querySelector('.checklist-section');
@@ -4681,7 +4698,7 @@ function computeDateHeadcount(key){
       ['gallery','갤러리',activeCategories.gallery],
       ['tour','투어',activeCategories.tour]
     ];
-    box.innerHTML=cats.map(([kind,label,on])=>
+    box.innerHTML=`<div class="m13-filter-label">구분</div>`+cats.map(([kind,label,on])=>
       `<button type="button" class="m13-filter ${kind} ${on?'on':''}" data-kind="${kind}">
         <i></i><span>${label}</span>
       </button>`
@@ -4853,6 +4870,22 @@ function computeDateHeadcount(key){
     document.getElementById('m13StartText').textContent=prettyDate(rs?.value||'');
     document.getElementById('m13EndText').textContent=prettyDate(re?.value||'');
     document.getElementById('m13ManagerSub').textContent='총 '+uniqueManagers()+'명의 담당자가 있습니다.';
+
+    // 상단 이번 달 요약
+    const base=currentMonthDate(), yy=base.getFullYear(), mm=base.getMonth();
+    let gc=0, tc=0;
+    const lastDay=new Date(yy,mm+1,0).getDate();
+    for(let dd=1; dd<=lastDay; dd++){
+      const kk=key(new Date(yy,mm,dd));
+      gc += Array.isArray(GALLERY_ROWS[kk]) ? GALLERY_ROWS[kk].length : 0;
+      tc += Array.isArray(TOUR_ROWS[kk]) ? TOUR_ROWS[kk].length : 0;
+    }
+    const hm=document.getElementById('m13HeroMonth');
+    if(hm) hm.textContent=(mm+1)+'월 일정';
+    const ht=document.getElementById('m13HeroTotal'); if(ht) ht.textContent=gc+tc;
+    const hg=document.getElementById('m13HeroGallery'); if(hg) hg.textContent=gc;
+    const hto=document.getElementById('m13HeroTour'); if(hto) hto.textContent=tc;
+
     renderFilters();
     renderSiteFilters();
     renderCalendar();
@@ -5594,6 +5627,256 @@ function computeDateHeadcount(key){
   };
 })();
 </script>
+
+
+<style id="calendar-top-v3">
+@media (min-width:561px){
+  /* 전체 상단 레이아웃: 넓고 단정하게, 높이는 줄임 */
+  #mobileMockApp{
+    grid-template-columns:minmax(0,1fr) 340px !important;
+    gap:12px !important;
+  }
+
+  #mobileMockApp .m13-hero{
+    min-height:96px !important;
+    padding:20px 30px 18px 102px !important;
+    border-radius:20px !important;
+    background:
+      radial-gradient(circle at 92% 10%,rgba(134,221,210,.18),transparent 27%),
+      linear-gradient(112deg,#ffffff 0%,#f5fbfa 56%,#eef8f7 100%) !important;
+    box-shadow:0 10px 28px rgba(27,76,80,.055) !important;
+  }
+  #mobileMockApp .m13-hero-icon{
+    left:28px !important;top:20px !important;
+    width:54px !important;height:54px !important;border-radius:16px !important;
+  }
+  #mobileMockApp .m13-hero-icon svg{width:27px !important;height:27px !important}
+  #mobileMockApp .m13-title{
+    margin:0 0 5px !important;
+    font-size:27px !important;
+    font-weight:800 !important;
+    letter-spacing:-.05em !important;
+  }
+  #mobileMockApp .m13-sub{
+    font-size:11.5px !important;
+    color:#819397 !important;
+  }
+  #mobileMockApp .m13-hero-scene{
+    width:27% !important;
+    height:88% !important;
+    opacity:.48 !important;
+  }
+
+  .m13-hero-meta{
+    display:flex;
+    align-items:center;
+    gap:7px;
+    margin-top:10px;
+    position:relative;
+    z-index:3;
+  }
+  .m13-hero-meta span{
+    display:inline-flex;
+    align-items:center;
+    height:27px;
+    padding:0 9px;
+    border:1px solid #e1ecea;
+    border-radius:999px;
+    background:rgba(255,255,255,.82);
+    color:#71868b;
+    font-size:9px;
+    font-weight:700;
+    white-space:nowrap;
+  }
+  .m13-hero-meta span strong{
+    margin-left:4px;
+    color:#244b53;
+    font-size:10px;
+    font-weight:800;
+  }
+  .m13-hero-meta .month{
+    border-color:#bfe5df;
+    background:#eef9f6;
+    color:#138277;
+  }
+  .m13-hero-meta .g strong{color:#0b9085}
+  .m13-hero-meta .t strong{color:#d47b31}
+
+  /* 월 이동 카드 */
+  #mobileMockApp .m13-range{
+    grid-column:1 !important;
+    min-height:104px !important;
+    padding:14px 15px !important;
+    border-radius:18px !important;
+    display:grid !important;
+    grid-template-columns:auto 1fr !important;
+    grid-template-rows:auto auto !important;
+    align-content:center !important;
+    column-gap:12px !important;
+    row-gap:8px !important;
+  }
+  #mobileMockApp .m13-range-head{
+    grid-column:1 !important;
+    grid-row:1 / span 2 !important;
+    min-width:78px !important;
+    margin:0 !important;
+    padding-right:12px !important;
+    border-right:1px solid #e7efed !important;
+    display:flex !important;
+    flex-direction:column !important;
+    justify-content:center !important;
+    align-items:flex-start !important;
+    gap:7px !important;
+  }
+  #mobileMockApp .m13-section-title{
+    font-size:10px !important;
+    font-weight:800 !important;
+    color:#809397 !important;
+    letter-spacing:0 !important;
+  }
+  #mobileMockApp .m13-range-toggle{
+    min-height:29px;
+    padding:0 10px;
+    border:1px solid #dce8e6;
+    border-radius:9px;
+    background:#fff;
+    color:#406067;
+    font:700 9.5px/1 "Pretendard","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+    cursor:pointer;
+  }
+  #mobileMockApp .m13-range-toggle:hover{border-color:#9ecfc8;color:#0f8177}
+
+  #mobileMockApp .m13-quick{
+    grid-column:2 !important;
+    grid-row:1 / span 2 !important;
+    margin:0 !important;
+    display:grid !important;
+    grid-template-columns:120px minmax(170px,1fr) 120px !important;
+    gap:8px !important;
+    align-items:center !important;
+  }
+  #mobileMockApp .m13-quick button{
+    height:54px !important;
+    border-radius:13px !important;
+    font-size:12px !important;
+    font-weight:750 !important;
+    box-shadow:none !important;
+  }
+  #mobileMockApp .m13-quick #m13This,
+  #mobileMockApp .m13-quick #m13Next{
+    background:#fbfdfd !important;
+    color:#47636a !important;
+  }
+  #mobileMockApp .m13-month-chip{
+    width:100% !important;
+    height:54px !important;
+    justify-content:center !important;
+    border:1px solid #bfe0da !important;
+    background:linear-gradient(180deg,#f8fffd,#eef9f6) !important;
+    color:#176f68 !important;
+    font-size:15px !important;
+    font-weight:800 !important;
+  }
+  #mobileMockApp .m13-month-chip svg{
+    width:18px !important;height:18px !important;
+    color:#159589 !important;
+  }
+
+  /* 기간 상세는 기본 숨김, 필요할 때만 */
+  #mobileMockApp .m13-range-grid{
+    display:none !important;
+  }
+  #mobileMockApp .m13-range.range-open{
+    grid-column:1/-1 !important;
+    grid-template-columns:90px 1fr !important;
+    min-height:196px !important;
+  }
+  #mobileMockApp .m13-range.range-open .m13-range-head{
+    grid-row:1 !important;
+  }
+  #mobileMockApp .m13-range.range-open .m13-quick{
+    grid-row:1 !important;
+  }
+  #mobileMockApp .m13-range.range-open .m13-range-grid{
+    grid-column:1/-1 !important;
+    grid-row:2 !important;
+    display:grid !important;
+    grid-template-columns:minmax(0,1fr) 16px minmax(0,1fr) 105px !important;
+    margin-top:4px !important;
+    padding-top:12px !important;
+    border-top:1px solid #e8f0ee !important;
+  }
+  #mobileMockApp .m13-range.range-open .m13-date-card{
+    height:68px !important;
+    border-radius:12px !important;
+  }
+  #mobileMockApp .m13-range.range-open .m13-apply{
+    height:68px !important;
+    border-radius:12px !important;
+    font-size:14px !important;
+  }
+
+  /* 구분 카드: 갤러리 / 투어만 */
+  #mobileMockApp .m13-filters{
+    grid-column:2 !important;
+    min-height:104px !important;
+    margin:0 !important;
+    padding:13px !important;
+    border-radius:18px !important;
+    display:grid !important;
+    grid-template-columns:1fr 1fr !important;
+    grid-template-rows:22px 1fr !important;
+    gap:7px !important;
+    align-content:center !important;
+  }
+  #mobileMockApp .m13-filter-label{
+    grid-column:1/-1;
+    align-self:center;
+    color:#829397;
+    font-size:10px;
+    font-weight:800;
+    padding-left:2px;
+  }
+  #mobileMockApp .m13-filter{
+    height:50px !important;
+    border-radius:13px !important;
+    justify-content:center !important;
+    padding:0 12px !important;
+    font-size:11.5px !important;
+    font-weight:750 !important;
+    box-shadow:none !important;
+  }
+  #mobileMockApp .m13-filter i{
+    width:11px !important;height:11px !important;
+    flex:0 0 11px !important;
+    border-width:1px !important;
+  }
+  #mobileMockApp .m13-filter.gallery.on{
+    border-color:#82d6cc !important;
+    background:#eefaf7 !important;
+    color:#0d8177 !important;
+  }
+  #mobileMockApp .m13-filter.tour.on{
+    border-color:#f1c78f !important;
+    background:#fff6ec !important;
+    color:#b86c2f !important;
+  }
+
+  /* 달력과 상단 사이 여백 줄임 */
+  #mobileMockApp .m13-calendar{
+    margin-top:0 !important;
+  }
+}
+
+/* 모바일은 기존 느낌 유지하고 새 요소만 자연스럽게 */
+@media (max-width:560px){
+  .m13-hero-meta{display:none !important}
+  #mobileMockApp .m13-range-toggle{display:none !important}
+  #mobileMockApp .m13-filter-label{display:none !important}
+  #mobileMockApp .m13-range-grid{display:grid !important}
+  #mobileMockApp .m13-month-chip{pointer-events:none}
+}
+</style>
 
 </body>
 </html>
