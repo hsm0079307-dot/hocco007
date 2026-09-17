@@ -7308,5 +7308,245 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
 })();
 </script>
 
+
+<style id="calendar-pro-v26-clean-mobile">
+/* =========================================================
+   PRO V26 — clean mobile composition
+   - one stable site selector instead of variable chips
+   - cohesive month navigation
+   - calendar-first layout without spreadsheet-like grid
+   - schedule rows flow directly under calendar
+   ========================================================= */
+@media (max-width:760px){
+  :root{
+    --v26-ink:#123149;
+    --v26-sub:#7a8e9a;
+    --v26-line:#e8eef0;
+    --v26-line-soft:#f1f5f6;
+    --v26-teal:#0d9f94;
+    --v26-teal-soft:#eef9f7;
+    --v26-orange:#f5a14b;
+    --v26-orange-soft:#fff4e7;
+  }
+  html,body,.wrap,.pro-app-shell{background:#fff!important}
+  body{padding-bottom:calc(58px + env(safe-area-inset-bottom))!important}
+  .pro-main{max-width:460px!important;padding:14px 16px 18px!important;background:#fff!important}
+  .pro-main-card{background:#fff!important}
+
+  .pro-main-head{min-height:48px!important;margin:0 0 11px!important;align-items:center!important}
+  .pro-main-head .pro-title{font-size:22px!important;line-height:1!important;letter-spacing:-.055em!important}
+  .pro-main-head p{margin-top:5px!important;font-size:9px!important;color:#8497a2!important}
+  .pro-manage{height:36px!important;padding:0 10px!important;border-radius:11px!important;font-size:9.3px!important;box-shadow:none!important}
+  .pro-manage svg{width:14px!important;height:14px!important}
+
+  /* one navigation control: prev / month / next / today */
+  .pro-monthbar{
+    display:grid!important;
+    grid-template-areas:"prev title next today"!important;
+    grid-template-columns:36px minmax(0,1fr) 36px 50px!important;
+    align-items:center!important;
+    gap:6px!important;
+    margin:0 0 10px!important;
+  }
+  #proPrev{grid-area:prev!important}#proMonthTitle{grid-area:title!important}#proNext{grid-area:next!important}#proToday{grid-area:today!important}
+  .pro-monthbar .pro-iconbtn,.pro-today{height:36px!important;border:1px solid #dfe8eb!important;border-radius:11px!important;background:#fff!important;box-shadow:none!important}
+  .pro-month-title{text-align:center!important;font-size:20.5px!important;line-height:1!important;font-weight:950!important;letter-spacing:-.05em!important;color:var(--v26-ink)!important}
+  .pro-today{font-size:9px!important;font-weight:850!important}
+
+  /* stable site selector + tiny category switches */
+  .pro-site-row{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) 74px 74px!important;
+    gap:7px!important;
+    width:100%!important;
+    margin:0!important;
+    padding:0 0 11px!important;
+    overflow:visible!important;
+  }
+  .pro-v26-sitewrap{position:relative;display:block;min-width:0}
+  .pro-v26-sitewrap:after{content:"⌄";position:absolute;right:12px;top:50%;transform:translateY(-55%);pointer-events:none;color:#59717f;font-size:12px;font-weight:900}
+  .pro-v26-site-select{
+    appearance:none;-webkit-appearance:none;width:100%;height:34px;padding:0 31px 0 12px;
+    border:1px solid #dfe8eb;border-radius:999px;background:#fff;color:#28495c;
+    font-size:9px;font-weight:850;letter-spacing:-.025em;outline:none;
+  }
+  .pro-v26-site-select:focus{border-color:#72c8c0;box-shadow:0 0 0 3px rgba(13,159,148,.07)}
+  .pro-v26-cat{
+    height:34px;border:1px solid #e1e9ec;border-radius:999px;background:#fff;color:#6a7f8b;
+    display:flex;align-items:center;justify-content:center;gap:5px;padding:0 8px;
+    font-size:8.6px;font-weight:850;white-space:nowrap;
+  }
+  .pro-v26-cat i{width:6px;height:6px;border-radius:50%;display:block;flex:0 0 6px}
+  .pro-v26-cat.gallery i{background:var(--v26-teal)}.pro-v26-cat.tour i{background:var(--v26-orange)}
+  .pro-v26-cat.off{opacity:.42;background:#fafcfc}
+  .pro-chip{display:none!important}
+
+  /* date-first calendar, not spreadsheet cells */
+  .pro-calendar{border:0!important;border-radius:0!important;background:#fff!important;box-shadow:none!important;overflow:visible!important}
+  .pro-weekdays{border-bottom:1px solid var(--v26-line)!important}
+  .pro-weekday{height:27px!important;border:0!important;background:#fff!important;font-size:8.4px!important;color:#7a8e99!important}
+  .pro-days{background:#fff!important}
+  .pro-days[data-weeks="5"] .pro-day{height:49px!important;min-height:49px!important}
+  .pro-days[data-weeks="6"] .pro-day{height:43px!important;min-height:43px!important}
+  .pro-day{border:0!important;border-bottom:1px solid var(--v26-line-soft)!important;background:#fff!important;padding:4px 2px!important}
+  .pro-day:nth-last-child(-n+7){border-bottom:0!important}
+  .pro-day.other{background:#fff!important;color:#bac6cc!important}
+  .pro-day.selected{background:#fff!important}
+  .pro-daynum{width:28px!important;height:28px!important;font-size:9.4px!important;font-weight:900!important}
+  .pro-day.selected .pro-daynum{background:linear-gradient(145deg,#19b5aa,#0d958c)!important;box-shadow:0 5px 14px rgba(13,154,145,.19)!important}
+  .pro-day-dots{bottom:5px!important;gap:3px!important}.pro-day-dots i{width:4.7px!important;height:4.7px!important}
+  .pro-legend{display:none!important}
+
+  /* direct schedule section — no large surrounding card */
+  .pro-mobile-summary{
+    display:block!important;margin:5px 0 0!important;padding:10px 0 0!important;
+    border:0!important;border-top:1px solid var(--v26-line)!important;border-radius:0!important;
+    background:transparent!important;box-shadow:none!important;min-height:0!important;
+  }
+  .pro-mobile-summary>*:not(.pro-v26-list){display:none!important}
+  .pro-v26-list{display:block!important}
+  .pro-v26-list-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 1px 6px}
+  .pro-v26-list-head>div{display:flex;align-items:baseline;gap:7px;min-width:0}
+  .pro-v26-list-head strong{font-size:12.6px;line-height:1;font-weight:950;letter-spacing:-.035em;color:var(--v26-ink)}
+  .pro-v26-list-head .count{font-size:10px;font-weight:950;color:var(--v26-teal)}
+  .pro-v26-detail-link{border:0;background:transparent;color:#718691;font-size:8.5px;font-weight:850;padding:4px 0}
+  .pro-v26-events{display:flex;flex-direction:column}
+  .pro-v26-event-row,.pro-v26-up-row{
+    width:100%;min-height:43px;padding:7px 2px;border:0;border-top:1px solid #f0f4f5;background:#fff;
+    display:grid;grid-template-columns:7px 49px minmax(0,1fr) 12px;gap:7px;align-items:center;text-align:left;color:#29495c;
+  }
+  .pro-v26-event-row:first-child{border-top:0}
+  .pro-v26-event-row .dot,.pro-v26-up-row .dot{width:6px;height:6px;border-radius:50%;display:block}
+  .pro-v26-event-row .dot.gallery,.pro-v26-up-row .dot.gallery{background:var(--v26-teal)}
+  .pro-v26-event-row .dot.tour,.pro-v26-up-row .dot.tour{background:var(--v26-orange)}
+  .pro-v26-event-row time,.pro-v26-up-row time{font-size:8.9px;font-weight:950;color:#214257;white-space:nowrap}
+  .pro-v26-event-main{min-width:0}
+  .pro-v26-event-main b{display:block;font-size:9px;font-weight:900;color:#203f53;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pro-v26-event-main small{display:block;margin-top:2px;font-size:7.8px;font-weight:700;color:#8799a3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pro-v26-arr{font-size:15px;line-height:1;color:#9aabb4;text-align:right}
+  .pro-v26-empty{display:flex;align-items:center;gap:7px;min-height:34px;padding:5px 2px;color:#91a2ab;font-size:8.6px;font-weight:750}
+  .pro-v26-empty:before{content:"";width:6px;height:6px;border-radius:50%;background:#d8e5e6;flex:0 0 6px}
+  .pro-v26-up-title{display:flex;align-items:center;justify-content:space-between;margin-top:4px;padding:8px 2px 3px;border-top:1px solid var(--v26-line);font-size:8px;color:#8a9ba4}
+  .pro-v26-up-title strong{font-size:9.1px;color:#385768;font-weight:900}
+  .pro-v26-up-row{grid-template-columns:45px 7px minmax(0,1fr) 12px;min-height:39px;padding:6px 2px}
+  .pro-v26-up-row .date{font-size:8px;font-weight:850;color:#718692;white-space:nowrap}
+
+  /* preserve fixed nav, display the intended information architecture */
+  .pro-bottomnav button:nth-child(2) span,.pro-bottomnav button:nth-child(3) span{font-size:0!important}
+  .pro-bottomnav button:nth-child(2) span:after{content:"갤러리";font-size:8px!important}
+  .pro-bottomnav button:nth-child(3) span:after{content:"투어";font-size:8px!important}
+}
+</style>
+
+<script id="calendar-pro-v26-clean-mobile-js">
+(function(){
+  const q=(s,r)=>(r||document).querySelector(s);
+  const qa=(s,r)=>Array.from((r||document).querySelectorAll(s));
+  const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const mobile=()=>matchMedia('(max-width:760px)').matches;
+  let timer=null;
+
+  function selectedBtn(){return q('.pro-day.selected')}
+  function selectedKey(){return selectedBtn()?.dataset?.key||(typeof currentDateKey!=='undefined'?currentDateKey:'')||''}
+  function selectedDate(){
+    const b=selectedBtn();
+    if(b&&b.dataset.y!=null)return new Date(+b.dataset.y,+b.dataset.m,+b.dataset.d);
+    const rs=q('#rangeStart');const base=rs&&rs.value?new Date(rs.value+'T00:00:00'):new Date();
+    const p=selectedKey().split('-').map(Number);return p.length===2?new Date(base.getFullYear(),p[0]-1,p[1]):base;
+  }
+  function dateLabel(d){return `${d.getMonth()+1}월 ${d.getDate()}일(${['일','월','화','수','목','금','토'][d.getDay()]})`}
+  function compactDate(d){return `${d.getMonth()+1}/${d.getDate()} ${['일','월','화','수','목','금','토'][d.getDay()]}`}
+
+  function dynamicSites(){
+    const set=new Set();
+    try{Object.values(typeof TOUR_ROWS!=='undefined'?(TOUR_ROWS||{}):{}).forEach(rows=>(rows||[]).forEach(r=>{const n=String((r&&r[1])||'').trim();if(n&&n!=='-')set.add(n)}))}catch(e){}
+    try{
+      const hasGallery=Object.values(typeof GALLERY_ROWS!=='undefined'?(GALLERY_ROWS||{}):{}).some(rows=>Array.isArray(rows)&&rows.length);
+      const g=(typeof GALLERY_DANJI!=='undefined'?String(GALLERY_DANJI||'').trim():'');if(hasGallery&&g)set.add(g);
+    }catch(e){}
+    return Array.from(set).sort((a,b)=>a.localeCompare(b,'ko',{numeric:true,sensitivity:'base'}));
+  }
+  function activeSites(){try{return typeof activeDanjiFilter!=='undefined'?Array.from(activeDanjiFilter):[]}catch(e){return []}}
+  function setSite(name){
+    try{
+      if(typeof activeDanjiFilter==='undefined')return;
+      activeDanjiFilter.clear();if(name)activeDanjiFilter.add(name);
+      if(typeof buildCalendarArea==='function')buildCalendarArea();
+      if(typeof currentDateKey!=='undefined'&&currentDateKey&&typeof selectDate==='function')selectDate(currentDateKey,false);
+    }catch(e){console.error(e)}
+    try{window.dispatchEvent(new Event('resize'))}catch(e){}
+    schedule();
+  }
+  function categories(){
+    let g=true,t=true;try{g=activeCategories?.gallery!==false;t=activeCategories?.tour!==false}catch(e){}
+    return {g,t};
+  }
+  function mountFilter(){
+    if(!mobile())return;const row=q('#proSiteRow');if(!row)return;
+    const sites=dynamicSites(),active=activeSites(),cat=categories();
+    const valid=active.filter(x=>sites.includes(x));
+    if(valid.length!==active.length){try{activeDanjiFilter.clear()}catch(e){}}
+    const selected=valid[0]||'';
+    const sig=JSON.stringify([sites,selected,cat.g,cat.t]);if(row.dataset.v26sig===sig&&q('#proSiteSelect',row))return;
+    row.dataset.v26sig=sig;
+    row.innerHTML=`<label class="pro-v26-sitewrap"><select class="pro-v26-site-select" id="proSiteSelect" aria-label="현장 선택"><option value="">전체 현장</option>${sites.map(s=>`<option value="${esc(s)}" ${s===selected?'selected':''}>${esc(s)}</option>`).join('')}</select></label><button class="pro-v26-cat gallery ${cat.g?'':'off'}" type="button" id="proCatG"><i></i>갤러리</button><button class="pro-v26-cat tour ${cat.t?'':'off'}" type="button" id="proCatT"><i></i>투어</button>`;
+    q('#proSiteSelect',row).onchange=e=>setSite(e.target.value||'');
+    q('#proCatG',row).onclick=()=>{q('#proLegendG')?.click();schedule()};
+    q('#proCatT',row).onclick=()=>{q('#proLegendT')?.click();schedule()};
+  }
+
+  function rowsFor(k){
+    const out=[],filter=new Set(activeSites()),cat=categories();
+    try{if(cat.g)(GALLERY_ROWS?.[k]||[]).forEach(r=>{const site=(typeof GALLERY_DANJI!=='undefined'&&GALLERY_DANJI)||'갤러리';if(filter.size&&!filter.has(site))return;out.push({kind:'gallery',time:r[0]||'일정',site,name:r[2]||'성명 미입력',meta:[r[1],r[3],r[4]?'담당 '+r[4]:''].filter(x=>x&&x!=='-').join(' · ')})})}catch(e){}
+    try{if(cat.t)(TOUR_ROWS?.[k]||[]).forEach(r=>{const site=r[1]||'현장 미입력';if(filter.size&&!filter.has(site))return;out.push({kind:'tour',time:r[0]||'일정',site,name:r[3]||'성명 미입력',meta:[r[2],r[4],r[5]?'담당 '+r[5]:''].filter(x=>x&&x!=='-').join(' · ')})})}catch(e){}
+    return out;
+  }
+  function keyOf(d){return `${d.getMonth()+1}-${d.getDate()}`}
+  function upcoming(from,max=3){
+    const out=[];for(let i=1;i<=62&&out.length<max;i++){const d=new Date(from);d.setDate(d.getDate()+i);const k=keyOf(d);for(const x of rowsFor(k)){out.push({date:d,key:k,...x});if(out.length>=max)break}}return out;
+  }
+  function openSheet(){document.body.classList.remove('pro-tools-open','pro-customer-open');document.body.classList.add('pro-sheet-open')}
+  function goUpcoming(k){
+    const btn=q(`.pro-day[data-key="${CSS.escape(k)}"]`);
+    if(btn){btn.click();setTimeout(openSheet,70);return}
+    try{
+      const [m,d]=k.split('-').map(Number);const base=selectedDate();let y=base.getFullYear();if(m<base.getMonth()+1)y++;
+      const s=q('#rangeStart'),e=q('#rangeEnd');if(s)s.value=`${y}-${String(m).padStart(2,'0')}-01`;if(e)e.value=`${y}-${String(m).padStart(2,'0')}-${String(new Date(y,m,0).getDate()).padStart(2,'0')}`;
+      if(typeof applyRange==='function')applyRange();
+      setTimeout(()=>{const b=q(`.pro-day[data-key="${CSS.escape(k)}"]`);if(b){b.click();setTimeout(openSheet,50)}},100);
+    }catch(err){console.error(err)}
+  }
+  function renderList(){
+    if(!mobile())return;const box=q('#proMobileSummary');if(!box)return;const k=selectedKey();if(!k)return;
+    const d=selectedDate(),rows=rowsFor(k),ups=rows.length?[]:upcoming(d,3);
+    const sig=JSON.stringify([k,rows,ups.map(x=>[x.key,x.time,x.site,x.name])]);if(box.dataset.v26sig===sig&&q('.pro-v26-list',box))return;
+    box.dataset.v26sig=sig;
+    const list=rows.length?rows.map(x=>`<button class="pro-v26-event-row" type="button"><span class="dot ${x.kind}"></span><time>${esc(x.time)}</time><span class="pro-v26-event-main"><b>${esc(x.site)}${x.name?' · '+esc(x.name):''}</b><small>${esc(x.meta||'')}</small></span><span class="pro-v26-arr">›</span></button>`).join(''):
+      `<div class="pro-v26-empty">이 날짜에는 등록된 일정이 없습니다.</div>${ups.length?`<div class="pro-v26-up-title"><strong>다가오는 일정</strong><span>다음 일정 미리보기</span></div>${ups.map(x=>`<button class="pro-v26-up-row" type="button" data-key="${esc(x.key)}"><span class="date">${esc(compactDate(x.date))}</span><span class="dot ${x.kind}"></span><span class="pro-v26-event-main"><b>${esc(x.time)} · ${esc(x.site)}</b><small>${esc(x.name)}</small></span><span class="pro-v26-arr">›</span></button>`).join('')}`:''}`;
+    box.innerHTML=`<div class="pro-v26-list"><div class="pro-v26-list-head"><div><strong>${esc(dateLabel(d))}</strong><span class="count">${rows.length}건</span></div><button class="pro-v26-detail-link" type="button">상세보기 ›</button></div><div class="pro-v26-events">${list}</div></div>`;
+    q('.pro-v26-detail-link',box).onclick=openSheet;
+    qa('.pro-v26-event-row',box).forEach(b=>b.onclick=openSheet);
+    qa('.pro-v26-up-row',box).forEach(b=>b.onclick=()=>goUpcoming(b.dataset.key));
+  }
+
+  function navIntent(){
+    const bs=qa('.pro-bottomnav button');if(bs.length<4)return;
+    // v25 may rewrite data-mobile; pointerdown repairs it before its click handler runs.
+    bs[0].dataset.mobile='schedule';bs[1].dataset.mobile='gallery';bs[2].dataset.mobile='tour';bs[3].dataset.mobile='more';
+  }
+  function preNav(e){const b=e.target.closest('.pro-bottomnav button');if(!b)return;const bs=qa('.pro-bottomnav button');const i=bs.indexOf(b);if(i===1)b.dataset.mobile='gallery';else if(i===2)b.dataset.mobile='tour'}
+  document.addEventListener('pointerdown',preNav,true);document.addEventListener('touchstart',preNav,true);
+  document.addEventListener('click',function(e){
+    const b=e.target.closest('.pro-bottomnav button');if(!b||!mobile())return;const bs=qa('.pro-bottomnav button'),i=bs.indexOf(b);
+    if(i===1||i===2){e.preventDefault();e.stopImmediatePropagation();bs.forEach((x,j)=>x.classList.toggle('active',j===i));const k=selectedKey();if(k)previewKey=k;setTimeout(()=>{try{if(typeof addEntryFlow==='function')addEntryFlow(i===1?'gallery':'tour')}catch(err){console.error(err)}},20)}
+  },true);
+
+  function update(){if(!mobile())return;mountFilter();renderList();navIntent()}
+  function schedule(){clearTimeout(timer);timer=setTimeout(update,35)}
+  function init(){setTimeout(update,100);const root=q('#proCalendarApp');if(root)new MutationObserver(schedule).observe(root,{childList:true,subtree:true,attributes:true,attributeFilter:['class','data-weeks']});window.addEventListener('resize',schedule)}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+})();
+</script>
+
 </body>
 </html>
