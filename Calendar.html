@@ -6153,118 +6153,324 @@ tbody tr:hover td{background:#fbfdfd!important}
 </script>
 
 
+<style id="calendar-pro-v20-style">
+/* =========================================================
+   CALENDAR PRO V20 — app-like responsive redesign
+   desktop: left calendar + right date detail
+   mobile: calendar app + bottom sheet
+   ========================================================= */
+:root{
+  --pro-ink:#0f2f4a;--pro-sub:#7890a0;--pro-teal:#0aa397;--pro-teal2:#13b7aa;
+  --pro-orange:#ff9f43;--pro-line:#e2ecef;--pro-soft:#f5fafb;--pro-card:#fff;
+  --pro-shadow:0 18px 50px rgba(31,64,79,.07);
+}
+#mobileMockApp,#mobileMockNav{display:none!important}
+#proCalendarApp{display:block;font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic",sans-serif;color:var(--pro-ink)}
+#proCalendarApp *{box-sizing:border-box}
+#proCalendarApp button,#proCalendarApp input{font:inherit}
+#proCalendarApp button{cursor:pointer}
+#proCalendarApp svg{display:block}
+.pro-hidden{display:none!important}
+.pro-card{background:#fff;border:1px solid var(--pro-line);border-radius:22px;box-shadow:var(--pro-shadow)}
+.pro-iconbtn{display:grid;place-items:center;border:1px solid var(--pro-line);background:#fff;color:#173d57;border-radius:14px}
+.pro-iconbtn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.9}
+.pro-title{font-weight:900;letter-spacing:-.055em;color:#0f2d47}
+.pro-muted{color:var(--pro-sub)}
+.pro-dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:0 0 9px}
+.pro-dot.gallery{background:var(--pro-teal)}.pro-dot.tour{background:var(--pro-orange)}
+.pro-backdrop{position:fixed;inset:0;background:rgba(20,35,42,.46);backdrop-filter:blur(3px);z-index:990;display:none}
+body.pro-sheet-open .pro-backdrop{display:block}
+.pro-detail-panel{background:#fff}
 
-<style id="calendar-mobile-v15-compact-scroll-fix">
-/* 2026-09-17 mobile compact + iOS bottom-sheet scroll fix */
-@media (max-width:560px){
-  body{padding:9px 9px calc(76px + env(safe-area-inset-bottom))!important;overflow-y:auto!important;-webkit-text-size-adjust:100%!important;}
-  #mobileMockApp{margin-bottom:8px!important;}
-  #mobileMockApp .m13-card{border-radius:17px!important;margin-bottom:8px!important;box-shadow:0 6px 18px rgba(24,69,73,.04)!important;}
+/* hide the legacy top/calendar but keep functional forms/overlays and checklist */
+.wrap>header,.wrap>.rangebar,.wrap>.legend,.wrap>.danjiToggleBar,.wrap>#calendarArea{display:none!important}
+.mobile-app-nav{display:none!important}
+.mobile-admin-fab{display:none!important}
+.checklist-section,.car{display:none!important}
+body.pro-show-legacy .checklist-section,body.pro-show-legacy .car{display:block!important}
 
-  /* top area: about 15~20% denser */
-  #mobileMockApp .m13-hero{min-height:76px!important;padding:13px 12px 12px 58px!important;}
-  #mobileMockApp .m13-hero-icon{width:34px!important;height:34px!important;left:12px!important;top:13px!important;border-radius:11px!important;}
-  #mobileMockApp .m13-hero-icon svg{width:16px!important;height:16px!important;}
-  #mobileMockApp .m13-title{font-size:18px!important;margin:0 0 3px!important;line-height:1.04!important;}
-  #mobileMockApp .m13-sub{font-size:8.8px!important;line-height:1.25!important;}
-  #mobileMockApp .m13-hero-scene{width:42%!important;height:76%!important;opacity:.36!important;}
+/* DESKTOP */
+@media (min-width:761px){
+  html,body{background:#f5f8f9!important}
+  body{padding:18px!important;background:linear-gradient(180deg,#f7fafb 0%,#f1f5f6 100%)!important}
+  .wrap{width:min(1540px,100%)!important;max-width:none!important;margin:0 auto!important}
+  #proCalendarApp{min-height:calc(100vh - 36px)}
+  .pro-app-shell{display:grid;grid-template-columns:190px minmax(0,1.12fr) minmax(390px,.88fr);grid-template-rows:78px minmax(720px,1fr);border:1px solid #e4ecef;border-radius:18px;background:#fff;box-shadow:0 20px 55px rgba(28,60,72,.08);overflow:hidden}
+  .pro-topbar{grid-column:1/-1;display:flex;align-items:center;gap:24px;padding:0 26px;border-bottom:1px solid #edf2f3;background:rgba(255,255,255,.97)}
+  .pro-brand{display:flex;align-items:center;gap:11px;min-width:240px}
+  .pro-logo{display:grid;grid-template-columns:repeat(2,14px);grid-template-rows:repeat(2,14px);gap:2px;transform:rotate(45deg);margin:0 3px}
+  .pro-logo i{display:block;width:14px;height:14px;border-radius:7px;background:var(--pro-teal);transform:rotate(-45deg)}
+  .pro-logo i:nth-child(2){background:#ffb44e}.pro-logo i:nth-child(3){background:#14b7ab}.pro-logo i:nth-child(4){background:#0a8f86}
+  .pro-brand strong{font-size:22px;letter-spacing:-.05em}.pro-brand small{display:block;margin-top:2px;font-size:10px;line-height:1.25;color:#79909f;font-weight:700}
+  .pro-search{margin-left:auto;position:relative;width:min(500px,42vw)}
+  .pro-search svg{position:absolute;left:16px;top:50%;transform:translateY(-50%);width:20px;height:20px;fill:none;stroke:#31536c;stroke-width:1.9}
+  .pro-search input{width:100%;height:46px;border:1px solid #dce7eb;border-radius:14px;background:#fff;padding:0 18px 0 48px;color:#17364d;outline:none;font-size:14px;font-weight:650}
+  .pro-search input:focus{border-color:#8ed7d0;box-shadow:0 0 0 3px rgba(10,163,151,.09)}
+  .pro-bell{width:46px;height:46px;border-radius:50%;position:relative}.pro-bell:after{content:"";position:absolute;right:7px;top:5px;width:7px;height:7px;border-radius:50%;background:#ff304a;border:2px solid #fff}
 
-  #mobileMockApp .m13-range,#mobileMockApp .m13-filters,#mobileMockApp .m13-calendar{padding:10px 9px!important;}
-  #mobileMockApp .m13-range-head{margin-bottom:7px!important;}
-  #mobileMockApp .m13-section-title{font-size:10px!important;}
-  #mobileMockApp .m13-quick{gap:5px!important;}
-  #mobileMockApp .m13-quick button{height:36px!important;border-radius:10px!important;font-size:9.2px!important;}
-  #mobileMockApp .m13-month-chip{font-size:10px!important;gap:4px!important;}
-  #mobileMockApp .m13-month-chip svg{width:13px!important;height:13px!important;}
-  #mobileMockApp .m13-range-grid{gap:5px!important;margin-top:6px!important;}
-  #mobileMockApp .m13-date-card,#mobileMockApp .m13-apply{height:36px!important;border-radius:10px!important;}
-  #mobileMockApp .m13-date-card{padding:0 8px!important;gap:6px!important;}
-  #mobileMockApp .m13-date-card label{font-size:8px!important;min-width:28px!important;}
-  #mobileMockApp .m13-date-line{gap:5px!important;}
-  #mobileMockApp .m13-date-line svg{width:13px!important;height:13px!important;flex-basis:13px!important;}
-  #mobileMockApp .m13-date-text{font-size:10px!important;}
-  #mobileMockApp .m13-apply{font-size:10px!important;}
+  .pro-sidebar{grid-column:1;grid-row:2;padding:20px 14px 18px;border-right:1px solid #edf2f3;display:flex;flex-direction:column;background:#fbfdfd}
+  .pro-nav{display:flex;flex-direction:column;gap:8px}.pro-nav button{height:54px;border:0;border-radius:13px;background:transparent;color:#36546a;display:flex;align-items:center;gap:12px;padding:0 15px;font-size:14px;font-weight:800;text-align:left}
+  .pro-nav button svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8}.pro-nav button.active{background:#eaf8f6;color:#078d83}
+  .pro-side-bottom{margin-top:auto;display:flex;flex-direction:column;gap:10px}.pro-help{height:44px;border:0;background:transparent;color:#516d7e;display:flex;align-items:center;gap:10px;padding:0 14px;font-weight:700}
+  .pro-user{display:flex;align-items:center;gap:10px;padding:12px 10px;border-top:1px solid #edf2f3}.pro-avatar{width:44px;height:44px;border-radius:50%;background:#e8f4f3;display:grid;place-items:center;font-size:13px;font-weight:900;color:#15536a}.pro-user strong{font-size:13px}.pro-user small{display:block;color:#8296a3;font-size:10px;margin-top:2px}
 
-  #mobileMockApp .m13-filters{gap:6px!important;}
-  #mobileMockApp .m13-filter{height:36px!important;border-radius:10px!important;font-size:9px!important;gap:6px!important;}
-  #mobileMockApp .m13-filter i{width:9px!important;height:9px!important;flex-basis:9px!important;}
+  .pro-main{grid-column:2;grid-row:2;padding:20px 18px 20px 22px;min-width:0;overflow:auto;background:#f8fafb}
+  .pro-main-card{min-height:100%;padding:22px 22px 18px;border:1px solid #e5edef;border-radius:18px;background:#fff;box-shadow:0 12px 35px rgba(36,66,78,.04)}
+  .pro-main-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px}
+  .pro-main-head .pro-title{font-size:35px;line-height:1}.pro-main-head p{margin:8px 0 0;font-size:15px;font-weight:600;color:#7890a0}
+  .pro-manage{height:46px;padding:0 15px;border:1px solid #dce7eb;border-radius:13px;background:#fff;color:#173a55;display:flex;align-items:center;gap:8px;font-weight:800}.pro-manage svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8}
+  .pro-monthbar{display:grid;grid-template-columns:54px 1fr 72px 54px;align-items:center;gap:10px;margin:0 0 14px}.pro-monthbar .pro-iconbtn{height:50px}.pro-month-title{text-align:center;font-size:30px;font-weight:900;letter-spacing:-.045em;color:#102d47}.pro-today{height:50px;border:1px solid var(--pro-line);border-radius:14px;background:#fff;color:#17364f;font-weight:850}
+  .pro-site-row{display:flex;gap:9px;overflow-x:auto;padding:0 0 14px;scrollbar-width:none}.pro-site-row::-webkit-scrollbar{display:none}.pro-chip{height:40px;padding:0 16px;border:1px solid #dce7eb;border-radius:999px;background:#fff;color:#4b6475;font-size:12px;font-weight:800;white-space:nowrap}.pro-chip.on{border-color:#13b2a6;color:#078b82;background:#f1fbfa;box-shadow:inset 0 0 0 1px rgba(19,178,166,.12)}
+  .pro-calendar{border:1px solid #e2eaed;border-radius:14px;overflow:hidden;background:#fff}.pro-weekdays,.pro-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}.pro-weekday{height:46px;display:grid;place-items:center;border-right:1px solid #edf2f3;border-bottom:1px solid #edf2f3;color:#637b8b;font-size:12px;font-weight:850}.pro-weekday:nth-child(7){border-right:0}.pro-weekday.sun{color:#ff334b}.pro-weekday.sat{color:#1474f5}
+  .pro-day{position:relative;min-height:78px;border:0;border-right:1px solid #edf2f3;border-bottom:1px solid #edf2f3;background:#fff;color:#16394f;text-align:left;padding:10px 9px;transition:.16s ease}.pro-day:nth-child(7n){border-right:0}.pro-day:nth-last-child(-n+7){border-bottom:0}.pro-day:hover{background:#f8fcfc}.pro-day.other{color:#a8bac4;background:#fbfcfc}.pro-day.selected{background:linear-gradient(180deg,#f8ffff,#f2fbfa)}.pro-daynum{font-size:13px;font-weight:800;display:inline-grid;place-items:center;width:30px;height:30px;border-radius:50%}.pro-day.sun .pro-daynum{color:#ff3149}.pro-day.sat .pro-daynum{color:#1474f5}.pro-day.selected .pro-daynum{background:linear-gradient(145deg,#12b9ac,#078f86);color:#fff;box-shadow:0 7px 18px rgba(10,163,151,.25)}
+  .pro-day-dots{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);display:flex;gap:4px;align-items:center}.pro-day-dots i{width:7px;height:7px;border-radius:50%;display:block}.pro-day-dots .g{background:var(--pro-teal)}.pro-day-dots .t{background:var(--pro-orange)}
+  .pro-legend{display:flex;align-items:center;gap:22px;margin-top:14px}.pro-legend button{border:0;background:transparent;color:#5d7483;display:flex;align-items:center;gap:8px;font-size:12px;font-weight:800;padding:5px 0}.pro-legend button.off{opacity:.42}
 
-  /* calendar: reduce vertical size without changing functionality */
-  #mobileMockApp .m13-calendar{padding:11px 9px 10px!important;}
-  #mobileMockApp .m13-cal-head{margin-bottom:8px!important;gap:6px!important;}
-  #mobileMockApp .m13-cal-title{font-size:23px!important;}
-  #mobileMockApp .m13-cal-actions{gap:5px!important;}
-  #mobileMockApp .m13-cal-actions button{height:34px!important;min-width:34px!important;border-radius:10px!important;font-size:11px!important;}
-  #mobileMockApp .m13-cal-actions .today{min-width:50px!important;padding:0 9px!important;font-size:9px!important;}
-  #mobileMockApp .m13-site-row{margin-bottom:6px!important;padding:6px!important;border-radius:10px!important;gap:5px!important;}
-  #mobileMockApp .m13-site-label{font-size:8px!important;}
-  #mobileMockApp .m13-site-chip{min-height:24px!important;padding:0 8px!important;font-size:7.8px!important;}
-  #mobileMockApp .m13-weekdays,#mobileMockApp .m13-days{gap:3px!important;}
-  #mobileMockApp .m13-weekdays{margin-bottom:4px!important;}
-  #mobileMockApp .m13-weekday{height:17px!important;font-size:8px!important;}
-  #mobileMockApp .m13-day{height:64px!important;padding:21px 5px 5px!important;border-radius:9px!important;}
-  #mobileMockApp .m13-daynum{left:6px!important;top:5px!important;font-size:9px!important;}
-  .m13-desk-events{gap:2px!important;}
-  .m13-desk-event{grid-template-columns:28px minmax(0,1fr)!important;min-height:17px!important;padding:2px 3px!important;border-radius:6px!important;gap:3px!important;}
-  .m13-desk-time{height:13px!important;font-size:5.2px!important;border-radius:5px!important;}
-  .m13-desk-copy strong{font-size:6.2px!important;}.m13-desk-copy span{font-size:5.7px!important;}.m13-desk-copy small{display:none!important;}
-  .m13-desk-more{height:13px!important;font-size:5.5px!important;}
-  #mobileMockApp .m13-manager{height:54px!important;padding:0 12px!important;gap:9px!important;}
-  #mobileMockApp .m13-manager-ico{width:34px!important;height:34px!important;flex-basis:34px!important;border-radius:10px!important;}
-  #mobileMockApp .m13-manager-title{font-size:11px!important;}
-  #mobileMockApp .m13-manager-sub{font-size:7.8px!important;margin-top:2px!important;}
-  #mobileMockApp .m13-manager-arr{font-size:17px!important;}
-  .mobile-admin-fab{min-width:70px!important;height:42px!important;padding:0 12px!important;font-size:11px!important;right:11px!important;bottom:calc(12px + env(safe-area-inset-bottom))!important;}
+  .pro-detail-wrap{grid-column:3;grid-row:2;padding:20px 20px 20px 0;background:#f8fafb;min-width:0}.pro-detail-panel{height:100%;border:1px solid #e5edef;border-radius:18px;padding:26px 22px 20px;box-shadow:0 12px 35px rgba(36,66,78,.04);overflow:auto;position:relative}
+  .pro-detail-close,.pro-sheet-handle{display:none!important}.pro-detail-date{font-size:31px;font-weight:900;letter-spacing:-.045em;margin-bottom:20px}.pro-statrow{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px}.pro-stat{height:50px;padding:0 17px;border-radius:999px;background:#f1f8f8;display:flex;align-items:center;gap:9px;color:#21445c;font-weight:850;font-size:13px}.pro-stat svg{width:20px;height:20px;fill:none;stroke:#0f7c7b;stroke-width:1.8}.pro-group{margin-top:14px}.pro-group-title{display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:15px;font-weight:900}.pro-group-title.gallery{color:#0b827b}.pro-group-title.tour{color:#c76b1d}.pro-eventlist{display:flex;flex-direction:column;gap:10px}.pro-event{display:grid;grid-template-columns:90px minmax(0,1fr) 26px;gap:12px;align-items:center;min-height:82px;padding:12px 12px;border:1px solid #e1e9ec;border-radius:15px;background:#fff}.pro-time{height:50px;display:grid;place-items:center;border-radius:10px;background:#fff4e8;color:#15384e;font-size:13px;font-weight:900}.pro-event.gallery .pro-time{background:#eaf8f6;color:#0b7771}.pro-event-title{font-size:14px;font-weight:900;color:#15364e;line-height:1.25}.pro-event-meta{margin-top:5px;font-size:11px;font-weight:650;color:#7b91a0;white-space:normal}.pro-event-arr{color:#5d7890;font-size:26px;line-height:1;text-align:center}.pro-empty{padding:30px 10px;text-align:center;color:#8aa0ad;font-weight:750}
+  .pro-capacity{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;padding:14px 14px;border-radius:14px;background:#eef8f7;color:#254a60;font-size:12px;font-weight:800}.pro-capacity button{border:0;background:transparent;color:#0c8f85;font-weight:900}.pro-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}.pro-actions button{height:54px;border-radius:14px;background:#fff;font-weight:900}.pro-add-gallery{border:1px solid #66cec5;color:#0a8c82}.pro-add-tour{border:1px solid #ffc584;color:#b86218}.pro-open-check{grid-column:1/-1;border:0!important;background:linear-gradient(145deg,#11a89d,#0b8e86)!important;color:#fff!important;box-shadow:0 10px 22px rgba(11,142,134,.17)}.pro-secondary{margin-top:9px;text-align:right}.pro-secondary button{border:0;background:transparent;color:#bd6074;font-size:11px;font-weight:800;padding:5px}
+  .pro-mobile-summary,.pro-bottomnav{display:none!important}
+}
 
-  /* iPhone / in-app browser: make the detail sheet actually scrollable */
-  #overlay{overscroll-behavior:contain!important;touch-action:none!important;}
-  #overlay .modal{
-    max-height:min(60dvh, calc(var(--calendar-vv-height, 100dvh) - 10px))!important;
-    overflow-y:auto!important;overflow-x:hidden!important;
-    -webkit-overflow-scrolling:touch!important;
-    overscroll-behavior:contain!important;touch-action:pan-y!important;
-    padding-bottom:calc(24px + env(safe-area-inset-bottom))!important;
-    scroll-behavior:smooth!important;
-  }
-  #overlay.on .modal{will-change:scroll-position;}
-  body.calendar-sheet-open{overflow:hidden!important;touch-action:none!important;}
-  body.calendar-sheet-open #overlay .modal{touch-action:pan-y!important;}
-  body.calendar-sheet-open .mobile-admin-fab,
-  body.calendar-sheet-open #mobileMockNav{display:none!important;}
+/* MOBILE */
+@media (max-width:760px){
+  html,body{background:#fff!important}
+  body{padding:0 0 calc(80px + env(safe-area-inset-bottom))!important;color:var(--pro-ink)!important;overflow-x:hidden}
+  .wrap{width:100%!important;max-width:none!important;margin:0!important}
+  .pro-app-shell{display:block;min-height:100vh;background:#fff}
+  .pro-topbar,.pro-sidebar{display:none!important}
+  .pro-main{padding:0 14px 18px;background:#fff}
+  .pro-main-card{border:0;box-shadow:none;padding:20px 0 0;background:#fff}
+  .pro-main-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:20px;padding-top:2px}.pro-main-head .pro-title{font-size:28px;line-height:1}.pro-main-head p{margin:6px 0 0;font-size:11px;font-weight:650;color:#7f95a2}.pro-manage{height:46px;padding:0 13px;border:1px solid #dce7eb;border-radius:13px;background:#fff;color:#173a55;display:flex;align-items:center;gap:7px;font-size:12px;font-weight:850}.pro-manage svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8}
+  .pro-monthbar{display:grid;grid-template-columns:46px 1fr 56px 46px;gap:8px;align-items:center;margin-bottom:12px}.pro-monthbar .pro-iconbtn,.pro-today{height:46px}.pro-month-title{text-align:center;font-size:25px;font-weight:900;letter-spacing:-.05em;color:#102e47}.pro-today{border:1px solid #dce7eb;border-radius:13px;background:#fff;color:#183a53;font-size:11px;font-weight:850}
+  .pro-site-row{display:flex;gap:8px;overflow-x:auto;padding:0 0 14px;scrollbar-width:none}.pro-site-row::-webkit-scrollbar{display:none}.pro-chip{height:39px;padding:0 15px;border:1px solid #dce7eb;border-radius:999px;background:#fff;color:#506978;font-size:10.5px;font-weight:850;white-space:nowrap}.pro-chip.on{border-color:#15b2a7;color:#078c83;background:#f3fbfa}
+  .pro-calendar{border:1px solid #e6ecef;border-radius:12px;overflow:hidden}.pro-weekdays,.pro-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}.pro-weekday{height:40px;display:grid;place-items:center;border-right:1px solid #f0f3f4;border-bottom:1px solid #edf2f3;color:#607989;font-size:10px;font-weight:850}.pro-weekday:nth-child(7){border-right:0}.pro-weekday.sun{color:#ff3149}.pro-weekday.sat{color:#1474f5}
+  .pro-day{position:relative;height:63px;border:0;border-right:1px solid #f0f3f4;border-bottom:1px solid #edf2f3;background:#fff;padding:7px 5px;text-align:center;color:#16394f}.pro-day:nth-child(7n){border-right:0}.pro-day:nth-last-child(-n+7){border-bottom:0}.pro-day.other{color:#b0c0c8;background:#fcfdfd}.pro-daynum{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;margin:0 auto;font-size:11px;font-weight:850}.pro-day.sun .pro-daynum{color:#ff3149}.pro-day.sat .pro-daynum{color:#1474f5}.pro-day.selected .pro-daynum{background:linear-gradient(145deg,#11b9ac,#078f86);color:#fff;box-shadow:0 6px 15px rgba(10,163,151,.25)}.pro-day-dots{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);display:flex;gap:3px}.pro-day-dots i{width:6px;height:6px;border-radius:50%;display:block}.pro-day-dots .g{background:var(--pro-teal)}.pro-day-dots .t{background:var(--pro-orange)}
+  .pro-legend{display:flex;align-items:center;gap:18px;margin:10px 2px 0}.pro-legend button{border:0;background:transparent;color:#647b8a;display:flex;align-items:center;gap:7px;padding:4px 0;font-size:10px;font-weight:800}.pro-legend button.off{opacity:.4}
+  .pro-mobile-summary{display:block;margin-top:12px;padding:15px 16px;border:1px solid #e4ecef;border-radius:15px;background:#fff}.pro-mobile-summary-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.pro-mobile-summary-head strong{font-size:16px}.pro-mobile-summary-head .count{color:#0a9a90}.pro-mobile-summary-head button{border:0;background:transparent;color:#66808f;font-size:10px;font-weight:800}.pro-mini-events{display:flex;flex-direction:column;gap:9px}.pro-mini-event{display:grid;grid-template-columns:10px 70px minmax(0,1fr) auto;gap:8px;align-items:center;font-size:10.5px;color:#24465d}.pro-mini-event b{font-size:10.5px}.pro-mini-event span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pro-mini-event em{font-style:normal;color:#708795;font-size:10px}
+
+  .pro-detail-wrap{position:static;padding:0}.pro-detail-panel{position:fixed;left:0;right:0;bottom:0;z-index:1000;max-height:min(88dvh,760px);overflow:auto;padding:13px 14px calc(18px + env(safe-area-inset-bottom));border-radius:26px 26px 0 0;box-shadow:0 -24px 60px rgba(22,50,62,.22);transform:translateY(105%);transition:transform .25s ease;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}.pro-detail-panel:before{content:"";display:block;width:40px;height:4px;border-radius:999px;background:#d6e1e4;margin:0 auto 13px}.pro-sheet-handle{display:none}.pro-detail-close{position:absolute;right:14px;top:17px;width:40px;height:40px;border:0;border-radius:13px;background:#f5f8f9;color:#617b89;font-size:24px;line-height:1;display:grid;place-items:center}.pro-detail-date{padding-right:48px;font-size:24px;font-weight:900;letter-spacing:-.045em;margin-bottom:14px}.pro-statrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}.pro-stat{height:42px;padding:0 13px;border-radius:999px;background:#f2f7f8;display:flex;align-items:center;gap:7px;color:#23465d;font-size:11px;font-weight:850}.pro-stat svg{width:17px;height:17px;fill:none;stroke:#0f7c7b;stroke-width:1.8}.pro-group{margin-top:12px}.pro-group-title{display:flex;align-items:center;gap:7px;margin:0 0 9px;font-size:13px;font-weight:900}.pro-group-title.gallery{color:#0b827b}.pro-group-title.tour{color:#c76b1d}.pro-eventlist{display:flex;flex-direction:column;gap:8px}.pro-event{display:grid;grid-template-columns:74px minmax(0,1fr) 22px;gap:9px;align-items:center;min-height:70px;padding:9px;border:1px solid #e2e9ec;border-radius:14px;background:#fff}.pro-time{height:44px;display:grid;place-items:center;border-radius:9px;background:#fff3e5;color:#17394f;font-size:11px;font-weight:900}.pro-event.gallery .pro-time{background:#eaf8f6;color:#0b7771}.pro-event-title{font-size:12px;line-height:1.25;font-weight:900;color:#15364e}.pro-event-meta{margin-top:4px;font-size:9.5px;font-weight:650;color:#7b91a0;white-space:normal}.pro-event-arr{font-size:22px;color:#68808f;text-align:center}.pro-empty{padding:26px 10px;text-align:center;color:#8aa0ad;font-size:11px;font-weight:750}
+  .pro-capacity{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px;padding:12px 12px;border-radius:13px;background:#eef8f7;color:#254a60;font-size:10.5px;font-weight:800}.pro-capacity button{border:0;background:transparent;color:#0c8f85;font-size:10px;font-weight:900}.pro-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:11px}.pro-actions button{height:48px;border-radius:13px;background:#fff;font-size:11px;font-weight:900}.pro-add-gallery{border:1px solid #67cec5;color:#0a8c82}.pro-add-tour{border:1px solid #ffc584;color:#b86218}.pro-open-check{grid-column:1/-1;border:0!important;background:linear-gradient(145deg,#11a89d,#0b8e86)!important;color:#fff!important}.pro-secondary{margin-top:7px;text-align:right}.pro-secondary button{border:0;background:transparent;color:#bd6074;font-size:9.5px;font-weight:800;padding:4px}
+  body.pro-sheet-open{overflow:hidden}.pro-sheet-open .pro-detail-panel{transform:translateY(0)}
+  .pro-bottomnav{position:fixed;left:0;right:0;bottom:0;z-index:950;height:calc(66px + env(safe-area-inset-bottom));padding:7px 12px env(safe-area-inset-bottom);border-top:1px solid #e8eef0;background:rgba(255,255,255,.96);backdrop-filter:blur(16px);display:grid;grid-template-columns:repeat(4,1fr)}.pro-bottomnav button{border:0;background:transparent;color:#708695;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:9px;font-weight:800}.pro-bottomnav button.active{color:#078e85}.pro-bottomnav svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.9}
 }
 </style>
-<script id="calendar-mobile-v15-scroll-fix-js">
+
+<script id="calendar-pro-v20-js">
 (function(){
-  const mq=()=>window.matchMedia&&window.matchMedia('(max-width:560px)').matches;
-  const ov=()=>document.getElementById('overlay');
-  function setVH(){
-    if(!mq()) return;
-    const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight;
-    document.documentElement.style.setProperty('--calendar-vv-height',Math.max(320,Math.round(h))+'px');
+  const svg={
+    cal:'<svg viewBox="0 0 24 24"><rect x="3.5" y="5.5" width="17" height="15" rx="2.5"></rect><path d="M7 3.5v4M17 3.5v4M3.5 10h17"></path><path d="M8 14h2M14 14h2M8 17h2M14 17h2"></path></svg>',
+    people:'<svg viewBox="0 0 24 24"><circle cx="9" cy="9" r="3"></circle><circle cx="16.5" cy="8.5" r="2.5"></circle><path d="M4.5 19c.7-3.3 2.6-5 5.7-5s5 1.7 5.7 5"></path><path d="M14.3 18.6c.4-2.3 1.7-3.7 4-4.2"></path></svg>',
+    tune:'<svg viewBox="0 0 24 24"><path d="M4 7h8M16 7h4M12 4v6M4 17h4M12 17h8M8 14v6"></path></svg>',
+    search:'<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg>',
+    bell:'<svg viewBox="0 0 24 24"><path d="M7 10a5 5 0 0 1 10 0c0 6 2.5 6 2.5 6h-15S7 16 7 10Z"></path><path d="M10 20h4"></path></svg>',
+    chart:'<svg viewBox="0 0 24 24"><path d="M5 20V11M12 20V4M19 20v-7"></path></svg>',
+    gear:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.5 1a7.3 7.3 0 0 0-2-.9L14 3h-4l-.4 2.9a7.3 7.3 0 0 0-2 .9l-2.5-1-2 3.4 2 1.6A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.5-1c.6.4 1.3.7 2 .9L10 21h4l.4-2.9c.7-.2 1.4-.5 2-.9l2.5 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2Z"></path></svg>',
+    list:'<svg viewBox="0 0 24 24"><path d="M8 7h12M8 12h12M8 17h12"></path><circle cx="4" cy="7" r="1"></circle><circle cx="4" cy="12" r="1"></circle><circle cx="4" cy="17" r="1"></circle></svg>'
+  };
+  const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const key=d=>(d.getMonth()+1)+'-'+d.getDate();
+  const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  let selectedKey=null;
+  let built=false;
+
+  function sourceTitle(){
+    let t=(document.getElementById('siteTitle')?.textContent||'').trim();
+    if(!t || t.includes('(현장명)')) return '목동 일정';
+    t=t.replace(/일정표/g,'').trim();
+    return (t||'목동')+' 일정';
   }
-  function sync(){
-    if(!mq()) return;
-    setVH();
-    const o=ov();
-    const open=!!(o&&o.classList.contains('on'));
-    document.body.classList.toggle('calendar-sheet-open',open);
-    if(open){
-      const m=o.querySelector('.modal');
-      if(m){m.scrollTop=0; m.setAttribute('tabindex','-1');}
+  function baseDate(){
+    const v=document.getElementById('rangeStart')?.value;
+    return v?new Date(v+'T00:00:00'):new Date();
+  }
+  function setMonth(delta){
+    const b=baseDate();
+    const f=new Date(b.getFullYear(),b.getMonth()+delta,1), l=new Date(b.getFullYear(),b.getMonth()+delta+1,0);
+    const s=document.getElementById('rangeStart'),e=document.getElementById('rangeEnd');
+    if(s)s.value=iso(f); if(e)e.value=iso(l);
+    if(typeof applyRange==='function') applyRange();
+    selectedKey=pickSelectedForMonth(f);
+    render();
+  }
+  function goToday(){
+    const t=new Date(),f=new Date(t.getFullYear(),t.getMonth(),1),l=new Date(t.getFullYear(),t.getMonth()+1,0);
+    const s=document.getElementById('rangeStart'),e=document.getElementById('rangeEnd');
+    if(s)s.value=iso(f); if(e)e.value=iso(l);
+    if(typeof applyRange==='function') applyRange();
+    selectedKey=key(t); render();
+  }
+  function allSites(){
+    const s=new Set();
+    if(typeof GALLERY_DANJI!=='undefined'&&GALLERY_DANJI)s.add(GALLERY_DANJI);
+    if(typeof TOUR_ROWS!=='undefined')Object.values(TOUR_ROWS||{}).forEach(rs=>(rs||[]).forEach(r=>r[1]&&r[1]!=='-'&&s.add(r[1])));
+    ['목동11단지(신탁)','목동14단지(신탁)','화랑아파트'].forEach(x=>s.add(x));
+    return Array.from(s).filter(Boolean).slice(0,8);
+  }
+  function dayEvents(k){
+    const out=[];
+    const filter=(typeof activeDanjiFilter!=='undefined')?activeDanjiFilter:new Set();
+    if(typeof activeCategories==='undefined'||activeCategories.gallery!==false){
+      (GALLERY_ROWS?.[k]||[]).forEach((r,i)=>{const [time,spot,name,plus,manager]=r;const site=(typeof GALLERY_DANJI!=='undefined'&&GALLERY_DANJI)||'갤러리';if(filter.size&& !filter.has(site))return;out.push({kind:'gallery',idx:i,time:time||'일정',site,name:name||'성명 미입력',meta:[name,spot,plus&&plus!=='-'?plus:'',manager?'담당 '+manager:''].filter(Boolean).join(' · '),manager,raw:r})});
+    }
+    if(typeof activeCategories==='undefined'||activeCategories.tour!==false){
+      (TOUR_ROWS?.[k]||[]).forEach((r,i)=>{const [time,site,ho,name,plus,manager]=r;if(filter.size&& !filter.has(site))return;out.push({kind:'tour',idx:i,time:time||'일정',site:site||'현장 미입력',name:name||'성명 미입력',meta:[name,ho&&ho!=='-'?ho:'',plus&&plus!=='-'?plus:'',manager?'담당 '+manager:''].filter(Boolean).join(' · '),manager,raw:r})});
+    }
+    return out;
+  }
+  function pickSelectedForMonth(b){
+    const y=b.getFullYear(),m=b.getMonth(),today=new Date();
+    if(today.getFullYear()===y&&today.getMonth()===m)return key(today);
+    for(let d=1;d<=new Date(y,m+1,0).getDate();d++){const k=key(new Date(y,m,d));if(dayEvents(k).length||GALLERY_CLOSED?.[k])return k;}
+    return key(new Date(y,m,1));
+  }
+  function label(k){
+    if(typeof labelFor==='function'){
+      const v=labelFor(k); if(v&&v!==k)return v;
+    }
+    const [m,d]=String(k).split('-').map(Number),b=baseDate(),dt=new Date(b.getFullYear(),m-1,d);
+    return `${m}월 ${d}일(${['일','월','화','수','목','금','토'][dt.getDay()]})`;
+  }
+  function capacity(k){try{return typeof getCapacityForKey==='function'?getCapacityForKey(k):0}catch(e){return 0}}
+  function headcount(k){try{return typeof computeDateHeadcount==='function'?computeDateHeadcount(k):dayEvents(k).length}catch(e){return dayEvents(k).length}}
+
+  function build(){
+    if(built)return;
+    const wrap=document.querySelector('.wrap'); if(!wrap)return;
+    const app=document.createElement('div');app.id='proCalendarApp';
+    app.innerHTML=`<div class="pro-app-shell">
+      <header class="pro-topbar">
+        <div class="pro-brand"><span class="pro-logo"><i></i><i></i><i></i><i></i></span><div><strong>목동</strong><small>현장이 만드는<br>더 나은 내일</small></div></div>
+        <div class="pro-search">${svg.search}<input id="proSearchInput" type="search" placeholder="고객명, 단지명, 동·호수로 검색하세요."></div>
+        <button class="pro-iconbtn pro-bell" type="button" aria-label="알림">${svg.bell}</button>
+      </header>
+      <aside class="pro-sidebar">
+        <nav class="pro-nav">
+          <button class="active" data-nav="schedule">${svg.cal}<span>목동 일정</span></button>
+          <button data-nav="check">${svg.list}<span>체크리스트</span></button>
+          <button data-nav="manager">${svg.people}<span>담당자 현황</span></button>
+          <button data-nav="stats">${svg.chart}<span>통계</span></button>
+          <button data-nav="settings">${svg.gear}<span>설정</span></button>
+        </nav>
+        <div class="pro-side-bottom"><button class="pro-help" type="button">? <span>도움말</span></button><div class="pro-user"><span class="pro-avatar">JH</span><div><strong>오지현</strong><small>관리자</small></div></div></div>
+      </aside>
+      <main class="pro-main">
+        <section class="pro-main-card">
+          <div class="pro-main-head"><div><div class="pro-title" id="proTitle"></div><p>현장 방문 일정을 한눈에 확인하세요.</p></div><button class="pro-manage" id="proManage" type="button">${svg.tune}<span>관리</span></button></div>
+          <div class="pro-monthbar"><button class="pro-iconbtn" id="proPrev" type="button">‹</button><div class="pro-month-title" id="proMonthTitle"></div><button class="pro-today" id="proToday" type="button">오늘</button><button class="pro-iconbtn" id="proNext" type="button">›</button></div>
+          <div class="pro-site-row" id="proSiteRow"></div>
+          <div class="pro-calendar"><div class="pro-weekdays"><div class="pro-weekday sun">일</div><div class="pro-weekday">월</div><div class="pro-weekday">화</div><div class="pro-weekday">수</div><div class="pro-weekday">목</div><div class="pro-weekday">금</div><div class="pro-weekday sat">토</div></div><div class="pro-days" id="proDays"></div></div>
+          <div class="pro-legend"><button id="proLegendG" type="button"><i class="pro-dot gallery"></i>갤러리</button><button id="proLegendT" type="button"><i class="pro-dot tour"></i>투어</button></div>
+          <section class="pro-mobile-summary" id="proMobileSummary"></section>
+        </section>
+      </main>
+      <aside class="pro-detail-wrap"><section class="pro-detail-panel" id="proDetail"><button class="pro-detail-close" id="proDetailClose" type="button">×</button><div id="proDetailBody"></div></section></aside>
+    </div>
+    <div class="pro-backdrop" id="proBackdrop"></div>
+    <nav class="pro-bottomnav"><button class="active" data-mobile="schedule">${svg.cal}<span>일정</span></button><button data-mobile="gallery">${svg.people}<span>갤러리</span></button><button data-mobile="tour">${svg.chart}<span>투어</span></button><button data-mobile="more">${svg.tune}<span>더보기</span></button></nav>`;
+    wrap.insertBefore(app,wrap.firstChild);built=true;bind();
+  }
+
+  function bind(){
+    document.getElementById('proPrev').onclick=()=>setMonth(-1);
+    document.getElementById('proNext').onclick=()=>setMonth(1);
+    document.getElementById('proToday').onclick=goToday;
+    document.getElementById('proManage').onclick=()=>document.getElementById('mobileAdminFab')?.click();
+    document.getElementById('proDetailClose').onclick=closeSheet;
+    document.getElementById('proBackdrop').onclick=closeSheet;
+    document.getElementById('proLegendG').onclick=()=>{if(typeof toggleCategory==='function')toggleCategory('gallery');render()};
+    document.getElementById('proLegendT').onclick=()=>{if(typeof toggleCategory==='function')toggleCategory('tour');render()};
+    document.querySelectorAll('.pro-nav button').forEach(b=>b.onclick=()=>handleNav(b.dataset.nav));
+    document.querySelectorAll('.pro-bottomnav button').forEach(b=>b.onclick=()=>handleMobile(b.dataset.mobile,b));
+    const search=document.getElementById('proSearchInput'); if(search)search.addEventListener('keydown',e=>{if(e.key==='Enter')doSearch(search.value)});
+  }
+  function handleNav(a){
+    if(a==='schedule'){document.body.classList.remove('pro-show-legacy');window.scrollTo({top:0,behavior:'smooth'});return}
+    if(a==='check'){openChecklist();return}
+    if(a==='manager'||a==='stats'){document.body.classList.add('pro-show-legacy');const target=document.querySelector(a==='stats'?'#statsChart':'.checklist-section');target?.scrollIntoView({behavior:'smooth',block:'start'});return}
+    if(a==='settings')document.getElementById('mobileAdminFab')?.click();
+  }
+  function handleMobile(a,b){
+    document.querySelectorAll('.pro-bottomnav button').forEach(x=>x.classList.toggle('active',x===b));
+    if(a==='schedule'){closeSheet();window.scrollTo({top:0,behavior:'smooth'})}
+    if(a==='gallery'){previewKey=selectedKey;if(typeof addEntryFlow==='function')addEntryFlow('gallery')}
+    if(a==='tour'){previewKey=selectedKey;if(typeof addEntryFlow==='function')addEntryFlow('tour')}
+    if(a==='more')document.getElementById('mobileAdminFab')?.click();
+  }
+  function doSearch(q){
+    q=String(q||'').trim().toLowerCase(); if(!q)return;
+    const b=baseDate(), y=b.getFullYear(),m=b.getMonth();
+    for(let d=1;d<=new Date(y,m+1,0).getDate();d++){
+      const k=key(new Date(y,m,d)); const hit=dayEvents(k).some(e=>[e.site,e.name,e.meta].join(' ').toLowerCase().includes(q));
+      if(hit){select(k,true);return}
     }
   }
+  function siteClick(name){
+    if(typeof activeDanjiFilter==='undefined')return;
+    if(!name)activeDanjiFilter.clear();
+    else{activeDanjiFilter.clear();activeDanjiFilter.add(name)}
+    try{if(typeof buildCalendarArea==='function')buildCalendarArea();if(typeof selectDate==='function'&&currentDateKey)selectDate(currentDateKey,false)}catch(e){}
+    render();
+  }
+  function renderSites(){
+    const box=document.getElementById('proSiteRow');if(!box)return;
+    const active=(typeof activeDanjiFilter!=='undefined')?activeDanjiFilter:new Set();
+    box.innerHTML=`<button class="pro-chip ${active.size===0?'on':''}" type="button" data-site="">전체</button>`+allSites().map(s=>`<button class="pro-chip ${active.has(s)?'on':''}" type="button" data-site="${esc(s)}">${esc(s)}</button>`).join('');
+    box.querySelectorAll('button').forEach(btn=>btn.onclick=()=>siteClick(btn.dataset.site||''));
+  }
+  function renderCalendar(){
+    const box=document.getElementById('proDays');if(!box)return;
+    const b=baseDate(),y=b.getFullYear(),m=b.getMonth(),first=new Date(y,m,1),start=new Date(y,m,1-first.getDay());
+    document.getElementById('proMonthTitle').textContent=`${y}년 ${m+1}월`;
+    let html='';
+    for(let i=0;i<42;i++){
+      const d=new Date(start);d.setDate(start.getDate()+i);const k=key(d),other=d.getMonth()!==m,ev=other?[]:dayEvents(k),g=ev.some(x=>x.kind==='gallery'),t=ev.some(x=>x.kind==='tour'),dow=d.getDay();
+      html+=`<button type="button" class="pro-day ${other?'other':''} ${dow===0?'sun':''} ${dow===6?'sat':''} ${!other&&k===selectedKey?'selected':''}" data-key="${k}" data-other="${other?1:0}" data-y="${d.getFullYear()}" data-m="${d.getMonth()}" data-d="${d.getDate()}"><span class="pro-daynum">${d.getDate()}</span>${(g||t)?`<span class="pro-day-dots">${g?'<i class="g"></i>':''}${t?'<i class="t"></i>':''}</span>`:''}</button>`;
+    }
+    box.innerHTML=html;
+    box.querySelectorAll('.pro-day').forEach(btn=>btn.onclick=()=>{
+      if(btn.dataset.other==='1'){
+        const f=new Date(+btn.dataset.y,+btn.dataset.m,1),l=new Date(+btn.dataset.y,+btn.dataset.m+1,0),s=document.getElementById('rangeStart'),e=document.getElementById('rangeEnd');if(s)s.value=iso(f);if(e)e.value=iso(l);if(typeof applyRange==='function')applyRange();
+      }
+      select(btn.dataset.key,true);
+    });
+  }
+  function renderMini(){
+    const box=document.getElementById('proMobileSummary');if(!box)return;const ev=dayEvents(selectedKey);const show=ev.slice(0,3);
+    box.innerHTML=`<div class="pro-mobile-summary-head"><strong>선택 일정 <span class="count">${ev.length}건</span></strong><button type="button" id="proMiniOpen">${esc(label(selectedKey))} ›</button></div><div class="pro-mini-events">${show.map(e=>`<div class="pro-mini-event"><i class="pro-dot ${e.kind}"></i><b>${esc(e.time)}</b><span>${esc(e.site)}</span><em>${esc(e.name)}</em></div>`).join('')||'<div class="pro-empty">등록된 일정이 없습니다.</div>'}</div>`;
+    document.getElementById('proMiniOpen').onclick=()=>openSheet();
+  }
+  function renderDetail(){
+    const body=document.getElementById('proDetailBody');if(!body)return;const ev=dayEvents(selectedKey),g=ev.filter(x=>x.kind==='gallery'),t=ev.filter(x=>x.kind==='tour'),head=headcount(selectedKey),cap=capacity(selectedKey),closed=GALLERY_CLOSED?.[selectedKey];
+    const group=(arr,kind,title)=>arr.length?`<section class="pro-group"><div class="pro-group-title ${kind}"><i class="pro-dot ${kind}"></i>${title} · ${arr.length}건</div><div class="pro-eventlist">${arr.map(e=>`<div class="pro-event ${kind}"><div class="pro-time">${esc(e.time)}</div><div><div class="pro-event-title">${esc(e.site)} &nbsp; ${esc(e.name)}</div><div class="pro-event-meta">${esc(e.meta||'상세 정보 없음')}</div></div><div class="pro-event-arr">›</div></div>`).join('')}</div></section>`:'';
+    body.innerHTML=`<div class="pro-detail-date">${esc(label(selectedKey))}</div><div class="pro-statrow"><div class="pro-stat">${svg.cal}<span>일정 <b>${ev.length}건</b></span></div><div class="pro-stat">${svg.people}<span>예상 인원 <b>${head}명</b></span></div></div>${closed?`<div class="pro-group"><div class="pro-group-title" style="color:#bd6074">휴관 / 이용불가</div><div class="pro-empty" style="padding:16px">${esc(closed)}</div></div>`:''}${group(g,'gallery','갤러리')}${group(t,'tour','투어')}${!ev.length&&!closed?'<div class="pro-empty">등록된 일정이 없습니다.</div>':''}<div class="pro-capacity"><span>정원 &nbsp;<b>${cap>0?cap+'명':'미설정'}${head>0?' · 현재 '+head+'명':''}</b></span><button type="button" id="proCapBtn">이 날짜 정원 설정 ›</button></div><div class="pro-actions"><button class="pro-add-gallery" id="proAddG" type="button">+ 갤러리 일정</button><button class="pro-add-tour" id="proAddT" type="button">+ 투어 일정</button><button class="pro-open-check" id="proOpenCheck" type="button">체크리스트 열기</button></div><div class="pro-secondary"><button id="proClosedBtn" type="button">${closed?'휴관 해제':'휴관 / 이용불가 지정'}</button></div>`;
+    document.getElementById('proCapBtn').onclick=()=>{previewKey=selectedKey;if(typeof openDateCapacitySettings==='function')openDateCapacitySettings()};
+    document.getElementById('proAddG').onclick=()=>{previewKey=selectedKey;if(typeof addEntryFlow==='function')addEntryFlow('gallery')};
+    document.getElementById('proAddT').onclick=()=>{previewKey=selectedKey;if(typeof addEntryFlow==='function')addEntryFlow('tour')};
+    document.getElementById('proOpenCheck').onclick=openChecklist;
+    document.getElementById('proClosedBtn').onclick=()=>{previewKey=selectedKey;if(typeof toggleClosedDay==='function')toggleClosedDay()};
+  }
+  function select(k,open){selectedKey=k;previewKey=k;currentDateKey=k;try{if(typeof selectDate==='function')selectDate(k,false)}catch(e){}render();if(open&&matchMedia('(max-width:760px)').matches)openSheet()}
+  function openSheet(){document.body.classList.add('pro-sheet-open')}
+  function closeSheet(){document.body.classList.remove('pro-sheet-open')}
+  function openChecklist(){closeSheet();document.body.classList.add('pro-show-legacy');try{if(typeof selectDate==='function')selectDate(selectedKey,true)}catch(e){}}
+
+  function render(){
+    build();
+    const b=baseDate(); if(!selectedKey)selectedKey=pickSelectedForMonth(b);
+    document.getElementById('proTitle').textContent=sourceTitle();
+    renderSites();renderCalendar();renderMini();renderDetail();
+    const lg=document.getElementById('proLegendG'),lt=document.getElementById('proLegendT');if(lg)lg.classList.toggle('off',typeof activeCategories!=='undefined'&&!activeCategories.gallery);if(lt)lt.classList.toggle('off',typeof activeCategories!=='undefined'&&!activeCategories.tour);
+  }
+
+  function wrap(name){const old=window[name];if(typeof old!=='function'||old.__pro20)return;const fn=function(){const r=old.apply(this,arguments);setTimeout(render,0);return r};fn.__pro20=true;window[name]=fn}
   function init(){
-    setVH();
-    const o=ov();
-    if(o) new MutationObserver(sync).observe(o,{attributes:true,attributeFilter:['class']});
-    window.addEventListener('resize',setVH,{passive:true});
-    if(window.visualViewport){
-      window.visualViewport.addEventListener('resize',setVH,{passive:true});
-      window.visualViewport.addEventListener('scroll',setVH,{passive:true});
-    }
-    sync();
+    ['applyRange','setThisMonth','setNextMonth','toggleCategory','toggleClosedFilter','onScheduleDataChanged','deleteEntry'].forEach(wrap);
+    const originalPreview=window.openPreview;
+    window.openPreview=function(k){selectedKey=k;previewKey=k;currentDateKey=k;render();if(matchMedia('(max-width:760px)').matches)openSheet();};window.openPreview.__pro20=true;
+    render();window.addEventListener('resize',()=>render());
   }
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
 </script>
 
