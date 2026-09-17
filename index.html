@@ -6739,6 +6739,106 @@ body.guest-readonly .detail-quad-box{
 }
 </style>
 
+
+<style id="desktop-tabs-actions-v5">
+@media(min-width:821px){
+  body.ux383 .view-switch-bar{
+    display:none!important;
+  }
+
+  body.ux383 #tabs{
+    display:flex!important;
+    align-items:center!important;
+    gap:5px!important;
+    min-height:48px!important;
+    padding:6px 10px!important;
+    flex-wrap:nowrap!important;
+    overflow-x:visible!important;
+    overflow-y:visible!important;
+  }
+
+  body.ux383 #tabs > .desktop-tab-actions{
+    margin-left:auto!important;
+    flex:0 0 auto!important;
+    display:flex!important;
+    align-items:center!important;
+    gap:6px!important;
+    padding-left:10px!important;
+    border-left:1px solid var(--line)!important;
+    overflow:visible!important;
+  }
+
+  body.ux383 #tabs .desktop-action-proxy,
+  body.ux383 #tabs .desktop-schedule-proxy-wrap{
+    width:100px!important;
+    min-width:100px!important;
+    max-width:100px!important;
+    flex:0 0 100px!important;
+    box-sizing:border-box!important;
+    margin:0!important;
+  }
+
+  body.ux383 #tabs .desktop-action-proxy{
+    height:34px!important;
+    min-height:34px!important;
+    padding:5px 7px!important;
+    display:inline-flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    border-radius:8px!important;
+    box-sizing:border-box!important;
+    font-size:11.5px!important;
+    line-height:1!important;
+    white-space:nowrap!important;
+  }
+
+  /* 지금 화면이 현장목록이라는 것을 명확하게 보여줌 */
+  body.ux383 #desktopHomeProxy.desktop-home-active{
+    background:var(--accent-soft)!important;
+    color:var(--accent)!important;
+    border-color:var(--accent-border)!important;
+    font-weight:800!important;
+  }
+
+  body.ux383 #tabs .desktop-schedule-proxy-wrap{
+    position:relative!important;
+    height:34px!important;
+  }
+
+  body.ux383 #tabs #desktopScheduleProxy{
+    width:100%!important;
+    max-width:none!important;
+    min-width:0!important;
+  }
+
+  body.ux383 #tabs .desktop-schedule-proxy-panel{
+    position:absolute!important;
+    top:calc(100% + 6px)!important;
+    right:0!important;
+    width:150px!important;
+    padding:6px!important;
+    border:1px solid var(--line)!important;
+    border-radius:10px!important;
+    background:var(--card)!important;
+    box-shadow:var(--shadow-md)!important;
+    z-index:999999!important;
+  }
+
+  body.ux383 #tabs .desktop-schedule-proxy-panel .menu-item-btn{
+    width:100%!important;
+    min-height:34px!important;
+    text-align:left!important;
+    white-space:nowrap!important;
+  }
+}
+
+@media(max-width:820px){
+  body.ux383 #tabs > .desktop-tab-actions{
+    display:none!important;
+  }
+}
+</style>
+
 </head>
 <body>
 <div id="entryGate" style="position:fixed;inset:0;background:rgba(3,12,22,.94);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;">
@@ -9488,13 +9588,17 @@ async function mfRetrySync(){
       return `<div class="tab ${active}" data-stage="${st}">${st} <span class="count">${count}</span></div>`;
     }).join('');
 
-    // 데스크탑 액션 버튼은 renderTabs 안에서 매번 직접 그린다.
-    // 이렇게 해야 탭을 다시 렌더링해도 버튼이 사라지지 않는다.
     const desktopActions = window.innerWidth > 820 ? `
       <div class="desktop-tab-actions no-print" id="desktopTabActions">
-        <button type="button" class="view-switch-btn desktop-action-proxy" id="desktopHomeProxy">현장</button>
+        <button type="button" class="view-switch-btn desktop-action-proxy desktop-home-active" id="desktopHomeProxy">현장목록</button>
         <button type="button" class="view-switch-btn desktop-action-proxy" id="desktopContactProxy">접촉현황</button>
-        <span class="desktop-schedule-slot" id="desktopScheduleSlot"></span>
+        <div class="desktop-schedule-proxy-wrap" id="desktopScheduleProxyWrap">
+          <button type="button" class="view-switch-btn desktop-action-proxy" id="desktopScheduleProxy">일정·투어 ▾</button>
+          <div class="desktop-schedule-proxy-panel" id="desktopScheduleProxyPanel" style="display:none;">
+            <button type="button" class="menu-item-btn" id="desktopCalendarProxy">📅 일정 캘린더</button>
+            <button type="button" class="menu-item-btn" id="desktopTourProxy">🚗 투어예약</button>
+          </div>
+        </div>
         ${guestMode ? '' : '<button type="button" class="btn btn-primary desktop-action-proxy" id="desktopAddProxy">+ 현장 추가</button>'}
       </div>` : '';
 
@@ -9523,39 +9627,75 @@ async function mfRetrySync(){
       const viewBar = document.querySelector('.view-switch-bar');
       if(viewBar) viewBar.classList.add('desktop-actions-moved');
 
-      const scheduleWrap = document.getElementById('canvaScheduleWrap');
-      const scheduleSlot = document.getElementById('desktopScheduleSlot');
-      if(scheduleWrap && scheduleSlot) scheduleSlot.appendChild(scheduleWrap);
+      // 현장목록: 숨겨진 기존 버튼을 의존하지 않고 메인 화면으로 직접 복귀
+      const homeBtn = document.getElementById('desktopHomeProxy');
+      if(homeBtn) homeBtn.addEventListener('click', ()=>{
+        document.getElementById('contactReportOverlay')?.classList.remove('show');
+        document.getElementById('globalStatsOverlay')?.classList.remove('show');
 
-      document.getElementById('desktopHomeProxy')?.addEventListener('click', ()=>{
-        const original = document.getElementById('uxHome');
-        if(original) original.click();
-        else{
-          currentView='list';
-          currentDetailId=null;
-          renderAll();
-        }
+        const cal = document.getElementById('calendarView');
+        const sheet = document.getElementById('sheetView');
+        if(cal) cal.style.display = 'none';
+        if(sheet) sheet.style.display = 'none';
+
+        currentView = 'list';
+        currentDetailId = null;
+        detailTab = '개요';
+        editMode = false;
+        document.body.classList.add('ux-mobile-list');
+        document.body.classList.remove('ux-mobile-detail');
+
+        renderAll();
+        try{
+          document.querySelector('.main')?.scrollIntoView({block:'start', behavior:'smooth'});
+        }catch(e){}
       });
 
+      // 접촉현황
       document.getElementById('desktopContactProxy')?.addEventListener('click', ()=>{
-        document.getElementById('contactReportTopBtn')?.click();
+        if(typeof openContactReport === 'function') openContactReport('summary');
+        else document.getElementById('contactReportTopBtn')?.click();
       });
 
+      // 일정·투어 자체 드롭다운
+      const scheduleBtn = document.getElementById('desktopScheduleProxy');
+      const schedulePanel = document.getElementById('desktopScheduleProxyPanel');
+      if(scheduleBtn && schedulePanel){
+        scheduleBtn.addEventListener('click', (e)=>{
+          e.stopPropagation();
+          schedulePanel.style.display = schedulePanel.style.display === 'block' ? 'none' : 'block';
+        });
+        schedulePanel.addEventListener('click', e=>e.stopPropagation());
+      }
+
+      document.getElementById('desktopCalendarProxy')?.addEventListener('click', ()=>{
+        if(schedulePanel) schedulePanel.style.display='none';
+        const calBtn = document.getElementById('calendarBtn');
+        if(calBtn) calBtn.click();
+      });
+
+      document.getElementById('desktopTourProxy')?.addEventListener('click', ()=>{
+        if(schedulePanel) schedulePanel.style.display='none';
+        if(typeof openContactReport === 'function') openContactReport('tours');
+        else document.getElementById('tourBookingTopBtn')?.click();
+      });
+
+      // 현장 추가
       document.getElementById('desktopAddProxy')?.addEventListener('click', ()=>{
         document.getElementById('addBtn')?.click();
       });
     }else{
       const viewBar = document.querySelector('.view-switch-bar');
       if(viewBar) viewBar.classList.remove('desktop-actions-moved');
-
-      // 모바일로 돌아오면 일정·투어 원본을 기존 네비 영역으로 복귀.
-      const core = document.querySelector('.canva-nav-core');
-      const scheduleWrap = document.getElementById('canvaScheduleWrap');
-      if(core && scheduleWrap && scheduleWrap.parentElement !== core) core.appendChild(scheduleWrap);
     }
   }
 
   window.addEventListener('resize', ()=>{ try{ renderTabs(); }catch(e){} }, {passive:true});
+
+  document.addEventListener('click', ()=>{
+    const p = document.getElementById('desktopScheduleProxyPanel');
+    if(p) p.style.display='none';
+  });
 
   // ---------- 모바일: 탭(전체/미관리/모니터링 등) 클릭 시 현장목록을 팝업으로 검색/열람 ----------
   let mobileStageListSearch = '';
