@@ -6,127 +6,380 @@
 <title>단톡방 일일 보고</title>
 <style>
   :root{
-    --bg:#f5f6f8; --card:#ffffff; --line:#e5e7eb;
-    --text-main:#1f2430; --text-dim:#8a92a3; --accent:#1e3a8a; --accent-soft:#dbe4ff;
+    --bg:#f3f7f5;
+    --bg-2:#edf4f1;
+    --card:#ffffff;
+    --card-soft:#f8fbfa;
+    --line:#dce7e2;
+    --line-strong:#c9dad3;
+    --text-main:#17352f;
+    --text:#2d4942;
+    --text-dim:#7a918a;
+    --accent:#2f7d6d;
+    --accent-2:#4c9988;
+    --accent-soft:#e7f3ef;
+    --blue-soft:#edf4fb;
+    --warn:#b8742b;
+    --danger:#b84e4e;
+    --positive:#2f865a;
+    --shadow:0 10px 30px rgba(44,84,72,.07);
+    --shadow-soft:0 2px 10px rgba(44,84,72,.045);
+    --r-lg:22px;
+    --r-md:15px;
+    --r-sm:10px;
   }
   *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;background:var(--bg);color:var(--text-main);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Malgun Gothic','Apple SD Gothic Neo',sans-serif;}
-  #app{max-width:960px;margin:0 auto;padding:18px 16px 60px;}
+  html{background:var(--bg);}
+  html,body{margin:0;padding:0;color:var(--text-main);font-family:Pretendard,-apple-system,BlinkMacSystemFont,'Segoe UI','Malgun Gothic','Apple SD Gothic Neo',sans-serif;letter-spacing:-.015em;}
+  body{
+    min-height:100vh;
+    background:
+      radial-gradient(circle at 8% 0%, rgba(89,164,143,.10), transparent 28%),
+      radial-gradient(circle at 96% 12%, rgba(110,158,190,.08), transparent 27%),
+      linear-gradient(180deg,#f3f7f5 0%,#f8faf9 42%,#f2f6f4 100%);
+  }
+  button,input,select{font:inherit;}
+  button{touch-action:manipulation;}
+  #app{max-width:1180px;margin:0 auto;padding:22px 22px 72px;}
 
-  .topbar{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
-  .title-input{font-size:17px;font-weight:800;border:none;background:transparent;flex:none;min-width:120px;color:var(--text-main);}
-  .title-input:focus{outline:none;border-bottom:2px solid var(--accent);}
-  .title-date{font-size:16px;color:var(--text-dim);font-weight:700;flex:1;white-space:nowrap;}
-  .btn{border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;}
-  .btn-primary{background:var(--accent);color:#fff;}
-  .btn-primary:disabled{background:#c3cbe8;cursor:default;}
-  .btn-ghost{background:#fff;border:1px solid var(--line);color:var(--text-main);}
+  .hero{
+    display:flex;align-items:center;justify-content:space-between;gap:18px;
+    min-height:106px;padding:22px 24px;margin-bottom:14px;
+    background:linear-gradient(135deg,rgba(255,255,255,.97),rgba(242,249,246,.98));
+    border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-soft);position:relative;overflow:hidden;
+  }
+  .hero:after{content:'';position:absolute;width:280px;height:160px;border-radius:50%;right:-70px;top:-95px;background:rgba(67,145,126,.07);}
+  .hero-main{display:flex;align-items:center;gap:15px;min-width:0;position:relative;z-index:1;}
+  .brand-mark{width:54px;height:54px;border-radius:16px;display:grid;place-items:center;flex:none;background:linear-gradient(145deg,#2f7d6d,#459987);color:#fff;box-shadow:0 10px 20px rgba(47,125,109,.18);}
+  .brand-mark svg{width:27px;height:27px;fill:none;stroke:currentColor;stroke-width:1.8;}
+  .hero-copy{min-width:0;}
+  .eyebrow{font-size:10px;letter-spacing:.17em;font-weight:850;color:var(--accent);margin-bottom:4px;text-transform:uppercase;}
+  .title-line{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;}
+  .title-input{font-size:24px;line-height:1.15;font-weight:900;border:0;background:transparent;min-width:220px;max-width:430px;color:var(--text-main);padding:0;letter-spacing:-.045em;}
+  .title-input:focus{outline:none;box-shadow:inset 0 -2px 0 var(--accent);}
+  .title-date{font-size:12px;color:var(--text-dim);font-weight:700;white-space:nowrap;}
+  .hero-sub{font-size:12px;color:var(--text-dim);margin-top:6px;}
+  .hero-status{position:relative;z-index:1;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;}
+  .status-pill{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 10px;font-size:10.5px;font-weight:800;color:var(--text);white-space:nowrap;}
+  .status-dot{width:7px;height:7px;border-radius:50%;background:#a9b6b1;box-shadow:0 0 0 3px rgba(169,182,177,.13);}
+  .status-pill[data-state="ai"] .status-dot{background:#369b77;box-shadow:0 0 0 3px rgba(54,155,119,.14);}
+  .status-pill[data-state="local"] .status-dot{background:#d6984d;box-shadow:0 0 0 3px rgba(214,152,77,.14);}
+  .status-pill[data-state="busy"] .status-dot{background:#4e83b6;box-shadow:0 0 0 3px rgba(78,131,182,.14);animation:pulse 1s infinite;}
+  @keyframes pulse{50%{opacity:.35}}
+
+  .toolbar-card{background:rgba(255,255,255,.93);border:1px solid var(--line);border-radius:18px;padding:12px 14px;margin-bottom:18px;box-shadow:var(--shadow-soft);}
+  .toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .toolbar-spacer{flex:1 1 20px;}
+  .btn{border:1px solid transparent;border-radius:10px;padding:9px 13px;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;transition:transform .14s ease,box-shadow .14s ease,border-color .14s ease,background .14s ease;}
+  .btn:hover{transform:translateY(-1px);box-shadow:0 5px 14px rgba(44,84,72,.08);}
+  .btn:active{transform:translateY(0);}
+  .btn-primary{background:var(--accent);color:#fff;border-color:var(--accent);}
+  .btn-primary:hover{background:#276f61;}
+  .btn-primary:disabled{background:#b9ccc5;border-color:#b9ccc5;color:#f8fbfa;cursor:default;transform:none;box-shadow:none;}
+  .btn-ghost{background:#fff;border-color:var(--line-strong);color:var(--text);}
+  .btn-soft{background:var(--accent-soft);border-color:#cfe3dc;color:#276f61;}
+  .btn-danger-soft{background:#fff7f5;border-color:#efd8d2;color:#a65b4d;}
   .file-label{position:relative;overflow:hidden;}
   .file-label input{position:absolute;inset:0;opacity:0;cursor:pointer;}
+  select.btn{appearance:auto;padding-right:26px;}
+  .toolbar-hint{width:100%;font-size:10.5px;color:var(--text-dim);padding:4px 2px 0;display:flex;align-items:center;gap:7px;}
 
-  .empty-state{background:var(--card);border:1px dashed var(--line);border-radius:14px;padding:60px 20px;text-align:center;color:var(--text-dim);}
-  .empty-state b{color:var(--text-main);}
+  .empty-state{background:linear-gradient(145deg,#fff,#f8fbfa);border:1px dashed #bfd5cd;border-radius:20px;padding:72px 24px;text-align:center;color:var(--text-dim);box-shadow:var(--shadow-soft);}
+  .empty-icon{width:58px;height:58px;margin:0 auto 14px;border-radius:18px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent);font-size:26px;}
+  .empty-state b{color:var(--text-main);font-size:15px;}
+  .empty-state .empty-sub{margin-top:8px;font-size:12px;line-height:1.7;}
 
-  .stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;}
-  .stat-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;}
-  .stat-label{font-size:11.5px;color:var(--text-dim);margin-bottom:6px;}
-  .stat-value{font-size:20px;font-weight:800;}
-  .stat-sub{font-size:11px;color:var(--text-dim);margin-top:2px;}
+  .report-source-strip{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 12px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.74);font-size:11px;color:var(--text-dim);}
+  .report-source-strip b{color:var(--text);}
+  .source-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-size:10px;font-weight:850;white-space:nowrap;}
+  .source-chip.local{background:#fff2df;color:#9b672f;}
 
-  .section{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px;}
-  .section h3{margin:0 0 14px;font-size:14.5px;}
+  .stat-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px;}
+  .stat-card{background:rgba(255,255,255,.96);border:1px solid var(--line);border-radius:15px;padding:15px 16px;box-shadow:var(--shadow-soft);min-width:0;}
+  .stat-label{font-size:10.5px;color:var(--text-dim);margin-bottom:6px;font-weight:750;}
+  .stat-value{font-size:24px;font-weight:900;letter-spacing:-.04em;color:var(--text-main);}
+  .stat-sub{font-size:10px;color:var(--text-dim);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 
-  .hourchart{display:flex;align-items:flex-end;gap:3px;height:130px;}
-  .hourbar-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;}
-  .hourbar-count{font-size:9px;color:var(--accent);font-weight:700;margin-bottom:2px;height:11px;}
-  .hourbar{width:100%;background:var(--accent-soft);border-radius:3px 3px 0 0;min-height:2px;}
-  .hourbar.peak{background:var(--accent);}
-  .hourlabels{display:flex;gap:3px;margin-top:6px;}
-  .hourlabels span{flex:1;font-size:9px;color:var(--text-dim);text-align:center;}
+  .section{background:rgba(255,255,255,.96);border:1px solid var(--line);border-radius:17px;padding:18px;margin-bottom:14px;box-shadow:var(--shadow-soft);}
+  .section h3{margin:0 0 14px;font-size:14px;font-weight:900;display:flex;align-items:center;justify-content:space-between;gap:10px;letter-spacing:-.025em;}
+  .section h3:before{content:'';display:inline-block;width:3px;height:14px;border-radius:4px;background:var(--accent);margin-right:8px;vertical-align:-2px;}
 
-  .rank-cols{display:grid;grid-template-columns:1fr 1fr;gap:0 20px;}
-  .rank-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--line);}
+  .hourchart{display:flex;align-items:flex-end;gap:4px;height:132px;padding:8px 4px 0;border-bottom:1px solid var(--line);}
+  .hourbar-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:0;}
+  .hourbar-count{font-size:8.5px;color:var(--accent);font-weight:800;margin-bottom:3px;height:11px;}
+  .hourbar{width:72%;max-width:18px;background:#cfe4dc;border-radius:5px 5px 1px 1px;min-height:2px;transition:.15s;}
+  .hourbar.peak{background:linear-gradient(180deg,#4b9b89,#2f7d6d);box-shadow:0 0 0 3px rgba(47,125,109,.08);}
+  .hourlabels{display:flex;gap:3px;margin-top:7px;}
+  .hourlabels span{flex:1;font-size:8.5px;color:var(--text-dim);text-align:center;}
+
+  .rank-cols{display:grid;grid-template-columns:1fr 1fr;gap:0 24px;}
+  .rank-row{display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid #edf2ef;}
   .rank-row:last-child{border-bottom:none;}
-  .rank-num{width:18px;font-size:11px;font-weight:800;color:var(--text-dim);flex:none;}
-  .rank-name{width:96px;flex:none;font-size:11.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .rank-bar-wrap{flex:1;background:#f0f1f5;border-radius:4px;height:6px;overflow:hidden;}
-  .rank-bar{height:100%;background:var(--accent);border-radius:4px;}
-  .rank-count{width:44px;flex:none;text-align:right;font-size:11px;color:var(--text-dim);}
-  .rank-col-title{font-size:11px;color:var(--text-dim);font-weight:700;margin-bottom:6px;}
+  .rank-num{width:19px;font-size:10px;font-weight:900;color:#9aa9a4;flex:none;}
+  .rank-name{width:110px;flex:none;font-size:11.5px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);}
+  .rank-bar-wrap{flex:1;background:#eef3f1;border-radius:6px;height:7px;overflow:hidden;}
+  .rank-bar{height:100%;background:linear-gradient(90deg,#79b3a4,#2f7d6d);border-radius:6px;}
+  .rank-count{width:44px;flex:none;text-align:right;font-size:10px;color:var(--text-dim);}
+  .rank-col-title{font-size:10px;color:var(--text-dim);font-weight:800;margin-bottom:5px;}
 
-  .kp-card{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px;}
+  .kp-card{border:1px solid #dce8e3;border-radius:13px;padding:13px 14px;margin-bottom:9px;background:linear-gradient(180deg,#fcfefd,#f8fbfa);}
   .kp-card:last-child{margin-bottom:0;}
-  .kp-title{font-size:13.5px;font-weight:800;margin-bottom:5px;}
-  .kp-summary{font-size:12.5px;color:#4b5261;line-height:1.6;}
+  .kp-title{font-size:13px;font-weight:900;margin-bottom:5px;color:var(--text-main);}
+  .kp-summary{font-size:12px;color:#526a63;line-height:1.65;word-break:keep-all;}
 
-  .stance-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px;}
-  .stance-col{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;}
-  .stance-head{font-size:13px;font-weight:800;margin-bottom:10px;}
-  .stance-item{border-radius:8px;padding:8px 10px;margin-bottom:8px;}
+  .stance-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px;margin-bottom:14px;}
+  .stance-col{background:rgba(255,255,255,.96);border:1px solid var(--line);border-radius:17px;padding:14px;box-shadow:var(--shadow-soft);min-width:0;}
+  .stance-head{font-size:12.5px;font-weight:900;margin-bottom:10px;padding-bottom:9px;border-bottom:1px solid #edf2ef;}
+  .stance-item{border-radius:10px;padding:9px 10px;margin-bottom:7px;border:1px solid rgba(0,0,0,.025);}
   .stance-item:last-child{margin-bottom:0;}
-  .stance-speaker{font-size:11px;font-weight:800;color:#374151;margin-bottom:3px;}
-  .stance-quote{font-size:12px;color:#4b5261;line-height:1.5;}
+  .stance-speaker{font-size:10.5px;font-weight:900;color:#40564f;margin-bottom:4px;}
+  .stance-quote{font-size:11.5px;color:#566b64;line-height:1.55;word-break:keep-all;}
 
-  .link-item{display:block;font-size:12.5px;padding:8px 0;border-bottom:1px solid var(--line);color:var(--accent);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .link-item{display:block;font-size:11.5px;padding:8px 2px;border-bottom:1px solid #edf2ef;color:#316d8f;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .link-item:last-child{border-bottom:none;}
-  .link-meta{color:var(--text-dim);font-size:11px;margin-right:6px;}
+  .link-meta{color:var(--text-dim);font-size:10px;margin-right:6px;}
+  .placeholder-text{color:var(--text-dim);font-size:11.5px;text-align:center;padding:18px;line-height:1.7;}
+  mark{border-radius:3px;}
 
-  .placeholder-text{color:var(--text-dim);font-size:12.5px;text-align:center;padding:20px;}
+  #toast{position:fixed;right:22px;bottom:22px;z-index:9999;max-width:min(420px,calc(100vw - 32px));padding:12px 14px;border-radius:12px;background:#163b33;color:#fff;box-shadow:0 14px 40px rgba(16,43,36,.2);font-size:12px;font-weight:750;line-height:1.5;opacity:0;transform:translateY(10px);pointer-events:none;transition:.22s ease;}
+  #toast.show{opacity:1;transform:translateY(0);}
+  #toast.warn{background:#6f532f;}
+  #toast.bad{background:#713e3e;}
 
-  @media (max-width:700px){
-    .stat-row{grid-template-columns:repeat(2,1fr);}
-    .stance-grid{grid-template-columns:1fr;}
-    .rank-cols{grid-template-columns:1fr;}
+  @media (max-width:860px){
+    #app{padding:14px 12px 64px;}
+    .hero{padding:17px 16px;min-height:92px;align-items:flex-start;}
+    .brand-mark{width:46px;height:46px;border-radius:14px;}
+    .title-input{font-size:20px;min-width:190px;}
+    .hero-status{max-width:230px;}
+    .stat-row{grid-template-columns:repeat(2,minmax(0,1fr));}
+    .rank-cols{grid-template-columns:1fr;gap:12px;}
+  }
+  @media (max-width:680px){
+    body{background:#f4f8f6;}
+    #app{padding:10px 9px 74px;}
+    .hero{display:block;border-radius:18px;margin-bottom:9px;padding:15px;}
+    .hero-main{gap:11px;}
+    .brand-mark{width:42px;height:42px;}
+    .title-input{font-size:18px;min-width:0;width:100%;max-width:none;}
+    .title-line{gap:4px;}
+    .title-date{font-size:10px;}
+    .hero-sub{font-size:10.5px;}
+    .hero-status{margin-top:11px;justify-content:flex-start;max-width:none;}
+    .status-pill{font-size:9.5px;padding:6px 8px;}
+    .toolbar-card{border-radius:16px;padding:10px;margin-bottom:10px;position:sticky;top:6px;z-index:20;backdrop-filter:blur(12px);}
+    .toolbar{gap:6px;}
+    .toolbar-spacer{display:none;}
+    .btn{padding:8px 10px;font-size:11px;}
+    .toolbar .btn-primary{order:-1;flex:1;}
+    .file-label{flex:1;text-align:center;}
+    select.btn{max-width:100%;}
+    .toolbar-hint{font-size:9.5px;}
+    .stat-row{gap:7px;margin-bottom:9px;}
+    .stat-card{padding:12px;border-radius:13px;}
+    .stat-value{font-size:20px;}
+    .section{padding:14px;border-radius:15px;margin-bottom:9px;}
+    .section h3{font-size:12.5px;margin-bottom:11px;}
+    .stance-grid{grid-template-columns:1fr;gap:9px;margin-bottom:9px;}
+    .stance-col{border-radius:15px;}
+    .hourchart{height:110px;gap:2px;}
+    .hourbar{width:80%;}
+    .rank-name{width:92px;}
+    .report-source-strip{align-items:flex-start;flex-direction:column;}
+    #toast{left:12px;right:12px;bottom:18px;max-width:none;}
   }
 
   @media print{
-    @page{ size: A4 portrait; margin: 12mm; }
-    body{background:#fff !important;}
-    #app{max-width:100% !important; padding:0 !important;}
-    .file-label, #aiBtn, #dateFilter, #savedDateSelect, #printBtn, #copyBtn, #downloadBtn{display:none !important;}
-    .title-input{font-size:19px !important;}
-    /* 좁은 인쇄 미리보기 폭에서도 반응형(모바일용) 배치로 안 바뀌게 강제 고정 */
-    .stat-row{grid-template-columns:repeat(4,1fr) !important;}
-    .stance-grid{grid-template-columns:1fr 1fr 1fr !important; gap:8px !important;}
-    .rank-cols{grid-template-columns:1fr 1fr !important;}
-    /* 섹션이 페이지 중간에서 잘리지 않도록 */
-    .section, .stat-card, .stance-col{page-break-inside:avoid; break-inside:avoid;}
-    .section{margin-bottom:10px !important; padding:12px !important;}
-    .stat-row{margin-bottom:10px !important;}
-    .hourchart{height:90px !important;}
+    @page{size:A4 portrait;margin:10mm;}
+    body{background:#fff!important;}
+    #app{max-width:100%!important;padding:0!important;}
+    .hero{box-shadow:none!important;border:0!important;padding:0 0 8px!important;min-height:0!important;}
+    .hero:after,.brand-mark,.hero-sub,.hero-status,.toolbar-card,#toast{display:none!important;}
+    .title-input{font-size:20px!important;}
+    .title-date{font-size:11px!important;}
+    .stat-row{grid-template-columns:repeat(4,1fr)!important;gap:6px!important;}
+    .stance-grid{grid-template-columns:1fr 1fr 1fr!important;gap:6px!important;}
+    .rank-cols{grid-template-columns:1fr 1fr!important;}
+    .section,.stat-card,.stance-col{page-break-inside:avoid;break-inside:avoid;box-shadow:none!important;}
+    .section{margin-bottom:8px!important;padding:10px!important;border-radius:8px!important;}
+    .stat-card{padding:9px!important;border-radius:8px!important;}
+    .stat-row{margin-bottom:8px!important;}
+    .hourchart{height:80px!important;}
+    .report-source-strip{margin-bottom:7px!important;padding:6px 8px!important;}
   }
 </style>
+
+<style id="canva-editorial-redesign-v1">
+  :root{
+    --bg:#f4f6f3;
+    --bg-2:#eef2ee;
+    --card:#fffdfa;
+    --card-soft:#f8faf7;
+    --line:#d8e0da;
+    --line-strong:#bccbc2;
+    --text-main:#17362e;
+    --text:#395249;
+    --text-dim:#7b8c85;
+    --accent:#3f7767;
+    --accent-2:#5b9381;
+    --accent-soft:#e5eee9;
+    --shadow:0 18px 45px rgba(29,65,54,.08);
+    --shadow-soft:0 4px 16px rgba(29,65,54,.055);
+    --r-lg:24px;
+    --r-md:16px;
+    --r-sm:11px;
+  }
+  body{
+    background:
+      linear-gradient(180deg,rgba(238,244,240,.98),rgba(248,249,246,.98) 42%,#f2f5f2 100%);
+  }
+  #app{max-width:1240px;padding:24px 26px 84px;}
+
+  .hero{
+    min-height:118px;padding:24px 28px;margin-bottom:12px;
+    background:#fffdfa;
+    border:1px solid var(--line-strong);
+    box-shadow:none;
+  }
+  .hero:before{
+    content:'';position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--accent);
+  }
+  .hero:after{width:220px;height:220px;right:-95px;top:-135px;background:rgba(63,119,103,.075);}
+  .brand-mark{background:var(--accent);box-shadow:none;border-radius:15px;}
+  .eyebrow{font-size:9.5px;letter-spacing:.19em;color:var(--accent);}
+  .title-input{font-size:27px;letter-spacing:-.045em;}
+  .hero-sub{font-size:12.5px;color:#71827b;}
+  .status-pill{background:#f8faf7;border-color:var(--line);}
+
+  .toolbar-card{
+    padding:10px 12px;margin-bottom:14px;border-radius:15px;background:#fffdfa;
+    border-color:var(--line);box-shadow:none;position:sticky;top:8px;z-index:30;
+  }
+  .btn{border-radius:9px;padding:9px 12px;box-shadow:none!important;transform:none!important;}
+  .btn-primary{background:var(--accent);border-color:var(--accent);}
+  .btn-soft{background:var(--accent-soft);border-color:#cbdcd3;color:#2f6858;}
+  .btn-ghost{background:#fff;border-color:var(--line-strong);}
+  .toolbar-hint{color:#84928d;}
+
+  .report-source-strip{
+    padding:10px 13px;border-radius:12px;border-color:var(--line);background:#fffdfa;
+  }
+  .source-chip{background:var(--accent-soft);color:var(--accent);}
+
+  .stat-row{gap:10px;margin-bottom:12px;}
+  .stat-card{
+    padding:15px 17px;border-radius:14px;background:#fffdfa;border-color:var(--line);
+    box-shadow:none;position:relative;overflow:hidden;
+  }
+  .stat-card:before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:#cad8d1;}
+  .stat-label{font-size:10px;text-transform:uppercase;letter-spacing:.04em;}
+  .stat-value{font-size:25px;color:#18372f;}
+
+  .section{
+    padding:18px 19px;border-radius:16px;margin-bottom:12px;background:#fffdfa;
+    border-color:var(--line);box-shadow:none;
+  }
+  .section h3{font-size:14px;margin-bottom:14px;justify-content:flex-start;}
+  .section h3:before{height:16px;width:4px;margin-right:7px;background:var(--accent);}
+
+  .kp-card{
+    padding:13px 14px;border-radius:12px;background:#f8faf7;border-color:#dfe6e1;
+  }
+  .kp-title{font-size:12.5px;color:#22463b;}
+  .kp-summary{font-size:12px;line-height:1.72;color:#53675f;}
+
+  .sentiment-shell{
+    margin:0 0 12px;padding:17px 18px 18px;border:1px solid var(--line);border-radius:18px;background:#fffdfa;
+  }
+  .sentiment-title-row{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:13px;padding-bottom:13px;border-bottom:1px solid #e5eae7;}
+  .sentiment-kicker{font-size:9px;font-weight:900;letter-spacing:.17em;color:var(--accent);margin-bottom:5px;}
+  .sentiment-title-row h3{margin:0 0 5px;font-size:15px;color:var(--text-main);}
+  .sentiment-title-row p{margin:0;font-size:11px;line-height:1.6;color:var(--text-dim);}
+  .focus-chip{flex:none;padding:6px 9px;border:1px solid #c9d9d0;border-radius:999px;background:var(--accent-soft);color:#376e5e;font-size:9.5px;font-weight:850;}
+
+  .stance-grid{gap:10px;margin:0;}
+  .stance-col{padding:13px;border-radius:13px;box-shadow:none;background:#fbfcfa;border-color:#e0e6e2;}
+  .stance-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;padding-bottom:8px;font-size:11.5px;color:#40554e!important;}
+  .stance-head span{display:inline-grid;place-items:center;min-width:24px;height:24px;padding:0 7px;border-radius:999px;background:#eef2ef;color:#586a64;font-size:9.5px;}
+  .tone-good{border-top:3px solid #6e9e81;}
+  .tone-bad{border-top:3px solid #c18780;}
+  .tone-neutral{border-top:3px solid #9ba9a3;}
+  .stance-item{padding:10px 11px;border-radius:10px;margin-bottom:7px;border:1px solid rgba(79,106,96,.07);}
+  .stance-speaker{font-size:10.5px;color:#355149;}
+  .stance-quote{font-size:11.5px;line-height:1.62;color:#53675f;}
+
+  .hourchart{border-bottom-color:#dfe6e2;}
+  .hourbar{background:#dbe6e1;}
+  .hourbar.peak{background:var(--accent);box-shadow:none;}
+  .rank-bar-wrap{background:#edf1ee;}
+  .rank-bar{background:var(--accent);}
+  .link-item{color:#356f84;}
+
+  @media(max-width:680px){
+    #app{padding:10px 9px 76px;}
+    .hero{padding:16px 15px;border-radius:17px;}
+    .title-input{font-size:19px;}
+    .toolbar-card{top:5px;}
+    .sentiment-shell{padding:14px 12px;border-radius:15px;}
+    .sentiment-title-row{display:block;}
+    .focus-chip{display:inline-flex;margin-top:9px;}
+    .stance-grid{grid-template-columns:1fr;}
+  }
+</style>
+
 </head>
 <body>
 <div id="app">
-  <div class="topbar">
-    <input id="titleInput" class="title-input" value="단톡방 일일 보고">
-    <span id="titleDate" class="title-date"></span>
-    <select id="savedDateSelect" class="btn btn-ghost" style="display:none;" title="저장된 날짜 바로 보기 (업로드 불필요)"></select>
-    <label class="file-label btn btn-ghost">
-      카톡 txt 업로드
-      <input id="fileInput" type="file" accept=".txt">
-    </label>
-    <button class="btn btn-ghost" id="clearBtn" title="지금 화면 내용을 지우고 새 톡방을 새로 시작">🗑 지우기</button>
-    <select id="dateFilter" class="btn btn-ghost" style="display:none;"></select>
-    <button class="btn btn-primary" id="aiBtn" disabled>AI로 다시 분석</button>
-    <button class="btn btn-ghost" id="printBtn" onclick="window.print()">🖨 인쇄</button>
-    <button class="btn btn-ghost no-print" id="copyBtn">📋 요약 복사</button>
-    <button class="btn btn-ghost no-print" id="downloadBtn">⬇️ 요약 txt</button>
-  </div>
-
-  <div id="content">
-    <div class="empty-state">
-      카카오톡 채팅방에서 <b>"대화 내보내기(.txt)"</b>로 저장한 파일을 위에서 업로드해주세요.<br>
-      업로드하면 통계와 발언 성향 분석(우호적/비방/그외)이 바로 정리돼요.
+  <header class="hero">
+    <div class="hero-main">
+      <div class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M5 4.5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H11l-4.8 3.2.8-3.2H5a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2Z"></path><path d="M7 9h10M7 12h7"></path></svg>
+      </div>
+      <div class="hero-copy">
+        <div class="eyebrow">Daily Conversation Brief</div>
+        <div class="title-line">
+          <input id="titleInput" class="title-input" value="단톡방 일일 보고" aria-label="보고서 제목">
+          <span id="titleDate" class="title-date"></span>
+        </div>
+        <div class="hero-sub">카카오톡 대화를 업로드하면 활동량·핵심 이슈·발언 흐름을 한 화면에 정리합니다.</div>
+      </div>
     </div>
-  </div>
+    <div class="hero-status">
+      <span class="status-pill" id="aiStatusPill" data-state="local"><span class="status-dot"></span><span id="aiStatusText">분석 준비</span></span>
+      <span class="status-pill"><span class="status-dot"></span><span id="saveStatusText">브라우저 자동저장</span></span>
+    </div>
+  </header>
+
+  <section class="toolbar-card no-print">
+    <div class="toolbar">
+      <label class="file-label btn btn-soft">＋ 카톡 TXT 불러오기<input id="fileInput" type="file" accept=".txt"></label>
+      <select id="savedDateSelect" class="btn btn-ghost" style="display:none;" title="저장된 날짜 바로 보기"></select>
+      <select id="dateFilter" class="btn btn-ghost" style="display:none;" title="업로드 파일 날짜 선택"></select>
+      <button class="btn btn-primary" id="aiBtn" disabled>AI 정밀 분석</button>
+      <div class="toolbar-spacer"></div>
+      <button class="btn btn-ghost" id="copyBtn">요약 복사</button>
+      <button class="btn btn-ghost" id="downloadBtn">TXT 저장</button>
+      <button class="btn btn-ghost" id="printBtn" onclick="window.print()">인쇄 / PDF</button>
+      <button class="btn btn-danger-soft" id="clearBtn" title="현재 화면을 비우고 새 파일 시작">초기화</button>
+    </div>
+    <div class="toolbar-hint"><span>●</span><span>TXT를 올리면 로컬 빠른 분석은 즉시 표시되고, AI 정밀 분석은 서버 연결 시 한 번 더 다듬습니다.</span></div>
+  </section>
+
+  <main id="content">
+    <div class="empty-state">
+      <div class="empty-icon">↥</div>
+      <b>카카오톡 대화 TXT를 불러와 주세요.</b>
+      <div class="empty-sub">카카오톡 채팅방 → 대화 내보내기 → 텍스트 파일 저장 후 위의 <b>카톡 TXT 불러오기</b>를 누르면 됩니다.<br>업로드만 해도 통계와 빠른 분석이 즉시 표시됩니다.</div>
+    </div>
+  </main>
 </div>
+<div id="toast" role="status" aria-live="polite"></div>
 
 <script>
 (function(){
   let parsed = null;
-  let aiAnalysisCache = {}; // { dateFilterValue: daily } - 이번 세션 안에서 AI로 이미 분석한 날짜는 다시 안 물어보고 재사용
+  let aiAnalysisCache = {}; // { dateFilterValue: daily }
+  let analysisSourceCache = {}; // { dateFilterValue: 'ai' | 'local' }
 
   // 날짜별로 직접 분석해둔 내용 (그 날짜의 파일을 올렸을 때만 표시됨 - 다른 날짜엔 안내문구가 뜸)
   const DAILY_ANALYSIS = {}; // 이제 특정 톡방 예시 데이터 없이 깨끗하게 시작 (업로드한 파일로만 분석)
@@ -144,6 +397,157 @@
     //   mediaCount: 5, deletedCount: 1
     // }
   };
+
+
+  // ---------- v2: local persistence + graceful AI fallback ----------
+  const LOCAL_STORE_KEY = 'hocco_group_daily_report_v2';
+  let currentAnalysisSource = 'local';
+  let toastTimer = null;
+
+  function toast(message, tone){
+    const el = document.getElementById('toast');
+    if(!el) return;
+    clearTimeout(toastTimer);
+    el.textContent = message;
+    el.className = 'show' + (tone ? ' '+tone : '');
+    toastTimer = setTimeout(()=>{ el.className = ''; }, 3200);
+  }
+
+  function setAiStatus(state, text){
+    const pill = document.getElementById('aiStatusPill');
+    const label = document.getElementById('aiStatusText');
+    if(pill) pill.dataset.state = state || 'local';
+    if(label) label.textContent = text || '분석 준비';
+  }
+
+  function loadLocalStore(){
+    try{
+      const raw = localStorage.getItem(LOCAL_STORE_KEY);
+      if(!raw) return;
+      const saved = JSON.parse(raw) || {};
+      Object.assign(DAILY_ANALYSIS, saved.analysis || {});
+      Object.keys(DAILY_ANALYSIS).forEach(k=>{ DAILY_ANALYSIS[k] = normalizeDailyShape(DAILY_ANALYSIS[k]); });
+      Object.assign(DAILY_STATS, saved.stats || {});
+    }catch(e){ console.warn('저장된 일일보고 불러오기 실패', e); }
+  }
+
+  function saveLocalStore(){
+    try{
+      localStorage.setItem(LOCAL_STORE_KEY, JSON.stringify({analysis:DAILY_ANALYSIS, stats:DAILY_STATS, savedAt:new Date().toISOString()}));
+      const el=document.getElementById('saveStatusText'); if(el) el.textContent='자동저장 완료';
+    }catch(e){
+      const el=document.getElementById('saveStatusText'); if(el) el.textContent='자동저장 제한';
+      console.warn('일일보고 자동저장 실패', e);
+    }
+  }
+
+  const POSCO_FOCUS_TERMS = [
+    '포스코이앤씨','포스코 e&c','포스코e&c','포스코건설','포스코','posco','더샵','더 샵','the sharp'
+  ];
+
+  function normalizeFocusText(v){
+    return String(v||'').toLowerCase().replace(/\s+/g,' ').trim();
+  }
+
+  function isPoscoRelatedText(text){
+    const t = normalizeFocusText(text);
+    if(!t) return false;
+    return POSCO_FOCUS_TERMS.some(k=>t.includes(k));
+  }
+
+  function sanitizePoscoPairList(list, limit){
+    return (Array.isArray(list)?list:[])
+      .map(it=>({speaker:String((it&&it.speaker)||'').trim(), quote:String((it&&it.quote)||'').trim()}))
+      .filter(x=>x.quote && isPoscoRelatedText(x.quote))
+      .slice(0, limit);
+  }
+
+  function normalizeDailyShape(data){
+    data = data && typeof data==='object' ? data : {};
+    return {
+      keyPoints:Array.isArray(data.keyPoints) ? data.keyPoints.map(it=>({title:String((it&&it.title)||'').trim(),summary:String((it&&it.summary)||'').trim()})).filter(x=>x.title||x.summary).slice(0,6) : [],
+      // 우호/부정/기타는 '포스코 관련 발언'만 남긴다.
+      favorable:sanitizePoscoPairList(data.favorable,16),
+      critical:sanitizePoscoPairList(data.critical,16),
+      other:sanitizePoscoPairList(data.other,18)
+    };
+  }
+
+  function meaningfulMessages(messages){
+    return (messages||[]).filter(m=>{
+      const t=String(m.text||'').trim();
+      return t && !isSystemNotice(t) && !/^https?:\/\//.test(t) && t.length>=4;
+    });
+  }
+
+  function localAnalyzeMessages(messages){
+    const rows = meaningfulMessages(messages);
+    const topics = [
+      {title:'사업 일정 · 의사결정', keys:['총회','회의','의결','투표','일정','선정','입찰','공고','계약','설명회','방문','예정','시공사']},
+      {title:'사업 · 설계 · 공사', keys:['재건축','재개발','정비','공사','설계','시공','이주','착공','준공','인허가','사업시행','관리처분']},
+      {title:'비용 · 분담금', keys:['분담금','공사비','비용','금액','가격','이주비','대출','금리','부담','사업비']},
+      {title:'홍보 · 경쟁사 동향', keys:['홍보','포스코','삼성','현대','롯데','DL','GS','대우','SK','라운지','현수막','브랜드']},
+      {title:'주민 반응 · 문의', keys:['민원','불만','반대','찬성','걱정','문제','요구','의견','문의','궁금','반응']}
+    ];
+    const used = new Set();
+    const keyPoints=[];
+    topics.forEach(topic=>{
+      const scored = rows.map((m,idx)=>{
+        const t=String(m.text||'').replace(/\s+/g,' ').trim();
+        const hits=topic.keys.reduce((n,k)=>n+(t.toLowerCase().includes(k.toLowerCase())?1:0),0);
+        return {m,t,hits,idx,score:hits*10+Math.min(t.length,140)/140};
+      }).filter(x=>x.hits>0).sort((a,b)=>b.score-a.score);
+      const picks=[];
+      for(const x of scored){
+        const sig=x.t.slice(0,55);
+        if(used.has(sig)) continue;
+        used.add(sig); picks.push(x); if(picks.length>=2) break;
+      }
+      if(picks.length){
+        keyPoints.push({title:topic.title,summary:picks.map(x=>`${x.m.name}: ${x.t.slice(0,135)}${x.t.length>135?'…':''}`).join(' / ')});
+      }
+    });
+    if(!keyPoints.length){
+      rows.slice().sort((a,b)=>String(b.text||'').length-String(a.text||'').length).slice(0,3).forEach((m,i)=>{
+        const t=String(m.text||'').replace(/\s+/g,' ').trim();
+        keyPoints.push({title:`주요 대화 ${i+1}`,summary:`${m.name}: ${t.slice(0,150)}${t.length>150?'…':''}`});
+      });
+    }
+
+    const positive=['좋다','좋아','괜찮','신뢰','믿','찬성','기대','긍정','잘한다','낫다','최고','선호','만족','추천','호감','마음에'];
+    const negative=['싫','별로','불만','반대','문제','비싸','부담','못','안된다','걱정','우려','거짓','엉망','최악','불신','비판','실망','부정'];
+    const favorable=[],critical=[],other=[];
+    const seen=new Set();
+    // 중요: 포스코/더샵을 직접 언급한 메시지만 여론 분류에 사용한다.
+    // 다른 사업/정치/일상 이야기가 '그 외 발언'으로 섞이는 오탐을 막기 위한 의도적 보수 필터.
+    const poscoRows = rows.filter(m=>isPoscoRelatedText(m.text));
+    for(const m of poscoRows){
+      const t=String(m.text||'').replace(/\s+/g,' ').trim();
+      const sig=(m.name+'|'+t).slice(0,180); if(seen.has(sig)) continue; seen.add(sig);
+      const pos=positive.reduce((n,k)=>n+(t.includes(k)?1:0),0);
+      const neg=negative.reduce((n,k)=>n+(t.includes(k)?1:0),0);
+      const item={speaker:m.name,quote:t.slice(0,220)+(t.length>220?'…':'')};
+      if(pos>neg && pos>0 && favorable.length<12) favorable.push(item);
+      else if(neg>pos && neg>0 && critical.length<12) critical.push(item);
+      else if(other.length<12) other.push(item);
+    }
+    return normalizeDailyShape({keyPoints:keyPoints.slice(0,5), favorable, critical, other});
+  }
+
+  function persistDateAnalysis(dateKey, messages, daily){
+    if(!dateKey || dateKey==='__all__') return;
+    DAILY_ANALYSIS[dateKey] = normalizeDailyShape(daily);
+    const stats = analyze(messages||[]);
+    DAILY_STATS[dateKey] = {
+      total:stats.total, participantCount:stats.participantCount, hourCounts:stats.hourCounts,
+      hourTopSpeakers:stats.hourTopSpeakers, peakHour:stats.peakHour, ranking:stats.ranking,
+      links:stats.links, mediaCount:stats.mediaCount, deletedCount:stats.deletedCount
+    };
+    saveLocalStore();
+    populateSavedDateSelect();
+  }
+
+  loadLocalStore();
 
   function findDailyAnalysis(dates){
     if(!dates || dates.length===0) return null;
@@ -348,7 +752,7 @@
     if(!keyword){ box.innerHTML=''; return; }
     const results = searchSpeaker(keyword);
     const bgMap = {favorable:'#f0fdf4', critical:'#fef2f2', other:'#f9fafb'};
-    const labelMap = {favorable:'✅ 우호', critical:'🚫 비방', other:'💬 그외'};
+    const labelMap = {favorable:'우호', critical:'부정·비판', other:'중립·기타'};
 
     let html = '';
     if(results.length){
@@ -359,7 +763,7 @@
           <div class="stance-quote">${escapeHtml(r.quote)}</div>
         </div>`).join('');
     }else{
-      html += `<div class="placeholder-text">"${escapeHtml(keyword)}" 관련 분류된(우호/비방/그외) 발언이 없어요.</div>`;
+      html += `<div class="placeholder-text">"${escapeHtml(keyword)}" 관련 포스코 관련 분류 발언이 없어요.</div>`;
     }
 
     // 지금 업로드된 파일의 실제 원문 메시지도 함께 보여줌 (날짜별로 몇 건 말했는지 + 실제 내용)
@@ -507,7 +911,7 @@
     if(selectedCumDates.size){
       const sortedSelected = sortDateKeys(Array.from(selectedCumDates));
       const bgMap = {favorable:'#f0fdf4', critical:'#fef2f2', other:'#f9fafb'};
-      const labelMap = {favorable:'✅ 우호', critical:'🚫 비방', other:'💬 그외'};
+      const labelMap = {favorable:'우호', critical:'부정·비판', other:'중립·기타'};
       let rows = '';
       let total = 0;
       const shortLabels = [];
@@ -552,9 +956,9 @@
       ${trendComment ? `<div style="background:var(--bg-side-2); border-radius:8px; padding:10px 12px; margin-bottom:12px; font-size:12.5px; font-weight:600;">${escapeHtml(trendComment)}</div>` : ''}
       <div class="stat-row">
         <div class="stat-card"><div class="stat-label">분석된 날짜</div><div class="stat-value">${s.dayCount}일</div></div>
-        <div class="stat-card" style="cursor:pointer;" onclick="toggleCumDetail('favorable')"><div class="stat-label">누적 우호적 (클릭)</div><div class="stat-value" style="color:#16a34a;">${s.favTotal}건</div></div>
-        <div class="stat-card" style="cursor:pointer;" onclick="toggleCumDetail('critical')"><div class="stat-label">누적 비방 (클릭)</div><div class="stat-value" style="color:#dc2626;">${s.critTotal}건</div></div>
-        <div class="stat-card" style="cursor:pointer;" onclick="toggleCumDetail('other')"><div class="stat-label">누적 그외 (클릭)</div><div class="stat-value">${s.otherTotal}건</div></div>
+        <div class="stat-card" style="cursor:pointer;" onclick="toggleCumDetail('favorable')"><div class="stat-label">포스코 우호 (클릭)</div><div class="stat-value" style="color:#16a34a;">${s.favTotal}건</div></div>
+        <div class="stat-card" style="cursor:pointer;" onclick="toggleCumDetail('critical')"><div class="stat-label">포스코 부정 (클릭)</div><div class="stat-value" style="color:#dc2626;">${s.critTotal}건</div></div>
+        <div class="stat-card" style="cursor:pointer;" onclick="toggleCumDetail('other')"><div class="stat-label">포스코 기타 (클릭)</div><div class="stat-value">${s.otherTotal}건</div></div>
       </div>
       <div id="cumDetailBox" style="display:none; margin-bottom:14px;"></div>
       <div style="margin-top:4px;">
@@ -592,7 +996,7 @@
       return;
     }
     const bgMap = {favorable:'#f0fdf4', critical:'#fef2f2', other:'#f9fafb'};
-    const titleMap = {favorable:'✅ 우호적 발언 전체', critical:'🚫 비방 발언 전체', other:'💬 그 외 발언 전체'};
+    const titleMap = {favorable:'포스코 우호적 발언 전체', critical:'포스코 부정·비판 발언 전체', other:'포스코 중립·기타 발언 전체'};
     const dateKeys = getFilteredDateKeys(currentCumPeriod);
     let rows = '';
     dateKeys.forEach(d=>{
@@ -772,7 +1176,7 @@
         </div>
 
         <div class="section">
-          <h3>시간대별 발언자</h3>
+          <h3>시간대별 주요 발언자</h3>
           ${renderHourlySpeakers(a.hourTopSpeakers)}
         </div>`;
 
@@ -783,7 +1187,7 @@
         </div>
 
         <div class="section">
-          <h3>공유된 링크</h3>
+          <h3>공유 링크</h3>
           <div>${linkRows}</div>
         </div>`;
     }else{
@@ -794,39 +1198,55 @@
       rankLinkBlock = '';
     }
 
+    const sourceLabel = currentAnalysisSource==='ai' ? 'AI 정밀 분석' : '로컬 빠른 분석';
+    const sourceClass = currentAnalysisSource==='ai' ? '' : ' local';
+    const sourceNote = currentAnalysisSource==='ai'
+      ? '업로드된 원문을 AI가 요약·분류한 결과입니다.'
+      : '서버 연결 없이 원문 키워드와 문장만으로 빠르게 정리한 결과입니다. 사실 확인은 원문을 우선해 주세요.';
     return `
+      <div class="report-source-strip"><span><b>${sourceLabel}</b> · ${sourceNote}</span><span class="source-chip${sourceClass}">${sourceLabel}</span></div>
       ${statsBlock}
 
       <div class="section">
-        <h3>중점 내용</h3>
+        <h3>핵심 대화 요약</h3>
         ${ daily
           ? daily.keyPoints.map(kp=>`<div class="kp-card"><div class="kp-title">${escapeHtml(kp.title)}</div><div class="kp-summary">${escapeHtml(kp.summary)}</div></div>`).join('')
           : '<div class="placeholder-text">이 파일(날짜)은 아직 분석해둔 내용이 없어요.<br>대화 내용을 채팅으로 공유해주시면, 직접 읽고 중점 내용을 정리해드릴게요.</div>'
         }
       </div>
 
-      <div class="stance-grid">
-        <div class="stance-col">
-          <div class="stance-head" style="color:#16a34a;">✅ 우호적 발언</div>
-          ${daily ? renderStanceList(daily.favorable, '우호적 발언이 없어요.', '#f0fdf4') : '<div class="placeholder-text">채팅으로 대화 내용을 주시면 분류해드려요.</div>'}
+      <section class="sentiment-shell">
+        <div class="sentiment-title-row">
+          <div>
+            <div class="sentiment-kicker">POSCO E&C SENTIMENT</div>
+            <h3>포스코 관련 발언 모니터링</h3>
+            <p>포스코·포스코이앤씨·더샵을 직접 언급한 메시지만 우호 / 부정·비판 / 중립·기타로 분류합니다.</p>
+          </div>
+          <span class="focus-chip">포스코 직접 언급만</span>
         </div>
-        <div class="stance-col">
-          <div class="stance-head" style="color:#dc2626;">🚫 비방 발언</div>
-          ${daily ? renderStanceList(daily.critical, '비방 발언이 없어요.', '#fef2f2') : '<div class="placeholder-text">채팅으로 대화 내용을 주시면 분류해드려요.</div>'}
+        <div class="stance-grid">
+          <div class="stance-col tone-good">
+            <div class="stance-head">우호적 발언 <span>${daily ? daily.favorable.length : 0}</span></div>
+            ${daily ? renderStanceList(daily.favorable, '포스코 관련 우호적 발언이 없어요.', '#f5fbf7') : '<div class="placeholder-text">카톡 TXT를 불러오면 포스코 관련 발언만 분류합니다.</div>'}
+          </div>
+          <div class="stance-col tone-bad">
+            <div class="stance-head">부정·비판 발언 <span>${daily ? daily.critical.length : 0}</span></div>
+            ${daily ? renderStanceList(daily.critical, '포스코 관련 부정·비판 발언이 없어요.', '#fff7f7') : '<div class="placeholder-text">카톡 TXT를 불러오면 포스코 관련 발언만 분류합니다.</div>'}
+          </div>
+          <div class="stance-col tone-neutral">
+            <div class="stance-head">중립·기타 발언 <span>${daily ? daily.other.length : 0}</span></div>
+            ${daily ? renderStanceList(daily.other, '포스코 관련 중립·기타 발언이 없어요.', '#f8faf9') : '<div class="placeholder-text">카톡 TXT를 불러오면 포스코 관련 발언만 분류합니다.</div>'}
+          </div>
         </div>
-        <div class="stance-col">
-          <div class="stance-head" style="color:#6b7280;">💬 그 외 발언</div>
-          ${daily ? renderStanceList(daily.other, '해당 발언이 없어요.', '#f9fafb') : '<div class="placeholder-text">채팅으로 대화 내용을 주시면 분류해드려요.</div>'}
-        </div>
-      </div>
+      </section>
 
       <div class="section">
-        <h3>날짜별 여론 추이 (분석해둔 날짜 기준)</h3>
+        <h3>날짜별 발언 흐름</h3>
         ${renderTrendChart()}
       </div>
 
       <div class="section">
-        <h3>전체 누적 요약</h3>
+        <h3>누적 발언 요약</h3>
         <div id="cumulativeSummaryWrap">${renderCumulativeSummary()}</div>
       </div>
 
@@ -841,6 +1261,7 @@
     const filtered = (selected && selected!=='__all__') ? parsed.filter(m=>m.date===selected) : parsed;
     const a = analyze(filtered);
     const daily = aiAnalysisCache[selected] || findDailyAnalysis(a.dates);
+    currentAnalysisSource = analysisSourceCache[selected] || (daily ? 'local' : 'local');
     window.__currentDaily = daily;
     window.__currentTitle = document.getElementById('titleInput').value;
     window.__currentTitleDate = document.getElementById('titleDate').textContent;
@@ -886,6 +1307,7 @@
 
     const stats = DAILY_STATS[dateKey] || null;
     const daily = DAILY_ANALYSIS[dateKey] || null;
+    currentAnalysisSource = 'local';
     const a = stats ? {
       total: stats.total,
       participantCount: stats.participantCount,
@@ -921,7 +1343,7 @@
     }).join('');
     savedDateSelect.style.display = 'inline-block';
   }
-  savedDateSelect.addEventListener('change', ()=> renderSavedDate(savedDateSelect.value));
+  savedDateSelect.addEventListener('change', ()=>{ currentAnalysisSource='local'; setAiStatus('local','저장된 분석'); renderSavedDate(savedDateSelect.value); });
 
   document.getElementById('clearBtn').addEventListener('click', ()=>{
     if(!confirm('지금 화면 내용을 지우고 새로 시작할까요? (업로드한 파일은 저장되는 게 아니라서, 다시 보려면 파일을 또 올려야 해요)')) return;
@@ -929,6 +1351,9 @@
     fileInput.value = '';
     aiBtn.disabled = true;
     aiAnalysisCache = {};
+    analysisSourceCache = {};
+    currentAnalysisSource = 'local';
+    setAiStatus('local','분석 준비');
     window.__currentDaily = null;
     window.__currentTitle = null;
     window.__currentTitleDate = null;
@@ -936,10 +1361,7 @@
     dateFilterEl.style.display = 'none';
     dateFilterEl.innerHTML = '';
     document.getElementById('titleDate').textContent = '';
-    content.innerHTML = `<div class="empty-state">
-      카카오톡 채팅방에서 <b>"대화 내보내기(.txt)"</b>로 저장한 파일을 위에서 업로드해주세요.<br>
-      업로드하면 통계와 발언 성향 분석(우호적/비방/그외)이 바로 정리돼요.
-    </div>`;
+    content.innerHTML = `<div class="empty-state"><div class="empty-icon">↥</div><b>카카오톡 대화 TXT를 불러와 주세요.</b><div class="empty-sub">파일을 불러오면 통계와 로컬 빠른 분석이 즉시 표시됩니다.</div></div>`;
   });
 
   function refreshDateFilterOptions(){
@@ -965,13 +1387,31 @@
     reader.onload = (ev)=>{
       parsed = parseKakaoTxt(ev.target.result);
       aiAnalysisCache = {};
+      analysisSourceCache = {};
       aiBtn.disabled = false;
+      if(!parsed.length){
+        toast('메시지를 읽지 못했어요. 카카오톡 TXT 형식을 확인해 주세요.','bad');
+        return;
+      }
 
-      // 파일 안에 있는 날짜들을 모아서 필터 드롭다운을 채움 (여러 날짜가 섞인 파일이면 날짜별로 골라볼 수 있게)
       const dateFilter = document.getElementById('dateFilter');
       refreshDateFilterOptions();
       dateFilter.value = '__all__';
 
+      // 업로드 즉시 로컬 빠른 분석을 보여줘서 AI 서버가 꺼져 있어도 보고서를 사용할 수 있게 함.
+      aiAnalysisCache['__all__'] = localAnalyzeMessages(parsed);
+      analysisSourceCache['__all__'] = 'local';
+      const uniqueDates = Array.from(new Set(parsed.map(m=>m.date).filter(Boolean)));
+      uniqueDates.forEach(d=>{
+        const rows = parsed.filter(m=>m.date===d);
+        const daily = localAnalyzeMessages(rows);
+        aiAnalysisCache[d] = daily;
+        analysisSourceCache[d] = 'local';
+        persistDateAnalysis(d, rows, daily);
+      });
+      currentAnalysisSource = 'local';
+      setAiStatus('local','로컬 빠른 분석 완료');
+      toast(`${parsed.length.toLocaleString()}개 메시지를 읽었어요. AI 정밀 분석은 선택해서 실행할 수 있어요.`);
       render();
     };
     reader.readAsText(file, 'utf-8');
@@ -988,15 +1428,15 @@
     lines.push('[중점 내용]');
     daily.keyPoints.forEach((kp,i)=> lines.push(`${i+1}. ${kp.title} - ${kp.summary}`));
     lines.push('');
-    lines.push('[우호적 발언]');
+    lines.push('[포스코 우호적 발언]');
     if(daily.favorable.length) daily.favorable.forEach(it=> lines.push(`- ${it.speaker}: ${it.quote}`));
     else lines.push('- 없음');
     lines.push('');
-    lines.push('[비방 발언]');
+    lines.push('[포스코 부정·비판 발언]');
     if(daily.critical.length) daily.critical.forEach(it=> lines.push(`- ${it.speaker}: ${it.quote}`));
     else lines.push('- 없음');
     lines.push('');
-    lines.push('[그 외 발언]');
+    lines.push('[포스코 중립·기타 발언]');
     if(daily.other.length) daily.other.forEach(it=> lines.push(`- ${it.speaker}: ${it.quote}`));
     else lines.push('- 없음');
     return lines.join('\n');
@@ -1040,47 +1480,85 @@
   });
 
   const AI_PROXY_URL = 'https://stately-sfogliatella-7ab674.netlify.app/.netlify/functions/proxy';
+  const AI_ANALYZE_URL = 'https://stately-sfogliatella-7ab674.netlify.app/.netlify/functions/analyze-chat';
+
+  async function requestAiAnalysis(filtered){
+    const payload = JSON.stringify({
+      messages:filtered,
+      focusCompany:'포스코이앤씨',
+      focusTerms:POSCO_FOCUS_TERMS,
+      stanceRule:'favorable/critical/other에는 포스코·더샵을 직접 언급한 발언만 포함'
+    });
+    const endpoints = [AI_ANALYZE_URL, `${AI_PROXY_URL}?action=analyze-chat`];
+    let lastError = null;
+    for(const endpoint of endpoints){
+      try{
+        const controller = new AbortController();
+        const timer = setTimeout(()=>controller.abort(), 45000);
+        const res = await fetch(endpoint, {
+          method:'POST', headers:{'Content-Type':'application/json'}, body:payload, signal:controller.signal
+        });
+        clearTimeout(timer);
+        let data=null, raw='';
+        try{ data=await res.json(); }catch(e){ try{ raw=await res.text(); }catch(e2){} }
+        if(!res.ok) throw new Error((data&&data.error)||raw||`AI 서버 응답 오류 (${res.status})`);
+        if(data&&data.error) throw new Error(data.error);
+        const normalized=normalizeDailyShape(data);
+        if(!normalized.keyPoints.length && !normalized.favorable.length && !normalized.critical.length && !normalized.other.length){
+          throw new Error('AI 응답 형식을 확인할 수 없습니다.');
+        }
+        return normalized;
+      }catch(e){ lastError=e; }
+    }
+    throw lastError || new Error('AI 분석 서버에 연결하지 못했습니다.');
+  }
 
   aiBtn.addEventListener('click', async ()=>{
-    if(!parsed){ alert('먼저 카카오톡 대화 파일을 업로드해주세요.'); return; }
+    if(!parsed){ toast('먼저 카카오톡 TXT 파일을 불러와 주세요.','warn'); return; }
     const dateFilter = document.getElementById('dateFilter');
-    const selected = dateFilter.value;
+    const selected = dateFilter.value || '__all__';
     const filtered = (selected && selected!=='__all__') ? parsed.filter(m=>m.date===selected) : parsed;
-    if(!filtered.length){ alert('분석할 메시지가 없어요.'); return; }
+    if(!filtered.length){ toast('분석할 메시지가 없어요.','warn'); return; }
 
     const originalLabel = aiBtn.textContent;
     aiBtn.disabled = true;
-    aiBtn.textContent = '🤖 AI 분석 중...';
+    aiBtn.textContent = 'AI 분석 중…';
+    setAiStatus('busy','AI 분석 중');
     try{
-      const res = await fetch(`${AI_PROXY_URL}?action=analyze-chat`, {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ messages: filtered }),
-      });
-      let data = null;
-      try{ data = await res.json(); }catch(e){}
-      if(!res.ok) throw new Error((data && data.error) ? data.error : ('프록시 응답 오류 (' + res.status + ')'));
-      if(data && data.error) throw new Error(data.error);
-
-      const daily = {
-        keyPoints: data.keyPoints || [],
-        favorable: data.favorable || [],
-        critical: data.critical || [],
-        other: data.other || [],
-      };
-      aiAnalysisCache[selected] = daily; // 이 날짜/범위는 다시 눌러도 캐시에서 바로 보여줌 (재분석 전까진 재호출 안 함)
+      const daily = await requestAiAnalysis(filtered);
+      aiAnalysisCache[selected] = daily;
+      analysisSourceCache[selected] = 'ai';
+      currentAnalysisSource = 'ai';
+      if(selected!=='__all__') persistDateAnalysis(selected, filtered, daily);
       refreshDateFilterOptions();
       const a = analyze(filtered);
       window.__currentDaily = daily;
       window.__currentTitle = document.getElementById('titleInput').value;
       window.__currentTitleDate = document.getElementById('titleDate').textContent;
       content.innerHTML = buildReportHtml(a, daily);
+      setAiStatus('ai','AI 정밀 분석 완료');
+      toast('AI 정밀 분석을 완료했어요.');
     }catch(e){
       console.error('AI 분석 실패', e);
-      alert('AI 분석을 가져오지 못했어요: ' + (e && e.message ? e.message : e));
+      // 프록시가 아직 analyze-chat을 지원하지 않아도 보고서가 멈추지 않도록 로컬 분석을 자동 사용.
+      const daily = localAnalyzeMessages(filtered);
+      aiAnalysisCache[selected] = daily;
+      analysisSourceCache[selected] = 'local';
+      currentAnalysisSource = 'local';
+      if(selected!=='__all__') persistDateAnalysis(selected, filtered, daily);
+      const a = analyze(filtered);
+      window.__currentDaily = daily;
+      content.innerHTML = buildReportHtml(a, daily);
+      const msg = String(e&&e.message||e||'');
+      const proxyMismatch = /query|파라미터|404|not found|지원/i.test(msg);
+      setAiStatus('local', proxyMismatch ? 'AI 함수 미배포 · 로컬 분석' : 'AI 연결 실패 · 로컬 분석');
+      toast(proxyMismatch
+        ? '현재 Netlify 프록시에 AI 분석 함수가 없어서 로컬 분석으로 표시했어요. 함께 넣은 analyze-chat.js를 배포하면 AI가 바로 연결됩니다.'
+        : 'AI 서버 연결에 실패해 로컬 분석으로 표시했어요.', 'warn');
+    }finally{
+      aiBtn.disabled = false;
+      aiBtn.textContent = originalLabel;
     }
-    aiBtn.disabled = false;
-    aiBtn.textContent = originalLabel;
   });
 
   // 페이지를 열자마자, 업로드 없이 지금까지 분석해둔 가장 최근 날짜를 바로 보여줌
@@ -1088,6 +1566,7 @@
     populateSavedDateSelect();
     const known = getKnownDates();
     if(known.length){
+      setAiStatus('local','저장된 분석 불러옴');
       const latest = known[known.length-1];
       savedDateSelect.value = latest;
       renderSavedDate(latest);
