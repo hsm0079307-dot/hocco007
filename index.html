@@ -6341,6 +6341,143 @@ body.ux383 .name-item.map-hover-sync{background:var(--gw-soft)!important;border-
 }
 </style>
 
+
+<style id="mobile-contact-report-overlap-fix-v2">
+/* 모바일 통합 접촉현황 하단 잘림/스크롤 문제 보강 */
+@media(max-width:820px){
+  html, body{
+    height:auto!important;
+    min-height:100%!important;
+    overflow-x:hidden!important;
+  }
+
+  #contactReportOverlay,
+  .contact-report-overlay,
+  .contact-report-modal-overlay{
+    position:fixed!important;
+    inset:0!important;
+    z-index:22000!important;
+    display:none;
+    align-items:flex-start!important;
+    justify-content:center!important;
+    padding-top:max(10px, env(safe-area-inset-top))!important;
+    padding-right:8px!important;
+    padding-bottom:max(18px, env(safe-area-inset-bottom) + 10px)!important;
+    padding-left:8px!important;
+    box-sizing:border-box!important;
+    overflow:hidden!important;
+    overscroll-behavior:contain!important;
+    background:rgba(3,12,22,.76)!important;
+  }
+
+  #contactReportOverlay.show,
+  .contact-report-overlay.show,
+  .contact-report-modal-overlay.show{
+    display:flex!important;
+  }
+
+  #contactReportModalBox,
+  .contact-report-modal,
+  .contact-report-modal-box{
+    width:100%!important;
+    max-width:100%!important;
+    height:calc(100svh - max(10px, env(safe-area-inset-top)) - max(18px, env(safe-area-inset-bottom) + 10px))!important;
+    max-height:calc(100svh - max(10px, env(safe-area-inset-top)) - max(18px, env(safe-area-inset-bottom) + 10px))!important;
+    min-height:0!important;
+    margin:0!important;
+    padding:12px 10px 0!important;
+    border-radius:15px!important;
+    box-sizing:border-box!important;
+    overflow:hidden!important;
+    display:flex!important;
+    flex-direction:column!important;
+  }
+
+  #contactReportModalBox > div:first-child{
+    flex:0 0 auto!important;
+    gap:7px!important;
+    margin-bottom:8px!important;
+    padding:0 1px!important;
+  }
+
+  #contactReportModalBox > div:first-child h3{
+    flex:1 1 100%!important;
+    font-size:15px!important;
+    line-height:1.25!important;
+    margin:0!important;
+  }
+
+  #contactReportModalBox > div:first-child > div:last-child{
+    margin-left:0!important;
+    width:100%!important;
+    justify-content:flex-end!important;
+    flex-wrap:wrap!important;
+    gap:6px!important;
+  }
+
+  #contactReportModalBox .report-view-tabs{
+    flex:0 0 auto!important;
+    width:100%!important;
+    overflow-x:auto!important;
+    overflow-y:hidden!important;
+    flex-wrap:nowrap!important;
+    gap:6px!important;
+    margin-bottom:8px!important;
+    padding-bottom:2px!important;
+    scrollbar-width:none!important;
+    -webkit-overflow-scrolling:touch!important;
+  }
+  #contactReportModalBox .report-view-tabs::-webkit-scrollbar{ display:none!important; }
+
+  #contactReportBody,
+  .contact-report-body{
+    flex:1 1 auto!important;
+    min-height:0!important;
+    max-height:none!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+    -webkit-overflow-scrolling:touch!important;
+    overscroll-behavior:contain!important;
+    padding:0 0 calc(env(safe-area-inset-bottom) + 26px) 0!important;
+    margin-bottom:0!important;
+  }
+
+  /* 마지막 카드/표가 홈 인디케이터 영역에 가리지 않도록 여유 공간 확보 */
+  #contactReportBody > *:last-child,
+  .contact-report-body > *:last-child{
+    margin-bottom:22px!important;
+  }
+
+  /* 카드 내부 하단도 살짝 여유 */
+  #contactReportBody .metric-card:last-child,
+  #contactReportBody .cis-card:last-child,
+  #contactReportBody .report-card:last-child{
+    margin-bottom:8px!important;
+  }
+}
+</style>
+
+
+<style id="guest-readonly-fix-v1">
+/* 게스트는 완전 보기 전용 */
+body.guest-readonly #logOpenFormBtn,
+body.guest-readonly .canva-report-input-btn,
+body.guest-readonly .quad-edit-btn,
+body.guest-readonly .log-edit,
+body.guest-readonly .log-del,
+body.guest-readonly .report-site-note-pencil,
+body.guest-readonly .mgr-owner-bulk-edit-btn,
+body.guest-readonly #editInfoBtn,
+body.guest-readonly [data-quad-edit="1"]{
+  display:none!important;
+}
+
+/* 수정 가능한 느낌도 제거 */
+body.guest-readonly .detail-quad-box{
+  cursor:default!important;
+}
+</style>
+
 </head>
 <body>
 <div id="entryGate" style="position:fixed;inset:0;background:rgba(3,12,22,.94);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;">
@@ -10532,7 +10669,7 @@ function renderDetailPanel(site){
         </div>
       ` : `
         <div class="detail-quad-box">
-          <div class="spec-heading">■ 사업현황 <button class="quad-edit-btn no-print" data-quad-edit="1" title="수정">✏</button></div>
+          <div class="spec-heading">■ 사업현황 ${guestMode ? '' : '<button class="quad-edit-btn no-print" data-quad-edit="1" title="수정">✏</button>'}</div>
           <div class="spec-lines-2col">
             <div class="spec-line"><span class="spec-label">사업단계</span>: ${escapeHtml(site.progressStage||'-')}</div>
             <div class="spec-line"><span class="spec-label">조합원</span>: <span class="num-value">${escapeHtml(site.unionMembers||'-')}</span></div>
@@ -10555,7 +10692,7 @@ function renderDetailPanel(site){
         </div>
       ` : `
         <div class="detail-quad-box">
-          <div class="spec-heading">■ ${heading} <button class="quad-edit-btn no-print" data-quad-edit="1" title="수정">✏</button></div>
+          <div class="spec-heading">■ ${heading} ${guestMode ? '' : '<button class="quad-edit-btn no-print" data-quad-edit="1" title="수정">✏</button>'}</div>
           <div class="spec-stage-detail">${value ? renderRichText(value, opts) : '-'}</div>
         </div>
       `;
@@ -10583,7 +10720,7 @@ function renderDetailPanel(site){
         </div>` : ''}
       `;
       if(editMode) wireRichToolbars(body);
-      if(!editMode){
+      if(!editMode && !guestMode){
         const enterEdit = async ()=>{
           if(!(await ensureUnlocked())) return;
           editMode = true;
@@ -10654,7 +10791,7 @@ function renderDetailPanel(site){
             <button class="btn btn-ghost btn-sm" id="logEditCancelBtn">취소</button>
           </div>
           ` : `
-          <button class="btn btn-primary btn-sm no-print canva-report-input-btn" id="logOpenFormBtn">✏️ 보고서 입력</button>
+          ${guestMode ? '' : '<button class="btn btn-primary btn-sm no-print canva-report-input-btn" id="logOpenFormBtn">✏️ 보고서 입력</button>'}
           `}
         </div>
         ${buildSiteReportBrief(site)}
@@ -14063,6 +14200,8 @@ function renderDetailPanel(site){
   });
 
   function applyGuestRestrictions(){
+    // 모든 게스트 화면은 보기 전용으로 고정.
+    document.body.classList.add('guest-readonly');
     // 로그인하지 않은 '게스트로 보기' 상태만 별도 클래스를 줘서 UI를 더 단순하게 만든다.
     document.body.classList.toggle('sooni-guest-view', !currentGuest);
     const hideIds = ['templateBtn','exportBtn','addBtn','guestManageBtn','changeAdminPwBtn','changeEntryPwBtn','changeLogBtn','undoBtn','dupIdCheckBtn','handoverBtn','missingCoordsBtn','managerFilterWrap','clearDistrictBtn','labelEditBtn','adminLogoutBtn','rfControlsToggle','miOpenBtn','rfEditList'];
@@ -14093,7 +14232,7 @@ function renderDetailPanel(site){
   }
   // 관리자로 로그인 성공 시, 로그인 전 기본으로 걸어둔 게스트 제한을 풀고 원래 관리자 화면으로 복원
   function removeGuestRestrictions(){
-    document.body.classList.remove('sooni-guest-view','guest-login-hidden');
+    document.body.classList.remove('sooni-guest-view','guest-login-hidden','guest-readonly');
     const showIds = ['templateBtn','exportBtn','addBtn','guestManageBtn','changeAdminPwBtn','changeEntryPwBtn','changeLogBtn','undoBtn','dupIdCheckBtn','handoverBtn','missingCoordsBtn','managerFilterWrap','labelEditBtn','adminLogoutBtn','sheetViewBtn','calendarBtn','tabs'];
     showIds.forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display=''; });
     const cdBtn = document.getElementById('clearDistrictBtn');
