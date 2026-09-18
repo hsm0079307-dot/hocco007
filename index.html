@@ -7203,8 +7203,21 @@ body.guest-readonly #reportViewTabTours{
 }
 </style>
 
+
+<style id="excelOnlyReportMode">
+/* Excel-only report mode: report input/editing is intentionally disabled. */
+.log-add,.canva-report-input-btn,#logOpenFormBtn,.log-actions,.log-edit,.log-del{display:none!important}
+.mgr-cal-nonmember-inline{font-style:normal;font-weight:700;color:#d18b28;font-size:.82em;white-space:nowrap}
+.mgr-cal-method-line{font-weight:700;letter-spacing:-.02em}
+@media (min-width:821px){
+  .mgr-breakdown-wrap .mgr-cal-summary-main{font-size:12.5px!important;line-height:1.25!important}
+  .mgr-breakdown-wrap .mgr-cal-method-line{font-size:10.5px!important;line-height:1.3!important;margin-top:3px!important}
+  .mgr-breakdown-wrap .cal-manager-list{margin-top:7px!important;padding-top:6px!important}
+  .mgr-breakdown-wrap .cal-manager-count{font-size:11px!important;line-height:1.45!important}
+}
+</style>
 </head>
-<body>
+<body data-report-source="excel-only">
 <div id="entryGate" style="position:fixed;inset:0;background:rgba(3,12,22,.94);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;">
   <div class="modal" style="max-width:280px;text-align:center;">
     <h3 style="margin-top:0;">시장모니터링 대시보드</h3>
@@ -7758,7 +7771,7 @@ function events(ex){
  const values=[...map.values()];const value=values.filter(e=>e.method!=='미분류'||!values.some(t=>t!==e&&t.personId===e.personId&&t.date===e.date&&t.method!=='미분류')).sort((a,b)=>b.date.localeCompare(a.date)||str(a.manager).localeCompare(str(b.manager),'ko'));if(ex.nonMembers)value.push(...events(ex.nonMembers));cache.set(ex,{people:ex.people,contacts:ex.contactEvents,reports:ex.reportEvents,stamp:ex.syncedAt,value});return value;
 }
 function logs(site,ex){
- const existing=(Array.isArray(site.logs)?site.logs:[]).filter(l=>!l._excelReceipt),result=existing.slice(),activity=events(ex);
+ const existing=[],result=[],activity=events(ex); // EXCEL-ONLY: dashboard-entered reports are ignored
  const alias=v=>str(v).replace(/\s*(본부장|실장|팀장|부장|차장|과장|대리|사원|주임)$/,'').replace(/\s+/g,'');
  const groups=new Map();const groupKey=e=>e.date+'|'+norm(e.name)+'|'+alias(e.manager);activity.forEach(e=>{const key=groupKey(e);if(!groups.has(key))groups.set(key,new Set());groups.get(key).add(e.personId)});
  const eventKey=e=>e.personId+'|'+e.date+'|'+e.method+'|'+alias(e.manager);
@@ -8726,9 +8739,9 @@ async function mfRetrySync(){
 
     const legacySite = legacyInfo.idx>=0 ? (legacyInfo.freshArr[legacyInfo.idx]||{}) : {};
     const dataSite = dataInfo.idx>=0 ? (dataInfo.freshArr[dataInfo.idx]||{}) : {};
-    const legacyLogs = Array.isArray(legacySite.logs) ? legacySite.logs : [];
-    const dataLogs = Array.isArray(dataSite.logs) ? dataSite.logs : [];
-    const localLogs = Array.isArray(site.logs) ? site.logs : [];
+    const legacyLogs = Array.isArray(legacySite.logs) ? legacySite.logs.filter(l=>isTourBookingLog(l)) : [];
+    const dataLogs = Array.isArray(dataSite.logs) ? dataSite.logs.filter(l=>isTourBookingLog(l)) : [];
+    const localLogs = Array.isArray(site.logs) ? site.logs.filter(l=>isTourBookingLog(l)) : [];
     const localById = new Map(localLogs.filter(l=>l&&l.id).map(l=>[l.id,l]));
 
     // 같은 ID가 두 경로에 있으면 /data 내용을 우선하고, 텔레봇 경로에만 있는 새 보고서는 추가한다.
@@ -8874,6 +8887,12 @@ async function mfRetrySync(){
     if(!Array.isArray(changeLog)) changeLog = [];
     if(!allOfficesData || typeof allOfficesData!=='object') allOfficesData = {};
     OFFICES.forEach(o=>{ if(!Array.isArray(allOfficesData[o])) allOfficesData[o] = []; });
+    // EXCEL-ONLY REPORT MODE: old dashboard report logs are not loaded into the working data.
+    // Calendar gallery/tour booking logs stay because they power the integrated schedule/tour views.
+    OFFICES.forEach(o=>(allOfficesData[o]||[]).forEach(site=>{
+      const logs=Array.isArray(site&&site.logs)?site.logs:[];
+      site.logs=logs.filter(l=>isTourBookingLog(l));
+    }));
     if(allOfficesData['강서사업소'].length===0){
       allOfficesData['강서사업소'] = makeDefaultSites();
     }
@@ -9060,12 +9079,12 @@ async function mfRetrySync(){
                   // 일지(logs)도 마찬가지 이유로 보호한다: 텔레그램 봇 등 다른 경로로 방금 추가된 일지 기록이,
                   // 이 브라우저가 미처 못 받아온(오래된) 상태로 저장하면서 통째로 사라지는 사고를 막기 위함.
                   // "클라우드 최신 logs"와 "내가 지금 저장하려는 logs"를 id 기준으로 합쳐서, 어느 쪽에만 있는 기록도 안 없어지게 한다.
-                  const freshLogs = Array.isArray(arr[idx].logs) ? arr[idx].logs : [];
+                  const freshLogs = Array.isArray(arr[idx].logs) ? arr[idx].logs.filter(l=>isTourBookingLog(l)) : []; // EXCEL-ONLY: never re-merge dashboard reports
                   // arr[idx]=editedSiteSnapshot로 참조를 공유하기 전에, "내가 방금 로컬에서 만든 사본 상태"를 미리 따로 떼어둔다.
                   // (안 그러면 바로 다음 줄에서 arr[idx].guestDrafts를 덮어쓸 때 editedSiteSnapshot.guestDrafts도 같이 덮어써져서,
                   //  "사본 삭제"가 서버의 예전 사본으로 되살아나는 버그가 있었음)
                   const localGuestDraftsBeforeOverwrite = editedSiteSnapshot.guestDrafts;
-                  const localLogs = Array.isArray(editedSiteSnapshot.logs) ? editedSiteSnapshot.logs : [];
+                  const localLogs = Array.isArray(editedSiteSnapshot.logs) ? editedSiteSnapshot.logs.filter(l=>isTourBookingLog(l)) : [];
                   arr[idx] = editedSiteSnapshot;
                   arr[idx].guestDrafts = freshGuestDrafts;
                   if(editingGuestDraftKey){
@@ -15892,13 +15911,12 @@ function renderDetailPanel(site){
         const managerHtml=managerCounts.slice(0,2).map(managerLine).join('')+(managerCounts.length>2?`<details class="cal-manager-more"><summary>+${managerCounts.length-2} 더보기</summary>${managerCounts.slice(2).map(managerLine).join('')}</details>`:'');
 
         const isToday=key===`${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}-${String(new Date().getDate()).padStart(2,'0')}`;
-        const parts=[mc.상담?`상 ${mc.상담}`:'',mc.단순?`단 ${mc.단순}`:'',mc.TM?`TM ${mc.TM}`:'',mc.거부?`거부 ${mc.거부}`:'',mc.부재?`부재 ${mc.부재}`:'',mc.불명?`불명 ${mc.불명}`:'',mc.미분류?`미분류 ${mc.미분류}`:''].filter(Boolean).join(' · ');
+        const parts=[mc.상담?`상${mc.상담}`:'',mc.단순?`단${mc.단순}`:'',mc.TM?`TM${mc.TM}`:'',mc.거부?`거${mc.거부}`:'',mc.부재?`부${mc.부재}`:'',mc.불명?`불${mc.불명}`:'',mc.미분류?`미분류${mc.미분류}`:''].filter(Boolean).join(' · ');
         cells+=`<div class="mgr-cal-cell${ev.length?' has-log':''}${isToday?' is-today':''}">
           <div class="mgr-cal-daynum">${d}</div>
           ${ev.length?`<div class="mgr-cal-summary-chip"><button type="button" class="mi-date-reports-btn" data-mi-report-date="${key}" aria-label="${key} 보고서 보기">
-            <span class="mgr-cal-summary-main">총 ${people}명</span>${nonMemberCount?`<span class="mgr-cal-nonmember">비 ${nonMemberCount}명</span>`:''}
-            ${parts?`<span class="mgr-cal-manager-mini">${escapeHtml(parts)}</span>`:''}
-            ${mgrs.length?`<span class="mgr-cal-manager-mini">${escapeHtml(mgrs.slice(0,2).join(' · ')+(mgrs.length>2?` 외 ${mgrs.length-2}`:''))}</span>`:''}
+            <span class="mgr-cal-summary-main">총 ${people}명${nonMemberCount?` <em class="mgr-cal-nonmember-inline">(비${nonMemberCount})</em>`:''}</span>
+            ${parts?`<span class="mgr-cal-manager-mini mgr-cal-method-line">${escapeHtml(parts)}</span>`:''}
           </button><div class="cal-manager-list">${managerHtml}</div></div>`:''}
         </div>`;
       }
@@ -16133,9 +16151,9 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
     const excelMaster=(site&&site.excelStats&&site.excelStats.source==='excel-master')?site.excelStats:null;
     if(excelMaster) return buildExcelReportBreakdown(site,excelMaster)+rfNonMemberBlock(site,{start:smDateKey(new Date(mgrBreakdownNavDate.getFullYear(),mgrBreakdownNavDate.getMonth(),1)),end:smDateKey(new Date(mgrBreakdownNavDate.getFullYear(),mgrBreakdownNavDate.getMonth()+1,0))},mgrBreakdownManagerFilter);
 
-    // Excel 원장이 없는 현장만 Dashboard 보고서 로그 기준으로 집계한다.
-    const allLogsRaw = (site.logs||[]).filter(l=>!isTourBookingLog(l));
-    if(!allLogsRaw.length) return '';
+    // EXCEL-ONLY: Excel 원장이 없는 현장은 Dashboard 로그로 대체 집계하지 않는다.
+    const allLogsRaw = [];
+    if(!excelMaster) return `<div class="mgr-empty" style="padding:24px 12px;">📗 Excel 파일을 업로드하면 보고서 집계가 표시됩니다.<br><span style="font-size:9px;color:var(--text-dim);">대시보드 직접 입력 보고서는 사용하지 않습니다.</span></div>`;
     const splitManagerNames = v=>String(v||'').split(/[,，;/|]+/).map(x=>x.trim()).filter(Boolean);
     const managerSet = new Set();
     splitManagerNames(site.manager).forEach(n=>managerSet.add(n));
@@ -16518,15 +16536,15 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
           <div class="mgr-report-kpi"><div class="k">접촉률</div><div class="v">${exRate.toFixed(1)}%</div><div class="s">${exSyncedAt ? '동기화 '+escapeHtml(exSyncedAt.slice(5,16).replace('T',' ')) : 'Excel 동기화 값'}</div></div>
         </div>
         <div class="mgr-report-activity">
-          <b>🌐 대시보드 보고서 활동</b>
+          <b>📗 Excel 보고서 활동</b>
           <span>이번 달 보고 ${monthLogs.length}건</span><span class="sep">·</span>
           <span>방문 ${monthVisitDays}일</span><span class="sep">·</span>
           <span>보고서 접촉자 ${monthContacts.size}명</span><span class="sep">·</span>
           <span>최근 보고 ${escapeHtml(latestReportDate==='-'?'-':latestReportDate.slice(5).replace('-','/'))}</span>
         </div>`
       : `<div class="mgr-report-source">
-          <span class="mgr-report-source-badge">🌐 대시보드 기준 · Excel 원장 없음</span>
-          <span class="mgr-report-source-desc">Excel 집계 원장이 없는 현장입니다. 보고건수·방문일·접촉자별 현황은 실제 저장된 대시보드 보고서 로그를 기준으로 계산합니다.</span>
+          <span class="mgr-report-source-badge">📗 Excel 파일 필요</span>
+          <span class="mgr-report-source-desc">Excel 파일을 업로드하면 접촉현황과 보고서 이력이 표시됩니다. 대시보드 직접 입력 보고서는 사용하지 않습니다.</span>
         </div>
         <div class="mgr-report-kpis">
           <div class="mgr-report-kpi"><div class="k">이번 달 보고서</div><div class="v">${monthLogs.length}건</div><div class="s">${monthRange.start.getMonth()+1}월 기록</div></div>
