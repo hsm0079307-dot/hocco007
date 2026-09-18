@@ -4653,14 +4653,13 @@ function computeDateHeadcount(key){
 
       <section class="m13-range" id="m13RangeCard" aria-hidden="true">
         <div class="m13-range-head"><div class="m13-section-title">기간</div><button type="button" class="m13-range-toggle" id="m13RangeToggle">기간 설정</button></div>
-        <div class="m13-quick">
-          <button type="button" id="m13This"><span class="chev">‹</span>지난 달</button>
-          <button type="button" class="m13-month-chip" id="m13MonthChip">${svgCal}<span></span></button>
-          <button type="button" class="next" id="m13Next">다음 달<span class="chev">›</span></button>
-        </div>
-        <div class="m13-range-grid">
+        <div class="m13-range-grid m17-period-row">
+          <div class="m13-quick m17-month-control">
+            <button type="button" id="m13This" aria-label="이전 달"><span class="chev">‹</span>지난 달</button>
+            <button type="button" class="m13-month-chip" id="m13MonthChip">${svgCal}<span></span></button>
+            <button type="button" class="next" id="m13Next" aria-label="다음 달">다음 달<span class="chev">›</span></button>
+          </div>
           <div class="m13-date-card"><label>시작일</label><div class="m13-date-line">${svgCal}<span class="m13-date-text" id="m13StartText"></span><input type="date" id="m13Start" aria-label="시작일"></div></div>
-          <div class="m13-wave">~</div>
           <div class="m13-date-card"><label>종료일</label><div class="m13-date-line">${svgCal}<span class="m13-date-text" id="m13EndText"></span><input type="date" id="m13End" aria-label="종료일"></div></div>
           <button type="button" class="m13-apply" id="m13Apply">적용</button>
         </div>
@@ -6560,5 +6559,115 @@ tbody tr:hover td{background:#fbfdfd!important}
 })();
 </script>
 
+
+<style id="calendar-mobile-v17-period-row-fix">
+@media (max-width:560px){
+  /* V17: 기간 아래 월 / 시작일 / 종료일 / 적용을 한 줄로 압축 */
+  #mobileMockApp #m13RangeCard .m17-period-row,
+  #mobileMockApp #m13RangeCard.range-open .m17-period-row{
+    display:grid!important;
+    grid-template-columns:minmax(110px,1.35fr) minmax(78px,1fr) minmax(78px,1fr) 50px!important;
+    gap:5px!important;
+    align-items:stretch!important;
+    margin:0!important;
+    padding:0!important;
+    border-top:0!important;
+  }
+  #mobileMockApp #m13RangeCard .m17-month-control{
+    display:grid!important;
+    grid-template-columns:28px minmax(0,1fr) 28px!important;
+    gap:2px!important;
+    margin:0!important;
+    min-width:0!important;
+    border:1px solid #dfe9e7!important;
+    border-radius:10px!important;
+    overflow:hidden!important;
+    background:#fff!important;
+  }
+  #mobileMockApp #m13RangeCard .m17-month-control button{
+    height:46px!important;
+    min-height:46px!important;
+    border:0!important;
+    border-radius:0!important;
+    background:#fff!important;
+    padding:0!important;
+    box-shadow:none!important;
+  }
+  #mobileMockApp #m13RangeCard .m17-month-control #m13This,
+  #mobileMockApp #m13RangeCard .m17-month-control #m13Next{
+    font-size:0!important;
+  }
+  #mobileMockApp #m13RangeCard .m17-month-control .chev{
+    font-size:17px!important;
+    line-height:1!important;
+    color:#3d5f66!important;
+    margin:0!important;
+  }
+  #mobileMockApp #m13RangeCard .m17-month-control .m13-month-chip{
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:3px!important;
+    min-width:0!important;
+    font-size:9.2px!important;
+    font-weight:900!important;
+    color:#31535a!important;
+    white-space:nowrap!important;
+  }
+  #mobileMockApp #m13RangeCard .m17-month-control .m13-month-chip svg{
+    width:12px!important;height:12px!important;flex:0 0 12px!important;
+  }
+  #mobileMockApp #m13RangeCard .m17-period-row .m13-date-card,
+  #mobileMockApp #m13RangeCard.range-open .m17-period-row .m13-date-card{
+    height:46px!important;min-height:46px!important;
+    padding:5px 6px!important;
+    border-radius:10px!important;
+    min-width:0!important;
+  }
+  #mobileMockApp #m13RangeCard .m17-period-row .m13-date-card label{
+    font-size:7.2px!important;
+    line-height:1!important;
+  }
+  #mobileMockApp #m13RangeCard .m17-period-row .m13-date-line{
+    gap:3px!important;
+    min-width:0!important;
+  }
+  #mobileMockApp #m13RangeCard .m17-period-row .m13-date-line svg{
+    width:11px!important;height:11px!important;flex:0 0 11px!important;
+  }
+  #mobileMockApp #m13RangeCard .m17-period-row .m13-date-text{
+    font-size:8.4px!important;
+    font-weight:900!important;
+    letter-spacing:-.03em!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    white-space:nowrap!important;
+  }
+  #mobileMockApp #m13RangeCard .m17-period-row .m13-apply,
+  #mobileMockApp #m13RangeCard.range-open .m17-period-row .m13-apply{
+    height:46px!important;min-height:46px!important;
+    padding:0!important;
+    border-radius:10px!important;
+    font-size:9px!important;
+  }
+  #mobileMockApp #m13RangeCard .m13-range-head{
+    margin-bottom:7px!important;
+  }
+}
+@media (max-width:390px){
+  #mobileMockApp #m13RangeCard .m17-period-row,
+  #mobileMockApp #m13RangeCard.range-open .m17-period-row{
+    grid-template-columns:minmax(96px,1.25fr) minmax(70px,1fr) minmax(70px,1fr) 46px!important;
+    gap:4px!important;
+  }
+  #mobileMockApp #m13RangeCard .m17-month-control{
+    grid-template-columns:24px minmax(0,1fr) 24px!important;
+  }
+  #mobileMockApp #m13RangeCard .m17-month-control .m13-month-chip{
+    font-size:8.4px!important;
+  }
+  #mobileMockApp #m13RangeCard .m17-period-row .m13-date-text{font-size:7.8px!important;}
+}
+</style>
 </body>
 </html>
