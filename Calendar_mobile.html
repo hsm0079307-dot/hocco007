@@ -6388,5 +6388,177 @@ tbody tr:hover td{background:#fbfdfd!important}
 }
 </style>
 
+
+
+<!-- MOBILE V16: compact checklist/range + non-clipping status sheet -->
+<style id="calendar-mobile-v16-fixes">
+@media (max-width:560px){
+  html,body,#appRoot,.wrap{max-width:100%!important;overflow-x:hidden!important}
+
+  /* 날짜별 체크리스트: 날짜 + 이전/다음을 한 줄에 */
+  .checklist-section .filterbar{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) 66px 66px!important;
+    gap:6px!important;
+    padding:7px!important;
+    margin:0 0 9px!important;
+    border:1px solid #e2ebe9!important;
+    border-radius:13px!important;
+    background:#f8fbfa!important;
+    align-items:center!important;
+  }
+  .checklist-section .filterbar #dateFilter{
+    grid-column:1!important;grid-row:1!important;
+    height:38px!important;min-height:38px!important;
+    padding:0 9px!important;font-size:10.5px!important;
+  }
+  .checklist-section .filterbar button:nth-of-type(1){grid-column:2!important;grid-row:1!important}
+  .checklist-section .filterbar button:nth-of-type(2){grid-column:3!important;grid-row:1!important}
+  .checklist-section .filterbar button{
+    height:38px!important;min-height:38px!important;padding:0 5px!important;
+    border-radius:10px!important;font-size:9px!important;white-space:nowrap!important;
+  }
+  .checklist-section .filterbar #managerFilter{
+    grid-column:1/-1!important;grid-row:2!important;
+    height:36px!important;min-height:36px!important;
+    padding:0 9px!important;font-size:9.8px!important;
+  }
+  .checklist-section h2[style*="margin-top"]{
+    margin-top:16px!important;padding-top:12px!important;
+  }
+
+  /* 기간: 지난달 / 현재월 / 다음달은 한 줄, 시작일·종료일·적용도 한 줄 */
+  body.m13-show-details #mobileMockApp #m13RangeCard{
+    display:block!important;
+    margin:8px 0!important;padding:10px!important;
+    border:1px solid #e0eae8!important;border-radius:15px!important;
+    background:#fff!important;box-shadow:none!important;
+  }
+  #mobileMockApp #m13RangeCard .m13-range-head{
+    display:flex!important;align-items:center!important;justify-content:space-between!important;
+    margin:0 0 7px!important;padding:0!important;border:0!important;
+  }
+  #mobileMockApp #m13RangeCard .m13-section-title{font-size:11px!important;font-weight:900!important;color:#34565d!important}
+  #mobileMockApp #m13RangeCard .m13-range-toggle{
+    display:inline-flex!important;height:28px!important;padding:0 9px!important;
+    border:1px solid #dce7e5!important;border-radius:9px!important;
+    background:#f8fbfa!important;font-size:8.8px!important;color:#60767c!important;
+  }
+  #mobileMockApp #m13RangeCard .m13-quick{
+    display:grid!important;grid-template-columns:40px minmax(0,1fr) 40px!important;
+    gap:6px!important;margin:0!important;
+  }
+  #mobileMockApp #m13RangeCard .m13-quick button{
+    height:38px!important;min-height:38px!important;border-radius:10px!important;
+    border:1px solid #dfe9e7!important;background:#fff!important;box-shadow:none!important;
+  }
+  #mobileMockApp #m13RangeCard .m13-quick #m13This,
+  #mobileMockApp #m13RangeCard .m13-quick #m13Next{font-size:0!important;padding:0!important}
+  #mobileMockApp #m13RangeCard .m13-quick #m13This .chev,
+  #mobileMockApp #m13RangeCard .m13-quick #m13Next .chev{font-size:17px!important;margin:0!important}
+  #mobileMockApp #m13RangeCard .m13-month-chip{font-size:9.5px!important;font-weight:850!important;color:#31535a!important}
+
+  #mobileMockApp #m13RangeCard .m13-range-grid,
+  #mobileMockApp #m13RangeCard.range-open .m13-range-grid{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr) 62px!important;
+    gap:6px!important;align-items:stretch!important;
+    margin:7px 0 0!important;padding:7px 0 0!important;
+    border-top:1px solid #edf2f1!important;
+  }
+  #mobileMockApp #m13RangeCard .m13-wave{display:none!important}
+  #mobileMockApp #m13RangeCard .m13-date-card,
+  #mobileMockApp #m13RangeCard.range-open .m13-date-card{
+    height:42px!important;min-height:42px!important;padding:5px 7px!important;
+    border:1px solid #dfe9e7!important;border-radius:10px!important;background:#fbfdfd!important;
+    display:grid!important;grid-template-columns:auto minmax(0,1fr)!important;
+    grid-template-rows:auto 1fr!important;column-gap:5px!important;align-items:center!important;
+  }
+  #mobileMockApp #m13RangeCard .m13-date-card label{
+    grid-column:1/-1!important;margin:0!important;font-size:7.8px!important;line-height:1!important;color:#8a9b9f!important;font-weight:850!important;
+  }
+  #mobileMockApp #m13RangeCard .m13-date-line{grid-column:1/-1!important;display:flex!important;align-items:center!important;gap:4px!important;min-width:0!important}
+  #mobileMockApp #m13RangeCard .m13-date-line svg{width:12px!important;height:12px!important;flex:0 0 12px!important}
+  #mobileMockApp #m13RangeCard .m13-date-text{font-size:9px!important;line-height:1!important;font-weight:850!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+  #mobileMockApp #m13RangeCard .m13-apply,
+  #mobileMockApp #m13RangeCard.range-open .m13-apply{
+    height:42px!important;min-height:42px!important;padding:0 4px!important;
+    border-radius:10px!important;border:0!important;background:#3fa89f!important;color:#fff!important;
+    font-size:9px!important;font-weight:900!important;box-shadow:none!important;
+  }
+
+  /* 참석/불참/예정 팝업: 가로 표 대신 모바일 카드 */
+  #statusOverlay{align-items:flex-end!important;padding:0!important;background:rgba(25,48,55,.36)!important;backdrop-filter:blur(4px)!important;-webkit-backdrop-filter:blur(4px)!important}
+  #statusOverlay .modal{
+    width:100%!important;max-width:100%!important;max-height:84dvh!important;
+    margin:0!important;padding:14px 13px calc(16px + env(safe-area-inset-bottom))!important;
+    border-radius:24px 24px 0 0!important;overflow:hidden!important;box-sizing:border-box!important;
+  }
+  #statusOverlay .modal::before{content:"";display:block;width:36px;height:4px;margin:0 auto 12px;border-radius:999px;background:#d5e0df}
+  #statusOverlay .modal h2{margin:0 46px 10px 0!important;font-size:17px!important;line-height:1.15!important;white-space:normal!important}
+  #statusBody{max-height:68dvh!important;overflow-y:auto!important;overflow-x:hidden!important;padding-right:1px!important}
+  #statusBody .print-date-block{margin:0 0 10px!important;padding:0!important;border:0!important;background:transparent!important}
+  #statusBody .print-date-title{margin:0 0 6px!important;padding:0!important;font-size:11px!important;font-weight:900!important;color:#274d55!important}
+  #statusBody .sub-title{margin:6px 0!important;padding:0!important}
+  #statusBody .tag{display:inline-flex!important;align-items:center!important;height:24px!important;padding:0 8px!important;border-radius:999px!important;font-size:8.5px!important;font-weight:900!important}
+  #statusBody .status-mobile-list{display:flex!important;flex-direction:column!important;gap:6px!important}
+  #statusBody .status-mobile-card{display:grid!important;grid-template-columns:50px minmax(0,1fr) 38px!important;gap:8px!important;align-items:center!important;min-width:0!important;padding:8px!important;border:1px solid #dfe9e7!important;border-radius:12px!important;background:#fff!important}
+  #statusBody .status-mobile-time{display:flex!important;align-items:center!important;justify-content:center!important;min-height:42px!important;padding:4px!important;border-radius:9px!important;background:#f1f8f6!important;color:#157e75!important;font-size:9px!important;font-weight:900!important;text-align:center!important;line-height:1.2!important}
+  #statusBody .status-mobile-card.tour .status-mobile-time{background:#fff3e9!important;color:#bd6b2e!important}
+  #statusBody .status-mobile-main{min-width:0!important}
+  #statusBody .status-mobile-title{font-size:10px!important;font-weight:900!important;line-height:1.25!important;color:#203f47!important;word-break:keep-all!important}
+  #statusBody .status-mobile-name{margin-top:3px!important;font-size:9px!important;font-weight:800!important;color:#415e65!important;white-space:normal!important;word-break:keep-all!important}
+  #statusBody .status-mobile-meta{margin-top:3px!important;font-size:8px!important;line-height:1.3!important;color:#849498!important;white-space:normal!important;word-break:keep-all!important}
+  #statusBody .status-mobile-check{display:flex!important;align-items:center!important;justify-content:center!important}
+  #statusBody .status-mobile-check input{width:23px!important;height:23px!important;margin:0!important;accent-color:#159c91!important}
+}
+</style>
+<script id="calendar-mobile-v16-js">
+(function(){
+  if(typeof renderStatusTable!=='function') return;
+  const originalRenderStatusTable=renderStatusTable;
+  function mobile(){return window.matchMedia&&window.matchMedia('(max-width:560px)').matches;}
+  function escM(v){return String(v==null?'':v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+  renderStatusTable=function(kind,key,status,managerFilter){
+    if(!mobile()) return originalRenderStatusTable(kind,key,status,managerFilter);
+    const rows=kind==='gallery'?GALLERY_ROWS[key]:TOUR_ROWS[key];
+    if(!rows||!rows.length) return '';
+    const managerIdx=kind==='gallery'?4:5;
+    const idxList=[];
+    rows.forEach((r,idx)=>{
+      if(rowStatus(kind,key,idx)!==status) return;
+      if(managerFilter&&r[managerIdx]!==managerFilter) return;
+      idxList.push(idx);
+    });
+    if(!idxList.length) return '';
+    const tagClass=kind==='gallery'?'gallery':'tour';
+    const tagLabel=kind==='gallery'?CAT_LABEL.gallery:CAT_LABEL.tour;
+    let html=`<div class="sub-title"><span class="tag ${tagClass}">${escM(tagLabel)}</span></div><div class="status-mobile-list">`;
+    idxList.forEach(idx=>{
+      const raw=rows[idx];
+      const r=reorderRow(kind,raw);
+      const [time,danji,ho,name,plus,manager,pickup]=r;
+      const rowKey=kind+'_'+key+'_'+idx;
+      const isChecked=!!checkState[rowKey];
+      const hasMemo=!!personMemos[rowKey];
+      const meta=[ho&&ho!=='-'?ho:'',manager&&manager!=='-'?'담당 '+manager:'',pickup&&pickup!=='-'?pickup:'',plus&&plus!=='-'?plus:''].filter(Boolean).join(' · ');
+      const safeName=String(name||'').replace(/'/g,'&#39;');
+      const safeManager=(managerFilter?String(managerFilter).replace(/'/g,'&#39;'):'');
+      html+=`<div class="status-mobile-card ${tagClass}">
+        <div class="status-mobile-time">${escM(time||'일정')}</div>
+        <div class="status-mobile-main">
+          <div class="status-mobile-title">${escM(danji||'현장')}</div>
+          <div class="status-mobile-name"><span class="memo-name${hasMemo?' has-memo':''}" onclick="openMemoFormFromStatus('${rowKey}','${safeName}','${status}','${safeManager}')">${escM(name||'성명 미입력')}${hasMemo?' · 메모':''}</span></div>
+          <div class="status-mobile-meta">${escM(meta||'상세 정보 없음')}</div>
+        </div>
+        <label class="status-mobile-check"><input type="checkbox" ${isChecked?'checked':''} onchange="toggleCheckFromStatus('${kind}','${key}',${idx},this,'${status}','${safeManager}')"></label>
+      </div>`;
+    });
+    html+='</div>';
+    return html;
+  };
+})();
+</script>
+
 </body>
 </html>
