@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>통합 일정표 &amp; 날짜별 체크리스트</title>
+<title>목동 현장일정 · Mobile V15</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
@@ -1765,7 +1765,7 @@ body.dark-mode .modal input,body.dark-mode .modal textarea,body.dark-mode .modal
 }
 </style>
 
-</head>
+<meta name="calendar-mobile-build" content="MOBILE-REBUILD-V15-20260918"></head>
 <body>
 <div id="lockScreen">
   <h2>🔒 비밀번호 입력</h2>
@@ -4618,62 +4618,56 @@ function computeDateHeadcount(key){
     }
     shell.dataset.ver='13';
     shell.innerHTML=`
-      <section class="m13-card m13-hero">
-        <div class="m13-hero-icon">${svgCal}</div>
-        <div class="m13-title" id="m13Title"></div>
-        <p class="m13-sub">언제 · 어느 현장 · 누가 방문하는지 한눈에 확인하세요.</p>
-        <div class="m13-hero-meta">
-          <span class="month" id="m13HeroMonth"></span>
-          <span>전체 <strong id="m13HeroTotal">0</strong>건</span>
-          <span class="g">갤러리 <strong id="m13HeroGallery">0</strong></span>
-          <span class="t">투어 <strong id="m13HeroTour">0</strong></span>
+      <section class="m15-top">
+        <div class="m15-brand">
+          <div class="m15-brand-icon">${svgCal}</div>
+          <div class="m15-brand-copy">
+            <div class="m13-title" id="m13Title"></div>
+            <div class="m15-brand-sub">현장 방문 일정을 한눈에 확인하세요</div>
+          </div>
         </div>
-        <div class="m13-hero-scene" aria-hidden="true"></div>
+        <button type="button" class="m15-admin" id="m15Admin">관리</button>
       </section>
-      <section class="m13-card m13-range" id="m13RangeCard">
-        <div class="m13-range-head">
-          <div class="m13-section-title">월 이동</div>
-          <button type="button" class="m13-range-toggle" id="m13RangeToggle">기간 설정</button>
+
+      <section class="m15-calendar-card">
+        <div class="m13-cal-head">
+          <div class="m13-cal-title" id="m13CalTitle"></div>
+          <div class="m13-cal-actions">
+            <button type="button" id="m13Prev" aria-label="이전 달">‹</button>
+            <button type="button" class="today" id="m13Today">오늘</button>
+            <button type="button" id="m13Nxt" aria-label="다음 달">›</button>
+            <button type="button" class="filter" id="m15FilterBtn">필터</button>
+          </div>
         </div>
+
+        <div class="m15-filter-panel" id="m15FilterPanel">
+          <div class="m13-filters" id="m13Filters"></div>
+          <div class="m13-site-row" id="m13SiteRow"></div>
+          <button type="button" class="m15-period-btn" id="m15PeriodBtn">기간 설정</button>
+        </div>
+
+        <div class="m13-weekdays"><div class="m13-weekday sun">일</div><div class="m13-weekday">월</div><div class="m13-weekday">화</div><div class="m13-weekday">수</div><div class="m13-weekday">목</div><div class="m13-weekday">금</div><div class="m13-weekday sat">토</div></div>
+        <div class="m13-days" id="m13Days"></div>
+        <div class="m15-calendar-foot">날짜를 누르면 해당 일정의 상세 내용을 확인할 수 있습니다.</div>
+      </section>
+
+      <section class="m13-range" id="m13RangeCard" aria-hidden="true">
+        <div class="m13-range-head"><div class="m13-section-title">기간</div><button type="button" class="m13-range-toggle" id="m13RangeToggle">기간 설정</button></div>
         <div class="m13-quick">
           <button type="button" id="m13This"><span class="chev">‹</span>지난 달</button>
           <button type="button" class="m13-month-chip" id="m13MonthChip">${svgCal}<span></span></button>
           <button type="button" class="next" id="m13Next">다음 달<span class="chev">›</span></button>
         </div>
         <div class="m13-range-grid">
-          <div class="m13-date-card">
-            <label>시작일</label>
-            <div class="m13-date-line">${svgCal}<span class="m13-date-text" id="m13StartText"></span><input type="date" id="m13Start" aria-label="시작일"></div>
-          </div>
+          <div class="m13-date-card"><label>시작일</label><div class="m13-date-line">${svgCal}<span class="m13-date-text" id="m13StartText"></span><input type="date" id="m13Start" aria-label="시작일"></div></div>
           <div class="m13-wave">~</div>
-          <div class="m13-date-card">
-            <label>종료일</label>
-            <div class="m13-date-line">${svgCal}<span class="m13-date-text" id="m13EndText"></span><input type="date" id="m13End" aria-label="종료일"></div>
-          </div>
+          <div class="m13-date-card"><label>종료일</label><div class="m13-date-line">${svgCal}<span class="m13-date-text" id="m13EndText"></span><input type="date" id="m13End" aria-label="종료일"></div></div>
           <button type="button" class="m13-apply" id="m13Apply">적용</button>
         </div>
       </section>
-      <section class="m13-card m13-filters" id="m13Filters"></section>
-      <section class="m13-card m13-calendar">
-        <div class="m13-cal-head">
-          <div class="m13-cal-title" id="m13CalTitle"></div>
-          <div class="m13-cal-actions">
-            <button type="button" id="m13Prev">‹</button>
-            <button type="button" class="today" id="m13Today">오늘</button>
-            <button type="button" id="m13Nxt">›</button>
-          </div>
-        </div>
-        <div class="m13-site-row" id="m13SiteRow"></div>
-        <div class="m13-weekdays"><div class="m13-weekday sun">일</div><div class="m13-weekday">월</div><div class="m13-weekday">화</div><div class="m13-weekday">수</div><div class="m13-weekday">목</div><div class="m13-weekday">금</div><div class="m13-weekday sat">토</div></div>
-        <div class="m13-days" id="m13Days"></div>
-      </section>
-      <section class="m13-card m13-manager" id="m13Manager">
-        <div class="m13-manager-ico">${svgPeople}</div>
-        <div class="m13-manager-copy">
-          <div class="m13-manager-title">담당자별 현황</div>
-          <div class="m13-manager-sub" id="m13ManagerSub"></div>
-        </div>
-        <div class="m13-manager-arr">›</div>
+
+      <section class="m13-manager" id="m13Manager" aria-hidden="true">
+        <div class="m13-manager-ico">${svgPeople}</div><div class="m13-manager-copy"><div class="m13-manager-title">담당자별 현황</div><div class="m13-manager-sub" id="m13ManagerSub"></div></div><div class="m13-manager-arr">›</div>
       </section>`;
     bindShell();
     ensureNav();
@@ -4739,6 +4733,27 @@ function computeDateHeadcount(key){
       const target=document.querySelector('.checklist-section');
       if(document.body.classList.contains('m13-show-details') && target) setTimeout(()=>target.scrollIntoView({behavior:'smooth',block:'start'}),30);
     };
+    const fbtn=document.getElementById('m15FilterBtn');
+    const fpanel=document.getElementById('m15FilterPanel');
+    if(fbtn&&fpanel) fbtn.onclick=()=>{
+      const open=fpanel.classList.toggle('open');
+      fbtn.classList.toggle('on',open);
+      fbtn.textContent=open?'닫기':'필터';
+    };
+    const pbtn=document.getElementById('m15PeriodBtn');
+    if(pbtn) pbtn.onclick=()=>{
+      const start=document.getElementById('rangeStart');
+      const end=document.getElementById('rangeEnd');
+      const current=(start&&start.value?start.value:'')+' ~ '+(end&&end.value?end.value:'');
+      const next=prompt('조회 기간을 직접 바꾸려면 아래 형식으로 입력하세요.\nYYYY-MM-DD ~ YYYY-MM-DD',current);
+      if(!next) return;
+      const parts=next.split('~').map(v=>v.trim());
+      if(parts.length===2 && /^\d{4}-\d{2}-\d{2}$/.test(parts[0]) && /^\d{4}-\d{2}-\d{2}$/.test(parts[1])){
+        start.value=parts[0]; end.value=parts[1]; applyRange(); setTimeout(renderShell,0);
+      }else alert('예: 2026-08-01 ~ 2026-08-31 형식으로 입력해주세요.');
+    };
+    const abtn=document.getElementById('m15Admin');
+    if(abtn) abtn.onclick=()=>{ if(typeof toggleMobileAdminMenu==='function') toggleMobileAdminMenu(); };
   }
 
   function shiftMonth(delta){
@@ -4869,7 +4884,7 @@ function computeDateHeadcount(key){
 
     const desktop=isDesktop();
 
-    for(let i=0;i<35;i++){
+    for(let i=0;i<42;i++){
       const d=new Date(start); d.setDate(start.getDate()+i);
       const k=key(d), other=d.getMonth()!==m, ev=eventFor(k);
       const b=document.createElement('button');
@@ -4898,9 +4913,9 @@ function computeDateHeadcount(key){
           inner += `</div>`;
         }
       } else if(!other && ev.length){
-        const e0=ev[0];
-        inner += `<span class="m13-event ${e0[0]}">${escapeHtml(e0[1])}</span>`;
-        if(ev.length>1) inner += `<span class="m13-more">+${ev.length-1}</span>`;
+        const detail=detailedEventsFor(k);
+        const count=detail.length || ev.length;
+        inner += `<span class="m15-count">${count}건</span><span class="m15-dots">${ev.map(x=>`<i class="${x[0]}"></i>`).join('')}</span>`;
       }
 
       b.innerHTML=inner;
@@ -6304,6 +6319,74 @@ tbody tr:hover td{background:#fbfdfd!important}
   setTimeout(bind,300);
 })();
 </script>
+
+
+<style id="calendar-mobile-v15-final">
+@media (max-width:560px){
+  :root{--m15-ink:#183d46;--m15-sub:#839399;--m15-line:#dfe9e7;--m15-bg:#f4f8f7;--m15-teal:#159a8e;--m15-orange:#f4a04b;--m15-blue:#347fe8;}
+  html,body{background:var(--m15-bg)!important}
+  body{padding:8px 8px calc(20px + env(safe-area-inset-bottom))!important;background:var(--m15-bg)!important;color:var(--m15-ink)!important;font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif!important;letter-spacing:-.035em!important}
+  .wrap{width:100%!important;max-width:none!important;margin:0!important}
+  .wrap>header,.wrap>.rangebar,.wrap>.legend,.wrap>.danjiToggleBar,.wrap>#calendarArea,.wrap>.checklist-section,.wrap>.car{display:none!important}
+  #mobileMockNav,.mobile-admin-fab{display:none!important}
+  #mobileMockApp{display:block!important;margin:0!important}
+  #mobileMockApp .m13-card{box-shadow:none!important}
+
+  .m15-top{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important;height:62px!important;padding:9px 10px!important;margin:0 0 8px!important;background:#fff!important;border:1px solid var(--m15-line)!important;border-radius:16px!important}
+  .m15-brand{display:flex!important;align-items:center!important;gap:10px!important;min-width:0!important}
+  .m15-brand-icon{width:38px!important;height:38px!important;flex:0 0 38px!important;display:grid!important;place-items:center!important;border-radius:12px!important;background:linear-gradient(145deg,#1aa99d,#0b8279)!important;color:#fff!important}
+  .m15-brand-icon svg{width:19px!important;height:19px!important}
+  .m15-brand-copy{min-width:0!important}
+  #mobileMockApp .m13-title{font-size:18px!important;font-weight:850!important;line-height:1.05!important;color:var(--m15-ink)!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;margin:0!important}
+  .m15-brand-sub{font-size:9px!important;color:var(--m15-sub)!important;margin-top:4px!important;white-space:nowrap!important}
+  .m15-admin{height:32px!important;min-width:50px!important;padding:0 10px!important;border:1px solid #d7e5e2!important;border-radius:10px!important;background:#f7fbfa!important;color:#49666c!important;font-size:10px!important;font-weight:800!important}
+
+  .m15-calendar-card{background:#fff!important;border:1px solid var(--m15-line)!important;border-radius:16px!important;padding:11px 9px 10px!important;margin:0!important;box-shadow:none!important}
+  #mobileMockApp .m13-cal-head{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important;margin:0 0 9px!important;padding:0 2px!important}
+  #mobileMockApp .m13-cal-title{font-size:22px!important;line-height:1!important;font-weight:900!important;color:var(--m15-ink)!important;letter-spacing:-.06em!important}
+  #mobileMockApp .m13-cal-actions{display:flex!important;align-items:center!important;gap:4px!important;flex:0 0 auto!important}
+  #mobileMockApp .m13-cal-actions button{height:31px!important;min-width:31px!important;padding:0 7px!important;border:1px solid #dce7e5!important;border-radius:9px!important;background:#fff!important;color:#365961!important;font-size:13px!important;font-weight:850!important;box-shadow:none!important}
+  #mobileMockApp .m13-cal-actions .today{min-width:42px!important;font-size:9px!important}
+  #mobileMockApp .m13-cal-actions .filter{min-width:42px!important;font-size:9px!important;background:#f4faf8!important;color:#167f76!important}
+  #mobileMockApp .m13-cal-actions .filter.on{background:#188f84!important;color:#fff!important;border-color:#188f84!important}
+
+  .m15-filter-panel{display:none!important;margin:0 0 8px!important;padding:7px!important;border-radius:11px!important;background:#f7faf9!important;border:1px solid #e6eeec!important}
+  .m15-filter-panel.open{display:block!important}
+  #mobileMockApp .m13-filters{display:flex!important;gap:5px!important;padding:0!important;margin:0 0 6px!important;background:transparent!important;border:0!important;overflow-x:auto!important;scrollbar-width:none!important}
+  #mobileMockApp .m13-filters::-webkit-scrollbar,#mobileMockApp .m13-site-row::-webkit-scrollbar{display:none!important}
+  #mobileMockApp .m13-filter-label{display:none!important}
+  #mobileMockApp .m13-filter{width:auto!important;min-width:64px!important;height:29px!important;padding:0 9px!important;border-radius:9px!important;font-size:9px!important;gap:5px!important;box-shadow:none!important;flex:0 0 auto!important}
+  #mobileMockApp .m13-filter i{width:8px!important;height:8px!important;flex:0 0 8px!important}
+  #mobileMockApp .m13-site-row{display:flex!important;align-items:center!important;gap:5px!important;margin:0!important;padding:0!important;background:transparent!important;overflow-x:auto!important;white-space:nowrap!important}
+  #mobileMockApp .m13-site-label{font-size:8.5px!important;color:#819498!important;flex:0 0 auto!important}
+  #mobileMockApp .m13-site-chip{height:29px!important;min-height:29px!important;padding:0 9px!important;border-radius:9px!important;font-size:8.5px!important;flex:0 0 auto!important}
+  .m15-period-btn{width:100%!important;height:28px!important;margin-top:6px!important;border:1px dashed #cfddda!important;border-radius:8px!important;background:#fff!important;color:#698087!important;font-size:9px!important;font-weight:800!important}
+
+  #mobileMockApp .m13-weekdays,#mobileMockApp .m13-days{display:grid!important;grid-template-columns:repeat(7,minmax(0,1fr))!important;gap:3px!important}
+  #mobileMockApp .m13-weekdays{margin:0 0 4px!important}
+  #mobileMockApp .m13-weekday{height:20px!important;display:flex!important;align-items:center!important;justify-content:center!important;font-size:8.5px!important;font-weight:800!important;color:#85969b!important}
+  #mobileMockApp .m13-weekday.sun{color:#e06672!important} #mobileMockApp .m13-weekday.sat{color:#317be0!important}
+  #mobileMockApp .m13-day{position:relative!important;height:53px!important;min-width:0!important;padding:5px!important;border:1px solid #e5ecea!important;border-radius:9px!important;background:#fff!important;box-shadow:none!important;text-align:left!important;overflow:hidden!important}
+  #mobileMockApp .m13-day.other{background:#fbfcfc!important;opacity:.5!important}
+  #mobileMockApp .m13-day.selected{border:2px solid #219a8f!important;background:#f0faf8!important;box-shadow:none!important}
+  #mobileMockApp .m13-daynum{position:absolute!important;right:6px!important;left:auto!important;top:5px!important;font-size:10.5px!important;font-weight:900!important;color:#243f47!important;line-height:1!important}
+  #mobileMockApp .m13-day.sun .m13-daynum{color:#e15f6d!important} #mobileMockApp .m13-day.sat .m13-daynum{color:#2f79dd!important}
+  .m15-count{position:absolute!important;left:5px!important;top:5px!important;max-width:28px!important;height:15px!important;padding:0 4px!important;border-radius:999px!important;background:#edf6f4!important;color:#3f716f!important;font-size:7px!important;font-weight:850!important;line-height:15px!important;white-space:nowrap!important}
+  .m15-dots{position:absolute!important;left:6px!important;bottom:6px!important;display:flex!important;gap:3px!important}
+  .m15-dots i{display:block!important;width:5px!important;height:5px!important;border-radius:50%!important}
+  .m15-dots i.gallery{background:#3fb7ad!important}.m15-dots i.tour{background:#f2a24e!important}.m15-dots i.closed{background:#e56772!important}
+  .m15-calendar-foot{padding:8px 3px 0!important;text-align:center!important;color:#92a0a3!important;font-size:8px!important}
+
+  #m13RangeCard,#m13Manager{display:none!important}
+  .bottom-toolbar{display:none!important}
+  .mobile-admin-scrim{z-index:9998!important}.bottom-toolbar.open{display:grid!important;position:fixed!important;left:12px!important;right:12px!important;bottom:calc(16px + env(safe-area-inset-bottom))!important;z-index:9999!important;grid-template-columns:repeat(2,1fr)!important;gap:6px!important;padding:10px!important;border-radius:14px!important;background:#fff!important;box-shadow:0 18px 50px rgba(16,47,52,.22)!important}
+  .bottom-toolbar.open button{height:36px!important;border-radius:9px!important;font-size:10px!important}
+
+  .overlay{z-index:10000!important}
+  .modal{width:calc(100vw - 20px)!important;max-height:82vh!important;border-radius:16px!important;padding:14px!important}
+  .modal h2{font-size:16px!important}
+}
+</style>
 
 </body>
 </html>
