@@ -1736,54 +1736,91 @@ html[data-calendar-unlocked="1"] #appRoot{display:block!important;}
 html[data-calendar-unlocked="1"] #lockScreen{display:none!important;}
 html[data-calendar-unlocked="1"] #appRoot{display:block!important;}
 </style>
+
+<style id="calendar-lock-simple-final">
+/* FINAL: simple normal-flow lock screen for iOS/Safari reliability */
+html:not(.calendar-unlocked) #lockScreen{
+  display:flex!important;
+  position:relative!important;
+  inset:auto!important;
+  min-height:100dvh!important;
+  width:100%!important;
+  box-sizing:border-box!important;
+  z-index:auto!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  justify-content:center!important;
+  pointer-events:auto!important;
+  touch-action:auto!important;
+  overflow:visible!important;
+}
+html:not(.calendar-unlocked) #appRoot{display:none!important;}
+html.calendar-unlocked #lockScreen{display:none!important;}
+html.calendar-unlocked #appRoot{display:block!important;}
+#lockForm{display:flex;flex-direction:column;align-items:center;gap:14px;width:min(288px,82vw);margin:0;padding:0;}
+#lockForm #pwInput,#lockForm #pwOpenBtn{
+  width:100%!important;max-width:none!important;min-width:0!important;box-sizing:border-box!important;
+  position:static!important;z-index:auto!important;pointer-events:auto!important;touch-action:manipulation!important;
+}
+#lockForm #pwInput{font-size:16px!important;}
+#lockForm #pwOpenBtn{min-height:52px!important;cursor:pointer!important;-webkit-appearance:none!important;appearance:none!important;}
+</style>
 </head>
 <body>
-<div id="lockScreen" role="dialog" aria-modal="true" aria-labelledby="pwTitle">
+<div id="lockScreen" role="main" aria-labelledby="pwTitle">
   <h2 id="pwTitle">🔒 비밀번호 입력</h2>
   <p>통합 일정표 열람을 위해 비밀번호가 필요합니다</p>
-  <input type="password" id="pwInput" maxlength="10" inputmode="numeric" autocomplete="off" aria-label="비밀번호" placeholder="••••" onkeydown="if(event.key==='Enter'){event.preventDefault();return unlockCalendarNow(event);}">
-  <button type="button" id="pwOpenBtn" onclick="return unlockCalendarNow(event)" ontouchend="return unlockCalendarNow(event)">열기</button>
+  <form id="lockForm" novalidate>
+    <input type="password" id="pwInput" maxlength="10" inputmode="numeric" autocomplete="current-password" aria-label="비밀번호" placeholder="••••">
+    <button type="submit" id="pwOpenBtn">열기</button>
+  </form>
   <div class="err" id="pwErr" aria-live="polite"></div>
 </div>
-<script id="calendar-lock-hotfix">
+<script id="calendar-lock-simple-script">
 (function(){
-  function expectedPassword(){
-    try{return localStorage.getItem('calendar_password_v1')||'0134';}catch(e){return '0134';}
+  var DEFAULT='0134';
+  function expected(){
+    try{return localStorage.getItem('calendar_password_v1') || DEFAULT;}catch(e){return DEFAULT;}
   }
-  function unlock(){
+  function openCalendar(){
     var input=document.getElementById('pwInput');
     var err=document.getElementById('pwErr');
-    if(!input)return false;
-    var value=String(input.value||'').replace(/\s+/g,'');
-    if(!value){ if(err)err.textContent='비밀번호를 입력해주세요'; try{input.focus();}catch(e){} return false; }
-    if(value!==expectedPassword()){ if(err)err.textContent='비밀번호가 올바르지 않습니다'; try{input.select();}catch(e){} return false; }
+    var value=String(input && input.value || '').trim();
+    if(!value){ if(err) err.textContent='비밀번호를 입력해주세요'; if(input) input.focus(); return false; }
+    if(value!==expected()){ if(err) err.textContent='비밀번호가 올바르지 않습니다'; if(input){input.focus(); try{input.select();}catch(e){}} return false; }
+    document.documentElement.classList.add('calendar-unlocked');
     document.documentElement.setAttribute('data-calendar-unlocked','1');
     var lock=document.getElementById('lockScreen');
     var app=document.getElementById('appRoot');
-    if(lock){ lock.style.display='none'; lock.setAttribute('aria-hidden','true'); }
-    if(app){ app.style.display='block'; }
+    if(lock){lock.hidden=true;lock.setAttribute('aria-hidden','true');}
+    if(app){app.hidden=false;app.style.removeProperty('display');}
+    try{window.scrollTo(0,0);}catch(e){}
     try{window.dispatchEvent(new Event('resize'));}catch(e){}
-    return false;
+    return true;
   }
-  window.unlockCalendarNow=unlock;
+  window.unlockCalendarNow=function(){return openCalendar();};
   function bind(){
-    var input=document.getElementById('pwInput');
+    var form=document.getElementById('lockForm');
     var btn=document.getElementById('pwOpenBtn');
-    if(btn && !btn.dataset.bound){
-      btn.dataset.bound='1';
-      btn.addEventListener('click',function(e){e.preventDefault();unlock();},false);
-      btn.addEventListener('touchend',function(e){e.preventDefault();unlock();},false);
+    var input=document.getElementById('pwInput');
+    if(form && !form.dataset.simpleBound){
+      form.dataset.simpleBound='1';
+      form.addEventListener('submit',function(e){e.preventDefault();openCalendar();});
     }
-    if(input && !input.dataset.bound){
-      input.dataset.bound='1';
-      input.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();unlock();}},false);
+    if(btn && !btn.dataset.clickBound){
+      btn.dataset.clickBound='1';
+      btn.addEventListener('click',function(e){e.preventDefault();openCalendar();});
+    }
+    if(input && !input.dataset.keyBound){
+      input.dataset.keyBound='1';
+      input.addEventListener('keyup',function(e){if(e.key==='Enter'){e.preventDefault();openCalendar();}});
     }
   }
   bind();
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bind,{once:true});
 })();
 </script>
-<div id="appRoot">
+<div id="appRoot" hidden>
 <div class="wrap">
   <header>
     <div>
@@ -1922,17 +1959,10 @@ function getPassword(){
   catch(e){ return DEFAULT_PASSWORD; }
 }
 function checkPassword(){
-  const val = document.getElementById("pwInput").value;
-  if(val === getPassword()){
-    document.getElementById("lockScreen").style.display = "none";
-    document.getElementById("appRoot").style.display = "block";
-  } else {
-    document.getElementById("pwErr").textContent = "비밀번호가 올바르지 않습니다";
-  }
+  if(typeof window.unlockCalendarNow === "function") return window.unlockCalendarNow();
+  return false;
 }
-document.getElementById("pwInput").addEventListener("keydown", (e)=>{
-  if(e.key === "Enter") checkPassword();
-});
+/* password events are bound by calendar-lock-simple-script */
 
 const STORAGE_CHECK = "calendar_checkmarks_v1";
 
