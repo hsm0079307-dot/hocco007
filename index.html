@@ -19925,7 +19925,122 @@ function rfPrintCard(site){
    .page{width:auto;min-height:0;margin:0;box-shadow:none}
    .sheet{padding:3mm 3.5mm 1mm}
  }
- </style></head><body><nav><button onclick="window.print()">인쇄 / PDF 저장</button><div class="print-map-controls"><label>지도 높이 <input id="mapHeightRange" type="range" min="42" max="76" value="59"><output id="mapHeightVal">59mm</output></label><label>지도 폭 <input id="mapWidthRange" type="range" min="54" max="74" value="64"><output id="mapWidthVal">64%</output></label><button type="button" class="map-reset" onclick="resetPrintMapSize()">기본 크기</button></div></nav><main class="page"><div class="sheet"><header class="hero"><div><div class="eyebrow">SITE BRIEF · 현장카드</div><h1>${escapeHtml(site.name)}</h1><div class="hero-meta">${escapeHtml(site.district||'지역 미입력')} · ${new Date().toLocaleDateString('ko-KR')}</div></div><span class="stage-chip">${escapeHtml(stageLabel)}</span></header><div class="facts">${pairs.map(([k,v])=>`<div class="fact"><div class="fact-label">${escapeHtml(k)}</div><div class="fact-value">${escapeHtml(String(v||'-'))}</div></div>`).join('')}</div><div class="main-grid"><section class="panel"><div class="panel-head">현장 위치</div><div class="map-card"><div class="map" id="printMap"></div><div class="print-map-zoom" aria-label="지도 확대 축소"><button type="button" id="printMapZoomIn" title="지도 확대">+</button><button type="button" id="printMapZoomOut" title="지도 축소">−</button></div></div></section>${note('진행단계',site.stageDetail,300,'stage-card')}</div><div class="lower-grid">${note('주요 비고',site.salesNote||site.memo,330)}${note('타사활동',site.progressNote,300)}${note('최근 보고 · 발췌',recent,360,'wide')}</div></div></main><script>
+ </style></h
+
+<style id="mobileReportCalendarCompactV3">
+/* Mobile report calendar: keep the month grid, but show only the information that fits clearly. */
+@media screen and (max-width:820px){
+  /* Guest mode does not need the counting-rule explanation box. */
+  body.guest-readonly .mgr-breakdown-wrap .cal-count-guide{display:none!important;}
+
+  /* Remove the legacy forced wide calendar / horizontal scroll. */
+  .mgr-breakdown-wrap .mgr-subtab-body,
+  .mgr-breakdown-wrap .mgr-subtab-body:has(.mgr-cal-grid){
+    overflow-x:hidden!important;
+    padding-left:8px!important;
+    padding-right:8px!important;
+  }
+  .mgr-breakdown-wrap .mgr-cal-grid{
+    width:100%!important;
+    min-width:0!important;
+    grid-template-columns:repeat(7,minmax(0,1fr))!important;
+    gap:4px!important;
+  }
+  .mgr-breakdown-wrap .mgr-cal-dayhead{
+    height:26px!important;
+    font-size:10px!important;
+    font-weight:800!important;
+    color:var(--text-dim)!important;
+  }
+
+  /* Date cards are intentionally compact on phones. Details open on tap. */
+  .mgr-breakdown-wrap .mgr-cal-cell,
+  .mgr-breakdown-wrap .mgr-cal-cell.has-log,
+  .mgr-breakdown-wrap .mgr-cal-cell.mgr-cal-empty{
+    min-width:0!important;
+    min-height:84px!important;
+    height:84px!important;
+    padding:6px 4px!important;
+    border-radius:9px!important;
+    overflow:hidden!important;
+  }
+  .mgr-breakdown-wrap .mgr-cal-cell.mgr-cal-empty{
+    border:1px solid color-mix(in srgb,var(--line) 48%,transparent)!important;
+    background:color-mix(in srgb,var(--card) 72%,transparent)!important;
+    opacity:.45!important;
+  }
+  .mgr-breakdown-wrap .mgr-cal-cell.has-log{
+    background:linear-gradient(180deg,color-mix(in srgb,var(--accent-soft) 56%,var(--card)) 0%,var(--card) 100%)!important;
+    border-color:color-mix(in srgb,var(--accent) 34%,var(--line))!important;
+  }
+  .mgr-breakdown-wrap .mgr-cal-cell.has-log::before{
+    width:3px!important;
+    opacity:.72!important;
+  }
+  .mgr-breakdown-wrap .mgr-cal-daynum{
+    font-size:12px!important;
+    line-height:20px!important;
+    font-weight:900!important;
+  }
+  .mgr-breakdown-wrap .mgr-cal-cell.is-today .mgr-cal-daynum{
+    min-width:23px!important;
+    height:23px!important;
+    line-height:23px!important;
+    padding:0 5px!important;
+    border-radius:999px!important;
+  }
+  .mgr-breakdown-wrap .mgr-cal-summary-chip{margin-top:5px!important;}
+  .mgr-breakdown-wrap .mgr-cal-grid .mi-date-reports-btn{
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:flex-start!important;
+    justify-content:flex-start!important;
+    gap:3px!important;
+    min-height:0!important;
+    width:100%!important;
+    overflow:hidden!important;
+  }
+  .mgr-breakdown-wrap .mgr-cal-summary-main{
+    display:block!important;
+    max-width:100%!important;
+    font-size:10px!important;
+    line-height:1.15!important;
+    font-weight:900!important;
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+  }
+  .mgr-breakdown-wrap .mgr-cal-nonmember{
+    display:inline-flex!important;
+    align-items:center!important;
+    min-height:17px!important;
+    max-width:100%!important;
+    padding:0 5px!important;
+    border-radius:999px!important;
+    font-size:7.5px!important;
+    line-height:17px!important;
+    font-weight:850!important;
+    white-space:nowrap!important;
+  }
+
+  /* Long per-manager/method text belongs in the tap detail view, not inside a 7-column phone grid. */
+  .mgr-breakdown-wrap .mgr-cal-manager-mini,
+  .mgr-breakdown-wrap .cal-manager-list,
+  .mgr-breakdown-wrap .cal-manager-more{
+    display:none!important;
+  }
+
+  /* Slightly tighter navigation on phone. */
+  .mgr-breakdown-wrap .mgr-nav-row{
+    grid-template-columns:34px minmax(110px,1fr) 34px auto!important;
+    gap:6px!important;
+    padding:3px 8px 8px!important;
+  }
+  .mgr-breakdown-wrap .mgr-nav-label{font-size:13px!important;}
+  .mgr-breakdown-wrap .mgr-nav-today-btn{grid-column:4!important;}
+}
+</style>
+ead><body><nav><button onclick="window.print()">인쇄 / PDF 저장</button><div class="print-map-controls"><label>지도 높이 <input id="mapHeightRange" type="range" min="42" max="76" value="59"><output id="mapHeightVal">59mm</output></label><label>지도 폭 <input id="mapWidthRange" type="range" min="54" max="74" value="64"><output id="mapWidthVal">64%</output></label><button type="button" class="map-reset" onclick="resetPrintMapSize()">기본 크기</button></div></nav><main class="page"><div class="sheet"><header class="hero"><div><div class="eyebrow">SITE BRIEF · 현장카드</div><h1>${escapeHtml(site.name)}</h1><div class="hero-meta">${escapeHtml(site.district||'지역 미입력')} · ${new Date().toLocaleDateString('ko-KR')}</div></div><span class="stage-chip">${escapeHtml(stageLabel)}</span></header><div class="facts">${pairs.map(([k,v])=>`<div class="fact"><div class="fact-label">${escapeHtml(k)}</div><div class="fact-value">${escapeHtml(String(v||'-'))}</div></div>`).join('')}</div><div class="main-grid"><section class="panel"><div class="panel-head">현장 위치</div><div class="map-card"><div class="map" id="printMap"></div><div class="print-map-zoom" aria-label="지도 확대 축소"><button type="button" id="printMapZoomIn" title="지도 확대">+</button><button type="button" id="printMapZoomOut" title="지도 축소">−</button></div></div></section>${note('진행단계',site.stageDetail,300,'stage-card')}</div><div class="lower-grid">${note('주요 비고',site.salesNote||site.memo,330)}${note('타사활동',site.progressNote,300)}${note('최근 보고 · 발췌',recent,360,'wide')}</div></div></main><script>
 (function(){
  var h=document.getElementById('mapHeightRange'),wv=document.getElementById('mapWidthRange'),ho=document.getElementById('mapHeightVal'),wo=document.getElementById('mapWidthVal');
  function apply(){
