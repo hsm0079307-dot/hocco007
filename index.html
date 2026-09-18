@@ -7216,6 +7216,123 @@ body.guest-readonly #reportViewTabTours{
   .mgr-breakdown-wrap .cal-manager-count{font-size:11px!important;line-height:1.45!important}
 }
 </style>
+
+<style id="mobileCalendarRedesignV20260918">
+/* Mobile report calendar redesign: compact month grid + selected-day detail */
+.mobile-cal-detail-source,.mobile-cal-detail-panel{display:none;}
+@media (max-width:820px){
+  .mgr-breakdown-wrap .mgr-filter-row{
+    display:flex!important; flex-wrap:nowrap!important; overflow-x:auto!important;
+    gap:7px!important; padding:9px 12px!important; margin:0!important;
+    -webkit-overflow-scrolling:touch; scrollbar-width:none;
+  }
+  .mgr-breakdown-wrap .mgr-filter-row::-webkit-scrollbar{display:none}
+  .mgr-breakdown-wrap .mgr-filter-label{flex:0 0 auto!important; font-size:11px!important}
+  .mgr-breakdown-wrap .mgr-filter-chip{flex:0 0 auto!important; padding:7px 12px!important; border-radius:11px!important; font-size:10.5px!important}
+  .mgr-breakdown-wrap .mgr-filter-clear{flex:0 0 auto!important}
+  .mgr-breakdown-wrap .mgr-filter-row > span[style*="font-size:8.5px"]{display:none!important}
+
+  .mgr-breakdown-wrap .mgr-subtabs{
+    display:grid!important; grid-template-columns:repeat(4,1fr)!important;
+    gap:0!important; margin:0!important; padding:0 12px!important;
+  }
+  .mgr-breakdown-wrap .mgr-subtab{
+    text-align:center!important; padding:10px 2px!important; font-size:10px!important;
+  }
+
+  .mgr-breakdown-wrap .mgr-nav-row{
+    display:grid!important; grid-template-columns:38px 1fr 38px 52px!important;
+    align-items:center!important; gap:7px!important; padding:10px 12px 8px!important; margin:0!important;
+  }
+  .mgr-breakdown-wrap .mgr-nav-btn{
+    width:38px!important; height:36px!important; border-radius:10px!important; font-size:13px!important;
+  }
+  .mgr-breakdown-wrap .mgr-nav-label{
+    font-size:15px!important; font-weight:850!important; color:var(--text-main)!important;
+  }
+  .mgr-breakdown-wrap .mgr-nav-today-btn{
+    grid-column:auto!important; height:36px!important; padding:0!important; border-radius:10px!important;
+    font-size:10.5px!important;
+  }
+
+  .mgr-breakdown-wrap .mgr-subtab-body{padding:0 10px 14px!important}
+  .mgr-breakdown-wrap .cal-count-guide{display:none!important}
+  .mgr-breakdown-wrap .mgr-cal-grid{
+    gap:4px!important; width:100%!important; grid-template-columns:repeat(7,minmax(0,1fr))!important;
+  }
+  .mgr-breakdown-wrap .mgr-cal-dayhead{
+    height:26px!important; font-size:10px!important; font-weight:750!important; opacity:.88;
+  }
+  .mgr-breakdown-wrap .mgr-cal-cell,
+  .mgr-breakdown-wrap .mgr-cal-cell.mgr-cal-empty{
+    min-height:64px!important; height:64px!important; padding:5px 4px!important;
+    border-radius:9px!important; overflow:hidden!important;
+  }
+  .mgr-breakdown-wrap .mgr-cal-cell.mgr-cal-empty{border:0!important;background:transparent!important;opacity:1!important}
+  .mgr-breakdown-wrap .mgr-cal-cell.has-log{
+    background:color-mix(in srgb,var(--accent-soft) 28%,var(--card))!important;
+    border-color:color-mix(in srgb,var(--accent) 28%,var(--line))!important;
+  }
+  .mgr-breakdown-wrap .mgr-cal-cell.has-log::before{width:2px!important;opacity:.55!important}
+  .mgr-breakdown-wrap .mgr-cal-daynum{
+    display:flex!important; align-items:center!important; justify-content:flex-start!important;
+    width:auto!important; height:19px!important; margin:0!important; padding:0!important;
+    font-size:11px!important; font-weight:800!important; color:var(--text-main)!important;
+    text-decoration:none!important;
+  }
+  .mgr-breakdown-wrap .mgr-cal-cell.is-today .mgr-cal-daynum{
+    display:inline-flex!important; justify-content:center!important; width:23px!important; height:23px!important;
+    border-radius:50%!important; background:var(--accent)!important; color:var(--accent-ink)!important;
+  }
+  .mgr-breakdown-wrap .mgr-cal-summary-chip{margin-top:3px!important}
+  .mgr-breakdown-wrap .mi-date-reports-btn{
+    display:flex!important; align-items:center!important; justify-content:flex-start!important;
+    width:100%!important; min-height:28px!important; padding:0!important; border:0!important;
+    background:transparent!important; text-align:left!important;
+  }
+  .mgr-breakdown-wrap .mgr-cal-summary-main{
+    display:block!important; width:100%!important; font-size:10.5px!important; font-weight:850!important;
+    color:var(--accent)!important; white-space:nowrap!important;
+  }
+  .mgr-breakdown-wrap .mgr-cal-nonmember-inline{font-size:8px!important;opacity:.8}
+  .mgr-breakdown-wrap .mgr-cal-method-line,
+  .mgr-breakdown-wrap .cal-manager-list{display:none!important}
+  .mgr-breakdown-wrap .mgr-cal-cell.mobile-selected{
+    box-shadow:inset 0 0 0 1.5px var(--accent)!important;
+    background:color-mix(in srgb,var(--accent-soft) 48%,var(--card))!important;
+  }
+
+  .mobile-cal-detail-source{display:none!important}
+  .mobile-cal-detail-panel{
+    display:block!important; margin:10px 0 0!important; padding:0!important;
+  }
+  .mobile-cal-detail-empty{
+    border:1px dashed var(--line); border-radius:12px; padding:13px 12px;
+    text-align:center; color:var(--text-dim); font-size:10px;
+  }
+  .mobile-cal-detail-card{
+    border:1px solid color-mix(in srgb,var(--accent) 28%,var(--line));
+    background:linear-gradient(180deg,color-mix(in srgb,var(--accent-soft) 24%,var(--card)),var(--card));
+    border-radius:14px; padding:13px 13px 11px; box-shadow:var(--shadow-xs);
+  }
+  .mobile-cal-detail-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px}
+  .mobile-cal-detail-date{font-size:13px;font-weight:850;color:var(--text-main)}
+  .mobile-cal-detail-total{font-size:11px;font-weight:800;color:var(--accent);white-space:nowrap}
+  .mobile-cal-detail-managers{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:9px}
+  .mobile-cal-detail-manager{
+    display:flex;justify-content:space-between;gap:8px;padding:7px 9px;border-radius:9px;
+    background:color-mix(in srgb,var(--bg-main) 70%,transparent);border:1px solid var(--line);
+    font-size:10px;color:var(--text-main)
+  }
+  .mobile-cal-detail-manager b{color:var(--accent);font-weight:850}
+  .mobile-cal-detail-methods{font-size:9.5px;color:var(--text-dim);padding:7px 0 3px;border-top:1px solid var(--line)}
+  .mobile-cal-open-reports{
+    width:100%;margin-top:8px;padding:9px 10px;border-radius:9px;border:1px solid var(--line);
+    background:var(--bg-main);color:var(--text-main);font-size:10.5px;font-weight:750;cursor:pointer;
+  }
+}
+</style>
+
 </head>
 <body data-report-source="excel-only">
 <div id="entryGate" style="position:fixed;inset:0;background:rgba(3,12,22,.94);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;">
@@ -13271,7 +13388,26 @@ function renderDetailPanel(site){
         });
         // 필터 걸릴 때 화면이 밑으로 스크롤되는 게 불편하다는 피드백을 받아서, 이제 스크롤은 아예 안 함
       }
-      body.querySelectorAll('[data-mi-report-date]').forEach(btn=>btn.addEventListener('click',()=>{const d=btn.dataset.miReportDate;applyLogFilter(item=>item.dataset.logDate===d&&(!mgrBreakdownManagerFilter||String(item.dataset.logAuthor||'').replace(/\s*(본부장|실장|팀장|부장|차장|과장|대리|사원|주임)$/,'').trim()===String(mgrBreakdownManagerFilter).replace(/\s*(본부장|실장|팀장|부장|차장|과장|대리|사원|주임)$/,'').trim()),d+' 엑셀·입력 보고서');}));
+      body.querySelectorAll('[data-mi-report-date]').forEach(btn=>btn.addEventListener('click',()=>{
+        const d=btn.dataset.miReportDate;
+        if(window.matchMedia&&window.matchMedia('(max-width:820px)').matches){
+          const cell=btn.closest('.mgr-cal-cell');
+          const source=cell&&cell.querySelector('.mobile-cal-detail-source');
+          const panel=body.querySelector('#mobileCalDetailPanel');
+          body.querySelectorAll('.mgr-cal-cell.mobile-selected').forEach(x=>x.classList.remove('mobile-selected'));
+          if(cell)cell.classList.add('mobile-selected');
+          if(panel&&source){panel.innerHTML=source.innerHTML;panel.classList.add('is-open');}
+          return;
+        }
+        applyLogFilter(item=>item.dataset.logDate===d&&(!mgrBreakdownManagerFilter||String(item.dataset.logAuthor||'').replace(/\s*(본부장|실장|팀장|부장|차장|과장|대리|사원|주임)$/,'').trim()===String(mgrBreakdownManagerFilter).replace(/\s*(본부장|실장|팀장|부장|차장|과장|대리|사원|주임)$/,'').trim()),d+' 엑셀·입력 보고서');
+      }));
+      const mobileCalDetailPanel=body.querySelector('#mobileCalDetailPanel');
+      if(mobileCalDetailPanel)mobileCalDetailPanel.addEventListener('click',e=>{
+        const openBtn=e.target.closest('[data-mobile-open-reports]');
+        if(!openBtn)return;
+        const d=openBtn.dataset.mobileOpenReports;
+        applyLogFilter(item=>item.dataset.logDate===d&&(!mgrBreakdownManagerFilter||String(item.dataset.logAuthor||'').replace(/\s*(본부장|실장|팀장|부장|차장|과장|대리|사원|주임)$/,'').trim()===String(mgrBreakdownManagerFilter).replace(/\s*(본부장|실장|팀장|부장|차장|과장|대리|사원|주임)$/,'').trim()),d+' 엑셀·입력 보고서');
+      });
       const mgrOwnerSearchInput = document.getElementById('mgrOwnerSearchInput');
       if(mgrOwnerSearchInput) mgrOwnerSearchInput.addEventListener('input', ()=>{
         const q = mgrOwnerSearchInput.value.trim().toLowerCase();
@@ -15929,18 +16065,20 @@ function renderDetailPanel(site){
         const managerLine=m=>`<span class="cal-manager-count"><span class="cal-manager-name">${escapeHtml(m.name)}</span><span class="cal-manager-number">${m.count}명</span></span>`;
         const managerVisibleLimit=4;
         const managerHtml=managerCounts.slice(0,managerVisibleLimit).map(managerLine).join('')+(managerCounts.length>managerVisibleLimit?`<details class="cal-manager-more"><summary>+${managerCounts.length-managerVisibleLimit} 더보기</summary>${managerCounts.slice(managerVisibleLimit).map(managerLine).join('')}</details>`:'');
+        const mobileManagerHtml=managerCounts.length?managerCounts.map(m=>`<div class="mobile-cal-detail-manager"><span>${escapeHtml(m.name)}</span><b>${m.count}명</b></div>`).join(''):`<div class="mobile-cal-detail-manager"><span>담당</span><b>미지정</b></div>`;
 
         const isToday=key===`${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}-${String(new Date().getDate()).padStart(2,'0')}`;
         const parts=[mc.상담?`상${mc.상담}`:'',mc.단순?`단${mc.단순}`:'',mc.TM?`TM${mc.TM}`:'',mc.거부?`거${mc.거부}`:'',mc.부재?`부${mc.부재}`:'',mc.불명?`불${mc.불명}`:'',mc.미분류?`미분류${mc.미분류}`:''].filter(Boolean).join(' · ');
-        cells+=`<div class="mgr-cal-cell${ev.length?' has-log':''}${isToday?' is-today':''}">
+        cells+=`<div class="mgr-cal-cell${ev.length?' has-log':''}${isToday?' is-today':''}" data-mobile-cal-date="${key}">
           <div class="mgr-cal-daynum">${d}</div>
           ${ev.length?`<div class="mgr-cal-summary-chip"><button type="button" class="mi-date-reports-btn" data-mi-report-date="${key}" aria-label="${key} 보고서 보기">
             <span class="mgr-cal-summary-main">총 ${people}명${nonMemberCount?` <em class="mgr-cal-nonmember-inline">(비${nonMemberCount})</em>`:''}</span>
             ${parts?`<span class="mgr-cal-manager-mini mgr-cal-method-line">${escapeHtml(parts)}</span>`:''}
-          </button><div class="cal-manager-list">${managerHtml}</div></div>`:''}
+          </button><div class="cal-manager-list">${managerHtml}</div></div>
+          <div class="mobile-cal-detail-source"><div class="mobile-cal-detail-card"><div class="mobile-cal-detail-head"><div class="mobile-cal-detail-date">${month}월 ${d}일 접촉현황</div><div class="mobile-cal-detail-total">총 ${people}명${nonMemberCount?` · 비조합 ${nonMemberCount}명`:''}</div></div><div class="mobile-cal-detail-managers">${mobileManagerHtml}</div>${parts?`<div class="mobile-cal-detail-methods">${escapeHtml(parts)}</div>`:''}<button type="button" class="mobile-cal-open-reports" data-mobile-open-reports="${key}">이 날짜 접촉내역 보기 ›</button></div></div>`:''}
         </div>`;
       }
-      return `<p class="cal-count-guide">조합원 기준 · 같은 날 같은 사람은 1명. 담당자 간 중복 접촉으로 담당별 합은 총인원과 다를 수 있습니다.</p><div class="mgr-cal-grid">${['월','화','수','목','금','토','일'].map(x=>`<div class="mgr-cal-dayhead">${x}</div>`).join('')}${cells}</div>`;
+      return `<p class="cal-count-guide">조합원 기준 · 같은 날 같은 사람은 1명. 담당자 간 중복 접촉으로 담당별 합은 총인원과 다를 수 있습니다.</p><div class="mgr-cal-grid">${['월','화','수','목','금','토','일'].map(x=>`<div class="mgr-cal-dayhead">${x}</div>`).join('')}${cells}</div><div id="mobileCalDetailPanel" class="mobile-cal-detail-panel"><div class="mobile-cal-detail-empty">날짜를 누르면 담당자별 접촉현황이 여기에 표시됩니다.</div></div>`;
     }
 
     function buildWeekTable(){
