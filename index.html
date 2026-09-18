@@ -15927,7 +15927,8 @@ function renderDetailPanel(site){
         memberEv.forEach(e=>{const name=mgrKey(e.manager)||'(미지정)';if(!managerGroups.has(name))managerGroups.set(name,[]);managerGroups.get(name).push(e)});
         const managerCounts=[...managerGroups].map(([name,events])=>({name:name==='(미지정)'?'미지정':name,count:uniquePeople(events)})).sort((a,b)=>b.count-a.count||a.name.localeCompare(b.name,'ko'));
         const managerLine=m=>`<span class="cal-manager-count"><span class="cal-manager-name">${escapeHtml(m.name)}</span><span class="cal-manager-number">${m.count}명</span></span>`;
-        const managerHtml=managerCounts.slice(0,2).map(managerLine).join('')+(managerCounts.length>2?`<details class="cal-manager-more"><summary>+${managerCounts.length-2} 더보기</summary>${managerCounts.slice(2).map(managerLine).join('')}</details>`:'');
+        const managerVisibleLimit=4;
+        const managerHtml=managerCounts.slice(0,managerVisibleLimit).map(managerLine).join('')+(managerCounts.length>managerVisibleLimit?`<details class="cal-manager-more"><summary>+${managerCounts.length-managerVisibleLimit} 더보기</summary>${managerCounts.slice(managerVisibleLimit).map(managerLine).join('')}</details>`:'');
 
         const isToday=key===`${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}-${String(new Date().getDate()).padStart(2,'0')}`;
         const parts=[mc.상담?`상${mc.상담}`:'',mc.단순?`단${mc.단순}`:'',mc.TM?`TM${mc.TM}`:'',mc.거부?`거${mc.거부}`:'',mc.부재?`부${mc.부재}`:'',mc.불명?`불${mc.불명}`:'',mc.미분류?`미분류${mc.미분류}`:''].filter(Boolean).join(' · ');
