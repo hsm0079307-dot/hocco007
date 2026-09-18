@@ -7768,7 +7768,26 @@ function events(ex){
    else put({...p,...n,personId:pid(p)});
   })});
  }
- const values=[...map.values()];const value=values.filter(e=>e.method!=='미분류'||!values.some(t=>t!==e&&t.personId===e.personId&&t.date===e.date&&t.method!=='미분류')).sort((a,b)=>b.date.localeCompare(a.date)||str(a.manager).localeCompare(str(b.manager),'ko'));if(ex.nonMembers)value.push(...events(ex.nonMembers));cache.set(ex,{people:ex.people,contacts:ex.contactEvents,reports:ex.reportEvents,stamp:ex.syncedAt,value});return value;
+ const values=[...map.values()];
+ // 같은 사람·같은 날짜·같은 담당자의 Excel 흔적은 보고서 카드 1건으로 합친다.
+ // 월별 날짜 이력(예: AP · 9월 날짜)을 실제 날짜별 기록으로 우선하고,
+ // 접촉내역/현재상태 열(예: AX · 접촉내역)은 월 날짜 기록이 없을 때만 보조로 사용한다.
+ const mgrKey=v=>norm(str(v).replace(/\s*(본부장|실장|팀장|부장|차장|과장|대리|사원|주임)$/,''));
+ const sourceRank=e=>{const s=norm((e&&e.sourceColumn)||'')+'|'+norm((e&&e.sourceHeader)||'');if(/(?:1[0-2]|[1-9])월날짜/.test(s)||/월날짜/.test(s))return 50;if(/상담내용|비고|특이사항/.test(s))return 40;if(/접촉내역|접촉여부|금일접촉/.test(s))return 10;return 30};
+ const collapsed=new Map();
+ values.forEach(e=>{
+   const k=e.personId+'|'+e.date+'|'+mgrKey(e.manager);
+   const old=collapsed.get(k);
+   if(!old){collapsed.set(k,{...e});return}
+   const oldRank=sourceRank(old),newRank=sourceRank(e);
+   let keep={...old},other=e;
+   if(newRank>oldRank||(newRank===oldRank&&old.method==='미분류'&&e.method!=='미분류')){keep={...e};other=old}
+   const kt=str(keep.text),ot=str(other.text);
+   if(ot&&(!kt||ot.length>kt.length))keep.text=ot;
+   ['name','manager','unit','parcel','role','sourceRow','memberFlag'].forEach(f=>{if(!keep[f]&&other[f])keep[f]=other[f]});
+   collapsed.set(k,keep);
+ });
+ const value=[...collapsed.values()].sort((a,b)=>b.date.localeCompare(a.date)||str(a.manager).localeCompare(str(b.manager),'ko'));if(ex.nonMembers)value.push(...events(ex.nonMembers));cache.set(ex,{people:ex.people,contacts:ex.contactEvents,reports:ex.reportEvents,stamp:ex.syncedAt,value});return value;
 }
 function logs(site,ex){
  const existing=[],result=[],activity=events(ex); // EXCEL-ONLY: dashboard-entered reports are ignored
