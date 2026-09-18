@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>통합 일정표 &amp; 날짜별 체크리스트</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
     --ink:#1c2430;--sub:#5b6470;--line:#e2e6ea;--bg:#f6f7f9;
@@ -324,7 +323,7 @@
     font-size:13px;font-weight:700;cursor:pointer;
   }
   #lockScreen .err{color:#ff9c9c;font-size:12px;height:16px;}
-  #appRoot{display:none;}
+  #appRoot{display:block;}
 </style>
 
 
@@ -1721,58 +1720,39 @@ body.dark-mode .modal input,body.dark-mode .modal textarea,body.dark-mode .modal
 }
 #lockScreen button{cursor:pointer!important;}
 #lockScreen .err{min-height:18px!important;}
+html[data-calendar-unlocked="1"] #lockScreen{display:none!important;}
+html[data-calendar-unlocked="1"] #appRoot{display:block!important;}
 </style>
 </head>
 <body>
+<div id="appRoot">
 <div id="lockScreen">
   <h2>🔒 비밀번호 입력</h2>
   <p>통합 일정표 열람을 위해 비밀번호가 필요합니다</p>
-  <input type="password" id="pwInput" maxlength="10" inputmode="numeric" autocomplete="current-password" aria-label="비밀번호" placeholder="••••">
-  <button type="button" id="pwOpenBtn" onclick="return unlockCalendarNow(event)">열기</button>
+  <input type="password" id="pwInput" maxlength="10" inputmode="numeric" autocomplete="current-password" aria-label="비밀번호" placeholder="••••" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('pwOpenBtn').click();}">
+  <button type="button" id="pwOpenBtn" onclick="event.preventDefault();(function(){var i=document.getElementById('pwInput'),e=document.getElementById('pwErr'),p='0134';try{p=localStorage.getItem('calendar_password_v1')||'0134';}catch(x){}var v=String((i&&i.value)||'').trim();if(!v){if(e)e.textContent='비밀번호를 입력해주세요';if(i)try{i.focus()}catch(x){}return;}if(v===p){document.documentElement.setAttribute('data-calendar-unlocked','1');var l=document.getElementById('lockScreen'),a=document.getElementById('appRoot');if(l)l.style.setProperty('display','none','important');if(a)a.style.setProperty('display','block','important');}else{if(e)e.textContent='비밀번호가 올바르지 않습니다';if(i)try{i.select()}catch(x){}}})();return false;">열기</button>
   <div class="err" id="pwErr" aria-live="polite"></div>
 </div>
 <script id="calendar-lock-hotfix">
 (function(){
+  function readExpected(){var p='0134';try{p=localStorage.getItem('calendar_password_v1')||'0134';}catch(e){}return p;}
   window.unlockCalendarNow=function(ev){
-    if(ev && typeof ev.preventDefault==='function') ev.preventDefault();
-    var input=document.getElementById('pwInput');
-    var err=document.getElementById('pwErr');
-    var lock=document.getElementById('lockScreen');
-    var app=document.getElementById('appRoot');
-    if(!input||!lock) return false;
-    var expected='0134';
-    try{ expected=localStorage.getItem('calendar_password_v1')||'0134'; }catch(e){}
+    if(ev&&ev.preventDefault)ev.preventDefault();
+    var input=document.getElementById('pwInput'),err=document.getElementById('pwErr');
+    if(!input)return false;
     var value=String(input.value||'').trim();
-    if(!value){
-      if(err) err.textContent='비밀번호를 입력해주세요';
-      try{input.focus({preventScroll:true})}catch(e){try{input.focus()}catch(_){}}
-      return false;
-    }
-    if(value===expected){
-      lock.style.setProperty('display','none','important');
-      if(app) app.style.setProperty('display','block','important');
-      try{document.body.classList.remove('calendar-locked')}catch(e){}
-      setTimeout(function(){try{window.dispatchEvent(new Event('resize'))}catch(e){}},30);
-    }else{
-      if(err) err.textContent='비밀번호가 올바르지 않습니다';
-      try{input.select()}catch(e){}
-    }
+    if(!value){if(err)err.textContent='비밀번호를 입력해주세요';try{input.focus()}catch(e){}return false;}
+    if(value===readExpected()){
+      document.documentElement.setAttribute('data-calendar-unlocked','1');
+      var lock=document.getElementById('lockScreen'),app=document.getElementById('appRoot');
+      if(lock)lock.style.setProperty('display','none','important');
+      if(app)app.style.setProperty('display','block','important');
+      setTimeout(function(){try{window.dispatchEvent(new Event('resize'));}catch(e){}},30);
+    }else{if(err)err.textContent='비밀번호가 올바르지 않습니다';try{input.select()}catch(e){}}
     return false;
   };
-  var input=document.getElementById('pwInput');
-  var btn=document.getElementById('pwOpenBtn');
-  if(input){
-    input.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();window.unlockCalendarNow(e);}});
-  }
-  if(btn){
-    btn.addEventListener('touchend',function(e){
-      e.preventDefault();
-      window.unlockCalendarNow(e);
-    },{passive:false});
-  }
 })();
 </script>
-<div id="appRoot">
 <div class="wrap">
   <header>
     <div>
@@ -7965,5 +7945,6 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
 </script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </body>
 </html>
