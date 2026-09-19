@@ -6890,5 +6890,190 @@ tbody tr:hover td{background:#fbfdfd!important}
 }
 </style>
 
+
+
+<!-- MOBILE V20: stable admin sheet + compact entry form + final mobile polish -->
+<style id="calendar-mobile-v20-stable-ui">
+@media (max-width:560px){
+  /* 관리 메뉴: 실제로 열리는 하단 시트 */
+  #adminToolbar.bottom-toolbar{
+    display:none!important;
+    position:fixed!important;
+    left:10px!important;right:10px!important;
+    bottom:calc(12px + env(safe-area-inset-bottom))!important;
+    z-index:10030!important;
+    margin:0!important;
+    width:auto!important;max-width:none!important;
+    padding:12px!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:7px!important;
+    border:1px solid #dce8e5!important;
+    border-radius:20px!important;
+    background:#fff!important;
+    box-shadow:0 24px 70px rgba(20,57,62,.24)!important;
+    backdrop-filter:none!important;
+    overflow:visible!important;
+  }
+  #adminToolbar.bottom-toolbar.open,
+  #adminToolbar.bottom-toolbar.mobile-open{display:grid!important}
+  #adminToolbar .m20-admin-head{
+    grid-column:1/-1!important;
+    display:flex!important;align-items:center!important;justify-content:space-between!important;
+    min-height:34px!important;margin:-1px 0 2px!important;padding:0 2px 7px!important;
+    border-bottom:1px solid #edf2f1!important;
+  }
+  #adminToolbar .m20-admin-head strong{font-size:13px!important;color:#173e46!important;letter-spacing:-.04em!important}
+  #adminToolbar .m20-admin-close{
+    width:30px!important;height:30px!important;min-height:30px!important;padding:0!important;
+    border:0!important;border-radius:9px!important;background:#f2f7f6!important;color:#648086!important;
+    font-size:17px!important;font-weight:600!important;
+  }
+  #adminToolbar>button:not(.m20-admin-close){
+    width:100%!important;height:42px!important;min-height:42px!important;margin:0!important;padding:0 8px!important;
+    border:1px solid #dfe9e7!important;border-radius:11px!important;background:#f8fbfa!important;
+    color:#31565e!important;font-size:10.5px!important;font-weight:800!important;box-shadow:none!important;
+  }
+  #adminToolbar>button:not(.m20-admin-close):active{background:#edf7f5!important}
+  #mobileAdminScrim{z-index:10020!important;background:rgba(20,43,47,.28)!important;backdrop-filter:blur(2px)!important}
+
+  /* 일정 입력 폼: 키보드를 자동으로 띄우지 않고, 짧은 하단 시트로 */
+  #formOverlay{align-items:flex-end!important;padding:0!important;z-index:10050!important}
+  #formOverlay .modal{
+    width:100%!important;max-width:none!important;max-height:min(78dvh,620px)!important;
+    margin:0!important;padding:12px 14px calc(14px + env(safe-area-inset-bottom))!important;
+    border:0!important;border-radius:24px 24px 0 0!important;background:#fff!important;
+    box-shadow:0 -22px 64px rgba(22,52,57,.18)!important;overflow:auto!important;
+  }
+  #formOverlay .modal::before{
+    content:""!important;display:block!important;width:38px!important;height:4px!important;
+    margin:0 auto 12px!important;border-radius:999px!important;background:#d6e2e0!important;
+  }
+  #formOverlay .modal h2{margin:0 44px 12px 0!important;font-size:18px!important;line-height:1.15!important;color:#183d46!important}
+  #formOverlay .modal .close{
+    position:absolute!important;right:14px!important;top:14px!important;float:none!important;
+    width:34px!important;height:34px!important;border-radius:11px!important;background:#f1f6f5!important;color:#6d8388!important;
+  }
+  #formFields{
+    display:grid!important;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr)!important;
+    gap:8px!important;color:#264a52!important;
+  }
+  #formFields .m20-field{
+    min-width:0!important;padding:8px 9px!important;border:1px solid #e1ebe9!important;border-radius:12px!important;background:#fbfdfc!important;
+  }
+  #formFields .m20-field[data-field="spot"],
+  #formFields .m20-field[data-field="danji"],
+  #formFields .m20-field[data-field="reason"],
+  #formFields .m20-field[data-field="current"],
+  #formFields .m20-field[data-field="next"],
+  #formFields .m20-field:has(textarea){grid-column:1/-1!important}
+  #formFields .field-label{margin:0 0 5px!important;font-size:8.5px!important;line-height:1!important;color:#8a999d!important;font-weight:800!important}
+  #formFields input[type=text],#formFields textarea{
+    width:100%!important;min-width:0!important;height:32px!important;margin:0!important;padding:0!important;
+    border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;
+    color:#183d46!important;font-size:12.5px!important;font-weight:750!important;outline:none!important;
+  }
+  #formFields textarea{height:72px!important;padding-top:4px!important;resize:none!important}
+  #formFields input::placeholder,#formFields textarea::placeholder{color:#b1bdbf!important;font-weight:550!important}
+  #formOverlay .modal-actions{position:sticky!important;bottom:-14px!important;margin:10px -14px -14px!important;padding:10px 14px calc(12px + env(safe-area-inset-bottom))!important;background:rgba(255,255,255,.96)!important;border-top:1px solid #eef3f2!important}
+  #formOverlay .modal-actions button{height:43px!important;border-radius:12px!important;background:#159487!important;font-size:12px!important;font-weight:850!important;box-shadow:none!important}
+
+  /* 일반 상세/상태 시트도 조금 더 정돈 */
+  #overlay .modal,#statusOverlay .modal,#memoOverlay .modal{
+    max-height:84dvh!important;border-radius:24px 24px 0 0!important;
+  }
+  .preview-v2-group{margin-bottom:7px!important}
+  .preview-v2-group-head{min-height:31px!important;padding:6px 9px!important;font-size:10px!important}
+  .preview-v2-item{min-height:54px!important;padding:7px!important}
+  .preview-v2-actions{gap:5px!important;margin-top:7px!important}
+
+  /* 상단 관리 버튼: 눌림 상태가 보이게 */
+  .m15-admin[aria-expanded="true"]{background:#168f84!important;color:#fff!important;border-color:#168f84!important}
+}
+@media (max-width:390px){
+  #formFields{grid-template-columns:minmax(0,.78fr) minmax(0,1.22fr)!important;gap:6px!important}
+  #formFields .m20-field{padding:7px 8px!important}
+  #adminToolbar.bottom-toolbar{left:8px!important;right:8px!important;padding:10px!important}
+}
+</style>
+<script id="calendar-mobile-v20-stable-behavior">
+(function(){
+  const mobile=()=>window.matchMedia&&window.matchMedia('(max-width:560px)').matches;
+
+  function ensureAdminHead(){
+    const bar=document.getElementById('adminToolbar');
+    if(!bar||bar.querySelector('.m20-admin-head')) return;
+    const head=document.createElement('div');
+    head.className='m20-admin-head';
+    head.innerHTML='<strong>관리 메뉴</strong><button type="button" class="m20-admin-close" aria-label="닫기">×</button>';
+    head.querySelector('button').onclick=()=>window.closeMobileAdminMenu();
+    bar.insertBefore(head,bar.firstChild);
+  }
+
+  window.toggleMobileAdminMenu=function(){
+    ensureAdminHead();
+    const bar=document.getElementById('adminToolbar');
+    const scrim=document.getElementById('mobileAdminScrim');
+    const topBtn=document.getElementById('m15Admin');
+    const legacyBtn=document.getElementById('mobileAdminFab');
+    if(!bar) return;
+    const open=!(bar.classList.contains('open')||bar.classList.contains('mobile-open'));
+    bar.classList.toggle('open',open);
+    bar.classList.toggle('mobile-open',open);
+    if(scrim) scrim.classList.toggle('on',open);
+    [topBtn,legacyBtn].forEach(b=>{if(b)b.setAttribute('aria-expanded',open?'true':'false')});
+    document.documentElement.style.overflow=open?'hidden':'';
+  };
+  window.closeMobileAdminMenu=function(){
+    const bar=document.getElementById('adminToolbar');
+    const scrim=document.getElementById('mobileAdminScrim');
+    const topBtn=document.getElementById('m15Admin');
+    const legacyBtn=document.getElementById('mobileAdminFab');
+    if(bar){bar.classList.remove('open');bar.classList.remove('mobile-open')}
+    if(scrim) scrim.classList.remove('on');
+    [topBtn,legacyBtn].forEach(b=>{if(b)b.setAttribute('aria-expanded','false')});
+    document.documentElement.style.overflow='';
+  };
+
+  /* 기존 입력폼의 기능은 유지하고 모바일 DOM만 정돈한다. 자동 포커스는 제거. */
+  window.openForm=function(title, fields, callback){
+    const titleEl=document.getElementById('formTitle');
+    const fieldsEl=document.getElementById('formFields');
+    if(titleEl) titleEl.textContent=title;
+    const attr=(v)=>String(v??'').replace(/&/g,'&amp;').replace(/'/g,'&#39;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const text=(v)=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    fieldsEl.innerHTML=fields.map(f=>{
+      const input=f.multiline
+        ? '<textarea id="ff-'+attr(f.id)+'" placeholder="'+attr(f.placeholder||'')+'" rows="4">'+text(f.value||'')+'</textarea>'
+        : '<input type="text" id="ff-'+attr(f.id)+'" placeholder="'+attr(f.placeholder||'')+'" value="'+attr(f.value||'')+'">';
+      return '<div class="m20-field" data-field="'+attr(f.id)+'"><div class="field-label">'+text(f.label)+'</div>'+input+'</div>';
+    }).join('');
+    formCallback=callback;
+    document.getElementById('overlay')?.classList.remove('on');
+    document.getElementById('statusOverlay')?.classList.remove('on');
+    document.getElementById('formOverlay')?.classList.add('on');
+    window.closeMobileAdminMenu();
+    if(!mobile()){
+      const first=fieldsEl.querySelector('input,textarea');
+      if(first) setTimeout(()=>first.focus(),50);
+    }
+  };
+
+  /* renderShell이 관리 버튼을 다시 만들더라도 항상 동작 */
+  document.addEventListener('click',function(e){
+    const b=e.target.closest&&e.target.closest('#m15Admin');
+    if(!b) return;
+    e.preventDefault();e.stopPropagation();
+    window.toggleMobileAdminMenu();
+  },true);
+
+  function init(){
+    ensureAdminHead();
+    const scrim=document.getElementById('mobileAdminScrim');
+    if(scrim) scrim.onclick=()=>window.closeMobileAdminMenu();
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
+})();
+</script>
+
 </body>
 </html>
