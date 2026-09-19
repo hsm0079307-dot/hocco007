@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>목동 현장일정 · Mobile V15</title>
+<title>현장 일정표</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
@@ -1778,8 +1778,8 @@ body.dark-mode .modal input,body.dark-mode .modal textarea,body.dark-mode .modal
 <div class="wrap">
   <header>
     <div>
-      <h1 id="siteTitle" contenteditable="true">목동 현장일정</h1>
-      <p id="siteSubtitle" contenteditable="true">갤러리 &amp; 신반포21차 투어</p>
+      <h1 id="siteTitle" contenteditable="true" data-placeholder="일정표 제목을 입력하세요"></h1>
+      <p id="siteSubtitle" contenteditable="true">현장 방문 일정을 한눈에 확인하세요.</p>
     </div>
   </header>
 
@@ -1798,7 +1798,7 @@ body.dark-mode .modal input,body.dark-mode .modal textarea,body.dark-mode .modal
 
   <div class="legend">
     <span class="toggle" id="toggleGallery" onclick="toggleCategory('gallery')"><i class="dot gallery lit" id="dotGallery"></i><span class="cat-label-edit" id="labelGallery" contenteditable="true" onclick="event.stopPropagation()">갤러리</span></span>
-    <span class="toggle" id="toggleTour" onclick="toggleCategory('tour')"><i class="dot tour lit" id="dotTour"></i><span class="cat-label-edit" id="labelTour" contenteditable="true" onclick="event.stopPropagation()">21차투어</span></span>
+    <span class="toggle" id="toggleTour" onclick="toggleCategory('tour')"><i class="dot tour lit" id="dotTour"></i><span class="cat-label-edit" id="labelTour" contenteditable="true" onclick="event.stopPropagation()">투어</span></span>
     <span class="toggle" id="toggleClosed" onclick="toggleClosedFilter()"><i class="dot closed lit" id="dotClosed"></i>휴관/불가</span>
   </div>
 
@@ -1813,7 +1813,7 @@ body.dark-mode .modal input,body.dark-mode .modal textarea,body.dark-mode .modal
     <h3 style="font-size:13px;margin:14px 0 6px;">담당자별 집계</h3>
     <div class="managerFilterBar">
       <div class="colFilter">
-        <button class="colFilterBtn" id="danjiFilterBtn" onclick="toggleColFilter('danji')">단지명 ▾</button>
+        <button class="colFilterBtn" id="danjiFilterBtn" onclick="toggleColFilter('danji')">현장명 ▾</button>
         <div class="colFilterDropdown" id="danjiDropdown"></div>
       </div>
       <div class="colFilter">
@@ -1926,12 +1926,14 @@ document.getElementById("pwInput").addEventListener("keydown", (e)=>{
 
 const STORAGE_CHECK = "calendar_checkmarks_v1";
 
-// ---- 카테고리 명칭(갤러리/21차투어) 편집 가능 ----
+// ---- 카테고리 명칭(갤러리/투어) 편집 가능 ----
 const CAT_LABEL_KEY = "category_labels_v1";
-let CAT_LABEL = {gallery:"갤러리", tour:"21차투어"};
+let CAT_LABEL = {gallery:"갤러리", tour:"투어"};
 try{
   const savedCat = JSON.parse(localStorage.getItem(CAT_LABEL_KEY));
   if(savedCat) CAT_LABEL = {...CAT_LABEL, ...savedCat};
+  // 예전 파일의 고정 명칭은 일반 명칭으로 한 번 정리
+  if(CAT_LABEL.tour === "21차투어") CAT_LABEL.tour = "투어";
 }catch(e){}
 function persistCatLabel(){ localStorage.setItem(CAT_LABEL_KEY, JSON.stringify(CAT_LABEL)); }
 
@@ -2409,7 +2411,15 @@ function populateFilter(){
 }
 
 // 원본 데이터 배열을 [시간, 단지명, 동호수, 성함, 동반, 담당, 픽업/자가] 순서로 재정렬
-const GALLERY_DANJI = "화랑아파트";
+const GALLERY_SITE_NAME_KEY = "gallery_site_name_v1";
+let GALLERY_DANJI = (localStorage.getItem(GALLERY_SITE_NAME_KEY) || "갤러리 현장").trim() || "갤러리 현장";
+function setGallerySiteName(next){
+  const v=String(next==null?"":next).trim();
+  if(!v) return false;
+  GALLERY_DANJI=v;
+  localStorage.setItem(GALLERY_SITE_NAME_KEY,v);
+  return true;
+}
 function reorderRow(kind, r){
   if(kind==="gallery"){
     // r = [시간, 자가/픽업, 성함, 동반, 담당]
@@ -2456,7 +2466,7 @@ function toggleClosedFilter(){
   selectDate(currentDateKey, false);
 }
 
-// ---------- 단지별 토글 필터 (예: 화랑아파트, 14단지, 11단지) ----------
+// ---------- 현장별 토글 필터 (현재 데이터에서 자동 구성) ----------
 let activeDanjiFilter = new Set(); // 비어있으면 전체 표시
 function galleryMatchesDanjiFilter(){
   return activeDanjiFilter.size===0 || activeDanjiFilter.has(GALLERY_DANJI);
@@ -2516,7 +2526,7 @@ function renderTable(kind, key, rows, colorClass, tagLabel){
   if(visibleIdx.length===0) return "";
   let html = "<div class='sub-title'><span class='tag "+colorClass+"'>"+tagLabel+"</span></div>";
   html += "<div class='table-scroll'>";
-  const headers = ["시간","단지명","동호수","성함","동반","담당","픽업<br>자가","확인"];
+  const headers = ["시간","현장명","동호수","성함","동반","담당","픽업<br>자가","확인"];
   html += "<table><thead><tr>" + headers.map(h=>"<th>"+h+"</th>").join("") + "</tr></thead><tbody>";
   visibleIdx.forEach(idx=>{
     const raw = rows[idx];
@@ -2590,7 +2600,7 @@ function renderStatusTable(kind, key, status, managerFilter){
   const tagLabel = kind==="gallery" ? CAT_LABEL.gallery : CAT_LABEL.tour;
   let html = "<div class='sub-title'><span class='tag "+tagClass+"'>"+tagLabel+"</span></div>";
   html += "<div class='table-scroll'><table><thead><tr>"+
-    ["시간","단지명","동호수","성함","동반","담당","픽업<br>자가","확인"].map(h=>"<th>"+h+"</th>").join("")+
+    ["시간","현장명","동호수","성함","동반","담당","픽업<br>자가","확인"].map(h=>"<th>"+h+"</th>").join("")+
     "</tr></thead><tbody>";
   idxList.forEach(idx=>{
     const raw = rows[idx];
@@ -2756,9 +2766,9 @@ function clearManagerColFilters(){
 }
 
 function danjiSortKey(danjiLabel){
-  // 화랑아파트가 항상 먼저, 그 다음 단지 숫자 오름차순
+  // 현재 갤러리 현장을 먼저, 나머지는 숫자/이름 순으로 정렬
   const first = (danjiLabel||"").split("/")[0];
-  if(first.includes("화랑")) return -1;
+  if(first === GALLERY_DANJI) return -1;
   const m = first.match(/(\d+)/);
   return m ? parseInt(m[1],10) : 999;
 }
@@ -2784,7 +2794,7 @@ function updateManagerTable(){
     return a.localeCompare(b, "ko");
   });
 
-  let html = "<table class='manager-table'><thead><tr><th>No</th><th>단지명</th><th>담당자</th><th>참석</th><th>예정</th><th>불참</th><th>합계</th></tr></thead><tbody>";
+  let html = "<table class='manager-table'><thead><tr><th>No</th><th>현장명</th><th>담당자</th><th>참석</th><th>예정</th><th>불참</th><th>합계</th></tr></thead><tbody>";
   let rowNum = 0;
   names.forEach(name=>{
     const t = tally[name];
@@ -2854,7 +2864,7 @@ function exportExcel(){
     return selectedDanji.has(d);
   };
 
-  const galleryData = [["날짜","시간","단지명","동호수","성함","동반","담당","픽업/자가","상태"]];
+  const galleryData = [["날짜","시간","현장명","동호수","성함","동반","담당","픽업/자가","상태"]];
   Object.keys(GALLERY_ROWS).forEach(key=>{
     GALLERY_ROWS[key].forEach((raw, idx)=>{
       if(!passesManagerFilter(raw,"gallery") || !passesDanjiFilter(raw,"gallery")) return;
@@ -2863,7 +2873,7 @@ function exportExcel(){
       galleryData.push([labelFor(key), ...r, status]);
     });
   });
-  const tourData = [["날짜","시간","단지명","동호수","성함/업체","동반","담당","픽업/자가","상태"]];
+  const tourData = [["날짜","시간","현장명","동호수","성함/업체","동반","담당","픽업/자가","상태"]];
   Object.keys(TOUR_ROWS).forEach(key=>{
     TOUR_ROWS[key].forEach((raw, idx)=>{
       if(!passesManagerFilter(raw,"tour") || !passesDanjiFilter(raw,"tour")) return;
@@ -3089,7 +3099,7 @@ function addEntryFlow(kind){
   } else {
     openForm(CAT_LABEL.tour+" 일정 추가", [
       {id:"time", label:"시간", placeholder:"예: 1:30"},
-      {id:"danji", label:"단지명", placeholder:"예: 14단지"},
+      {id:"danji", label:"현장명", placeholder:"예: ○○현장"},
       {id:"ho", label:"동호수", placeholder:"없으면 -", value:"-"},
       {id:"name", label:"성함/업체", placeholder:"이름 또는 업체명"},
       {id:"plus", label:"동반", placeholder:"없으면 -", value:"-"},
@@ -3260,28 +3270,36 @@ const SITE_TITLE_KEY = "site_title_v1";
 function initSiteTitle(){
   const el = document.getElementById("siteTitle");
   const saved = localStorage.getItem(SITE_TITLE_KEY);
-  if(saved !== null) el.textContent = saved;
-  el.addEventListener("blur", ()=>{
-    localStorage.setItem(SITE_TITLE_KEY, el.textContent);
-    document.title = el.textContent;
-  });
-  document.title = el.textContent;
+  const legacy = new Set(["목동 현장일정","(현장명)일정표","목동 현장일정표"]);
+  if(saved !== null && !legacy.has(saved.trim())) el.textContent = saved;
+  else if(legacy.has((el.textContent||"").trim())) el.textContent = "";
+  const syncTitle=()=>{
+    const v=(el.textContent||"").trim();
+    if(v) localStorage.setItem(SITE_TITLE_KEY,v); else localStorage.removeItem(SITE_TITLE_KEY);
+    document.title = v || "현장 일정표";
+  };
+  el.addEventListener("blur", syncTitle);
+  syncTitle();
 }
 initSiteTitle();
 
-// ---- 부제목(갤러리 & 21차투어) 편집 가능 ----
+// ---- 부제목 편집 가능 ----
 const SITE_SUBTITLE_KEY = "site_subtitle_v1";
 function initSiteSubtitle(){
   const el = document.getElementById("siteSubtitle");
   const saved = localStorage.getItem(SITE_SUBTITLE_KEY);
-  if(saved !== null) el.textContent = saved;
+  const legacy = /갤러리\s*&.*21차.*투어|언제\s*·\s*어느 현장/;
+  if(saved !== null && !legacy.test(saved)) el.textContent = saved;
+  else if(legacy.test(el.textContent||"")) el.textContent = "현장 방문 일정을 한눈에 확인하세요.";
   el.addEventListener("blur", ()=>{
-    localStorage.setItem(SITE_SUBTITLE_KEY, el.textContent);
+    const v=(el.textContent||"").trim() || "현장 방문 일정을 한눈에 확인하세요.";
+    el.textContent=v;
+    localStorage.setItem(SITE_SUBTITLE_KEY,v);
   });
 }
 initSiteSubtitle();
 
-// ---- 카테고리 명칭(갤러리/21차투어) 편집 → 전체 반영 ----
+// ---- 카테고리 명칭(갤러리/투어) 편집 → 전체 반영 ----
 function initCatLabels(){
   const gEl = document.getElementById("labelGallery");
   const tEl = document.getElementById("labelTour");
@@ -3294,7 +3312,7 @@ function initCatLabels(){
     refreshAllViews();
   });
   tEl.addEventListener("blur", ()=>{
-    CAT_LABEL.tour = tEl.textContent.trim() || "21차투어";
+    CAT_LABEL.tour = tEl.textContent.trim() || "투어";
     tEl.textContent = CAT_LABEL.tour;
     persistCatLabel();
     refreshAllViews();
@@ -3485,10 +3503,10 @@ function computeDateHeadcount(key){
   }
 
   // 이전 편집 과정에서 카테고리명이 빈 값으로 저장된 경우 자동 복구
-  if(!CAT_LABEL || typeof CAT_LABEL!=="object") CAT_LABEL={gallery:"갤러리",tour:"21차투어"};
+  if(!CAT_LABEL || typeof CAT_LABEL!=="object") CAT_LABEL={gallery:"갤러리",tour:"투어"};
   let catChanged=false;
   if(!String(CAT_LABEL.gallery||"").trim()){ CAT_LABEL.gallery="갤러리"; catChanged=true; }
-  if(!String(CAT_LABEL.tour||"").trim()){ CAT_LABEL.tour="21차투어"; catChanged=true; }
+  if(!String(CAT_LABEL.tour||"").trim()){ CAT_LABEL.tour="투어"; catChanged=true; }
   if(catChanged) persistCatLabel();
   const lg=document.getElementById("labelGallery"), lt=document.getElementById("labelTour");
   if(lg) lg.textContent=CAT_LABEL.gallery;
@@ -3913,9 +3931,9 @@ function computeDateHeadcount(key){
     body.innerHTML=html;document.getElementById('overlay').classList.add('on');
   };
 
-  // Generic subtitle for the redesigned mobile header, but preserve user-custom text.
+  // 모바일 헤더는 사용자가 입력한 부제목을 그대로 사용합니다.
   const sub=document.getElementById('siteSubtitle');
-  if(sub && /갤러리\s*&.*21차.*투어/.test(sub.textContent||'')) sub.textContent='언제 · 어느 현장 · 누가 오는지 한눈에 확인하세요.';
+  if(sub && !(sub.textContent||'').trim()) sub.textContent='현장 방문 일정을 한눈에 확인하세요.';
 
   // Re-render once after overrides install.
   if(isMobileV4() && currentDateKey) selectDate(currentDateKey,false);
@@ -4600,11 +4618,11 @@ function computeDateHeadcount(key){
   };
   function key(d){return (d.getMonth()+1)+'-'+d.getDate()}
   function iso(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
-  function prettyDate(v){if(!v)return'';const p=v.split('-').map(Number);return `${p[0]}. ${p[1]}. ${p[2]}.`;}
-  function monthText(){const v=(document.getElementById('rangeStart')||{}).value||range?.start||'';if(!v)return'';const p=v.split('-');return Number(p[0])+'년 '+Number(p[1])+'월';}
+  function prettyDate(v){if(!v)return'';const p=v.split('-').map(Number);return `${String(p[0]).slice(-2)}. ${p[1]}. ${p[2]}.`;}
+  function monthText(){const v=(document.getElementById('rangeStart')||{}).value||range?.start||'';if(!v)return'';const p=v.split('-');return String(p[0]).slice(-2)+'년 '+Number(p[1])+'월';}
   function currentMonthDate(){const v=(document.getElementById('rangeStart')||{}).value||range?.start;return v?new Date(v+'T00:00:00'):new Date()}
   function uniqueManagers(){const s=new Set();Object.values(GALLERY_ROWS||{}).forEach(rs=>rs.forEach(r=>r[4]&&s.add(r[4])));Object.values(TOUR_ROWS||{}).forEach(rs=>rs.forEach(r=>r[5]&&s.add(r[5])));return s.size}
-  function uniqueDanjis(){const s=new Set(['목동11단지(신탁)','목동14단지(신탁)','화랑아파트']);Object.values(TOUR_ROWS||{}).forEach(rs=>rs.forEach(r=>r[1]&&s.add(r[1])));return isDesktop()?Array.from(s):Array.from(s).slice(0,3)}
+  function uniqueDanjis(){const s=new Set();if(GALLERY_DANJI)s.add(GALLERY_DANJI);Object.values(TOUR_ROWS||{}).forEach(rs=>rs.forEach(r=>r[1]&&r[1]!=='-'&&s.add(r[1])));return Array.from(s)}
   function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 
   function ensureShell(){
@@ -4622,8 +4640,8 @@ function computeDateHeadcount(key){
         <div class="m15-brand">
           <div class="m15-brand-icon">${svgCal}</div>
           <div class="m15-brand-copy">
-            <div class="m13-title" id="m13Title"></div>
-            <div class="m15-brand-sub">현장 방문 일정을 한눈에 확인하세요</div>
+            <button type="button" class="m19-title-edit" id="m19TitleEdit" aria-label="일정표 제목 수정"><span class="m13-title" id="m13Title"></span><span class="m19-pencil">✎</span></button>
+            <button type="button" class="m15-brand-sub m19-sub-edit" id="m19SubEdit" aria-label="부제목 수정"></button>
           </div>
         </div>
         <button type="button" class="m15-admin" id="m15Admin">관리</button>
@@ -4677,8 +4695,8 @@ function computeDateHeadcount(key){
     if(!nav){ nav=document.createElement('nav'); nav.id='mobileMockNav'; document.body.appendChild(nav); }
     nav.innerHTML=`
       <button class="m13-nav-btn active" data-a="top">${icons.schedule}<span>일정표</span></button>
-      <button class="m13-nav-btn" data-a="gallery">${icons.gallery}<span>갤러리</span></button>
-      <button class="m13-nav-btn" data-a="tour">${icons.tour}<span>투어</span></button>
+      <button class="m13-nav-btn" data-a="gallery">${icons.gallery}<span>${escapeHtml(CAT_LABEL.gallery||'갤러리')}</span></button>
+      <button class="m13-nav-btn" data-a="tour">${icons.tour}<span>${escapeHtml(CAT_LABEL.tour||'투어')}</span></button>
       <button class="m13-nav-btn" data-a="closed">${icons.closed}<span>휴관/불가</span></button>`;
     nav.onclick=(e)=>{
       const b=e.target.closest('button'); if(!b) return;
@@ -4753,6 +4771,30 @@ function computeDateHeadcount(key){
     };
     const abtn=document.getElementById('m15Admin');
     if(abtn) abtn.onclick=()=>{ if(typeof toggleMobileAdminMenu==='function') toggleMobileAdminMenu(); };
+
+    const titleBtn=document.getElementById('m19TitleEdit');
+    if(titleBtn) titleBtn.onclick=()=>{
+      const src=document.getElementById('siteTitle');
+      const current=(src?.textContent||'').trim();
+      const next=prompt('일정표 제목을 입력하세요.', current);
+      if(next===null) return;
+      const v=next.trim();
+      if(src) src.textContent=v;
+      if(v) localStorage.setItem(SITE_TITLE_KEY,v); else localStorage.removeItem(SITE_TITLE_KEY);
+      document.title=v||'현장 일정표';
+      renderShell();
+    };
+    const subBtn=document.getElementById('m19SubEdit');
+    if(subBtn) subBtn.onclick=()=>{
+      const src=document.getElementById('siteSubtitle');
+      const current=(src?.textContent||'').trim();
+      const next=prompt('부제목을 입력하세요.', current);
+      if(next===null) return;
+      const v=next.trim()||'현장 방문 일정을 한눈에 확인하세요.';
+      if(src) src.textContent=v;
+      localStorage.setItem(SITE_SUBTITLE_KEY,v);
+      renderShell();
+    };
   }
 
   function shiftMonth(delta){
@@ -4770,8 +4812,8 @@ function computeDateHeadcount(key){
     const box=document.getElementById('m13Filters'); if(!box) return;
 
     const cats=[
-      ['gallery','갤러리',activeCategories.gallery],
-      ['tour','투어',activeCategories.tour]
+      ['gallery',CAT_LABEL.gallery||'갤러리',activeCategories.gallery],
+      ['tour',CAT_LABEL.tour||'투어',activeCategories.tour]
     ];
     box.innerHTML=`<div class="m13-filter-label">구분</div>`+cats.map(([kind,label,on])=>
       `<button type="button" class="m13-filter ${kind} ${on?'on':''}" data-kind="${kind}">
@@ -4795,7 +4837,21 @@ function computeDateHeadcount(key){
     danjis.forEach(name=>{
       html+=`<button type="button" class="m13-site-chip ${activeDanjiFilter.has(name)?'on':''}" data-danji="${escapeHtml(name)}">${escapeHtml(name)}</button>`;
     });
+    html+=`<button type="button" class="m13-site-edit" data-site-edit="1">현장명 설정</button>`;
     row.innerHTML=html;
+
+    const edit=row.querySelector('[data-site-edit]');
+    if(edit) edit.onclick=()=>{
+      const next=prompt('갤러리 일정에 표시할 현장명을 입력하세요.',GALLERY_DANJI||'');
+      if(next===null) return;
+      if(!setGallerySiteName(next)) return;
+      activeDanjiFilter.clear();
+      if(typeof populateDanjiToggleBar==='function') populateDanjiToggleBar();
+      if(typeof rebuildDATA==='function') rebuildDATA();
+      if(typeof buildCalendarArea==='function') buildCalendarArea();
+      if(currentDateKey && typeof selectDate==='function') selectDate(currentDateKey,false);
+      renderShell();
+    };
 
     const all=row.querySelector('[data-site-all]');
     if(all) all.onclick=()=>{
@@ -4937,7 +4993,11 @@ function computeDateHeadcount(key){
   function renderShell(){
     if(!mq()) return;
     ensureShell();
-    document.getElementById('m13Title').textContent=(document.getElementById('siteTitle')?.textContent||'(현장명)일정표').trim();
+    const titleSource=(document.getElementById('siteTitle')?.textContent||'').trim();
+    document.getElementById('m13Title').textContent=titleSource||'일정표 제목 입력';
+    const subSource=(document.getElementById('siteSubtitle')?.textContent||'').trim();
+    const subTarget=document.getElementById('m19SubEdit');
+    if(subTarget) subTarget.textContent=subSource||'현장 방문 일정을 한눈에 확인하세요.';
     document.getElementById('m13MonthChip').querySelector('span').textContent=monthText();
     const rs=document.getElementById('rangeStart'), re=document.getElementById('rangeEnd');
     document.getElementById('m13Start').value=rs?.value||'';
@@ -6669,5 +6729,166 @@ tbody tr:hover td{background:#fbfdfd!important}
   #mobileMockApp #m13RangeCard .m17-period-row .m13-date-text{font-size:7.8px!important;}
 }
 </style>
+
+
+<!-- MOBILE V18: status/date-sheet polish + compact period date labels -->
+<style id="calendar-mobile-v18-polish">
+@media (max-width:560px){
+  /* 1) 참석/불참/예정 바텀시트: 날짜 제목 잘림 제거 + 전체 밀도 정리 */
+  #statusOverlay{align-items:flex-end!important;padding:0!important}
+  #statusOverlay .modal{
+    width:100%!important;max-width:100%!important;max-height:78dvh!important;
+    padding:12px 12px calc(14px + env(safe-area-inset-bottom))!important;
+    border-radius:22px 22px 0 0!important;overflow:hidden!important;
+  }
+  #statusOverlay .modal::before{width:34px!important;height:4px!important;margin:0 auto 10px!important}
+  #statusOverlay .modal h2{
+    margin:0 42px 8px 2px!important;font-size:16px!important;line-height:1.2!important;
+    letter-spacing:-.04em!important;white-space:normal!important;
+  }
+  #statusBody{
+    max-height:61dvh!important;overflow-y:auto!important;overflow-x:hidden!important;
+    padding:2px 0 0!important;
+  }
+  #statusBody .print-date-block{margin:0 0 9px!important;padding:0!important}
+  #statusBody .print-date-title{
+    display:flex!important;align-items:center!important;min-height:28px!important;
+    margin:3px 0 6px!important;padding:0 9px!important;
+    border:0!important;border-radius:9px!important;background:#f3f8f7!important;
+    color:#244b53!important;font-size:10.5px!important;line-height:1.15!important;
+    font-weight:900!important;overflow:visible!important;box-sizing:border-box!important;
+  }
+  #statusBody .sub-title{margin:5px 0!important}
+  #statusBody .tag{height:22px!important;padding:0 8px!important;font-size:8.2px!important}
+  #statusBody .status-mobile-list{gap:5px!important}
+  #statusBody .status-mobile-card{
+    grid-template-columns:48px minmax(0,1fr) 32px!important;gap:7px!important;
+    min-height:56px!important;padding:7px 8px!important;border-radius:11px!important;
+  }
+  #statusBody .status-mobile-time{min-height:40px!important;font-size:8.8px!important;border-radius:8px!important}
+  #statusBody .status-mobile-title{font-size:9.7px!important}
+  #statusBody .status-mobile-name{font-size:8.8px!important;margin-top:2px!important}
+  #statusBody .status-mobile-meta{font-size:7.8px!important;margin-top:2px!important}
+  #statusBody .status-mobile-check input{width:22px!important;height:22px!important}
+
+  /* 2) 기간 한 줄: 2026 -> 26 표기 + 한 줄에서 더 자연스럽게 */
+  #mobileMockApp #m13RangeCard .m17-period-row,
+  #mobileMockApp #m13RangeCard.range-open .m17-period-row{
+    grid-template-columns:minmax(102px,1.2fr) minmax(74px,1fr) minmax(74px,1fr) 48px!important;
+    gap:4px!important;
+  }
+  #mobileMockApp #m13RangeCard .m17-month-control{
+    grid-template-columns:23px minmax(0,1fr) 23px!important;border-radius:9px!important;
+  }
+  #mobileMockApp #m13RangeCard .m17-month-control button,
+  #mobileMockApp #m13RangeCard .m17-period-row .m13-date-card,
+  #mobileMockApp #m13RangeCard.range-open .m17-period-row .m13-date-card,
+  #mobileMockApp #m13RangeCard .m17-period-row .m13-apply,
+  #mobileMockApp #m13RangeCard.range-open .m17-period-row .m13-apply{
+    height:42px!important;min-height:42px!important;
+  }
+  #mobileMockApp #m13RangeCard .m17-month-control .m13-month-chip{font-size:8.8px!important}
+  #mobileMockApp #m13RangeCard .m17-period-row .m13-date-card{padding:4px 5px!important}
+  #mobileMockApp #m13RangeCard .m17-period-row .m13-date-card label{font-size:6.9px!important}
+  #mobileMockApp #m13RangeCard .m17-period-row .m13-date-text{font-size:8px!important;letter-spacing:-.04em!important}
+  #mobileMockApp #m13RangeCard .m17-period-row .m13-apply{font-size:8.8px!important;border-radius:9px!important}
+
+  /* 3) 날짜 상세 바텀시트: 큰 버튼/박스 제거하고 일정 중심으로 재정리 */
+  #overlay{align-items:flex-end!important;padding:0!important}
+  #overlay .modal{
+    width:100%!important;max-width:100%!important;max-height:76dvh!important;
+    padding:12px 12px calc(14px + env(safe-area-inset-bottom))!important;
+    border-radius:22px 22px 0 0!important;overflow:hidden!important;
+  }
+  #overlay .modal::before{width:34px!important;height:4px!important;margin:0 auto 10px!important}
+  #overlay .modal h2{
+    margin:0 42px 8px 0!important;font-size:17px!important;line-height:1.15!important;
+    letter-spacing:-.05em!important;
+  }
+  #modalBody{padding-top:2px!important;max-height:61dvh!important;overflow-y:auto!important;overflow-x:hidden!important}
+  .preview-v2-summary{gap:5px!important;margin:0 0 8px!important}
+  .preview-v2-summary span{height:25px!important;padding:0 8px!important;font-size:8.8px!important}
+  .preview-v2-group{margin:0 0 9px!important}
+  .preview-v2-group-head{
+    height:28px!important;margin:0 0 5px!important;padding:0 8px!important;
+    border-radius:8px!important;background:#f6f9f8!important;font-size:9.5px!important;
+  }
+  .preview-v2-group.tour .preview-v2-group-head{background:#fff6ed!important;color:#8d6848!important}
+  .preview-v2-group.gallery .preview-v2-group-head{background:#eef9f7!important;color:#30736d!important}
+  .preview-v2-list{gap:5px!important}
+  .preview-v2-item{
+    grid-template-columns:50px minmax(0,1fr) 30px!important;gap:8px!important;
+    min-height:55px!important;padding:7px 8px!important;border-radius:11px!important;
+  }
+  .preview-v2-time{height:30px!important;border-radius:8px!important;font-size:9px!important}
+  .preview-v2-title{gap:5px!important;margin-bottom:3px!important}
+  .preview-v2-site{font-size:10.5px!important}
+  .preview-v2-name{font-size:10px!important}
+  .preview-v2-meta{font-size:8.2px!important;line-height:1.25!important}
+  .preview-v2-del{width:27px!important;height:27px!important;border-radius:8px!important}
+  .preview-v2-settings{
+    min-height:39px!important;margin:9px 0 7px!important;padding:7px 9px!important;
+    border-radius:10px!important;
+  }
+  .preview-v2-cap{font-size:8.8px!important}.preview-v2-cap strong{font-size:9.5px!important}
+  .preview-v2-settings button{font-size:8.8px!important}
+  .preview-v2-actions{
+    display:grid!important;grid-template-columns:1fr 1fr 1.05fr!important;gap:5px!important;
+  }
+  .preview-v2-actions button,
+  .preview-v2-actions .primary{
+    grid-column:auto!important;min-height:35px!important;height:35px!important;
+    padding:0 4px!important;border-radius:9px!important;font-size:8.7px!important;
+    white-space:nowrap!important;
+  }
+  .preview-v2-secondary{margin-top:4px!important;justify-content:flex-end!important}
+  .preview-v2-secondary button{font-size:8.5px!important;padding:3px 1px!important}
+}
+@media (max-width:390px){
+  #mobileMockApp #m13RangeCard .m17-period-row,
+  #mobileMockApp #m13RangeCard.range-open .m17-period-row{
+    grid-template-columns:minmax(92px,1.2fr) minmax(68px,1fr) minmax(68px,1fr) 44px!important;
+    gap:3px!important;
+  }
+  #mobileMockApp #m13RangeCard .m17-month-control{grid-template-columns:20px minmax(0,1fr) 20px!important}
+  #mobileMockApp #m13RangeCard .m17-month-control .m13-month-chip{font-size:8.1px!important}
+  #mobileMockApp #m13RangeCard .m17-period-row .m13-date-text{font-size:7.5px!important}
+  .preview-v2-actions button,.preview-v2-actions .primary{font-size:8.2px!important}
+}
+</style>
+
+
+
+<!-- MOBILE V19: generic site/title configuration + mobile polish -->
+<style id="calendar-mobile-v19-generic-polish">
+@media (max-width:560px){
+  /* 제목은 특정 현장 고정값이 아니라 사용자가 직접 수정 */
+  #mobileMockApp .m15-brand-copy{flex:1!important;min-width:0!important;overflow:hidden!important}
+  #mobileMockApp .m19-title-edit,
+  #mobileMockApp .m19-sub-edit{
+    -webkit-appearance:none!important;appearance:none!important;border:0!important;background:transparent!important;
+    padding:0!important;margin:0!important;text-align:left!important;box-shadow:none!important;width:100%!important;
+    font-family:inherit!important;color:inherit!important;min-width:0!important;
+  }
+  #mobileMockApp .m19-title-edit{display:flex!important;align-items:center!important;gap:5px!important;cursor:pointer!important}
+  #mobileMockApp .m19-title-edit .m13-title{display:block!important;min-width:0!important;max-width:100%!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
+  #mobileMockApp .m19-pencil{flex:0 0 auto!important;font-size:10px!important;color:#78a19d!important;line-height:1!important}
+  #mobileMockApp .m19-sub-edit{display:block!important;margin-top:4px!important;font-size:9px!important;line-height:1.25!important;color:#809397!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;cursor:pointer!important}
+
+  /* 필터의 현장 목록은 실제 데이터에서 만들고, 기본 갤러리 현장명은 직접 수정 */
+  #mobileMockApp .m13-site-row{padding-right:4px!important}
+  #mobileMockApp .m13-site-edit{
+    flex:0 0 auto!important;height:29px!important;min-height:29px!important;padding:0 9px!important;
+    border:1px dashed #9fc9c3!important;border-radius:9px!important;background:#f5fbfa!important;
+    color:#277c73!important;font-size:8.2px!important;font-weight:850!important;white-space:nowrap!important;
+  }
+
+  /* 긴 현장명이 들어와도 모바일 카드가 깨지지 않게 */
+  .preview-v2-site,.status-mobile-title,.m13-desk-copy strong{overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;min-width:0!important}
+  .preview-v2-name,.status-mobile-name{overflow-wrap:anywhere!important}
+  #mobileMockApp .m13-site-chip{max-width:150px!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
+}
+</style>
+
 </body>
 </html>
