@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>현장 일정표</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -4606,7 +4606,7 @@ function computeDateHeadcount(key){
 <script id="calendar-mobile-v13-shell-js">
 (function(){
   const mq=()=>true;
-  const isDesktop=()=>window.matchMedia&&window.matchMedia('(min-width:561px)').matches;
+  const isDesktop=()=>window.matchMedia&&window.matchMedia('(min-width:1000px)').matches;
   let selectedKey=null;
   const svgCal='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5.5" width="17" height="15" rx="2.5"></rect><path d="M7 3.5v4M17 3.5v4M3.5 10h17"></path><path d="M8 14h2M14 14h2M8 17h2M14 17h2"></path></svg>';
   const svgPeople='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="9" r="3"></circle><circle cx="16.5" cy="8.5" r="2.5"></circle><path d="M4.5 19c.7-3.3 2.6-5 5.7-5s5 1.7 5.7 5"></path><path d="M14.3 18.6c.4-2.3 1.7-3.7 4-4.2"></path></svg>';
@@ -4759,15 +4759,9 @@ function computeDateHeadcount(key){
     };
     const pbtn=document.getElementById('m15PeriodBtn');
     if(pbtn) pbtn.onclick=()=>{
-      const start=document.getElementById('rangeStart');
-      const end=document.getElementById('rangeEnd');
-      const current=(start&&start.value?start.value:'')+' ~ '+(end&&end.value?end.value:'');
-      const next=prompt('조회 기간을 직접 바꾸려면 아래 형식으로 입력하세요.\nYYYY-MM-DD ~ YYYY-MM-DD',current);
-      if(!next) return;
-      const parts=next.split('~').map(v=>v.trim());
-      if(parts.length===2 && /^\d{4}-\d{2}-\d{2}$/.test(parts[0]) && /^\d{4}-\d{2}-\d{2}$/.test(parts[1])){
-        start.value=parts[0]; end.value=parts[1]; applyRange(); setTimeout(renderShell,0);
-      }else alert('예: 2026-08-01 ~ 2026-08-31 형식으로 입력해주세요.');
+      const card=document.getElementById('m13RangeCard');
+      card.classList.toggle('range-open');
+      card.setAttribute('aria-hidden',String(!card.classList.contains('range-open')));
     };
     const abtn=document.getElementById('m15Admin');
     if(abtn) abtn.onclick=()=>{ if(typeof toggleMobileAdminMenu==='function') toggleMobileAdminMenu(); };
@@ -4983,6 +4977,7 @@ function computeDateHeadcount(key){
         }
         selectedKey=k;
         currentDateKey=k;
+        selectDate(k,false);
         renderShell();
         openPreview(k);
       };
@@ -7021,7 +7016,7 @@ tbody tr:hover td{background:#fbfdfd!important}
     bar.classList.toggle('mobile-open',open);
     if(scrim) scrim.classList.toggle('on',open);
     [topBtn,legacyBtn].forEach(b=>{if(b)b.setAttribute('aria-expanded',open?'true':'false')});
-    document.documentElement.style.overflow=open?'hidden':'';
+    document.documentElement.style.overflow=(open&&mobile())?'hidden':'';
   };
   window.closeMobileAdminMenu=function(){
     const bar=document.getElementById('adminToolbar');
@@ -7258,5 +7253,149 @@ tbody tr:hover td{background:#fbfdfd!important}
   };
 })();
 </script>
+
+<style id="calendar-v22-responsive">
+html,body{background:#f3f5f5!important;color:#263b40!important;letter-spacing:-.015em!important}
+body{padding:24px!important;font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif!important}
+button,input,select,textarea{font-family:inherit}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #287f75!important;outline-offset:3px}
+.wrap{max-width:1480px!important;width:100%!important;margin:auto!important}
+#mobileMockApp{display:flex!important;flex-direction:column!important;gap:16px!important;min-width:0!important;margin:0!important}
+#mobileMockApp .m15-top{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:12px!important;min-height:76px!important;height:auto!important;padding:16px 18px!important;background:white!important;border:1px solid #dfe5e3!important;border-radius:14px!important}
+.m15-brand{display:flex!important;align-items:center!important;gap:12px!important;min-width:0!important}
+.m15-brand-icon{width:40px!important;height:40px!important;flex:0 0 40px!important;background:#347f75!important;color:white!important;border-radius:12px!important;display:grid!important;place-items:center!important}
+.m15-brand-icon svg{width:22px!important;height:22px!important;fill:none;stroke:currentColor;stroke-width:1.7}
+.m15-brand-copy{min-width:0!important}
+#mobileMockApp .m19-title-edit,#mobileMockApp .m19-sub-edit{background:none!important;border:0!important;padding:0!important;text-align:left!important;font-family:inherit!important;cursor:pointer}
+#mobileMockApp .m19-title-edit{display:flex!important;align-items:center!important;gap:7px!important;max-width:100%!important}
+#mobileMockApp .m13-title{font-size:23px!important;line-height:1.35!important;font-weight:750!important;letter-spacing:-.035em!important;margin:0!important;overflow-wrap:anywhere!important;white-space:normal!important;color:#253d40!important}
+#mobileMockApp .m19-pencil{font-size:13px!important;color:#6b8580!important}
+#mobileMockApp .m19-sub-edit{display:block!important;font-size:12px!important;line-height:1.5!important;color:#637573!important;margin-top:3px!important;white-space:normal!important}
+.m15-admin{min-width:56px!important;height:44px!important;border:1px solid #d8e1de!important;border-radius:10px!important;background:#f7f9f8!important;color:#3e605a!important;font-size:13px!important;flex-shrink:0}
+#mobileMockApp .m15-calendar-card{padding:20px!important;border:1px solid #dfe5e3!important;border-radius:14px!important;background:white!important;min-width:0!important}
+#mobileMockApp .m13-cal-head{display:flex!important;justify-content:space-between!important;align-items:center!important;gap:12px!important;margin:0 0 16px!important;flex-wrap:wrap!important}
+#mobileMockApp .m13-cal-title{font-size:24px!important;font-weight:750!important;line-height:1.3!important;letter-spacing:-.04em!important}
+#mobileMockApp .m13-cal-actions{display:flex!important;gap:6px!important}
+#mobileMockApp .m13-cal-actions button{min-width:40px!important;height:42px!important;padding:0 10px!important;font-size:14px!important;border:1px solid #dce4e1!important;border-radius:9px!important;background:#fff!important;color:#365c56!important;box-shadow:none!important}
+#mobileMockApp .m13-cal-actions .filter.on{background:#347f75!important;color:white!important}
+.m15-filter-panel{display:none!important;padding:12px!important;margin-bottom:14px!important;border:1px solid #e1e7e4!important;border-radius:10px!important;background:#f7f9f8!important}
+.m15-filter-panel.open{display:block!important}
+#mobileMockApp .m13-filters,#mobileMockApp .m13-site-row{display:flex!important;flex-wrap:wrap!important;gap:6px!important;min-height:0!important;padding:0!important;margin:0 0 8px!important;background:none!important;border:0!important;white-space:normal!important}
+#mobileMockApp .m13-filter,#mobileMockApp .m13-site-chip,#mobileMockApp .m13-site-edit,.m15-period-btn{height:auto!important;min-height:40px!important;padding:8px 12px!important;font-size:12px!important;line-height:1.4!important;max-width:100%!important;border:1px solid #d7e2de!important;border-radius:8px!important;box-shadow:none!important}
+#mobileMockApp .m13-filter-label,#mobileMockApp .m13-site-label{font-size:12px!important;align-self:center!important}
+.m15-period-btn{background:white!important;color:#365c56!important;width:100%!important}
+#mobileMockApp #m13RangeCard{display:none!important}
+#mobileMockApp #m13RangeCard.range-open{display:block!important;padding:16px!important;border:1px solid #dfe5e3!important;border-radius:12px!important;min-height:0!important;background:white!important}
+#mobileMockApp #m13RangeCard .m13-range-head,#mobileMockApp #m13RangeCard .m17-month-control{display:none!important}
+#mobileMockApp #m13RangeCard.range-open .m17-period-row{display:grid!important;grid-template-columns:1fr 1fr!important;gap:12px!important;margin:0!important;padding:0!important;border:0!important}
+#mobileMockApp #m13RangeCard .m17-period-row .m13-date-card{display:block!important;height:auto!important;min-height:0!important;padding:0!important;background:none!important;border:0!important}
+#mobileMockApp #m13RangeCard .m13-date-card label{font-size:12px!important;margin-bottom:6px!important;display:block!important}
+#mobileMockApp #m13RangeCard .m13-date-line{display:block!important;height:auto!important;position:static!important}
+#mobileMockApp #m13RangeCard .m13-date-line svg,#mobileMockApp #m13RangeCard .m13-date-text{display:none!important}
+#mobileMockApp #m13RangeCard input[type=date]{display:block!important;position:static!important;opacity:1!important;width:100%!important;height:44px!important;font-size:16px!important;border:1px solid #cad8d2!important;padding:6px!important;border-radius:8px!important;background:white!important;color:#263b40!important}
+#mobileMockApp #m13RangeCard .m17-period-row .m13-apply{grid-column:1/-1!important;width:100%!important;height:44px!important;font-size:14px!important;border-radius:8px!important}
+#mobileMockApp .m13-weekdays,#mobileMockApp .m13-days{display:grid!important;grid-template-columns:repeat(7,minmax(0,1fr))!important;gap:5px!important}
+#mobileMockApp .m13-weekday{font-size:12px!important;padding:8px 0!important}
+#mobileMockApp .m13-day{position:relative!important;min-width:0!important;border:1px solid #e6ebe8!important;border-radius:8px!important;background:#fff!important;box-shadow:none!important;overflow:hidden!important;text-align:left!important}
+#mobileMockApp .m13-day.selected{background:#eef6f3!important;border:2px solid #347f75!important}
+#mobileMockApp .m13-daynum{font-size:14px!important;font-weight:700!important;position:absolute!important;top:8px!important;left:8px!important;right:auto!important;line-height:1.2!important}
+#mobileMockApp .m13-day.other{opacity:.38!important}
+#mobileMockApp .m15-calendar-foot{font-size:12px!important;line-height:1.5!important;color:#6a7c76!important;padding:12px 0 0!important;text-align:center!important}
+#mobileMockApp #m13Manager{display:flex!important;height:auto!important;min-height:64px!important;padding:12px 16px!important;border:1px solid #dfe5e3!important;border-radius:12px!important;background:white!important;gap:12px!important}
+#mobileMockApp .m13-manager-title{font-size:14px!important}#mobileMockApp .m13-manager-sub{font-size:12px!important;color:#657770!important}
+#mobileMockApp .m13-manager-ico{width:34px!important;height:34px!important;flex:0 0 34px!important}#mobileMockApp .m13-manager-ico svg{width:22px!important;height:22px!important;fill:none;stroke:currentColor;stroke-width:1.6}
+#mobileMockApp .m13-manager-arr{font-size:22px!important;margin-left:auto!important}
+.checklist-section,.car{border-radius:14px!important;box-shadow:none!important}
+#adminToolbar.bottom-toolbar{display:none!important;position:fixed!important;top:95px!important;bottom:auto!important;left:auto!important;right:24px!important;width:320px!important;max-height:75vh!important;overflow:auto!important;margin:0!important;padding:16px!important;z-index:10030!important;grid-template-columns:1fr 1fr!important;gap:8px!important;background:white!important;border:1px solid #dce4df!important;border-radius:14px!important}
+#adminToolbar.bottom-toolbar.open,#adminToolbar.bottom-toolbar.mobile-open{display:grid!important}
+#adminToolbar .m20-admin-head{display:flex!important;grid-column:1/-1!important;align-items:center!important;justify-content:space-between!important;font-size:15px!important}
+#adminToolbar button{min-height:44px!important;font-size:13px!important;border-radius:8px!important;background:#f4f7f5!important}
+#mobileAdminScrim.on{display:block!important;position:fixed!important;inset:0!important;z-index:10020!important;background:rgba(26,45,40,.2)!important}
+.preview-v2-item{grid-template-columns:58px minmax(0,1fr) 32px!important;gap:10px!important;padding:12px!important;min-height:78px!important;border-radius:10px!important;background:white!important}
+.preview-v2-title{display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:3px!important}
+.preview-v2-site{font-size:12px!important;white-space:normal!important;line-height:1.4!important}
+.preview-v2-name{font-size:15px!important;font-weight:700!important;line-height:1.4!important}
+.preview-v2-meta{font-size:12px!important;line-height:1.55!important;white-space:normal!important;overflow-wrap:anywhere!important}
+.preview-v2-time{font-size:12px!important;height:36px!important}
+.preview-v2-group-head,.preview-v2-summary span,.preview-v2-cap,.preview-v2-cap strong,.preview-v2-settings button{font-size:12px!important;line-height:1.5!important}
+.preview-v2-group-head{height:auto!important;min-height:36px!important}
+.preview-v2-actions{grid-template-columns:1fr 1fr!important;gap:8px!important}
+.preview-v2-actions button,.preview-v2-actions .primary{height:auto!important;min-height:44px!important;font-size:12px!important;white-space:normal!important;padding:8px!important}
+.preview-v2-actions .primary{grid-column:1/-1!important}
+.preview-v2-secondary button{font-size:12px!important;min-height:40px!important}
+@media(min-width:1000px){
+ .wrap{display:grid!important;grid-template-columns:minmax(0,1fr) 360px!important;gap:20px!important;align-items:start!important}
+ #mobileMockApp{grid-column:1!important;grid-row:1!important}
+ #mobileMockApp .m13-day{height:146px!important;min-height:146px!important;padding:30px 5px 5px!important;display:block!important}
+ #mobileMockApp .m13-desk-events{display:flex!important;flex-direction:column!important;gap:4px!important}
+ #mobileMockApp .m13-desk-event{display:block!important;padding:4px!important;border-radius:5px!important;background:#f0f6f3!important}
+ #mobileMockApp .m13-desk-time{font-size:11px!important;line-height:1.3!important}
+ #mobileMockApp .m13-desk-copy strong,#mobileMockApp .m13-desk-copy small{display:none!important}
+ #mobileMockApp .m13-desk-copy span{display:block!important;font-size:11px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;line-height:1.4!important}
+ #mobileMockApp .m13-desk-more{font-size:11px!important}
+ #overlay{display:block!important;position:sticky!important;top:24px!important;inset:auto!important;grid-column:2!important;grid-row:1!important;padding:0!important;background:transparent!important;backdrop-filter:none!important;z-index:1!important;align-self:start!important}
+ #overlay .modal{width:100%!important;max-width:none!important;margin:0!important;padding:20px!important;max-height:calc(100vh - 48px)!important;overflow:auto!important;border:1px solid #dfe5e3!important;border-radius:14px!important;box-shadow:none!important;transform:none!important;background:white!important}
+ #overlay .modal::before,#overlay .close{display:none!important}
+ #overlay .modal h2{font-size:20px!important;line-height:1.4!important;margin:0 0 16px!important}
+ #modalBody{max-height:none!important;overflow:visible!important}
+ .wrap>.checklist-section,.wrap>.car{display:block!important;grid-column:1/-1!important;margin:0!important}
+}
+@media(max-width:999px){
+ #mobileMockApp .m13-day{height:70px!important;min-height:70px!important}
+ .m15-count{position:absolute!important;top:auto!important;bottom:8px!important;left:7px!important;font-size:10px!important;height:auto!important;line-height:1.4!important;max-width:none!important;padding:0!important;background:transparent!important;color:#416b60!important}
+ .m15-dots{position:absolute!important;right:6px!important;left:auto!important;bottom:9px!important;display:flex!important;gap:3px!important}.m15-dots i{display:block!important;width:4px!important;height:4px!important;border-radius:50%!important}.m15-dots i.gallery{background:#347f75!important}.m15-dots i.tour{background:#bc854d!important}.m15-dots i.closed{background:#bb6262!important}
+}
+@media(max-width:560px){
+ body{padding:12px 10px calc(24px + env(safe-area-inset-bottom))!important}
+ #mobileMockApp{gap:12px!important}
+ #mobileMockApp .m15-top{padding:12px!important;min-height:78px!important}
+ #mobileMockApp .m13-title{font-size:19px!important}
+ #mobileMockApp .m15-calendar-card{padding:14px 10px!important}
+ #mobileMockApp .m13-cal-head{gap:10px!important}
+ #mobileMockApp .m13-cal-title{font-size:21px!important;flex-basis:100%!important}
+ #mobileMockApp .m13-cal-actions{width:100%!important;justify-content:flex-end!important}
+ #mobileMockApp .m13-cal-actions button{height:44px!important;min-width:44px!important}
+ #mobileMockApp .m13-cal-actions .filter{margin-left:auto!important}
+ #mobileMockApp .m13-day{height:66px!important;min-height:66px!important}
+ #mobileMockApp .m13-daynum{left:6px!important;top:7px!important}
+ #mobileMockApp .m13-weekdays,#mobileMockApp .m13-days{gap:3px!important}
+ body.m13-show-details .wrap>.checklist-section,body.m13-show-details .wrap>.car{display:block!important;overflow-x:auto!important}
+ .manager-table{min-width:500px!important}
+ #adminToolbar.bottom-toolbar{top:auto!important;bottom:calc(12px + env(safe-area-inset-bottom))!important;left:10px!important;right:10px!important;width:auto!important;max-height:75dvh!important}
+ #statusBody .status-mobile-card{grid-template-columns:54px minmax(0,1fr) 32px!important;min-height:88px!important;padding:12px 10px!important;gap:9px!important}
+ #statusBody .status-mobile-time{font-size:12px!important;min-height:38px!important}
+ #statusBody .status-mobile-title{display:block!important;font-size:12px!important;white-space:normal!important;line-height:1.4!important}
+ #statusBody .status-mobile-name{display:block!important;font-size:15px!important;line-height:1.5!important}
+ #statusBody .status-mobile-meta{font-size:12px!important;line-height:1.55!important;white-space:normal!important;overflow:visible!important}
+ #statusBody .m21-kind-count,#statusBody .m21-kind-head .tag,#statusBody .print-date-title{font-size:12px!important}
+ #statusBody .status-mobile-check{min-height:44px!important}
+ #formFields input,#formFields textarea{font-size:16px!important;min-height:44px!important}
+ #formFields .field-label{font-size:13px!important}
+}
+@media print{.wrap{display:block!important}#overlay,#adminToolbar,#mobileAdminScrim{display:none!important}}
+</style>
+<script id="calendar-v22-behavior">
+(function(){
+ function init(){
+  const overlay=document.getElementById('overlay');
+  document.querySelector('.wrap').appendChild(overlay);
+  const wide=window.matchMedia('(min-width:1000px)');
+  function sync(){
+   closeMobileAdminMenu();
+   if(wide.matches){
+    const selected=document.querySelector('#m13Days .m13-day.selected .m13-daynum');
+    const start=document.getElementById('rangeStart').value;
+    const month=start?Number(start.split('-')[1]):new Date().getMonth()+1;
+    const key=selected?month+'-'+Number(selected.textContent):currentDateKey;
+    if(key)openPreview(key);
+   }else closeModal();
+  }
+  sync();wide.addEventListener('change',sync);
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMobileAdminMenu()});
+ }
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(init,0));else setTimeout(init,0);
+})();
+</script>
+
 </body>
 </html>
