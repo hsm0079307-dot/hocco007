@@ -7217,611 +7217,21 @@ body.guest-readonly #reportViewTabTours{
 }
 </style>
 
-<style id="mobileCalendarRedesignV20260918">
-/* Mobile report calendar redesign: compact month grid + selected-day detail */
-.mobile-cal-detail-source,.mobile-cal-detail-panel{display:none;}
-@media (max-width:820px){
-  .mgr-breakdown-wrap .mgr-filter-row{
-    display:flex!important; flex-wrap:nowrap!important; overflow-x:auto!important;
-    gap:7px!important; padding:9px 12px!important; margin:0!important;
-    -webkit-overflow-scrolling:touch; scrollbar-width:none;
-  }
-  .mgr-breakdown-wrap .mgr-filter-row::-webkit-scrollbar{display:none}
-  .mgr-breakdown-wrap .mgr-filter-label{flex:0 0 auto!important; font-size:11px!important}
-  .mgr-breakdown-wrap .mgr-filter-chip{flex:0 0 auto!important; padding:7px 12px!important; border-radius:11px!important; font-size:10.5px!important}
-  .mgr-breakdown-wrap .mgr-filter-clear{flex:0 0 auto!important}
-  .mgr-breakdown-wrap .mgr-filter-row > span[style*="font-size:8.5px"]{display:none!important}
-
-  .mgr-breakdown-wrap .mgr-subtabs{
-    display:grid!important; grid-template-columns:repeat(4,1fr)!important;
-    gap:0!important; margin:0!important; padding:0 12px!important;
-  }
-  .mgr-breakdown-wrap .mgr-subtab{
-    text-align:center!important; padding:10px 2px!important; font-size:10px!important;
-  }
-
-  .mgr-breakdown-wrap .mgr-nav-row{
-    display:grid!important; grid-template-columns:38px 1fr 38px 52px!important;
-    align-items:center!important; gap:7px!important; padding:10px 12px 8px!important; margin:0!important;
-  }
-  .mgr-breakdown-wrap .mgr-nav-btn{
-    width:38px!important; height:36px!important; border-radius:10px!important; font-size:13px!important;
-  }
-  .mgr-breakdown-wrap .mgr-nav-label{
-    font-size:15px!important; font-weight:850!important; color:var(--text-main)!important;
-  }
-  .mgr-breakdown-wrap .mgr-nav-today-btn{
-    grid-column:auto!important; height:36px!important; padding:0!important; border-radius:10px!important;
-    font-size:10.5px!important;
-  }
-
-  .mgr-breakdown-wrap .mgr-subtab-body{padding:0 10px 14px!important}
-  .mgr-breakdown-wrap .cal-count-guide{display:none!important}
-  .mgr-breakdown-wrap .mgr-cal-grid{
-    gap:4px!important; width:100%!important; grid-template-columns:repeat(7,minmax(0,1fr))!important;
-  }
-  .mgr-breakdown-wrap .mgr-cal-dayhead{
-    height:26px!important; font-size:10px!important; font-weight:750!important; opacity:.88;
-  }
-  .mgr-breakdown-wrap .mgr-cal-cell,
-  .mgr-breakdown-wrap .mgr-cal-cell.mgr-cal-empty{
-    min-height:64px!important; height:64px!important; padding:5px 4px!important;
-    border-radius:9px!important; overflow:hidden!important;
-  }
-  .mgr-breakdown-wrap .mgr-cal-cell.mgr-cal-empty{border:0!important;background:transparent!important;opacity:1!important}
-  .mgr-breakdown-wrap .mgr-cal-cell.has-log{
-    background:color-mix(in srgb,var(--accent-soft) 28%,var(--card))!important;
-    border-color:color-mix(in srgb,var(--accent) 28%,var(--line))!important;
-  }
-  .mgr-breakdown-wrap .mgr-cal-cell.has-log::before{width:2px!important;opacity:.55!important}
-  .mgr-breakdown-wrap .mgr-cal-daynum{
-    display:flex!important; align-items:center!important; justify-content:flex-start!important;
-    width:auto!important; height:19px!important; margin:0!important; padding:0!important;
-    font-size:11px!important; font-weight:800!important; color:var(--text-main)!important;
-    text-decoration:none!important;
-  }
-  .mgr-breakdown-wrap .mgr-cal-cell.is-today .mgr-cal-daynum{
-    display:inline-flex!important; justify-content:center!important; width:23px!important; height:23px!important;
-    border-radius:50%!important; background:var(--accent)!important; color:var(--accent-ink)!important;
-  }
-  .mgr-breakdown-wrap .mgr-cal-summary-chip{margin-top:3px!important}
-  .mgr-breakdown-wrap .mi-date-reports-btn{
-    display:flex!important; align-items:center!important; justify-content:flex-start!important;
-    width:100%!important; min-height:28px!important; padding:0!important; border:0!important;
-    background:transparent!important; text-align:left!important;
-  }
-  .mgr-breakdown-wrap .mgr-cal-summary-main{
-    display:block!important; width:100%!important; font-size:10.5px!important; font-weight:850!important;
-    color:var(--accent)!important; white-space:nowrap!important;
-  }
-  .mgr-breakdown-wrap .mgr-cal-nonmember-inline{font-size:8px!important;opacity:.8}
-  .mgr-breakdown-wrap .mgr-cal-method-line,
-  .mgr-breakdown-wrap .cal-manager-list{display:none!important}
-  .mgr-breakdown-wrap .mgr-cal-cell.mobile-selected{
-    box-shadow:inset 0 0 0 1.5px var(--accent)!important;
-    background:color-mix(in srgb,var(--accent-soft) 48%,var(--card))!important;
-  }
-
-  .mobile-cal-detail-source{display:none!important}
-  .mobile-cal-detail-panel{
-    display:block!important; margin:10px 0 0!important; padding:0!important;
-  }
-  .mobile-cal-detail-empty{
-    border:1px dashed var(--line); border-radius:12px; padding:13px 12px;
-    text-align:center; color:var(--text-dim); font-size:10px;
-  }
-  .mobile-cal-detail-card{
-    border:1px solid color-mix(in srgb,var(--accent) 28%,var(--line));
-    background:linear-gradient(180deg,color-mix(in srgb,var(--accent-soft) 24%,var(--card)),var(--card));
-    border-radius:14px; padding:13px 13px 11px; box-shadow:var(--shadow-xs);
-  }
-  .mobile-cal-detail-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px}
-  .mobile-cal-detail-date{font-size:13px;font-weight:850;color:var(--text-main)}
-  .mobile-cal-detail-total{font-size:11px;font-weight:800;color:var(--accent);white-space:nowrap}
-  .mobile-cal-detail-managers{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:9px}
-  .mobile-cal-detail-manager{
-    display:flex;justify-content:space-between;gap:8px;padding:7px 9px;border-radius:9px;
-    background:color-mix(in srgb,var(--bg-main) 70%,transparent);border:1px solid var(--line);
-    font-size:10px;color:var(--text-main)
-  }
-  .mobile-cal-detail-manager b{color:var(--accent);font-weight:850}
-  .mobile-cal-detail-methods{font-size:9.5px;color:var(--text-dim);padding:7px 0 3px;border-top:1px solid var(--line)}
-  .mobile-cal-open-reports{
-    width:100%;margin-top:8px;padding:9px 10px;border-radius:9px;border:1px solid var(--line);
-    background:var(--bg-main);color:var(--text-main);font-size:10.5px;font-weight:750;cursor:pointer;
-  }
-}
-</style>
 
 
-<style id="mobileCalendarCompactOnlyV20260918b">
-/* Mobile-only compact report calendar. Desktop stays unchanged. */
-@media screen and (max-width:820px){
-  body.ux383 .mgr-breakdown-wrap .mgr-cal-grid{
-    grid-template-columns:repeat(7,minmax(0,1fr))!important;
-    gap:3px!important;
-    min-width:0!important;
-    width:100%!important;
-  }
-  body.ux383 .mgr-breakdown-wrap .mgr-cal-dayhead{
-    height:20px!important;
-    min-height:20px!important;
-    padding:0!important;
-    font-size:10px!important;
-    line-height:20px!important;
-  }
-  body.ux383 .mgr-breakdown-wrap .mgr-cal-cell,
-  body.ux383 .mgr-breakdown-wrap .mgr-cal-cell.has-log,
-  body.ux383 .mgr-breakdown-wrap .mgr-cal-cell.mgr-cal-empty{
-    min-height:56px!important;
-    height:56px!important;
-    max-height:56px!important;
-    padding:3px 3px!important;
-    border-radius:8px!important;
-    overflow:hidden!important;
-    box-sizing:border-box!important;
-  }
-  body.ux383 .mgr-breakdown-wrap .mgr-cal-daynum{
-    height:18px!important;
-    min-height:18px!important;
-    line-height:18px!important;
-    padding:0 2px!important;
-    margin:0!important;
-    font-size:11px!important;
-  }
-  body.ux383 .mgr-breakdown-wrap .mgr-cal-cell.is-today .mgr-cal-daynum{
-    width:22px!important;
-    min-width:22px!important;
-    height:22px!important;
-    min-height:22px!important;
-    line-height:22px!important;
-  }
-  body.ux383 .mgr-breakdown-wrap .mgr-cal-summary-chip{
-    margin-top:1px!important;
-    padding:0!important;
-  }
-  body.ux383 .mgr-breakdown-wrap .mi-date-reports-btn{
-    min-height:22px!important;
-    height:auto!important;
-    padding:0!important;
-    margin:0!important;
-    gap:0!important;
-  }
-  body.ux383 .mgr-breakdown-wrap .mgr-cal-summary-main{
-    font-size:9.5px!important;
-    line-height:1.12!important;
-    white-space:nowrap!important;
-  }
-  body.ux383 .mgr-breakdown-wrap .mgr-cal-nonmember,
-  body.ux383 .mgr-breakdown-wrap .mgr-cal-nonmember-inline{
-    font-size:7.5px!important;
-    line-height:1!important;
-  }
-  body.ux383 .mgr-breakdown-wrap .cal-manager-list,
-  body.ux383 .mgr-breakdown-wrap .mgr-cal-manager-mini,
-  body.ux383 .mgr-breakdown-wrap .mgr-cal-method-line{
-    display:none!important;
-  }
-  body.ux383 .mgr-breakdown-wrap .mgr-subtab-body{
-    overflow-x:hidden!important;
-    padding-left:8px!important;
-    padding-right:8px!important;
-  }
-}
-</style>
-
-<style id="mobileCalendarRefinedV3">
-/* Mobile calendar refinement only. Desktop untouched. */
-@media screen and (max-width:820px){
-  body.ux383 .mgr-breakdown-wrap .mgr-nav-row{
-    grid-template-columns:34px minmax(112px,1fr) 34px 48px!important;
-    gap:5px!important;
-    padding:6px 8px 6px!important;
-    min-height:0!important;
-  }
-  body.ux383 .mgr-breakdown-wrap .mgr-nav-btn{
-    width:34px!important;height:32px!important;min-height:32px!important;
-    border-radius:9px!important;font-size:12px!important;
-  }
-  body.ux383 .mgr-breakdown-wrap .mgr-nav-label{
-    font-size:13.5px!important;font-weight:900!important;
-  }
-  body.ux383 .mgr-breakdown-wrap .mgr-nav-today-btn{
-    height:32px!important;min-height:32px!important;padding:0 7px!important;
-    border-radius:9px!important;font-size:9.5px!important;
-  }
-
-  body.ux383 .mgr-breakdown-wrap .mgr-cal-grid{
-    gap:3px!important;
-    grid-template-columns:repeat(7,minmax(0,1fr))!important;
-  }
-  body.ux383 .mgr-breakdown-wrap .mgr-cal-dayhead{
-    height:19px!important;min-height:19px!important;
-    line-height:19px!important;padding:0!important;
-    font-size:9.5px!important;
-  }
-  body.ux383 .mgr-breakdown-wrap .mgr-cal-cell,
-  body.ux383 .mgr-breakdown-wrap .mgr-cal-cell.has-log,
-  body.ux383 .mgr-breakdown-wrap .mgr-cal-cell.mgr-cal-empty{
-    min-height:52px!important;height:52px!important;max-height:52px!important;
-    padding:4px 3px!important;border-radius:9px!important;
-    overflow:hidden!important;box-sizing:border-box!important;
-  }
-  body.ux383 .mgr-breakdown-wrap .mgr-cal-cell.has-log{
-    background:color-mix(in srgb,var(--accent-soft) 22%,var(--card))!important;
-  }
-  body.ux383 .mgr-breakdown-wrap .mgr-cal-cell.has-log::before{
-    width:2px!important;opacity:.5!important;
-  }
-  body.ux383 .mgr-breakdown-wrap .mgr-cal-daynum{
-    display:block!important;
-    width:auto!important;min-width:0!important;
-    height:17px!important;min-height:17px!important;line-height:17px!important;
-    margin:0!important;padding:0 1px!important;
-    font-size:10.5px!important;font-weight:900!important;
-    background:transparent!important;border-radius:0!important;
-    color:var(--text-main)!important;text-decoration:none!important;
-  }
-  /* Today: no oversized circle on phone. Highlight the whole cell instead. */
-  body.ux383 .mgr-breakdown-wrap .mgr-cal-cell.is-today{
-    box-shadow:inset 0 0 0 1.5px var(--accent)!important;
-    background:color-mix(in srgb,var(--accent-soft) 36%,var(--card))!important;
-  }
-  body.ux383 .mgr-breakdown-wrap .mgr-cal-cell.is-today .mgr-cal-daynum{
-    display:block!important;width:auto!important;min-width:0!important;
-    height:17px!important;min-height:17px!important;line-height:17px!important;
-    margin:0!important;padding:0 1px!important;border-radius:0!important;
-    background:transparent!important;color:var(--accent)!important;
-    font-size:10.5px!important;font-weight:950!important;
-  }
-  body.ux383 .mgr-breakdown-wrap .mgr-cal-summary-chip{
-    margin-top:1px!important;padding:0!important;
-  }
-  body.ux383 .mgr-breakdown-wrap .mi-date-reports-btn{
-    min-height:24px!important;height:24px!important;
-    padding:0!important;margin:0!important;gap:0!important;
-    overflow:hidden!important;
-  }
-  body.ux383 .mgr-breakdown-wrap .mgr-cal-summary-main{
-    font-size:9.5px!important;line-height:12px!important;
-    font-weight:850!important;white-space:nowrap!important;
-    overflow:hidden!important;text-overflow:clip!important;
-  }
-  body.ux383 .mgr-breakdown-wrap .mgr-cal-nonmember,
-  body.ux383 .mgr-breakdown-wrap .mgr-cal-nonmember-inline{
-    font-size:7px!important;line-height:9px!important;
-    white-space:nowrap!important;
-  }
-  body.ux383 .mgr-breakdown-wrap .mgr-cal-manager-mini,
-  body.ux383 .mgr-breakdown-wrap .cal-manager-list,
-  body.ux383 .mgr-breakdown-wrap .cal-manager-more,
-  body.ux383 .mgr-breakdown-wrap .mgr-cal-method-line{
-    display:none!important;
-  }
-
-  body.ux383 .mgr-breakdown-wrap .mobile-cal-detail-panel{
-    margin-top:7px!important;
-  }
-  body.ux383 .mgr-breakdown-wrap .mobile-cal-detail-empty{
-    padding:8px 9px!important;border-radius:10px!important;
-    font-size:9px!important;line-height:1.35!important;
-  }
-  body.ux383 .mgr-breakdown-wrap .mgr-subtab-body{
-    padding-left:7px!important;padding-right:7px!important;padding-bottom:10px!important;
-  }
-}
-</style>
-
-<style id="mobile-detail-refine-v9">
-@media (max-width:820px){
-  /* 1. 모바일에서 Excel 원장 기준 안내문은 숨김 */
-  .mgr-breakdown-wrap .mgr-report-source.excel-first{display:none!important;}
-
-  /* 2. 달력 선택일 접촉현황 카드 폭과 내부 칸 정리 */
-  .mobile-cal-detail-panel{padding:10px 0 0!important;}
-  .mobile-cal-detail-card{
-    width:calc(100% - 22px)!important;
-    max-width:520px!important;
-    margin:0 auto!important;
-    padding:11px 12px!important;
-    border-radius:14px!important;
-    box-sizing:border-box!important;
-  }
-  .mobile-cal-detail-head{gap:8px!important;margin-bottom:8px!important;}
-  .mobile-cal-detail-date{font-size:14px!important;line-height:1.2!important;}
-  .mobile-cal-detail-total{font-size:12px!important;line-height:1.2!important;}
-  .mobile-cal-detail-managers{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:6px!important;margin-bottom:8px!important;}
-  .mobile-cal-detail-manager{padding:7px 9px!important;border-radius:10px!important;font-size:12px!important;}
-  .mobile-cal-detail-methods{font-size:10.5px!important;padding:7px 0 3px!important;}
-  .mobile-cal-open-reports{min-height:40px!important;padding:9px 10px!important;font-size:13px!important;border-radius:11px!important;}
-
-  /* 3. 금일/최근 접촉상세: 박스 느낌을 줄이고 칸 정렬을 단정하게 */
-  .desktop-detail-fields{display:none!important;}
-  .mobile-detail-fields{display:block!important;}
-  .mobile-detail-grid{display:grid!important;gap:8px 12px!important;margin:8px 0 0!important;align-items:stretch!important;}
-  .mobile-detail-grid.row2{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
-  .mobile-detail-grid.row2b{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
-  .mobile-detail-grid.rowContact{grid-template-columns:minmax(0,1fr)!important;}
-  .mobile-detail-field{
-    min-width:0!important;
-    padding:0 2px 8px!important;
-    border:none!important;
-    border-bottom:1px solid var(--line)!important;
-    border-radius:0!important;
-    background:transparent!important;
-    box-shadow:none!important;
-    display:flex!important;
-    flex-direction:column!important;
-    justify-content:flex-start!important;
-    gap:2px!important;
-  }
-  .mobile-detail-field b{display:block!important;margin:0!important;font-size:10px!important;line-height:1.1!important;letter-spacing:-.01em!important;color:var(--text-dim)!important;font-weight:800!important;}
-  .mobile-detail-field span{display:block!important;font-size:13px!important;line-height:1.28!important;color:var(--text-main)!important;font-weight:800!important;word-break:keep-all!important;overflow-wrap:anywhere!important;}
-  .mobile-detail-grid.row2b .mobile-detail-field span{font-size:12.5px!important;}
-  .mobile-detail-grid.rowContact .mobile-detail-field span{font-size:12.5px!important;}
-  .mobile-detail-note{margin-top:8px!important;padding-top:4px!important;border-top:1px solid var(--line)!important;}
-  .mobile-detail-note>summary{cursor:pointer!important;list-style:none!important;font-size:13px!important;font-weight:800!important;color:var(--accent)!important;padding:6px 0!important;}
-  .mobile-detail-note>summary::-webkit-details-marker{display:none!important;}
-  .mobile-detail-note-body{margin-top:3px!important;padding:9px 10px!important;border:1px solid var(--line)!important;border-radius:12px!important;background:var(--bg-card)!important;font-size:12.5px!important;line-height:1.5!important;white-space:pre-wrap!important;overflow-wrap:anywhere!important;}
-  .mobile-detail-meta{display:flex!important;flex-direction:column!important;gap:3px!important;margin-top:8px!important;padding-top:6px!important;border-top:1px dashed var(--line)!important;font-size:10.5px!important;color:var(--text-dim)!important;}
-  .mobile-detail-meta b{color:var(--text-main)!important;}
-
-  body.guest-mode .mobile-cal-detail-empty{display:none!important;}
-  body.guest-mode .rf-nonmember>p{display:none!important;}
-
-  /* 4. 게스트모드 핵심브리핑: 설명성 작은 글/배지 정리 */
-  body.guest-mode .report-brief .bf-head .bf-badges,
-  body.guest-mode .report-brief .bf-section h3 .bf-badge,
-  body.guest-mode .report-brief .bf-entry .bf-quality,
-  body.guest-mode .report-brief .bf-entry .bf-entry-context,
-  body.guest-mode .report-brief .bf-entry details,
-  body.guest-mode .report-brief > .bf-meta:last-child{
-    display:none!important;
-  }
-
-  .mi-excel-report .mi-report-source{margin-top:6px!important;font-size:10.5px!important;}
-}
-@media (min-width:821px){
-  .desktop-detail-fields{display:block!important;}
-  .mobile-detail-fields{display:none!important;}
-}
-</style>
-
-<style id="mobile-admin-cleanup-v10">
-@media screen and (max-width:820px){
-  /* 관리자 모바일: 설명/배지 정리 */
-  body.ux383:not(.guest-mode) .mi-report-source{display:none!important;}
-  body.ux383:not(.guest-mode) .rf-nonmember>p{display:none!important;}
-  body.ux383:not(.guest-mode) .report-brief>.bf-meta:last-child{display:none!important;}
-  body.ux383:not(.guest-mode) .report-brief .bf-badges,
-  body.ux383:not(.guest-mode) .report-brief .bf-section h3 .bf-badge,
-  body.ux383:not(.guest-mode) .report-brief .bf-entry .bf-quality{display:none!important;}
-
-  /* 관리자 모바일: 사업현황/비고/진행단계/타사활동 박스 높이 축소 */
-  body.ux383:not(.guest-mode) .detail-quad-box{border-radius:9px!important;}
-  body.ux383:not(.guest-mode) .detail-quad-box .spec-heading{
-    font-size:13px!important;
-    padding:8px 11px!important;
-    margin-bottom:0!important;
-  }
-  body.ux383:not(.guest-mode) .detail-quad-box .spec-lines-2col{
-    padding:2px 10px 6px!important;
-    gap:0!important;
-  }
-  body.ux383:not(.guest-mode) .detail-quad-box .spec-line{
-    min-height:28px!important;
-    padding:4px 0 4px 14px!important;
-    font-size:12px!important;
-    line-height:1.35!important;
-    gap:4px!important;
-  }
-  body.ux383:not(.guest-mode) .detail-quad-box .spec-stage-detail{
-    padding:8px 11px 10px!important;
-    font-size:12.5px!important;
-    line-height:1.5!important;
-  }
-  body.ux383:not(.guest-mode) .detail-quad-box .spec-label{font-size:11px!important;}
-  body.ux383:not(.guest-mode) .detail-quad-box .num-value{font-size:14px!important;}
-}
-</style>
 
 
-<style id="mobile-contact-layout-v12">
-@media screen and (max-width:820px){
-  /* 현장별 접촉현황 팝업이 메인 상단바보다 항상 위에 오도록 */
-  body.ux383 #globalStatsOverlay{
-    z-index:2147482600!important;
-    padding:6px!important;
-  }
-  body.ux383 #globalStatsModalBox{
-    height:calc(100dvh - 12px)!important;
-    max-height:calc(100dvh - 12px)!important;
-  }
 
-  /* 상단: 제목 + 날짜 / 사업소 + 현장 + 다시계산 / 기간버튼 */
-  body.ux383 #globalStatsModalBox .sm-head{
-    display:grid!important;
-    grid-template-columns:repeat(6,minmax(0,1fr))!important;
-    grid-template-rows:36px 38px 36px!important;
-    gap:6px!important;
-    padding:8px 10px!important;
-    min-height:0!important;
-    align-items:center!important;
-  }
-  body.ux383 #globalStatsModalBox .sm-head h3{
-    grid-column:1 / 4!important;
-    grid-row:1!important;
-    margin:0!important;
-    padding:0!important;
-    font-size:13px!important;
-    line-height:1.2!important;
-    white-space:nowrap!important;
-    overflow:visible!important;
-    text-overflow:clip!important;
-    align-self:center!important;
-  }
-  body.ux383 #siteMgmtPeriodLabel{
-    grid-column:4 / 6!important;
-    grid-row:1!important;
-    width:100%!important;
-    min-width:0!important;
-    padding:0!important;
-    margin:0!important;
-    text-align:right!important;
-    font-size:9.5px!important;
-    line-height:1.15!important;
-    white-space:nowrap!important;
-    overflow:hidden!important;
-    text-overflow:ellipsis!important;
-    color:var(--text-dim)!important;
-  }
-  body.ux383 #globalStatsCloseBtn{
-    grid-column:6!important;
-    grid-row:1!important;
-    width:100%!important;
-    height:34px!important;
-    min-width:0!important;
-    padding:0!important;
-  }
-  body.ux383 #globalStatsOfficeFilter{
-    grid-column:1 / 3!important;
-    grid-row:2!important;
-  }
-  body.ux383 #siteMgmtSiteSelect{
-    grid-column:3 / 6!important;
-    grid-row:2!important;
-    min-width:0!important;
-    width:100%!important;
-    max-width:100%!important;
-  }
-  body.ux383 #globalStatsRefreshBtn{
-    grid-column:6!important;
-    grid-row:2!important;
-    width:100%!important;
-    min-width:0!important;
-    height:36px!important;
-    padding:4px 3px!important;
-    font-size:9.5px!important;
-  }
-  body.ux383 #siteMgmtAllBtn{grid-column:1!important;grid-row:3!important;}
-  body.ux383 #siteMgmtMonthBtn{grid-column:2!important;grid-row:3!important;}
-  body.ux383 #siteMgmtWeekBtn{grid-column:3!important;grid-row:3!important;}
-  body.ux383 #siteMgmtDayBtn{grid-column:4!important;grid-row:3!important;}
-  body.ux383 #siteMgmtPrevBtn{grid-column:5!important;grid-row:3!important;}
-  body.ux383 #siteMgmtNextBtn{grid-column:6!important;grid-row:3!important;}
-  body.ux383 #globalStatsModalBox .sm-spacer{display:none!important;}
-  body.ux383 #globalStatsModalBox .sm-select,
-  body.ux383 #globalStatsModalBox .sm-btn{
-    min-width:0!important;
-    max-width:100%!important;
-    height:36px!important;
-    font-size:10px!important;
-    padding:4px 6px!important;
-  }
 
-  /* 상단이 한 줄 줄었으므로 본문 공간 확보 */
-  body.ux383 #globalStatsModalBox .sm-body{
-    height:calc(100dvh - 136px)!important;
-    padding:8px!important;
-  }
 
-  /* 본문 사이트 제목은 더 작게. 날짜는 위 현장별 접촉현황 옆으로 옮겼으므로 중복 제거 */
-  body.ux383 #globalStatsBody .pdf-titlebar{
-    min-height:40px!important;
-    padding:0 10px!important;
-    font-size:13px!important;
-    border-radius:9px!important;
-  }
-  body.ux383 #globalStatsBody .pdf-titlebar small{display:none!important;}
 
-  /* 소유주/접촉/미접촉/접촉률을 모바일 한 줄 4칸으로 통일 */
-  body.ux383 #globalStatsBody .pdf-summary{
-    display:grid!important;
-    grid-template-columns:repeat(4,minmax(0,1fr))!important;
-    gap:5px!important;
-    width:100%!important;
-    margin:7px 0 9px!important;
-  }
-  body.ux383 #globalStatsBody .pdf-summary-cell{
-    min-width:0!important;
-    min-height:52px!important;
-    height:52px!important;
-    padding:6px 4px!important;
-    border-radius:8px!important;
-    display:flex!important;
-    flex-direction:column!important;
-    justify-content:center!important;
-    align-items:flex-start!important;
-  }
-  body.ux383 #globalStatsBody .pdf-summary-cell:before{
-    width:26px!important;
-    height:3px!important;
-    margin-bottom:4px!important;
-  }
-  body.ux383 #globalStatsBody .pdf-summary-cell .h{
-    font-size:8.5px!important;
-    line-height:1!important;
-    white-space:nowrap!important;
-  }
-  body.ux383 #globalStatsBody .pdf-summary-cell .n{
-    margin-top:3px!important;
-    font-size:14px!important;
-    line-height:1.05!important;
-    white-space:nowrap!important;
-  }
-}
-</style>
 
-<style id="mobile-contact-layout-v13">
-@media screen and (max-width:820px){
-  /* 상단 컨트롤 단순화: 사업소 선택은 모바일에서 숨기고 현장 선택 중심 */
-  body.ux383 #globalStatsModalBox .sm-head{
-    grid-template-columns:repeat(4,minmax(0,1fr)) 40px 40px!important;
-    grid-template-rows:34px 36px 34px!important;
-    gap:5px!important;
-    padding:7px 9px!important;
-  }
-  body.ux383 #globalStatsModalBox .sm-head h3{
-    grid-column:1 / 4!important;grid-row:1!important;
-    font-size:13.5px!important;letter-spacing:-.02em!important;
-  }
-  body.ux383 #siteMgmtPeriodLabel{
-    grid-column:4 / 6!important;grid-row:1!important;
-    font-size:10px!important;text-align:right!important;padding-right:2px!important;
-  }
-  body.ux383 #globalStatsCloseBtn{grid-column:6!important;grid-row:1!important;height:32px!important;font-size:15px!important;}
-  body.ux383 #globalStatsOfficeFilter{display:none!important;}
-  body.ux383 #siteMgmtSiteSelect{
-    grid-column:1 / 6!important;grid-row:2!important;
-    height:36px!important;font-size:11px!important;padding:4px 9px!important;
-  }
-  body.ux383 #globalStatsRefreshBtn{
-    grid-column:6!important;grid-row:2!important;
-    height:36px!important;width:40px!important;min-width:40px!important;
-    padding:0!important;font-size:0!important;border-radius:9px!important;
-  }
-  body.ux383 #globalStatsRefreshBtn::before{content:'↻';font-size:17px!important;line-height:1!important;}
-  body.ux383 #siteMgmtAllBtn{grid-column:1!important;grid-row:3!important;}
-  body.ux383 #siteMgmtMonthBtn{grid-column:2!important;grid-row:3!important;}
-  body.ux383 #siteMgmtWeekBtn{grid-column:3!important;grid-row:3!important;}
-  body.ux383 #siteMgmtDayBtn{grid-column:4!important;grid-row:3!important;}
-  body.ux383 #siteMgmtPrevBtn{grid-column:5!important;grid-row:3!important;}
-  body.ux383 #siteMgmtNextBtn{grid-column:6!important;grid-row:3!important;}
-  body.ux383 #globalStatsModalBox .sm-head .sm-btn{height:34px!important;padding:3px!important;font-size:10px!important;border-radius:9px!important;}
-  body.ux383 #globalStatsModalBox .sm-body{height:calc(100dvh - 126px)!important;padding-top:7px!important;}
 
-  /* 선택일 상세를 짧고 명확하게 */
-  body.ux383 #globalStatsBody .pdf-today-wrap{margin:8px 0 10px!important;}
-  body.ux383 #globalStatsBody .pdf-today-wrap>.pdf-section-title{padding:8px 10px!important;row-gap:2px!important;}
-  body.ux383 #globalStatsBody .recent-person-cards{padding:8px!important;gap:7px!important;}
-  body.ux383 #globalStatsBody .recent-person-card{padding:10px!important;border-radius:10px!important;}
-  body.ux383 #globalStatsBody .recent-person-card header{margin-bottom:7px!important;}
-  body.ux383 #globalStatsBody .recent-person-card dl{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:6px 10px!important;}
-  body.ux383 #globalStatsBody .recent-person-card dl>div{display:block!important;border-bottom:1px solid color-mix(in srgb,var(--line) 70%,transparent)!important;padding:0 0 5px!important;}
-  body.ux383 #globalStatsBody .recent-person-card dt{font-size:9.5px!important;margin-bottom:2px!important;}
-  body.ux383 #globalStatsBody .recent-person-card dd{font-size:12.5px!important;font-weight:700!important;}
-}
-</style>
+
+
+
+
+
 
 </head>
 <body data-report-source="excel-only">
@@ -13886,7 +13296,9 @@ function renderDetailPanel(site){
           const panel=body.querySelector('#mobileCalDetailPanel');
           body.querySelectorAll('.mgr-cal-cell.mobile-selected').forEach(x=>x.classList.remove('mobile-selected'));
           if(cell)cell.classList.add('mobile-selected');
-          if(panel&&source){panel.innerHTML=source.innerHTML;panel.classList.add('is-open');}
+          body.querySelectorAll('.mi-date-reports-btn[aria-pressed]').forEach(x=>x.setAttribute('aria-pressed','false'));
+          btn.setAttribute('aria-pressed','true');
+          if(panel&&source){panel.innerHTML=source.innerHTML;panel.classList.add('is-open');panel.focus({preventScroll:true});panel.scrollIntoView({block:'nearest',behavior:'auto'});} 
           return;
         }
         applyLogFilter(item=>item.dataset.logDate===d&&(!mgrBreakdownManagerFilter||String(item.dataset.logAuthor||'').replace(/\s*(본부장|실장|팀장|부장|차장|과장|대리|사원|주임)$/,'').trim()===String(mgrBreakdownManagerFilter).replace(/\s*(본부장|실장|팀장|부장|차장|과장|대리|사원|주임)$/,'').trim()),d+' 엑셀·입력 보고서');
@@ -16581,14 +15993,14 @@ function renderDetailPanel(site){
         const parts=[mc.상담?`상${mc.상담}`:'',mc.단순?`단${mc.단순}`:'',mc.TM?`TM${mc.TM}`:'',mc.거부?`거${mc.거부}`:'',mc.부재?`부${mc.부재}`:'',mc.불명?`불${mc.불명}`:'',mc.미분류?`미분류${mc.미분류}`:''].filter(Boolean).join(' · ');
         cells+=`<div class="mgr-cal-cell${ev.length?' has-log':''}${isToday?' is-today':''}" data-mobile-cal-date="${key}">
           <div class="mgr-cal-daynum">${d}</div>
-          ${ev.length?`<div class="mgr-cal-summary-chip"><button type="button" class="mi-date-reports-btn" data-mi-report-date="${key}" aria-label="${key} 보고서 보기">
+          ${ev.length?`<div class="mgr-cal-summary-chip"><button type="button" class="mi-date-reports-btn" data-mi-report-date="${key}" aria-controls="mobileCalDetailPanel" aria-pressed="false" aria-label="${month}월 ${d}일, 접촉 ${people}명, 담당자별 현황 보기">
             <span class="mgr-cal-summary-main">총 ${people}명${nonMemberCount?` <em class="mgr-cal-nonmember-inline">(비${nonMemberCount})</em>`:''}</span>
             ${parts?`<span class="mgr-cal-manager-mini mgr-cal-method-line">${escapeHtml(parts)}</span>`:''}
           </button><div class="cal-manager-list">${managerHtml}</div></div>
-          <div class="mobile-cal-detail-source"><div class="mobile-cal-detail-card"><div class="mobile-cal-detail-head"><div class="mobile-cal-detail-date">${month}월 ${d}일 접촉현황</div><div class="mobile-cal-detail-total">총 ${people}명${nonMemberCount?` · 비조합 ${nonMemberCount}명`:''}</div></div><div class="mobile-cal-detail-managers">${mobileManagerHtml}</div>${parts?`<div class="mobile-cal-detail-methods">${escapeHtml(parts)}</div>`:''}<button type="button" class="mobile-cal-open-reports" data-mobile-open-reports="${key}">이 날짜 접촉내역 보기 ›</button></div></div>`:''}
+          <div class="mobile-cal-detail-source"><div class="mobile-cal-detail-card"><div class="mobile-cal-detail-head"><div class="mobile-cal-detail-date">${month}월 ${d}일 접촉현황</div><div class="mobile-cal-detail-total">총 ${people}명${nonMemberCount?` · 비조합 ${nonMemberCount}명`:''}</div></div><div class="mobile-cal-detail-managers">${mobileManagerHtml}</div>${parts?`<div class="mobile-cal-detail-methods">${escapeHtml(parts)}</div>`:''}<button type="button" class="mobile-cal-open-reports" data-mobile-open-reports="${key}">이 날짜 접촉내역 보기 ›</button></div></div>`:`<button type="button" class="mi-date-reports-btn mobile-empty-day" data-mi-report-date="${key}" aria-controls="mobileCalDetailPanel" aria-pressed="false" aria-label="${month}월 ${d}일, 접촉 기록 없음"><span>—</span></button><div class="mobile-cal-detail-source"><div class="mobile-cal-detail-card"><div class="mobile-cal-detail-date">${month}월 ${d}일 접촉현황</div><p>접촉 기록이 없습니다.</p></div></div>`}
         </div>`;
       }
-      return `<p class="cal-count-guide">조합원 기준 · 같은 날 같은 사람은 1명. 담당자 간 중복 접촉으로 담당별 합은 총인원과 다를 수 있습니다.</p><div class="mgr-cal-grid">${['월','화','수','목','금','토','일'].map(x=>`<div class="mgr-cal-dayhead">${x}</div>`).join('')}${cells}</div><div id="mobileCalDetailPanel" class="mobile-cal-detail-panel"><div class="mobile-cal-detail-empty">날짜를 누르면 담당자별 접촉현황이 여기에 표시됩니다.</div></div>`;
+      return `<p class="cal-count-guide">조합원 기준 · 같은 날 같은 사람은 1명. 담당자 간 중복 접촉으로 담당별 합은 총인원과 다를 수 있습니다.</p><div class="mgr-cal-grid">${['월','화','수','목','금','토','일'].map(x=>`<div class="mgr-cal-dayhead">${x}</div>`).join('')}${cells}</div><div id="mobileCalDetailPanel" class="mobile-cal-detail-panel" role="region" aria-label="선택일 담당자별 접촉현황" aria-live="polite" tabindex="-1"><div class="mobile-cal-detail-empty">날짜를 누르면 담당자별 접촉현황이 여기에 표시됩니다.</div></div>`;
     }
 
     function buildWeekTable(){
@@ -20131,9 +19543,9 @@ ead><body>
       const text=contactText(e);
       return `<article class="recent-person-card"><header><span class="recent-person-no">${i+1}</span><strong>${escapeHtml(e.name||'성명 미입력')}</strong></header><dl>
       <div><dt>담당</dt><dd>${escapeHtml(smManagerKey(e.manager)||'-')}</dd></div>
-      <div><dt>동호수</dt><dd>${escapeHtml(e.unit||'-')}</dd></div>
+      <div class="mobile-field-wide"><dt>동호수</dt><dd>${escapeHtml(e.unit||'-')}</dd></div>
       <div><dt>직책</dt><dd>${escapeHtml(e.role||'-')}</dd></div>
-      <div><dt>접촉</dt><dd>${escapeHtml(e.method||'-')} · 누계 ${counts[miPersonKey(e)]||1}회</dd></div>
+      <div class="mobile-field-wide"><dt>접촉</dt><dd>${escapeHtml(e.method||'-')} · 누계 ${counts[miPersonKey(e)]||1}회</dd></div>
       </dl>${text?`<details class="recent-person-notes"><summary>상담내용 보기</summary><p>${escapeHtml(text)}</p></details>`:'<p class="recent-no-notes">상담내용 없음</p>'}</article>`;
     }).join('');
     return`<div class="pdf-section pdf-today-wrap"><div class="pdf-section-title"><span class="section-heading-text">⑤ ${siteMgmtPeriod==='day'?'선택일':'금일/최근'} 접촉 상세 </span><span class="sub">${escapeHtml(targetDate||'')} · ${ev.length}명</span></div><div class="pdf-today-body"><div class="recent-person-cards">${cards||'<div class="pdf-empty">접촉 기록 없음</div>'}</div><table class="pdf-table pdf-today pdf-today-table"><thead><tr><th style="width:32px">No</th><th style="width:62px">담당</th><th style="width:100px">성명</th><th style="width:78px">동호수</th><th style="width:62px">직책</th><th style="width:60px">접촉횟수</th><th style="width:48px">접촉</th><th>접촉 내용</th></tr></thead><tbody>${rows||'<tr><td colspan="8" class="pdf-empty">접촉 기록 없음</td></tr>'}</tbody></table></div></div>`;
@@ -20165,7 +19577,15 @@ ead><body>
       </table>${guestMode?'':`<div class="pdf-note-line">＊ 같은 현장에 '이름' + '이름 직급'이 함께 있으면 기존 이름으로 합산 (예: 오지현 + 오지현 차장 → 오지현)</div>${mr.unassigned?`<div class="pdf-note-line">＊ 담당 미지정 접촉 ${mr.unassigned}명 · 담당별 합계는 담당 입력된 인원만 표시</div>`:''}`}</div>`;
 
     const roleRows=roles.map((r,i)=>`<tr><td>${i+1}</td><td class="sm-drill sm-drill-link" data-drill="role_contacted" data-role="${escapeHtml(r.name)}">${escapeHtml(r.name)}</td><td ${smDrillAttr('role_total',{role:r.name})}>${r.total}</td><td ${r.contacted?smDrillAttr('role_contacted',{role:r.name}):''}>${r.contacted||'-'}</td><td ${r.uncontacted?smDrillAttr('role_uncontacted',{role:r.name}):''}>${r.uncontacted||'-'}</td><td ${r.total?smDrillAttr('role_rate',{role:r.name}):''}>${r.rate.toFixed(1)}%</td></tr>`).join('');
-    const roleTable=`<div class="pdf-section pdf-role-card"><div class="pdf-section-title"><span class="section-heading-text">② 집행부·직책별 접촉현황</span>${guestMode?'':'<button class="btn no-print" data-bf-role-edit>항목 편집</button>'}</div><table class="pdf-table pdf-role"><thead><tr><th style="width:28px">No</th><th class="left">직책</th><th>인원</th><th>접촉</th><th>미접촉</th><th>접촉률</th></tr></thead><tbody>${roleRows||'<tr><td colspan="6" class="pdf-empty">직책 집계 없음</td></tr>'}</tbody></table></div>`;
+    const mobileRoleCards=roles.map(r=>`<article class="mobile-role-card">
+      <h4>${escapeHtml(r.name)}</h4><div class="mobile-role-metrics">
+        <button type="button" ${smDrillAttr('role_total',{role:r.name})}><span>전체 인원</span><strong>${r.total}명</strong></button>
+        <button type="button" ${smDrillAttr('role_contacted',{role:r.name})}><span>접촉</span><strong>${r.contacted||0}명</strong></button>
+      </div><details><summary>미접촉 · 접촉률 보기</summary><div class="mobile-role-metrics">
+        <button type="button" ${smDrillAttr('role_uncontacted',{role:r.name})}><span>미접촉</span><strong>${r.uncontacted||0}명</strong></button>
+        <button type="button" ${smDrillAttr('role_rate',{role:r.name})}><span>접촉률</span><strong>${r.rate.toFixed(1)}%</strong></button>
+      </div></details></article>`).join('');
+    const roleTable=`<div class="pdf-section pdf-role-card"><div class="pdf-section-title"><span class="section-heading-text">② 집행부·직책별 접촉현황</span>${guestMode?'':'<button class="btn no-print" data-bf-role-edit>항목 편집</button>'}</div><div class="mobile-role-cards">${mobileRoleCards||'<div class="pdf-empty">직책 집계 없음</div>'}</div><table class="pdf-table pdf-role"><thead><tr><th style="width:28px">No</th><th class="left">직책</th><th>인원</th><th>접촉</th><th>미접촉</th><th>접촉률</th></tr></thead><tbody>${roleRows||'<tr><td colspan="6" class="pdf-empty">직책 집계 없음</td></tr>'}</tbody></table></div>`;
 
     const source=x.source==='excel-master'
       ? `Excel 원장 기준 · ${escapeHtml(String(x.syncedAt||'').replace('T',' ').slice(0,16))}${x.importInfo ? '<br>'+escapeHtml(x.importInfo.fileName+' › '+x.importInfo.sheetName+' · '+(x.importInfo.scope==='members'?'조합원 표시 1':'명부 전체')+' · 금일 기준 '+x.importInfo.asOfDate+' · 확인 필요 '+(x.importInfo.unresolved||[]).length+'건') : ''}`
@@ -21863,37 +21283,7 @@ body.ux383 .cal-manager-more summary{font-size:9px!important;min-height:24px}
 }
 </style>
 
-<style id="mobileRecentPersonCards">
-.recent-person-cards{display:none}
-@media screen and (max-width:820px){
- body.ux383 #globalStatsBody .pdf-today-wrap{height:auto!important;max-height:none!important;min-height:0!important;overflow:hidden!important;display:block!important}
- body.ux383 #globalStatsBody .pdf-today-wrap>.pdf-section-title{
- height:auto!important;max-height:none!important;min-height:0!important;
- flex:none!important;overflow:visible!important;padding-bottom:12px!important;
- grid-template-rows:auto auto!important;row-gap:5px!important;
- }
- body.ux383 #globalStatsBody .pdf-today-wrap>.pdf-section-title>.sub{
- position:static!important;display:block!important;line-height:1.5!important;
- height:auto!important;max-height:none!important;
- }
- body.ux383 #globalStatsBody .pdf-today-body{height:auto!important;max-height:none!important;min-height:0!important;overflow:visible!important}
- body.ux383 #globalStatsBody .pdf-today-table{display:none!important}
- body.ux383 #globalStatsBody .recent-person-cards{display:grid!important;gap:8px;padding:10px;min-width:0}
- body.ux383 .recent-person-card{border:1px solid var(--line);border-radius:9px;background:var(--bg-side);padding:12px;min-width:0;box-sizing:border-box}
- body.ux383 .recent-person-card header{display:flex;align-items:baseline;gap:7px;margin:0 0 10px;padding:0;min-width:0}
- body.ux383 .recent-person-card header strong{font-size:14px;line-height:1.55;white-space:normal;word-break:keep-all;overflow-wrap:anywhere;min-width:0}
- body.ux383 .recent-person-no{font-size:11px;color:var(--text-dim);flex:none}
- body.ux383 .recent-person-card dl{display:grid;grid-template-columns:1fr;gap:7px;margin:0}
- body.ux383 .recent-person-card dl>div{display:grid;grid-template-columns:48px minmax(0,1fr);gap:8px;align-items:baseline}
- body.ux383 .recent-person-card dt{font-size:11px;color:var(--text-dim);line-height:1.5}
- body.ux383 .recent-person-card dd{margin:0;font-size:13px;line-height:1.5;white-space:normal;overflow-wrap:anywhere}
- body.ux383 .recent-person-notes{border-top:1px solid var(--line);margin-top:10px;padding-top:4px}
- body.ux383 .recent-person-notes summary{padding:8px 0;font-size:12px;line-height:1.5;color:var(--accent);cursor:pointer}
- body.ux383 .recent-person-notes p{margin:4px 0;font-size:13px;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere}
- body.ux383 .recent-no-notes{font-size:11px;color:var(--text-dim);margin:10px 0 0}
-}
-@media print{.recent-person-cards{display:none!important}}
-</style>
+
 
 <style id="desktopRecentContactTableFix">
 /* M20: desktop ⑤ contact table — prevent long names from spilling into adjacent columns. */
@@ -22026,72 +21416,10 @@ body.ux383 .cal-manager-more summary{font-size:9px!important;min-height:24px}
 }
 </style>
 
-<style id="mobileGuestDetailRefineV4">
-@media screen and (max-width:820px){
-  body.sooni-guest-view #globalStatsBody .pdf-source,
-  body.guest-readonly #globalStatsBody .pdf-source,
-  body.guest-mode #globalStatsBody .pdf-source{display:none!important;}
-
-  body.ux383 #globalStatsBody .pdf-role-card{overflow-x:hidden!important;overflow-y:visible!important;}
-  body.ux383 #globalStatsBody .pdf-role{width:100%!important;min-width:0!important;table-layout:fixed!important;}
-  body.ux383 #globalStatsBody .pdf-role th,
-  body.ux383 #globalStatsBody .pdf-role td{font-size:11px!important;line-height:1.3!important;padding:6px 2px!important;white-space:normal!important;overflow-wrap:anywhere!important;}
-  body.ux383 #globalStatsBody .pdf-role th:nth-child(1),body.ux383 #globalStatsBody .pdf-role td:nth-child(1){width:8%!important;}
-  body.ux383 #globalStatsBody .pdf-role th:nth-child(2),body.ux383 #globalStatsBody .pdf-role td:nth-child(2){width:30%!important;}
-  body.ux383 #globalStatsBody .pdf-role th:nth-child(3),body.ux383 #globalStatsBody .pdf-role td:nth-child(3){width:13%!important;}
-  body.ux383 #globalStatsBody .pdf-role th:nth-child(4),body.ux383 #globalStatsBody .pdf-role td:nth-child(4){width:13%!important;}
-  body.ux383 #globalStatsBody .pdf-role th:nth-child(5),body.ux383 #globalStatsBody .pdf-role td:nth-child(5){width:17%!important;}
-  body.ux383 #globalStatsBody .pdf-role th:nth-child(6),body.ux383 #globalStatsBody .pdf-role td:nth-child(6){width:19%!important;}
-
-  body.ux383 #globalStatsBody .recent-person-cards{gap:7px!important;padding:9px!important;}
-  body.ux383 #globalStatsBody .recent-person-card{padding:10px!important;}
-  body.ux383 #globalStatsBody .recent-person-card header{margin-bottom:8px!important;}
-  body.ux383 #globalStatsBody .recent-person-card dl{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:7px 12px!important;margin:0!important;}
-  body.ux383 #globalStatsBody .recent-person-card dl>div{display:grid!important;grid-template-columns:36px minmax(0,1fr)!important;gap:6px!important;align-items:baseline!important;min-width:0!important;}
-  body.ux383 #globalStatsBody .recent-person-card dt{font-size:10.5px!important;line-height:1.35!important;white-space:nowrap!important;}
-  body.ux383 #globalStatsBody .recent-person-card dd{font-size:12.5px!important;line-height:1.35!important;min-width:0!important;white-space:normal!important;overflow-wrap:anywhere!important;}
-}
-</style>
 
 
-<style id="mobile-admin-finish-v11">
-@media screen and (max-width:820px){
-  body.ux383:not(.guest-readonly):not(.sooni-guest-view) .bf-entry-topline > p{
-    display:-webkit-box!important;-webkit-box-orient:vertical!important;-webkit-line-clamp:3!important;
-    overflow:hidden!important;max-height:calc(1.65em * 3)!important;margin-bottom:3px!important;
-  }
-  body.ux383:not(.guest-readonly):not(.sooni-guest-view) .bf-entry.mobile-brief-expanded .bf-entry-topline > p{
-    display:block!important;max-height:none!important;overflow:visible!important;
-  }
-  body.ux383:not(.guest-readonly):not(.sooni-guest-view) .mobile-brief-toggle{
-    appearance:none!important;border:0!important;background:transparent!important;color:var(--accent)!important;
-    font:inherit!important;font-size:11px!important;font-weight:800!important;padding:2px 0 5px!important;cursor:pointer!important;
-  }
 
-  body.ux383:not(.guest-readonly):not(.sooni-guest-view) .rf-nonmember.mobile-nonmember-collapsed > :not(h3):not(.mobile-nonmember-toggle){display:none!important;}
-  body.ux383:not(.guest-readonly):not(.sooni-guest-view) .rf-nonmember .mobile-nonmember-toggle{
-    width:100%!important;min-height:38px!important;display:flex!important;align-items:center!important;justify-content:space-between!important;
-    gap:8px!important;margin:4px 0 0!important;padding:8px 10px!important;border:1px solid var(--line)!important;border-radius:10px!important;
-    background:var(--bg-side)!important;color:var(--text-main)!important;font-size:12px!important;font-weight:750!important;text-align:left!important;
-  }
-  body.ux383:not(.guest-readonly):not(.sooni-guest-view) .rf-nonmember:not(.mobile-nonmember-collapsed) .mobile-nonmember-toggle{margin-bottom:8px!important;}
 
-  body.ux383:not(.guest-readonly):not(.sooni-guest-view) .report-timeline .report-log-card,
-  body.ux383:not(.guest-readonly):not(.sooni-guest-view) .mi-excel-report.report-log-card{padding:9px 10px!important;margin-bottom:8px!important;}
-  body.ux383:not(.guest-readonly):not(.sooni-guest-view) .mobile-detail-grid{gap:5px 10px!important;margin-top:5px!important;}
-  body.ux383:not(.guest-readonly):not(.sooni-guest-view) .mobile-detail-field{padding-bottom:6px!important;}
-  body.ux383:not(.guest-readonly):not(.sooni-guest-view) .mobile-detail-note{margin-top:6px!important;}
-
-  body.ux383:not(.guest-readonly):not(.sooni-guest-view) .detail-quad-grid{grid-auto-rows:auto!important;align-items:start!important;}
-  body.ux383:not(.guest-readonly):not(.sooni-guest-view) .detail-quad-box{
-    height:auto!important;min-height:0!important;max-height:none!important;align-self:start!important;overflow:visible!important;
-  }
-  body.ux383:not(.guest-readonly):not(.sooni-guest-view) .detail-quad-box .spec-lines-2col,
-  body.ux383:not(.guest-readonly):not(.sooni-guest-view) .detail-quad-box .spec-stage-detail{
-    height:auto!important;min-height:0!important;max-height:none!important;overflow:visible!important;
-  }
-}
-</style>
 <script id="mobile-admin-finish-v11-script">
 (function(){
   function isAdminMobile(){
@@ -22136,6 +21464,284 @@ body.ux383 .cal-manager-more summary{font-size:9px!important;min-height:24px}
 })();
 </script>
 
+<style id="mobile-ui-v14">
+/* Consolidated mobile typography, touch, contact and calendar modules. */
+.mobile-cal-detail-source,.mobile-cal-detail-panel{display:none;}
+@media (max-width:820px){.mgr-breakdown-wrap .mgr-filter-row{display:flex!important;flex-wrap:nowrap!important;overflow-x:auto!important;gap:7px!important;padding:9px 12px!important;margin:0!important;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+.mgr-breakdown-wrap .mgr-filter-row::-webkit-scrollbar{display:none;}
+.mgr-breakdown-wrap .mgr-filter-label{flex:0 0 auto!important;font-size:11px!important;}
+.mgr-breakdown-wrap .mgr-filter-chip{flex:0 0 auto!important;padding:7px 12px!important;border-radius:11px!important;font-size:10.5px!important;}
+.mgr-breakdown-wrap .mgr-filter-clear{flex:0 0 auto!important;}
+.mgr-breakdown-wrap .mgr-filter-row > span[style*="font-size:8.5px"]{display:none!important;}
+.mgr-breakdown-wrap .mgr-subtabs{display:grid!important;grid-template-columns:repeat(4,1fr)!important;gap:0!important;margin:0!important;padding:0 12px!important;}
+.mgr-breakdown-wrap .mgr-subtab{text-align:center!important;padding:10px 2px!important;font-size:10px!important;}
+.mgr-breakdown-wrap .mgr-nav-row{display:grid!important;grid-template-columns:38px 1fr 38px 52px!important;align-items:center!important;gap:7px!important;padding:10px 12px 8px!important;margin:0!important;}
+.mgr-breakdown-wrap .mgr-nav-btn{width:38px!important;height:36px!important;border-radius:10px!important;font-size:13px!important;}
+.mgr-breakdown-wrap .mgr-nav-label{font-size:15px!important;font-weight:850!important;color:var(--text-main)!important;}
+.mgr-breakdown-wrap .mgr-nav-today-btn{grid-column:auto!important;height:36px!important;padding:0!important;border-radius:10px!important;font-size:10.5px!important;}
+.mgr-breakdown-wrap .mgr-subtab-body{padding:0 10px 14px!important;}
+.mgr-breakdown-wrap .cal-count-guide{display:none!important;}
+.mgr-breakdown-wrap .mgr-cal-grid{gap:4px!important;width:100%!important;grid-template-columns:repeat(7,minmax(0,1fr))!important;}
+.mgr-breakdown-wrap .mgr-cal-dayhead{height:26px!important;font-size:10px!important;font-weight:750!important;opacity:.88;}
+.mgr-breakdown-wrap .mgr-cal-cell,
+  .mgr-breakdown-wrap .mgr-cal-cell.mgr-cal-empty{min-height:64px!important;height:64px!important;padding:5px 4px!important;border-radius:9px!important;overflow:hidden!important;}
+.mgr-breakdown-wrap .mgr-cal-cell.mgr-cal-empty{border:0!important;background:transparent!important;opacity:1!important;}
+.mgr-breakdown-wrap .mgr-cal-cell.has-log{background:color-mix(in srgb,var(--accent-soft) 28%,var(--card))!important;border-color:color-mix(in srgb,var(--accent) 28%,var(--line))!important;}
+.mgr-breakdown-wrap .mgr-cal-cell.has-log::before{width:2px!important;opacity:.55!important;}
+.mgr-breakdown-wrap .mgr-cal-daynum{display:flex!important;align-items:center!important;justify-content:flex-start!important;width:auto!important;height:19px!important;margin:0!important;padding:0!important;font-size:11px!important;font-weight:800!important;color:var(--text-main)!important;text-decoration:none!important;}
+.mgr-breakdown-wrap .mgr-cal-cell.is-today .mgr-cal-daynum{display:inline-flex!important;justify-content:center!important;width:23px!important;height:23px!important;border-radius:50%!important;background:var(--accent)!important;color:var(--accent-ink)!important;}
+.mgr-breakdown-wrap .mgr-cal-summary-chip{margin-top:3px!important;}
+.mgr-breakdown-wrap .mi-date-reports-btn{display:flex!important;align-items:center!important;justify-content:flex-start!important;width:100%!important;min-height:28px!important;padding:0!important;border:0!important;background:transparent!important;text-align:left!important;}
+.mgr-breakdown-wrap .mgr-cal-summary-main{display:block!important;width:100%!important;font-size:10.5px!important;font-weight:850!important;color:var(--accent)!important;white-space:nowrap!important;}
+.mgr-breakdown-wrap .mgr-cal-nonmember-inline{font-size:8px!important;opacity:.8;}
+.mgr-breakdown-wrap .mgr-cal-method-line,
+  .mgr-breakdown-wrap .cal-manager-list{display:none!important;}
+.mgr-breakdown-wrap .mgr-cal-cell.mobile-selected{box-shadow:inset 0 0 0 1.5px var(--accent)!important;background:color-mix(in srgb,var(--accent-soft) 48%,var(--card))!important;}
+.mobile-cal-detail-source{display:none!important;}
+.mobile-cal-detail-panel{display:block!important;margin:10px 0 0!important;}
+.mobile-cal-detail-empty{border:1px dashed var(--line);border-radius:12px;padding:13px 12px;text-align:center;color:var(--text-dim);font-size:10px;}
+.mobile-cal-detail-card{border:1px solid color-mix(in srgb,var(--accent) 28%,var(--line));background:linear-gradient(180deg,color-mix(in srgb,var(--accent-soft) 24%,var(--card)),var(--card));border-radius:14px;padding:13px 13px 11px;box-shadow:var(--shadow-xs);}
+.mobile-cal-detail-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px;}
+.mobile-cal-detail-date{font-size:13px;font-weight:850;color:var(--text-main);}
+.mobile-cal-detail-total{font-size:11px;font-weight:800;color:var(--accent);white-space:nowrap;}
+.mobile-cal-detail-managers{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:9px;}
+.mobile-cal-detail-manager{display:flex;justify-content:space-between;gap:8px;padding:7px 9px;border-radius:9px;background:color-mix(in srgb,var(--bg-main) 70%,transparent);border:1px solid var(--line);font-size:10px;color:var(--text-main);}
+.mobile-cal-detail-manager b{color:var(--accent);font-weight:850;}
+.mobile-cal-detail-methods{font-size:9.5px;color:var(--text-dim);padding:7px 0 3px;border-top:1px solid var(--line);}
+.mobile-cal-open-reports{width:100%;margin-top:8px;padding:9px 10px;border-radius:9px;border:1px solid var(--line);background:var(--bg-main);color:var(--text-main);font-size:10.5px;font-weight:750;cursor:pointer;}}
+@media (max-width:820px){.mgr-breakdown-wrap .mgr-report-source.excel-first{display:none!important;}
+.mobile-cal-detail-panel{padding:10px 0 0!important;}
+.mobile-cal-detail-card{width:calc(100% - 22px)!important;max-width:520px!important;margin:0 auto!important;padding:11px 12px!important;border-radius:14px!important;box-sizing:border-box!important;}
+.mobile-cal-detail-head{gap:8px!important;margin-bottom:8px!important;}
+.mobile-cal-detail-date{font-size:14px!important;line-height:1.2!important;}
+.mobile-cal-detail-total{font-size:12px!important;line-height:1.2!important;}
+.mobile-cal-detail-managers{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:6px!important;margin-bottom:8px!important;}
+.mobile-cal-detail-manager{padding:7px 9px!important;border-radius:10px!important;font-size:12px!important;}
+.mobile-cal-detail-methods{font-size:10.5px!important;padding:7px 0 3px!important;}
+.mobile-cal-open-reports{min-height:40px!important;padding:9px 10px!important;font-size:13px!important;border-radius:11px!important;}
+.desktop-detail-fields{display:none!important;}
+.mobile-detail-fields{display:block!important;}
+.mobile-detail-grid{display:grid!important;gap:8px 12px!important;margin:8px 0 0!important;align-items:stretch!important;}
+.mobile-detail-grid.row2{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+.mobile-detail-grid.row2b{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+.mobile-detail-grid.rowContact{grid-template-columns:minmax(0,1fr)!important;}
+.mobile-detail-field{min-width:0!important;padding:0 2px 8px!important;border:none!important;border-bottom:1px solid var(--line)!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;display:flex!important;flex-direction:column!important;justify-content:flex-start!important;gap:2px!important;}
+.mobile-detail-field b{display:block!important;margin:0!important;font-size:10px!important;line-height:1.1!important;letter-spacing:-.01em!important;color:var(--text-dim)!important;font-weight:800!important;}
+.mobile-detail-field span{display:block!important;font-size:13px!important;line-height:1.28!important;color:var(--text-main)!important;font-weight:800!important;word-break:keep-all!important;overflow-wrap:anywhere!important;}
+.mobile-detail-grid.row2b .mobile-detail-field span{font-size:12.5px!important;}
+.mobile-detail-grid.rowContact .mobile-detail-field span{font-size:12.5px!important;}
+.mobile-detail-note{margin-top:8px!important;padding-top:4px!important;border-top:1px solid var(--line)!important;}
+.mobile-detail-note>summary{cursor:pointer!important;list-style:none!important;font-size:13px!important;font-weight:800!important;color:var(--accent)!important;padding:6px 0!important;}
+.mobile-detail-note>summary::-webkit-details-marker{display:none!important;}
+.mobile-detail-note-body{margin-top:3px!important;padding:9px 10px!important;border:1px solid var(--line)!important;border-radius:12px!important;background:var(--bg-card)!important;font-size:12.5px!important;line-height:1.5!important;white-space:pre-wrap!important;overflow-wrap:anywhere!important;}
+.mobile-detail-meta{display:flex!important;flex-direction:column!important;gap:3px!important;margin-top:8px!important;padding-top:6px!important;border-top:1px dashed var(--line)!important;font-size:10.5px!important;color:var(--text-dim)!important;}
+.mobile-detail-meta b{color:var(--text-main)!important;}
+body.guest-mode .mobile-cal-detail-empty{display:none!important;}
+body.guest-mode .rf-nonmember>p{display:none!important;}
+body.guest-mode .report-brief .bf-head .bf-badges,
+  body.guest-mode .report-brief .bf-section h3 .bf-badge,
+  body.guest-mode .report-brief .bf-entry .bf-quality,
+  body.guest-mode .report-brief .bf-entry .bf-entry-context,
+  body.guest-mode .report-brief .bf-entry details,
+  body.guest-mode .report-brief > .bf-meta:last-child{display:none!important;}
+.mi-excel-report .mi-report-source{margin-top:6px!important;font-size:10.5px!important;}}
+@media (min-width:821px){.desktop-detail-fields{display:block!important;}
+.mobile-detail-fields{display:none!important;}}
+@media screen and (max-width:820px){body.ux383:not(.guest-mode) .mi-report-source{display:none!important;}
+body.ux383:not(.guest-mode) .rf-nonmember>p{display:none!important;}
+body.ux383:not(.guest-mode) .report-brief>.bf-meta:last-child{display:none!important;}
+body.ux383:not(.guest-mode) .report-brief .bf-badges,
+  body.ux383:not(.guest-mode) .report-brief .bf-section h3 .bf-badge,
+  body.ux383:not(.guest-mode) .report-brief .bf-entry .bf-quality{display:none!important;}
+body.ux383:not(.guest-mode) .detail-quad-box{border-radius:9px!important;}
+body.ux383:not(.guest-mode) .detail-quad-box .spec-heading{font-size:13px!important;padding:8px 11px!important;margin-bottom:0!important;}
+body.ux383:not(.guest-mode) .detail-quad-box .spec-lines-2col{padding:2px 10px 6px!important;gap:0!important;}
+body.ux383:not(.guest-mode) .detail-quad-box .spec-line{min-height:28px!important;padding:4px 0 4px 14px!important;font-size:12px!important;line-height:1.35!important;gap:4px!important;}
+body.ux383:not(.guest-mode) .detail-quad-box .spec-stage-detail{padding:8px 11px 10px!important;font-size:12.5px!important;line-height:1.5!important;}
+body.ux383:not(.guest-mode) .detail-quad-box .num-value{font-size:14px!important;}}
+@media screen and (max-width:820px){body.ux383 #globalStatsOverlay{z-index:2147482600!important;}
+body.ux383 #globalStatsModalBox .sm-head{min-height:0!important;align-items:center!important;}
+body.ux383 #globalStatsModalBox .sm-head h3{margin:0!important;padding:0!important;overflow:visible!important;text-overflow:clip!important;align-self:center!important;}
+body.ux383 #siteMgmtPeriodLabel{width:100%!important;min-width:0!important;padding:0!important;margin:0!important;text-overflow:ellipsis!important;color:var(--text-dim)!important;}
+body.ux383 #globalStatsCloseBtn{width:100%!important;height:34px!important;min-width:0!important;padding:0!important;}
+body.ux383 #globalStatsOfficeFilter{grid-column:1 / 3!important;grid-row:2!important;}
+body.ux383 #siteMgmtSiteSelect{min-width:0!important;width:100%!important;max-width:100%!important;}
+body.ux383 #globalStatsRefreshBtn{height:36px!important;}
+body.ux383 #globalStatsModalBox .sm-spacer{display:none!important;}
+body.ux383 #globalStatsModalBox .sm-select,
+  body.ux383 #globalStatsModalBox .sm-btn{min-width:0!important;max-width:100%!important;height:36px!important;font-size:10px!important;padding:4px 6px!important;}
+body.ux383 #globalStatsBody .pdf-titlebar{min-height:40px!important;padding:0 10px!important;font-size:13px!important;border-radius:9px!important;}
+body.ux383 #globalStatsBody .pdf-titlebar small{display:none!important;}
+body.ux383 #globalStatsBody .pdf-summary{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:5px!important;width:100%!important;margin:7px 0 9px!important;}
+body.ux383 #globalStatsBody .pdf-summary-cell{min-width:0!important;border-radius:8px!important;display:flex!important;flex-direction:column!important;justify-content:center!important;align-items:flex-start!important;}
+body.ux383 #globalStatsBody .pdf-summary-cell:before{width:26px!important;height:3px!important;margin-bottom:4px!important;}
+body.ux383 #globalStatsBody .pdf-summary-cell .n{margin-top:3px!important;}}
+.recent-person-cards{display:none;}
+@media screen and (max-width:820px){body.ux383 #globalStatsBody .pdf-today-wrap{height:auto!important;max-height:none!important;min-height:0!important;overflow:hidden!important;display:block!important;}
+body.ux383 #globalStatsBody .pdf-today-wrap>.pdf-section-title{height:auto!important;max-height:none!important;min-height:0!important;flex:none!important;overflow:visible!important;padding-bottom:12px!important;grid-template-rows:auto auto!important;row-gap:5px!important;}
+body.ux383 #globalStatsBody .pdf-today-wrap>.pdf-section-title>.sub{position:static!important;display:block!important;line-height:1.5!important;height:auto!important;max-height:none!important;}
+body.ux383 #globalStatsBody .pdf-today-body{height:auto!important;max-height:none!important;min-height:0!important;overflow:visible!important;}
+body.ux383 #globalStatsBody .pdf-today-table{display:none!important;}
+body.ux383 #globalStatsBody .recent-person-cards{display:grid!important;gap:8px;padding:10px;min-width:0;}
+body.ux383 .recent-person-card{border:1px solid var(--line);border-radius:9px;background:var(--bg-side);padding:12px;min-width:0;box-sizing:border-box;}
+body.ux383 .recent-person-card header{display:flex;align-items:baseline;gap:7px;margin:0 0 10px;padding:0;min-width:0;}
+body.ux383 .recent-person-card header strong{font-size:14px;line-height:1.55;white-space:normal;word-break:keep-all;overflow-wrap:anywhere;min-width:0;}
+body.ux383 .recent-person-no{font-size:11px;color:var(--text-dim);flex:none;}
+body.ux383 .recent-person-card dl{display:grid;grid-template-columns:1fr;gap:7px;margin:0;}
+body.ux383 .recent-person-card dl>div{display:grid;grid-template-columns:48px minmax(0,1fr);gap:8px;align-items:baseline;}
+body.ux383 .recent-person-card dt{font-size:11px;color:var(--text-dim);line-height:1.5;}
+body.ux383 .recent-person-card dd{margin:0;font-size:13px;line-height:1.5;white-space:normal;overflow-wrap:anywhere;}
+body.ux383 .recent-person-notes{border-top:1px solid var(--line);margin-top:10px;padding-top:4px;}
+body.ux383 .recent-person-notes summary{padding:8px 0;font-size:12px;line-height:1.5;color:var(--accent);cursor:pointer;}
+body.ux383 .recent-person-notes p{margin:4px 0;font-size:13px;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere;}
+body.ux383 .recent-no-notes{font-size:11px;color:var(--text-dim);margin:10px 0 0;}}
+@media print{.recent-person-cards{display:none!important;}}
+@media screen and (max-width:820px){body.sooni-guest-view #globalStatsBody .pdf-source,
+  body.guest-readonly #globalStatsBody .pdf-source,
+  body.guest-mode #globalStatsBody .pdf-source{display:none!important;}
+body.ux383 #globalStatsBody .pdf-role-card{overflow-x:hidden!important;overflow-y:visible!important;}
+body.ux383 #globalStatsBody .pdf-role{width:100%!important;min-width:0!important;table-layout:fixed!important;}
+body.ux383 #globalStatsBody .pdf-role th,
+  body.ux383 #globalStatsBody .pdf-role td{font-size:11px!important;line-height:1.3!important;padding:6px 2px!important;white-space:normal!important;overflow-wrap:anywhere!important;}
+body.ux383 #globalStatsBody .pdf-role th:nth-child(1),body.ux383 #globalStatsBody .pdf-role td:nth-child(1){width:8%!important;}
+body.ux383 #globalStatsBody .pdf-role th:nth-child(2),body.ux383 #globalStatsBody .pdf-role td:nth-child(2){width:30%!important;}
+body.ux383 #globalStatsBody .pdf-role th:nth-child(3),body.ux383 #globalStatsBody .pdf-role td:nth-child(3){width:13%!important;}
+body.ux383 #globalStatsBody .pdf-role th:nth-child(4),body.ux383 #globalStatsBody .pdf-role td:nth-child(4){width:13%!important;}
+body.ux383 #globalStatsBody .pdf-role th:nth-child(5),body.ux383 #globalStatsBody .pdf-role td:nth-child(5){width:17%!important;}
+body.ux383 #globalStatsBody .pdf-role th:nth-child(6),body.ux383 #globalStatsBody .pdf-role td:nth-child(6){width:19%!important;}
+body.ux383 #globalStatsBody .recent-person-cards{gap:7px!important;padding:9px!important;}
+body.ux383 #globalStatsBody .recent-person-card header{margin-bottom:8px!important;}
+body.ux383 #globalStatsBody .recent-person-card dl{display:grid!important;margin:0!important;}
+body.ux383 #globalStatsBody .recent-person-card dl>div{grid-template-columns:36px minmax(0,1fr)!important;gap:6px!important;align-items:baseline!important;}
+body.ux383 #globalStatsBody .recent-person-card dt{white-space:nowrap!important;}
+body.ux383 #globalStatsBody .recent-person-card dd{min-width:0!important;white-space:normal!important;}}
+@media screen and (max-width:820px){body.ux383:not(.guest-readonly):not(.sooni-guest-view) .bf-entry-topline > p{display:-webkit-box!important;-webkit-box-orient:vertical!important;-webkit-line-clamp:3!important;overflow:hidden!important;max-height:calc(1.65em * 3)!important;margin-bottom:3px!important;}
+body.ux383:not(.guest-readonly):not(.sooni-guest-view) .bf-entry.mobile-brief-expanded .bf-entry-topline > p{display:block!important;max-height:none!important;overflow:visible!important;}
+body.ux383:not(.guest-readonly):not(.sooni-guest-view) .mobile-brief-toggle{appearance:none!important;border:0!important;background:transparent!important;color:var(--accent)!important;font:inherit!important;font-size:11px!important;font-weight:800!important;padding:2px 0 5px!important;cursor:pointer!important;}
+body.ux383:not(.guest-readonly):not(.sooni-guest-view) .rf-nonmember.mobile-nonmember-collapsed > :not(h3):not(.mobile-nonmember-toggle){display:none!important;}
+body.ux383:not(.guest-readonly):not(.sooni-guest-view) .rf-nonmember .mobile-nonmember-toggle{width:100%!important;min-height:38px!important;display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important;margin:4px 0 0!important;padding:8px 10px!important;border:1px solid var(--line)!important;border-radius:10px!important;background:var(--bg-side)!important;color:var(--text-main)!important;font-size:12px!important;font-weight:750!important;text-align:left!important;}
+body.ux383:not(.guest-readonly):not(.sooni-guest-view) .rf-nonmember:not(.mobile-nonmember-collapsed) .mobile-nonmember-toggle{margin-bottom:8px!important;}
+body.ux383:not(.guest-readonly):not(.sooni-guest-view) .report-timeline .report-log-card,
+  body.ux383:not(.guest-readonly):not(.sooni-guest-view) .mi-excel-report.report-log-card{padding:9px 10px!important;margin-bottom:8px!important;}
+body.ux383:not(.guest-readonly):not(.sooni-guest-view) .mobile-detail-grid{gap:5px 10px!important;margin-top:5px!important;}
+body.ux383:not(.guest-readonly):not(.sooni-guest-view) .mobile-detail-field{padding-bottom:6px!important;}
+body.ux383:not(.guest-readonly):not(.sooni-guest-view) .mobile-detail-note{margin-top:6px!important;}
+body.ux383:not(.guest-readonly):not(.sooni-guest-view) .detail-quad-grid{grid-auto-rows:auto!important;align-items:start!important;}
+body.ux383:not(.guest-readonly):not(.sooni-guest-view) .detail-quad-box{height:auto!important;min-height:0!important;max-height:none!important;align-self:start!important;overflow:visible!important;}
+body.ux383:not(.guest-readonly):not(.sooni-guest-view) .detail-quad-box .spec-lines-2col,
+  body.ux383:not(.guest-readonly):not(.sooni-guest-view) .detail-quad-box .spec-stage-detail{height:auto!important;min-height:0!important;max-height:none!important;overflow:visible!important;}}
+.mobile-role-cards,.mobile-empty-day{display:none;}
+@media screen and (min-width:821px){.mgr-breakdown-wrap .mi-date-reports-btn.mobile-empty-day{display:none!important;}}
+@media screen and (max-width:820px){body.ux383{--mobile-body:14px;--mobile-caption:12px;--mobile-touch:44px;}
+body.ux383 .topbar{grid-template-columns:minmax(0,1fr) auto auto!important;gap:6px!important;}
+body.ux383 .topbar #topbarMenuBtn,body.ux383 #syncStatus button.sync-pill,
+ body.ux383 .topbar #uxGlobalSearch,body.ux383 .view-switch-bar .view-switch-btn,
+ body.ux383 #tabs .tab,body.ux383 #uxQuickSites button,
+ body.ux383 .detail-head-actions .btn,body.ux383 .mgr-filter-chip,
+ body.ux383 .mgr-subtab,body.ux383 .mobile-nonmember-toggle,
+ body.ux383 .mobile-brief-toggle,body.ux383 #globalStatsBody .pdf-section-title>.btn{min-height:var(--mobile-touch)!important;height:auto!important;max-height:none!important;font-size:var(--mobile-caption)!important;line-height:1.4!important;padding:8px!important;}
+body.ux383 .topbar .search-box,body.ux383 .topbar #uxGlobalSearch{height:44px!important;min-height:44px!important;}
+body.ux383 .topbar .search-box input{font-size:16px!important;}
+body.ux383 #uxQuickSites{height:auto!important;min-height:48px!important;flex-wrap:wrap!important;}
+body.ux383 #uxQuickSites span{font-size:12px!important;}
+body.ux383 #masterList .name-item{height:auto!important;min-height:48px!important;max-height:none!important;}
+body.ux383 #masterList .ux-star{width:44px!important;min-width:44px!important;height:44px!important;min-height:44px!important;}
+body.ux383:not(.ux-mobile-detail) #masterList{height:156px!important;max-height:156px!important;}
+body.ux383 .detail-quad-box .spec-line,body.ux383 .detail-quad-box .spec-stage-detail,
+ body.ux383 .report-brief .bf-entry-topline>p,body.ux383 .report-site-note-view{font-size:14px!important;line-height:1.6!important;}
+body.ux383 .detail-quad-box .spec-label,body.ux383 .mobile-detail-meta,
+ body.ux383 .mobile-detail-field b{font-size:12px!important;line-height:1.5!important;}
+body.ux383 .detail-quad-box .spec-heading{font-size:14px!important;}
+body.ux383:not(.guest-mode) .detail-quad-box .spec-line,
+ body.ux383:not(.guest-mode) .detail-quad-box .spec-stage-detail{font-size:14px!important;line-height:1.6!important;}
+body.ux383:not(.guest-mode) .detail-quad-box .spec-label{font-size:12px!important;}
+body.ux383:not(.guest-readonly):not(.sooni-guest-view) .mobile-brief-toggle,
+ body.ux383:not(.guest-readonly):not(.sooni-guest-view) .rf-nonmember .mobile-nonmember-toggle{min-height:44px!important;font-size:12px!important;padding:10px 4px!important;}
+body.ux383 input,body.ux383 select,body.ux383 textarea{font-size:16px!important;}
+body.ux383 button:focus-visible,body.ux383 summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+body.ux383 #globalStatsOverlay{padding:6px!important;}
+body.ux383 #globalStatsModalBox{display:flex!important;flex-direction:column!important;height:calc(100dvh - 12px)!important;max-height:calc(100dvh - 12px)!important;min-height:0!important;}
+body.ux383 #globalStatsModalBox .sm-head{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr)) 44px 44px!important;grid-template-rows:minmax(44px,auto) auto 44px 44px!important;gap:6px!important;padding:8px!important;flex:0 0 auto!important;height:auto!important;max-height:none!important;}
+body.ux383 #globalStatsModalBox .sm-head h3{grid-column:1/6!important;grid-row:1!important;font-size:15px!important;white-space:normal!important;line-height:1.4!important;}
+body.ux383 #siteMgmtPeriodLabel{grid-column:1/-1!important;grid-row:2!important;text-align:left!important;font-size:12px!important;white-space:normal!important;overflow:visible!important;line-height:1.5!important;}
+body.ux383 #globalStatsCloseBtn{grid-column:6!important;grid-row:1!important;}
+body.ux383 #globalStatsOfficeFilter{display:none!important;}
+body.ux383 #siteMgmtSiteSelect{grid-column:1/6!important;grid-row:3!important;font-size:16px!important;}
+body.ux383 #globalStatsRefreshBtn{grid-column:6!important;grid-row:3!important;font-size:0!important;width:44px!important;min-width:44px!important;padding:0!important;}
+body.ux383 #globalStatsRefreshBtn::before{content:'↻';font-size:20px!important;}
+body.ux383 #siteMgmtAllBtn{grid-column:1!important;grid-row:4!important;}
+body.ux383 #siteMgmtMonthBtn{grid-column:2!important;grid-row:4!important;}
+body.ux383 #siteMgmtWeekBtn{grid-column:3!important;grid-row:4!important;}
+body.ux383 #siteMgmtDayBtn{grid-column:4!important;grid-row:4!important;}
+body.ux383 #siteMgmtPrevBtn{grid-column:5!important;grid-row:4!important;}
+body.ux383 #siteMgmtNextBtn{grid-column:6!important;grid-row:4!important;}
+body.ux383 #globalStatsModalBox .sm-head .sm-btn,body.ux383 #globalStatsModalBox .sm-head .sm-select,
+ body.ux383 #globalStatsCloseBtn{height:44px!important;min-height:44px!important;max-height:none!important;padding:4px!important;font-size:12px!important;}
+body.ux383 #globalStatsModalBox .sm-head #siteMgmtSiteSelect{font-size:16px!important;}
+body.ux383 #globalStatsModalBox .sm-head #globalStatsRefreshBtn{font-size:0!important;}
+body.ux383 #globalStatsModalBox .sm-body{flex:1 1 auto!important;height:auto!important;min-height:0!important;max-height:none!important;overflow-y:auto!important;padding:10px 8px calc(20px + env(safe-area-inset-bottom,0px))!important;}
+body.ux383 #globalStatsBody .pdf-summary-cell{height:auto!important;min-height:68px!important;padding:8px 5px!important;}
+body.ux383 #globalStatsBody .pdf-summary-cell .h{font-size:12px!important;line-height:1.4!important;white-space:normal!important;}
+body.ux383 #globalStatsBody .pdf-summary-cell .n{font-size:17px!important;line-height:1.4!important;white-space:normal!important;overflow-wrap:anywhere!important;}
+body.ux383 .mobile-detail-grid.row2{grid-template-columns:minmax(0,1fr)!important;}
+body.ux383 .mobile-detail-grid.row2b{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+body.ux383 .mobile-detail-field span,body.ux383 .mobile-detail-grid.row2b .mobile-detail-field span,
+ body.ux383 .mobile-detail-grid.rowContact .mobile-detail-field span{font-size:14px!important;font-weight:600!important;line-height:1.55!important;}
+body.ux383 .mobile-detail-note>summary,body.ux383 .recent-person-notes summary{min-height:44px!important;padding:12px 0!important;font-size:13px!important;line-height:1.5!important;}
+body.ux383 .mobile-detail-note-body,body.ux383 .recent-person-notes p{font-size:14px!important;line-height:1.65!important;background:var(--card)!important;}
+body.ux383 #globalStatsBody .recent-person-card{padding:12px!important;}
+body.ux383 #globalStatsBody .recent-person-card header strong{font-size:16px!important;line-height:1.5!important;}
+body.ux383 #globalStatsBody .recent-person-card dl{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px 12px!important;}
+body.ux383 #globalStatsBody .recent-person-card dl>div{display:block!important;min-width:0!important;}
+body.ux383 #globalStatsBody .recent-person-card dl>.mobile-field-wide{grid-column:1/-1!important;}
+body.ux383 #globalStatsBody .recent-person-card dt{font-size:12px!important;line-height:1.5!important;margin-bottom:3px!important;}
+body.ux383 #globalStatsBody .recent-person-card dd{font-size:14px!important;line-height:1.55!important;overflow-wrap:anywhere!important;}
+body.ux383 #globalStatsBody .pdf-role{display:none!important;}
+body.ux383 #globalStatsBody .mobile-role-cards{display:grid!important;gap:10px;padding:10px;}
+.mobile-role-card{min-width:0;padding:12px;background:var(--card);border:1px solid var(--line);border-radius:10px;}
+.mobile-role-card h4{margin:0 0 8px;font-size:14px;line-height:1.5;overflow-wrap:anywhere;}
+.mobile-role-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+body.ux383 .mobile-role-metrics button{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px;min-width:0;min-height:48px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--bg-side);color:var(--text-main);font:inherit;cursor:pointer;}
+.mobile-role-metrics span{font-size:12px;color:var(--text-dim);}
+.mobile-role-metrics strong{font-size:15px;color:var(--accent);overflow-wrap:anywhere;}
+.mobile-role-card summary{min-height:44px;padding:12px 0 8px;font-size:12px;color:var(--accent);cursor:pointer;}
+body.ux383 .mgr-breakdown-wrap .mgr-nav-row{grid-template-columns:44px minmax(0,1fr) 44px 52px!important;gap:5px!important;padding:8px 4px!important;}
+body.ux383 .mgr-breakdown-wrap .mgr-nav-btn,body.ux383 .mgr-breakdown-wrap .mgr-nav-today-btn{width:100%!important;height:44px!important;min-height:44px!important;font-size:13px!important;}
+body.ux383 .mgr-breakdown-wrap .mgr-nav-label{min-width:0!important;font-size:15px!important;white-space:normal!important;text-align:center!important;}
+body.ux383 .mgr-breakdown-wrap .mgr-subtab-body{padding:6px 4px 12px!important;overflow-x:hidden!important;}
+body.ux383 .mgr-breakdown-wrap .mgr-cal-grid{grid-template-columns:repeat(7,minmax(0,1fr))!important;width:100%!important;min-width:0!important;gap:3px!important;}
+body.ux383 .mgr-breakdown-wrap .mgr-cal-dayhead{height:auto!important;min-height:28px!important;font-size:12px!important;padding:4px 0!important;}
+body.ux383 .mgr-breakdown-wrap .mgr-cal-cell,
+ body.ux383 .mgr-breakdown-wrap .mgr-cal-cell.has-log,
+ body.ux383 .mgr-breakdown-wrap .mgr-cal-cell.mgr-cal-empty{position:relative!important;min-width:0!important;height:76px!important;min-height:76px!important;max-height:76px!important;padding:5px 2px!important;border-radius:8px!important;overflow:hidden!important;}
+body.ux383 .mgr-breakdown-wrap .mgr-cal-cell.mgr-cal-empty{border:0!important;background:transparent!important;}
+body.ux383 .mgr-breakdown-wrap .mgr-cal-daynum,
+ body.ux383 .mgr-breakdown-wrap .mgr-cal-cell.is-today .mgr-cal-daynum{display:block!important;width:auto!important;min-width:0!important;height:22px!important;line-height:22px!important;padding:0 2px!important;font-size:13px!important;background:transparent!important;border-radius:0!important;color:var(--text-main)!important;text-decoration:none!important;}
+body.ux383 .mgr-breakdown-wrap .mgr-cal-cell.is-today .mgr-cal-daynum{color:var(--accent)!important;text-decoration:underline!important;text-underline-offset:3px;}
+body.ux383 .mgr-breakdown-wrap .mgr-cal-summary-chip{margin:0!important;padding:0!important;background:transparent!important;}
+body.ux383 .mgr-breakdown-wrap .mgr-cal-grid .mi-date-reports-btn{display:flex!important;position:absolute!important;inset:0!important;flex-direction:column!important;justify-content:flex-end!important;align-items:center!important;width:100%!important;height:100%!important;min-height:44px!important;margin:0!important;padding:26px 1px 9px!important;background:transparent!important;border:0!important;box-shadow:none!important;gap:0!important;}
+body.ux383 .mgr-breakdown-wrap .mgr-cal-summary-main{font-size:12px!important;line-height:1.4!important;white-space:normal!important;text-align:center!important;overflow:visible!important;letter-spacing:-.04em!important;}
+body.ux383 .mgr-breakdown-wrap .mgr-cal-manager-mini,
+ body.ux383 .mgr-breakdown-wrap .mgr-cal-manager-mini.mgr-cal-method-line,
+ body.ux383 .mgr-breakdown-wrap .cal-manager-list,
+ body.ux383 .mgr-breakdown-wrap .mgr-cal-nonmember-inline{display:none!important;}
+body.ux383 .mgr-breakdown-wrap .mgr-cal-cell.mobile-selected{box-shadow:inset 0 0 0 2px var(--accent)!important;background:var(--accent-soft)!important;}
+body.ux383 .mobile-cal-detail-panel{display:block!important;margin-top:12px!important;padding:0!important;scroll-margin:12px;}
+body.ux383 .mobile-cal-detail-card{width:100%!important;max-width:none!important;padding:12px!important;margin:0!important;}
+body.ux383 .mobile-cal-detail-head{flex-wrap:wrap!important;gap:4px 10px!important;}
+body.ux383 .mobile-cal-detail-date{font-size:15px!important;line-height:1.5!important;}
+body.ux383 .mobile-cal-detail-total{font-size:13px!important;white-space:normal!important;line-height:1.5!important;}
+body.ux383 .mobile-cal-detail-managers{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;}
+body.ux383 .mobile-cal-detail-manager{min-width:0!important;font-size:14px!important;line-height:1.5!important;padding:9px!important;background:var(--bg-side)!important;}
+body.ux383 .mobile-cal-detail-manager span{min-width:0;overflow-wrap:anywhere;}
+body.ux383 .mobile-cal-detail-manager b{white-space:nowrap;}
+body.ux383 .mobile-cal-detail-methods,body.ux383 .mobile-cal-detail-empty{font-size:12px!important;line-height:1.6!important;}
+body.ux383 .mobile-cal-open-reports{min-height:44px!important;font-size:14px!important;background:var(--bg-side)!important;}}
+@media screen and (max-width:360px){body.ux383 #globalStatsBody .pdf-summary{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+body.ux383 .mobile-cal-detail-managers{grid-template-columns:minmax(0,1fr)!important;}
+body.ux383 .mgr-breakdown-wrap .mgr-cal-summary-main{font-size:11px!important;}}
+@media print{.mobile-role-cards,.mobile-empty-day{display:none!important;}}
+</style>
 </body>
 </html>
 
