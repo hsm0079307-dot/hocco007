@@ -7772,6 +7772,57 @@ body.guest-readonly #reportViewTabTours{
 }
 </style>
 
+<style id="mobile-contact-layout-v13">
+@media screen and (max-width:820px){
+  /* 상단 컨트롤 단순화: 사업소 선택은 모바일에서 숨기고 현장 선택 중심 */
+  body.ux383 #globalStatsModalBox .sm-head{
+    grid-template-columns:repeat(4,minmax(0,1fr)) 40px 40px!important;
+    grid-template-rows:34px 36px 34px!important;
+    gap:5px!important;
+    padding:7px 9px!important;
+  }
+  body.ux383 #globalStatsModalBox .sm-head h3{
+    grid-column:1 / 4!important;grid-row:1!important;
+    font-size:13.5px!important;letter-spacing:-.02em!important;
+  }
+  body.ux383 #siteMgmtPeriodLabel{
+    grid-column:4 / 6!important;grid-row:1!important;
+    font-size:10px!important;text-align:right!important;padding-right:2px!important;
+  }
+  body.ux383 #globalStatsCloseBtn{grid-column:6!important;grid-row:1!important;height:32px!important;font-size:15px!important;}
+  body.ux383 #globalStatsOfficeFilter{display:none!important;}
+  body.ux383 #siteMgmtSiteSelect{
+    grid-column:1 / 6!important;grid-row:2!important;
+    height:36px!important;font-size:11px!important;padding:4px 9px!important;
+  }
+  body.ux383 #globalStatsRefreshBtn{
+    grid-column:6!important;grid-row:2!important;
+    height:36px!important;width:40px!important;min-width:40px!important;
+    padding:0!important;font-size:0!important;border-radius:9px!important;
+  }
+  body.ux383 #globalStatsRefreshBtn::before{content:'↻';font-size:17px!important;line-height:1!important;}
+  body.ux383 #siteMgmtAllBtn{grid-column:1!important;grid-row:3!important;}
+  body.ux383 #siteMgmtMonthBtn{grid-column:2!important;grid-row:3!important;}
+  body.ux383 #siteMgmtWeekBtn{grid-column:3!important;grid-row:3!important;}
+  body.ux383 #siteMgmtDayBtn{grid-column:4!important;grid-row:3!important;}
+  body.ux383 #siteMgmtPrevBtn{grid-column:5!important;grid-row:3!important;}
+  body.ux383 #siteMgmtNextBtn{grid-column:6!important;grid-row:3!important;}
+  body.ux383 #globalStatsModalBox .sm-head .sm-btn{height:34px!important;padding:3px!important;font-size:10px!important;border-radius:9px!important;}
+  body.ux383 #globalStatsModalBox .sm-body{height:calc(100dvh - 126px)!important;padding-top:7px!important;}
+
+  /* 선택일 상세를 짧고 명확하게 */
+  body.ux383 #globalStatsBody .pdf-today-wrap{margin:8px 0 10px!important;}
+  body.ux383 #globalStatsBody .pdf-today-wrap>.pdf-section-title{padding:8px 10px!important;row-gap:2px!important;}
+  body.ux383 #globalStatsBody .recent-person-cards{padding:8px!important;gap:7px!important;}
+  body.ux383 #globalStatsBody .recent-person-card{padding:10px!important;border-radius:10px!important;}
+  body.ux383 #globalStatsBody .recent-person-card header{margin-bottom:7px!important;}
+  body.ux383 #globalStatsBody .recent-person-card dl{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:6px 10px!important;}
+  body.ux383 #globalStatsBody .recent-person-card dl>div{display:block!important;border-bottom:1px solid color-mix(in srgb,var(--line) 70%,transparent)!important;padding:0 0 5px!important;}
+  body.ux383 #globalStatsBody .recent-person-card dt{font-size:9.5px!important;margin-bottom:2px!important;}
+  body.ux383 #globalStatsBody .recent-person-card dd{font-size:12.5px!important;font-weight:700!important;}
+}
+</style>
+
 </head>
 <body data-report-source="excel-only">
 <div id="entryGate" style="position:fixed;inset:0;background:rgba(3,12,22,.94);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;">
@@ -20128,6 +20179,7 @@ ead><body>
         <div class="pdf-summary-cell sm-drill" data-drill="site_uncontacted"><div class="h">미접촉</div><div class="n">${metrics.uncontacted}명</div></div>
         <div class="pdf-summary-cell sm-drill" data-drill="site_rate"><div class="h">접촉률</div><div class="n">${metrics.rate.toFixed(1)}%</div></div>
       </div>
+      ${siteMgmtPeriod==='day'?smTodaySection(site,events,true):''}
       <div class="pdf-manager-row">${managerTable}</div>${rfNonMemberBlock(site,periodMode?range:null)}
       <div class="pdf-middle-grid">
         ${roleTable}
@@ -20137,8 +20189,8 @@ ead><body>
         ${smTrendSection(site,range)}
         ${smIssuesSection(site,range)}
       </div>
-      ${smCharts(site,x,events,periodMode,mr.rows)}
-      ${smTodaySection(site,periodMode?events:smEvents(site,smMonthRangeForCurrent()),periodMode)}
+      ${siteMgmtPeriod==='day'?'':smCharts(site,x,events,periodMode,mr.rows)}
+      ${siteMgmtPeriod==='day'?'':smTodaySection(site,periodMode?events:smEvents(site,smMonthRangeForCurrent()),periodMode)}
     </div>`;
   }
 
