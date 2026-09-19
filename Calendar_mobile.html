@@ -7075,5 +7075,188 @@ tbody tr:hover td{background:#fbfdfd!important}
 })();
 </script>
 
+
+<style id="calendar-mobile-v21-status-refine">
+/* MOBILE V21 — 참석/불참/예정 상세 시트 정리 */
+@media (max-width:560px){
+  #statusOverlay{
+    align-items:flex-end!important;
+    padding:0 8px!important;
+    background:rgba(20,43,49,.32)!important;
+    backdrop-filter:blur(5px)!important;
+    -webkit-backdrop-filter:blur(5px)!important;
+  }
+  #statusOverlay .modal{
+    width:100%!important;
+    max-width:430px!important;
+    max-height:76dvh!important;
+    margin:0 auto!important;
+    padding:11px 12px calc(12px + env(safe-area-inset-bottom))!important;
+    border-radius:24px 24px 0 0!important;
+    background:#fff!important;
+    box-shadow:0 -12px 38px rgba(24,58,62,.14)!important;
+    overflow:hidden!important;
+  }
+  #statusOverlay .modal::before{
+    width:34px!important;height:4px!important;margin:0 auto 10px!important;
+    background:#d5e1df!important;border-radius:999px!important;
+  }
+  #statusOverlay .modal .close{
+    top:12px!important;right:12px!important;width:34px!important;height:34px!important;
+    border-radius:11px!important;background:#f3f7f6!important;color:#667e83!important;
+    font-size:18px!important;box-shadow:none!important;
+  }
+  #statusOverlay .modal h2{
+    margin:0 44px 10px 2px!important;
+    font-size:16px!important;line-height:1.25!important;font-weight:900!important;
+    letter-spacing:-.045em!important;color:#1f464d!important;
+  }
+  #statusBody{
+    max-height:64dvh!important;
+    padding:0 1px 2px!important;
+    overflow-y:auto!important;overflow-x:hidden!important;
+    overscroll-behavior:contain!important;
+  }
+  #statusBody .print-date-block{
+    margin:0 0 10px!important;padding:0!important;
+    border:1px solid #e3ecea!important;border-radius:15px!important;
+    background:#fbfdfc!important;overflow:hidden!important;
+  }
+  #statusBody .print-date-title{
+    display:flex!important;align-items:center!important;justify-content:space-between!important;
+    min-height:34px!important;margin:0!important;padding:0 11px!important;
+    border:0!important;border-bottom:1px solid #e7eeec!important;
+    background:#f4f8f7!important;color:#294f56!important;
+    font-size:10.5px!important;font-weight:900!important;line-height:1!important;
+  }
+  #statusBody .m21-kind-block{padding:8px 9px 9px!important}
+  #statusBody .m21-kind-block + .m21-kind-block{border-top:1px dashed #e2eae8!important}
+  #statusBody .m21-kind-head{
+    display:flex!important;align-items:center!important;justify-content:space-between!important;
+    margin:0 0 6px!important;min-height:20px!important;
+  }
+  #statusBody .m21-kind-head .tag{
+    height:20px!important;padding:0 7px!important;margin:0!important;
+    border-radius:999px!important;font-size:8px!important;font-weight:900!important;
+  }
+  #statusBody .m21-kind-count{font-size:8px!important;font-weight:800!important;color:#93a2a5!important}
+  #statusBody .status-mobile-list{display:flex!important;flex-direction:column!important;gap:5px!important}
+  #statusBody .status-mobile-card{
+    display:grid!important;
+    grid-template-columns:46px minmax(0,1fr) 28px!important;
+    gap:8px!important;align-items:center!important;
+    min-height:52px!important;padding:7px 8px!important;margin:0!important;
+    border:1px solid #e0e9e7!important;border-radius:11px!important;
+    background:#fff!important;box-shadow:none!important;
+  }
+  #statusBody .status-mobile-time{
+    min-height:36px!important;height:36px!important;padding:0 3px!important;
+    border-radius:8px!important;background:#eff8f6!important;color:#137a72!important;
+    font-size:8.5px!important;line-height:1.15!important;font-weight:900!important;
+  }
+  #statusBody .status-mobile-card.tour .status-mobile-time{
+    background:#fff4ea!important;color:#b7652d!important;
+  }
+  #statusBody .status-mobile-main{min-width:0!important}
+  #statusBody .status-mobile-title{
+    display:inline!important;margin-right:5px!important;
+    font-size:9.5px!important;line-height:1.2!important;font-weight:900!important;color:#203f46!important;
+  }
+  #statusBody .status-mobile-name{
+    display:inline!important;margin:0!important;
+    font-size:9.4px!important;line-height:1.2!important;font-weight:850!important;color:#274b52!important;
+  }
+  #statusBody .status-mobile-meta{
+    margin-top:3px!important;font-size:7.8px!important;line-height:1.2!important;
+    color:#87989b!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;
+  }
+  #statusBody .status-mobile-check{display:flex!important;align-items:center!important;justify-content:center!important}
+  #statusBody .status-mobile-check input{
+    appearance:none!important;-webkit-appearance:none!important;
+    width:24px!important;height:24px!important;margin:0!important;
+    border:2px solid #9ea9ac!important;border-radius:8px!important;background:#fff!important;
+    position:relative!important;
+  }
+  #statusBody .status-mobile-check input:checked{
+    border-color:#15978d!important;background:#15978d!important;
+  }
+  #statusBody .status-mobile-check input:checked::after{
+    content:'✓'!important;position:absolute!important;inset:0!important;
+    display:grid!important;place-items:center!important;color:#fff!important;
+    font-size:15px!important;font-weight:900!important;line-height:1!important;
+  }
+  #statusBody .sub-title{display:none!important}
+}
+</style>
+<script id="calendar-mobile-v21-status-js">
+(function(){
+  const mq=()=>window.matchMedia&&window.matchMedia('(max-width:560px)').matches;
+  const esc=(v)=>String(v==null?'':v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  if(typeof renderStatusTable!=='function' || typeof openStatusPreview!=='function') return;
+  const desktopRender=renderStatusTable;
+  const desktopOpen=openStatusPreview;
+
+  renderStatusTable=function(kind,key,status,managerFilter){
+    if(!mq()) return desktopRender(kind,key,status,managerFilter);
+    const rows=kind==='gallery' ? (GALLERY_ROWS[key]||[]) : (TOUR_ROWS[key]||[]);
+    const managerIdx=kind==='gallery'?4:5;
+    const ids=[];
+    rows.forEach((r,idx)=>{
+      if(rowStatus(kind,key,idx)!==status) return;
+      if(managerFilter && r[managerIdx]!==managerFilter) return;
+      ids.push(idx);
+    });
+    if(!ids.length) return '';
+    const tagClass=kind==='gallery'?'gallery':'tour';
+    const tagLabel=kind==='gallery'?CAT_LABEL.gallery:CAT_LABEL.tour;
+    let html='<div class="m21-kind-block '+tagClass+'"><div class="m21-kind-head"><span class="tag '+tagClass+'">'+esc(tagLabel)+'</span><span class="m21-kind-count">'+ids.length+'명</span></div><div class="status-mobile-list">';
+    ids.forEach(idx=>{
+      const r=reorderRow(kind,rows[idx]);
+      const time=r[0]||'-', danji=r[1]||'', ho=r[2]||'', name=r[3]||'', plus=r[4]||'', manager=r[5]||'', pickup=r[6]||'';
+      const rowKey=kind+'_'+key+'_'+idx;
+      const checked=!!checkState[rowKey];
+      const hasMemo=!!personMemos[rowKey];
+      const meta=[];
+      if(ho && ho!=='-') meta.push(ho);
+      if(manager && manager!=='-') meta.push('담당 '+manager);
+      if(plus && plus!=='-') meta.push(plus);
+      if(pickup && pickup!=='-') meta.push(pickup);
+      const managerSafe=String(managerFilter||'').replace(/'/g,'&#39;');
+      const nameSafe=String(name).replace(/'/g,'&#39;');
+      html+='<div class="status-mobile-card '+tagClass+'">'+
+        '<div class="status-mobile-time">'+esc(time)+'</div>'+
+        '<div class="status-mobile-main"><div><span class="status-mobile-title">'+esc(danji)+'</span><span class="status-mobile-name memo-name'+(hasMemo?' has-memo':'')+'" onclick="openMemoFormFromStatus(\''+rowKey+'\',\''+nameSafe+'\',\''+status+'\',\''+managerSafe+'\')">'+esc(name)+(hasMemo?' ·':'')+'</span></div>'+
+        '<div class="status-mobile-meta">'+esc(meta.join(' · '))+'</div></div>'+
+        '<label class="status-mobile-check"><input type="checkbox" '+(checked?'checked':'')+' onchange="toggleCheckFromStatus(\''+kind+'\',\''+key+'\','+idx+',this,\''+status+'\',\''+managerSafe+'\')"></label>'+
+      '</div>';
+    });
+    html+='</div></div>';
+    return html;
+  };
+
+  openStatusPreview=function(status,managerFilter){
+    if(!mq()) return desktopOpen(status,managerFilter);
+    managerFilter=managerFilter||null;
+    const keys=new Set();
+    Object.keys(GALLERY_ROWS).forEach(key=>GALLERY_ROWS[key].forEach((r,idx)=>{if(rowStatus('gallery',key,idx)===status&&(!managerFilter||r[4]===managerFilter))keys.add(key)}));
+    Object.keys(TOUR_ROWS).forEach(key=>TOUR_ROWS[key].forEach((r,idx)=>{if(rowStatus('tour',key,idx)===status&&(!managerFilter||r[5]===managerFilter))keys.add(key)}));
+    const sorted=[...keys].sort((a,b)=>parseKeyDate(a)-parseKeyDate(b));
+    let total=0, html='';
+    sorted.forEach(key=>{
+      const g=renderStatusTable('gallery',key,status,managerFilter);
+      const t=renderStatusTable('tour',key,status,managerFilter);
+      if(!g&&!t) return;
+      const gc=(GALLERY_ROWS[key]||[]).filter((r,i)=>rowStatus('gallery',key,i)===status&&(!managerFilter||r[4]===managerFilter)).length;
+      const tc=(TOUR_ROWS[key]||[]).filter((r,i)=>rowStatus('tour',key,i)===status&&(!managerFilter||r[5]===managerFilter)).length;
+      const dayCount=gc+tc; total+=dayCount;
+      html+='<section class="print-date-block"><div class="print-date-title"><span>'+esc(labelFor(key))+'</span><span>'+dayCount+'명</span></div>'+g+t+'</section>';
+    });
+    const label=STATUS_LABELS[status]||'';
+    document.getElementById('statusTitle').textContent=(managerFilter?managerFilter+' · ':'')+label+' '+total+'명';
+    document.getElementById('statusBody').innerHTML=html||'<div class="empty-msg">해당 인원이 없습니다.</div>';
+    document.getElementById('statusOverlay').classList.add('on');
+  };
+})();
+</script>
 </body>
 </html>
