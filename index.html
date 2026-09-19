@@ -21854,6 +21854,89 @@ body.ux383 .cal-manager-more summary{font-size:9px!important;min-height:24px}
 }
 </style>
 
+
+<style id="mobile-admin-finish-v11">
+@media screen and (max-width:820px){
+  body.ux383:not(.guest-readonly):not(.sooni-guest-view) .bf-entry-topline > p{
+    display:-webkit-box!important;-webkit-box-orient:vertical!important;-webkit-line-clamp:3!important;
+    overflow:hidden!important;max-height:calc(1.65em * 3)!important;margin-bottom:3px!important;
+  }
+  body.ux383:not(.guest-readonly):not(.sooni-guest-view) .bf-entry.mobile-brief-expanded .bf-entry-topline > p{
+    display:block!important;max-height:none!important;overflow:visible!important;
+  }
+  body.ux383:not(.guest-readonly):not(.sooni-guest-view) .mobile-brief-toggle{
+    appearance:none!important;border:0!important;background:transparent!important;color:var(--accent)!important;
+    font:inherit!important;font-size:11px!important;font-weight:800!important;padding:2px 0 5px!important;cursor:pointer!important;
+  }
+
+  body.ux383:not(.guest-readonly):not(.sooni-guest-view) .rf-nonmember.mobile-nonmember-collapsed > :not(h3):not(.mobile-nonmember-toggle){display:none!important;}
+  body.ux383:not(.guest-readonly):not(.sooni-guest-view) .rf-nonmember .mobile-nonmember-toggle{
+    width:100%!important;min-height:38px!important;display:flex!important;align-items:center!important;justify-content:space-between!important;
+    gap:8px!important;margin:4px 0 0!important;padding:8px 10px!important;border:1px solid var(--line)!important;border-radius:10px!important;
+    background:var(--bg-side)!important;color:var(--text-main)!important;font-size:12px!important;font-weight:750!important;text-align:left!important;
+  }
+  body.ux383:not(.guest-readonly):not(.sooni-guest-view) .rf-nonmember:not(.mobile-nonmember-collapsed) .mobile-nonmember-toggle{margin-bottom:8px!important;}
+
+  body.ux383:not(.guest-readonly):not(.sooni-guest-view) .report-timeline .report-log-card,
+  body.ux383:not(.guest-readonly):not(.sooni-guest-view) .mi-excel-report.report-log-card{padding:9px 10px!important;margin-bottom:8px!important;}
+  body.ux383:not(.guest-readonly):not(.sooni-guest-view) .mobile-detail-grid{gap:5px 10px!important;margin-top:5px!important;}
+  body.ux383:not(.guest-readonly):not(.sooni-guest-view) .mobile-detail-field{padding-bottom:6px!important;}
+  body.ux383:not(.guest-readonly):not(.sooni-guest-view) .mobile-detail-note{margin-top:6px!important;}
+
+  body.ux383:not(.guest-readonly):not(.sooni-guest-view) .detail-quad-grid{grid-auto-rows:auto!important;align-items:start!important;}
+  body.ux383:not(.guest-readonly):not(.sooni-guest-view) .detail-quad-box{
+    height:auto!important;min-height:0!important;max-height:none!important;align-self:start!important;overflow:visible!important;
+  }
+  body.ux383:not(.guest-readonly):not(.sooni-guest-view) .detail-quad-box .spec-lines-2col,
+  body.ux383:not(.guest-readonly):not(.sooni-guest-view) .detail-quad-box .spec-stage-detail{
+    height:auto!important;min-height:0!important;max-height:none!important;overflow:visible!important;
+  }
+}
+</style>
+<script id="mobile-admin-finish-v11-script">
+(function(){
+  function isAdminMobile(){
+    return window.innerWidth<=820 && document.body.classList.contains('ux383') &&
+      !document.body.classList.contains('guest-readonly') && !document.body.classList.contains('sooni-guest-view');
+  }
+  function decorateBriefs(){
+    if(!isAdminMobile()) return;
+    document.querySelectorAll('.report-brief .bf-entry').forEach(function(entry){
+      if(entry.dataset.mobileBriefV11==='1') return;
+      var p=entry.querySelector('.bf-entry-topline > p'); if(!p) return;
+      entry.dataset.mobileBriefV11='1';
+      requestAnimationFrame(function(){
+        if(!(p.scrollHeight>p.clientHeight+3)) return;
+        var b=document.createElement('button'); b.type='button'; b.className='mobile-brief-toggle'; b.textContent='더보기 ▾';
+        entry.querySelector('.bf-entry-topline').insertAdjacentElement('afterend',b);
+        b.addEventListener('click',function(){var open=entry.classList.toggle('mobile-brief-expanded');b.textContent=open?'접기 ▴':'더보기 ▾';});
+      });
+    });
+  }
+  function decorateNonmember(){
+    if(!isAdminMobile()) return;
+    document.querySelectorAll('.rf-nonmember').forEach(function(sec){
+      if(sec.dataset.mobileNonmemberV11==='1') return;
+      var metrics=sec.querySelector('.rf-metrics'); if(!metrics) return;
+      sec.dataset.mobileNonmemberV11='1';
+      var spans=Array.from(metrics.querySelectorAll('span')).map(function(x){return (x.textContent||'').trim();});
+      var target=spans.find(function(x){return /^대상\s/.test(x);})||spans[0]||'';
+      var contacted=spans.find(function(x){return /접촉\s*\d+명/.test(x)&&!/미접촉/.test(x);})||spans[1]||'';
+      var b=document.createElement('button');b.type='button';b.className='mobile-nonmember-toggle';
+      function label(){var closed=sec.classList.contains('mobile-nonmember-collapsed');b.innerHTML='<span>'+[target,contacted].filter(Boolean).join(' · ')+'</span><b>'+(closed?'펼치기 ▾':'접기 ▴')+'</b>';}
+      sec.classList.add('mobile-nonmember-collapsed');
+      var h=sec.querySelector('h3');if(h)h.insertAdjacentElement('afterend',b);else sec.prepend(b);
+      label();b.addEventListener('click',function(){sec.classList.toggle('mobile-nonmember-collapsed');label();});
+    });
+  }
+  function run(){decorateBriefs();decorateNonmember();}
+  document.addEventListener('DOMContentLoaded',run);
+  window.addEventListener('load',function(){setTimeout(run,40);},{passive:true});
+  window.addEventListener('resize',function(){setTimeout(run,60);},{passive:true});
+  document.addEventListener('DOMContentLoaded',function(){new MutationObserver(function(){setTimeout(run,0);}).observe(document.body,{childList:true,subtree:true});});
+})();
+</script>
+
 </body>
 </html>
 
