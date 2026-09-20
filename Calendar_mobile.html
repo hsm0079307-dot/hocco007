@@ -4603,6 +4603,30 @@ function computeDateHeadcount(key){
   #mobileMockNav .m13-nav-btn svg{width:22px;height:22px}
 }
 </style>
+
+<script id="calendar-v23-data">
+function visibleScheduleRowsV23(key){
+ const out=[];
+ if(activeCategories.gallery && galleryMatchesDanjiFilter())
+  (GALLERY_ROWS[key]||[]).forEach((row,index)=>out.push({kind:'gallery',index,row}));
+ if(activeCategories.tour)
+  (TOUR_ROWS[key]||[]).forEach((row,index)=>{
+   if(!activeDanjiFilter.size || activeDanjiFilter.has(row[1]))out.push({kind:'tour',index,row});
+  });
+ return out;
+}
+function scheduleSummaryV23(key){
+ const records=visibleScheduleRowsV23(key), groups=new Map();let people=0;
+ records.forEach(item=>{
+  const r=reorderRow(item.kind,item.row), count=1+parseCompanionCount(String(r[4]||''));
+  const groupKey=JSON.stringify([item.kind,r[0]||'-',r[1]||'-',r[5]||'-']);
+  if(!groups.has(groupKey))groups.set(groupKey,{kind:item.kind,time:r[0]||'시간 미정',site:r[1]||'현장 미입력',manager:r[5]&&r[5]!=='-'?r[5]:'미지정',people:0});
+  groups.get(groupKey).people+=count;people+=count;
+ });
+ return {records,groups:Array.from(groups.values()),sessions:groups.size,people};
+}
+</script>
+
 <script id="calendar-mobile-v13-shell-js">
 (function(){
   const mq=()=>true;
@@ -4666,7 +4690,7 @@ function computeDateHeadcount(key){
 
         <div class="m13-weekdays"><div class="m13-weekday sun">일</div><div class="m13-weekday">월</div><div class="m13-weekday">화</div><div class="m13-weekday">수</div><div class="m13-weekday">목</div><div class="m13-weekday">금</div><div class="m13-weekday sat">토</div></div>
         <div class="m13-days" id="m13Days"></div>
-        <div class="m15-calendar-foot">날짜를 누르면 해당 일정의 상세 내용을 확인할 수 있습니다.</div>
+        <div class="m15-calendar-foot">날짜를 선택하면 상세 일정이 표시됩니다. · ● 오늘 / 테두리 선택일</div>
       </section>
 
       <section class="m13-range" id="m13RangeCard" aria-hidden="true">
@@ -4929,7 +4953,7 @@ function computeDateHeadcount(key){
     document.getElementById('m13CalTitle').textContent = y+'년 '+(m+1)+'월';
     const days=document.getElementById('m13Days'); if(!days) return; days.innerHTML='';
     const first=new Date(y,m,1), start=new Date(y,m,1-first.getDay()), today=new Date();
-    if(!selectedKey){ selectedKey = (today.getFullYear()===y && today.getMonth()===m) ? key(today) : key(first); }
+    if(!selectedKey || Number(selectedKey.split('-')[0])!==m+1){ selectedKey = (today.getFullYear()===y && today.getMonth()===m) ? key(today) : key(first); }
 
     const desktop=isDesktop();
 
@@ -4940,31 +4964,26 @@ function computeDateHeadcount(key){
       b.type='button';
       b.className='m13-day '+(other?'other ':'')+(d.getDay()===0?'sun ':'')+(d.getDay()===6?'sat ':'')+((selectedKey===k && !other)?'selected':'');
 
+      const isToday=!other && d.toDateString()===today.toDateString();
+      if(isToday){b.classList.add('is-today');b.setAttribute('aria-current','date');}
+      b.setAttribute('aria-pressed',String(selectedKey===k&&!other));
+      const summary=scheduleSummaryV23(k);
+      b.setAttribute('aria-label',`${y}년 ${d.getMonth()+1}월 ${d.getDate()}일${isToday?' 오늘':''}, 일정 ${summary.sessions}건, 방문 ${summary.people}명`);
       let inner=`<span class="m13-daynum">${d.getDate()}</span>`;
 
       if(!other && desktop){
-        const detail=detailedEventsFor(k);
-        if(detail.length){
-          const show=detail.slice(0,3);
-          inner += `<div class="m13-desk-events">`;
-          show.forEach(x=>{
-            inner += `
-              <div class="m13-desk-event ${x.kind}">
-                <div class="m13-desk-time">${escapeHtml(x.time)}</div>
-                <div class="m13-desk-copy">
-                  <strong>${escapeHtml(x.site)}</strong>
-                  <span>${escapeHtml(x.name)}</span>
-                  <small>${x.manager?('담당 '+escapeHtml(x.manager)):'담당 미지정'}</small>
-                </div>
-              </div>`;
+        if(summary.groups.length){
+          inner+='<div class="m13-desk-events">';
+          summary.groups.slice(0,3).forEach(x=>{
+            inner+=`<div class="m13-desk-event ${x.kind}"><div class="m13-desk-time">${escapeHtml(x.time)}</div><div class="v23-manager-line"><span>${escapeHtml(x.manager)}</span><strong>${x.people}명</strong></div></div>`;
           });
-          if(detail.length>3) inner += `<div class="m13-desk-more">+ ${detail.length-3}건 더보기</div>`;
-          inner += `</div>`;
+          if(summary.groups.length>3)inner+=`<div class="m13-desk-more">+ ${summary.groups.length-3}건 더보기</div>`;
+          inner+='</div>';
         }
-      } else if(!other && ev.length){
-        const detail=detailedEventsFor(k);
-        const count=detail.length || ev.length;
-        inner += `<span class="m15-count">${count}건</span><span class="m15-dots">${ev.map(x=>`<i class="${x[0]}"></i>`).join('')}</span>`;
+        if(ev.some(x=>x[0]==='closed'))inner+='<span class="v23-closed">휴관</span>';
+      }else if(!other){
+        if(summary.sessions)inner+=`<span class="m15-count">${summary.sessions}건<span class="v23-people">${summary.people}명</span></span>`;
+        else if(ev.some(x=>x[0]==='closed'))inner+='<span class="v23-closed">휴관</span>';
       }
 
       b.innerHTML=inner;
@@ -5019,6 +5038,7 @@ function computeDateHeadcount(key){
     renderFilters();
     renderSiteFilters();
     renderCalendar();
+    if(selectedKey){currentDateKey=selectedKey;openPreview(selectedKey);}
   }
 
   const wrapFn=(name)=>{const old=window[name]; if(typeof old!=='function'||old.__m13) return; const f=function(){const r=old.apply(this,arguments); setTimeout(renderShell,0); return r;}; f.__m13=true; window[name]=f;};
@@ -5662,18 +5682,22 @@ function computeDateHeadcount(key){
 
     if(title) title.textContent=labelFor(key);
 
-    const gallery=(GALLERY_ROWS[key]||[]);
-    const tour=(TOUR_ROWS[key]||[]);
-    const total=gallery.length+tour.length;
-    const head=computeDateHeadcount(key);
+    const summary=scheduleSummaryV23(key);
+    const gallery=summary.records.filter(x=>x.kind==='gallery');
+    const tour=summary.records.filter(x=>x.kind==='tour');
+    const total=summary.sessions;
+    const head=summary.people;
     const cap=getCapacityForKey(key);
-    const isClosed=!!GALLERY_CLOSED[key];
+    const isClosed=!!GALLERY_CLOSED[key] && showClosedToggle && galleryMatchesDanjiFilter();
 
     let html=`<div class="preview-v2-summary">
       <span>일정 <strong>${total}건</strong></span>
-      ${head>0?`<span>예상 인원 <strong>${head}명</strong></span>`:''}
+      <span>방문 <strong>${head}명</strong></span>
     </div>`;
 
+    html+=`<p class="v23-count-note">같은 시간·현장·담당은 일정 1건 · 방문 인원은 동반 포함</p>`;
+    const filtered=activeDanjiFilter.size>0 || !activeCategories.gallery || !activeCategories.tour;
+    if(filtered)html+='<p class="v23-filter-note">선택한 현장·일정 구분에 해당하는 내용입니다.</p>';
     if(isClosed){
       html+=`<div class="preview-v2-group closed">
         <div class="preview-v2-group-head">휴관 / 이용 불가</div>
@@ -5683,9 +5707,9 @@ function computeDateHeadcount(key){
 
     if(gallery.length){
       html+=`<section class="preview-v2-group gallery">
-        <div class="preview-v2-group-head">갤러리 · ${gallery.length}건</div>
+        <div class="preview-v2-group-head">${esc2(CAT_LABEL.gallery)} · 예약 ${gallery.length}건</div>
         <div class="preview-v2-list">`;
-      gallery.forEach((r,idx)=>{
+      gallery.forEach(({row:r,index:idx})=>{
         const [time,spot,name,plus,manager]=r;
         const meta=[
           plus&&plus!=='-'?plus:'',
@@ -5701,7 +5725,7 @@ function computeDateHeadcount(key){
             </div>
             <div class="preview-v2-meta">${esc2(meta||'상세 정보 없음')}</div>
           </div>
-          <button class="preview-v2-del" title="삭제" onclick="deleteEntry('gallery','${key}',${idx},this)">×</button>
+          <div class="v23-row-actions"><button aria-label="일정 수정" onclick="editEntryV23('gallery','${key}',${idx})">수정</button><button class="preview-v2-del" aria-label="일정 삭제" onclick="deleteEntry('gallery','${key}',${idx},this)">삭제</button></div>
         </div>`;
       });
       html+=`</div></section>`;
@@ -5709,12 +5733,11 @@ function computeDateHeadcount(key){
 
     if(tour.length){
       html+=`<section class="preview-v2-group tour">
-        <div class="preview-v2-group-head">투어 · ${tour.length}건</div>
+        <div class="preview-v2-group-head">${esc2(CAT_LABEL.tour)} · 예약 ${tour.length}건</div>
         <div class="preview-v2-list">`;
-      tour.forEach((r,idx)=>{
+      tour.forEach(({row:r,index:idx})=>{
         const [time,danji,ho,name,plus,manager]=r;
         const meta=[
-          name&&name!=='-'?name:'',
           ho&&ho!=='-'?ho:'',
           plus&&plus!=='-'?plus:'',
           manager&&manager!=='-'?'담당 '+manager:''
@@ -5728,24 +5751,24 @@ function computeDateHeadcount(key){
             </div>
             <div class="preview-v2-meta">${esc2(meta||'상세 정보 없음')}</div>
           </div>
-          <button class="preview-v2-del" title="삭제" onclick="deleteEntry('tour','${key}',${idx},this)">×</button>
+          <div class="v23-row-actions"><button aria-label="일정 수정" onclick="editEntryV23('tour','${key}',${idx})">수정</button><button class="preview-v2-del" aria-label="일정 삭제" onclick="deleteEntry('tour','${key}',${idx},this)">삭제</button></div>
         </div>`;
       });
       html+=`</div></section>`;
     }
 
     if(!total && !isClosed){
-      html+=`<div class="preview-empty">등록된 일정이 없습니다.</div>`;
+      html+=`<div class="preview-empty">선택한 날짜와 필터에 해당하는 일정이 없습니다.</div>`;
     }
 
     html+=`<div class="preview-v2-settings">
-      <div class="preview-v2-cap">정원 <strong>${cap>0?cap+'명':'미설정'}${head>0?' · 현재 '+head+'명':''}</strong></div>
+      <div class="preview-v2-cap">정원 <strong>${cap>0?cap+'명':'미설정'}${' · 전체 예약 '+computeDateHeadcount(key)+'명'}</strong></div>
       <button onclick="openDateCapacitySettings()">이 날짜 정원 설정 ›</button>
     </div>`;
 
     html+=`<div class="preview-v2-actions">
-      <button class="gallery" onclick="addEntryFlow('gallery')">+ 갤러리 일정</button>
-      <button class="tour" onclick="addEntryFlow('tour')">+ 투어 일정</button>
+      <button class="gallery" onclick="addEntryFlow('gallery')">+ ${esc2(CAT_LABEL.gallery)} 일정</button>
+      <button class="tour" onclick="addEntryFlow('tour')">+ ${esc2(CAT_LABEL.tour)} 일정</button>
       <button class="primary" onclick="openInChecklist()">체크리스트 열기</button>
     </div>
     <div class="preview-v2-secondary">
@@ -7374,28 +7397,69 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 }
 @media print{.wrap{display:block!important}#overlay,#adminToolbar,#mobileAdminScrim{display:none!important}}
 </style>
-<script id="calendar-v22-behavior">
+<script id="calendar-v23-behavior">
+function editEntryV23(kind,key,index){
+ const store=kind==='gallery'?GALLERY_ROWS:TOUR_ROWS;
+ const row=store[key]&&store[key][index];if(!row)return;
+ const defs=kind==='gallery'?
+  [['time','시간',0],['name','성함',2],['plus','동반',3],['manager','담당',4],['spot','픽업/자가',1]]:
+  [['time','시간',0],['danji','현장명',1],['ho','동호수',2],['name','성함/업체',3],['plus','동반',4],['manager','담당',5]];
+ openForm(CAT_LABEL[kind]+' 일정 수정',defs.map(([id,label,i])=>({id,label,value:row[i]||''})),v=>{
+  if(!store[key] || store[key][index]!==row){alert('일정이 변경되었습니다. 다시 선택해주세요.');return;}
+  defs.forEach(([id,label,i])=>{row[i]=v[id]||'-'});
+  onScheduleDataChanged();openPreview(key);
+ });
+}
 (function(){
  function init(){
   const overlay=document.getElementById('overlay');
   document.querySelector('.wrap').appendChild(overlay);
-  const wide=window.matchMedia('(min-width:1000px)');
-  function sync(){
-   closeMobileAdminMenu();
-   if(wide.matches){
-    const selected=document.querySelector('#m13Days .m13-day.selected .m13-daynum');
-    const start=document.getElementById('rangeStart').value;
-    const month=start?Number(start.split('-')[1]):new Date().getMonth()+1;
-    const key=selected?month+'-'+Number(selected.textContent):currentDateKey;
-    if(key)openPreview(key);
-   }else closeModal();
-  }
-  sync();wide.addEventListener('change',sync);
+  overlay.setAttribute('role','region');overlay.setAttribute('aria-labelledby','modalTitle');
+  if(currentDateKey)openPreview(currentDateKey);
   document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMobileAdminMenu()});
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(init,0));else setTimeout(init,0);
 })();
 </script>
+
+
+<style id="calendar-v23-layout">
+#mobileMockApp .m13-day.is-today .m13-daynum{background:#347f75!important;color:white!important;border-radius:50%!important;width:25px!important;height:25px!important;display:grid!important;place-items:center!important;top:4px!important;left:4px!important}
+#mobileMockApp .m13-day.selected{border:2px solid #347f75!important;background:#f0f6f3!important}
+.v23-manager-line{display:flex;align-items:center;justify-content:space-between;gap:3px;font-size:12px;line-height:1.4}
+.v23-manager-line span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.v23-manager-line strong{white-space:nowrap;font-weight:700}
+.v23-closed{display:block;font-size:10px;color:#a65a55;position:absolute;bottom:6px;left:5px}
+.v23-count-note,.v23-filter-note{font-size:12px;line-height:1.5;color:#60766c;margin:0 0 14px}
+.v23-filter-note{background:#edf5f1;padding:9px 10px;border-radius:8px}
+#overlay .preview-v2-item{grid-template-columns:54px minmax(0,1fr) 48px!important}
+.v23-row-actions{display:flex;flex-direction:column;gap:4px;align-items:stretch}
+#overlay .v23-row-actions button{height:auto!important;min-height:36px!important;width:48px!important;font-size:12px!important;padding:5px 2px!important;border:1px solid #dbe5df!important;border-radius:7px!important;background:#f6f8f6!important;color:#3d6558!important}
+#overlay .v23-row-actions .preview-v2-del{color:#9a5f59!important;background:#fffafa!important}
+#overlay .modal .close,#overlay .modal::before{display:none!important}
+#overlay .modal h2{margin:0 0 14px!important;font-size:20px!important;line-height:1.4!important}
+@media(min-width:1000px){
+ #mobileMockApp .m13-day{height:178px!important;min-height:178px!important;padding-top:34px!important}
+ #mobileMockApp .m13-desk-event{padding:5px!important}
+ #mobileMockApp .m13-desk-time{font-size:11px!important;color:#567268!important}
+ #mobileMockApp .m13-desk-event.tour{background:#faf3ea!important}
+}
+@media(max-width:999px){
+ .wrap{display:flex!important;flex-direction:column!important;gap:14px!important}
+ #mobileMockApp{display:contents!important}
+ #mobileMockApp .m15-top{order:1!important}
+ #mobileMockApp .m15-calendar-card{order:2!important}
+ #mobileMockApp #m13RangeCard{order:3!important;width:100%!important}
+ #overlay{order:4!important;display:block!important;position:static!important;inset:auto!important;width:100%!important;padding:0!important;background:none!important;backdrop-filter:none!important;z-index:auto!important}
+ #overlay .modal{width:100%!important;max-width:none!important;max-height:none!important;margin:0!important;padding:18px 14px!important;border-radius:14px!important;border:1px solid #dfe5e3!important;background:white!important;overflow:visible!important;box-shadow:none!important;transform:none!important}
+ #overlay #modalBody{max-height:none!important;overflow:visible!important;padding:0!important}
+ #mobileMockApp #m13Manager{order:5!important;width:100%!important}
+ .wrap>.checklist-section{order:6!important;width:100%!important;margin:0!important}.wrap>.car{order:7!important;width:100%!important;margin:0!important}
+ #mobileMockApp .m13-day{height:82px!important;min-height:82px!important}
+ #mobileMockApp .m15-count{left:5px!important;bottom:6px!important;line-height:1.45!important;font-size:10px!important}
+ .v23-people{display:block;font-size:11px;color:#426456;font-weight:700}
+}
+@media print{#overlay{display:none!important}}
+</style>
 
 </body>
 </html>
