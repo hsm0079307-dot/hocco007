@@ -9178,14 +9178,17 @@ async function mfRetrySync(){
       syncState = 'ok';
       if(!guestMode){ try{ lastSavedStateSnapshot = JSON.parse(JSON.stringify(allOfficesData)); }catch(e0b){} }
       try{ localStorage.removeItem(PENDING_OFFLINE_KEY); }catch(e0){}
+      v17Toast('저장되었습니다.',false);
     }catch(e){
       console.error('클라우드 저장 실패(오프라인일 수 있음), 로컬에는 저장되었습니다', e);
+      let v17Cached=false;
       try{
-        await mfCacheWrite(STORAGE_KEY, JSON.stringify(allOfficesData));
+        v17Cached=await mfCacheWrite(STORAGE_KEY, JSON.stringify(allOfficesData));
         localStorage.setItem(PENDING_OFFLINE_KEY, String(Date.now())); // 다음에 열 때 이 로컬 변경사항을 클라우드로 덮어쓰지 않게 표시
       }
       catch(e2){ console.error('로컬 저장도 실패', e2); }
       syncState = 'bad';
+      v17Toast(v17Cached?'이 기기에 저장했습니다. 서버 전송은 완료되지 않았습니다.':'저장하지 못했습니다. 입력 내용을 보관하고 다시 시도해 주세요.',true);
     }
     renderSyncStatus();
     renderSeoulShapes(); // 현장이 추가/삭제/변경됐을 때만 구 색칠을 다시 그림
@@ -11595,7 +11598,7 @@ function renderDetailPanel(site){
   function renderDetailBody(site){
     const body = document.getElementById('detailBody');
     if(!body) return;
-    requestAnimationFrame(v16Detail);
+    requestAnimationFrame(()=>{v16Detail();v17Refresh()});
 
     if(detailTab==='개요'){
       // 사업현황 박스: 보기/수정 모드에서 같은 자리를 유지. 모든 항목을 이 화면에서 직접 수정 가능 (현장추가/수정 폼과 같은 필드를 공유하므로 자동으로 연동됨)
@@ -19967,7 +19970,7 @@ function v16Sync(){
   ribbon.querySelector('span').textContent=active?'선택 현장 · '+active.name:'현장을 선택하면 지도와 상세가 연결됩니다';
   ribbon.querySelector('button').hidden=!active;
  }
- requestAnimationFrame(v16Detail);
+ requestAnimationFrame(()=>{v16Detail();v17Refresh()});
 }
 function v16Detail(){
  const body=document.getElementById('detailBody'),site=sites.find(s=>s.id===currentDetailId);
@@ -19986,8 +19989,64 @@ function v16Detail(){
  if(summary){body.prepend(summary);summary.after(recent)}else body.prepend(recent);
 }
 
+var v17Position=null,v17ToastTimer=null,v17Loading=0;
+function v17Remember(){
+ if(window.innerWidth>820||document.body.classList.contains('ux-mobile-detail'))return;
+ const list=document.getElementById('masterList');
+ v17Position={office:currentOffice,list:list?list.scrollTop:0,page:window.scrollY,mode:v16State.mode,collapsed:v16State.collapsed};
+}
+function v17Back(){
+ const p=v17Position&&v17Position.office===currentOffice?v17Position:null;
+ v16SetMode(p?p.mode:'both');
+ if(p){v16State.collapsed=p.collapsed;v16Sync();}
+ requestAnimationFrame(()=>{const list=document.getElementById('masterList');if(list&&p){list.scrollTop=p.list;savedListScroll=p.list}window.scrollTo({top:p?p.page:0,behavior:'instant'});});
+}
+function v17Toast(message,error){
+ if(window.innerWidth>820)return;
+ let box=document.getElementById('v17Toast');
+ if(!box){box=document.createElement('div');box.id='v17Toast';box.className='no-print';box.setAttribute('role','status');box.setAttribute('aria-live','polite');document.body.append(box)}
+ box.textContent=message;box.hidden=false;box.classList.toggle('is-error',!!error);clearTimeout(v17ToastTimer);v17ToastTimer=setTimeout(()=>box.hidden=true,error?8000:3500);
+}
+function v17FormatDate(text){return String(text).replace(/\b20(\d{2})-(\d{2})-(\d{2})\b/g,'$1.$2.$3')}
+function v17FormatMetric(text){return String(text).replace(/\b(\d[\d,]*(?:\.\d+)?)\s*(명|곳|회|%)/g,(_,n,u)=>Number(n.replace(/,/g,'')).toLocaleString('ko-KR',{maximumFractionDigits:1})+u)}
+function v17Refresh(){
+ const bar=document.getElementById('mobileWorkspace16');
+ if(bar){
+  let status=document.getElementById('v17LoadStatus');
+  if(!status){status=document.createElement('div');status.id='v17LoadStatus';status.setAttribute('role','status');status.innerHTML='<span></span><button type="button">다시 연결</button>';status.querySelector('button').addEventListener('click',()=>mfRetrySync());bar.append(status)}
+  const busy=v17Loading>0||mfRetryBusy;
+  const bad=!busy&&(uxLoadFailed||syncState==='bad');
+  status.hidden=!busy&&!bad;
+  status.querySelector('span').textContent=busy?'최신 자료를 불러오는 중입니다…':sites.length?'연결을 확인해 주세요. 현재 남아 있는 자료를 표시합니다.':'자료를 불러오지 못했습니다. 연결 후 다시 시도해 주세요.';
+  status.querySelector('button').hidden=busy;
+  bar.setAttribute('aria-busy',String(busy));
+  if(!busy&&!bad){const empty=document.querySelector('#sidebar .empty');if(empty&&rfList(filteredSites()).length===0){const filtered=searchText||selectedStage!=='전체'||selectedDistrict||selectedManagers.size||selectedNameIds.size||uxFavoriteOnly||quickFilter!=='all';empty.textContent=filtered?'검색 조건에 맞는 현장이 없습니다. 위의 초기화 버튼으로 전체 현장을 확인하세요.':'표시할 현장이 없습니다. 현장 등록 또는 목록 표시 설정을 확인해 주세요.'}}
+ }
+ const detail=document.querySelector('#masterPanel .detail');
+ if(detail&&!document.getElementById('v17BackRow')){
+  const row=document.createElement('div');row.id='v17BackRow';row.className='no-print';row.innerHTML='<button type="button">‹ 목록으로</button><span></span>';row.querySelector('button').addEventListener('click',v17Back);
+  const site=sites.find(s=>s.id===currentDetailId);row.querySelector('span').textContent=site?site.name:'현장 상세';detail.prepend(row);
+ }
+ if(window.innerWidth<=820){
+  document.querySelectorAll('.name-item-meta,#v16RecentReports summary,.pdf-today-wrap .sub,.mobile-detail-meta').forEach(el=>{
+   const walker=document.createTreeWalker(el,NodeFilter.SHOW_TEXT);let n;while(n=walker.nextNode()){const text=v17FormatDate(n.nodeValue);if(text!==n.nodeValue)n.nodeValue=text}
+  });
+  document.querySelectorAll('.mobile-role-metrics strong,.mobile-cal-detail-total,.mobile-cal-detail-manager b,.cal-manager-number,#globalStatsBody .pdf-summary-cell .n').forEach(el=>{if(!el.children.length)el.textContent=v17FormatMetric(el.textContent)});
+ }
+}
+function v17Install(){
+ document.addEventListener('pointerdown',e=>{if(e.target.closest('.name-item,.site-label,.site-dot,.map-tooltip,#uxQuickSites,#v16MapSelection'))v17Remember()},true);
+ document.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' ')v17Remember()},true);
+ const load=loadSites;loadSites=async function(...args){v17Loading++;v17Refresh();try{return await load(...args)}finally{v17Loading--;v17Refresh();if(mfRetryBusy)v17Toast(uxLoadFailed?'다시 연결하지 못했습니다. 연결 상태를 확인해 주세요.':'최신 자료를 불러왔습니다.',uxLoadFailed)}};
+ const sync=renderSyncStatus;renderSyncStatus=function(...args){const result=sync(...args);v17Refresh();return result};
+ const stats=renderGlobalStats;renderGlobalStats=function(...args){const result=stats(...args);v17Refresh();return result};
+ window.addEventListener('resize',()=>requestAnimationFrame(v17Refresh));
+ v17Refresh();
+}
+
 uxInit();
 v16Sync();
+v17Install();
 // Multi-workbook member import, inside the application's authenticated scope.
 const miParser=window.MemberExcelImport;
 const miPrefsKey='hocco-member-excel-mappings-v1';
@@ -21878,6 +21937,25 @@ body.ux383 .mgr-breakdown-wrap .mgr-cal-summary-main{font-size:11px!important;}}
  body.ux383 .summary-value{font-size:16px!important;line-height:1.5!important;}
 }
 @media print{#mobileWorkspace16,#v16MapSelection,#v16RecentReports{display:none!important;}}
+
+#v17BackRow,#v17LoadStatus,#v17Toast{display:none;}
+@media screen and (max-width:820px){
+ body.ux383 #v17BackRow{display:flex!important;position:sticky;top:0;z-index:15;align-items:center;gap:10px;padding:5px 0 8px;margin-bottom:8px;background:var(--card);border-bottom:1px solid var(--line);}
+ #v17BackRow span{min-width:0;font-size:13px;font-weight:600;line-height:1.45;overflow-wrap:anywhere;}
+ body.ux383 #v17BackRow button{flex:none;min-height:44px;padding:8px 10px;border:0;border-radius:8px;font:inherit;font-size:13px;background:var(--accent-soft);color:var(--text-main);}
+ body.ux383 #v17LoadStatus:not([hidden]){display:flex!important;align-items:center;gap:8px;justify-content:space-between;padding:9px 10px;margin:4px 0;background:var(--accent-soft);border-radius:8px;color:var(--text-main);font-size:12px;line-height:1.5;}
+ #v17LoadStatus span{min-width:0;overflow-wrap:anywhere;}
+ #v17LoadStatus button{flex:none;}
+ body.ux383 #v17Toast:not([hidden]){display:block!important;position:fixed;z-index:2147483500;left:12px;right:12px;bottom:calc(18px + env(safe-area-inset-bottom,0px));max-width:520px;margin:auto;padding:13px 16px;border:1px solid var(--accent-border);border-radius:12px;background:var(--card);color:var(--text-main);box-shadow:0 5px 22px #0003;font-size:14px;line-height:1.5;pointer-events:none;}
+ body.ux383 #v17Toast.is-error{border-color:var(--neg);}
+ body.ux383 #masterList .name-item{height:auto!important;min-height:64px!important;max-height:none!important;}
+ body.ux383 #masterList .name-item-text{display:-webkit-box!important;-webkit-box-orient:vertical;-webkit-line-clamp:2;white-space:normal!important;line-height:1.5!important;overflow:hidden!important;overflow-wrap:anywhere!important;font-size:13px!important;}
+ body.ux383:not(.ux-mobile-detail):not([data-mobile-workspace="list"]) #masterList{height:200px!important;max-height:200px!important;}
+ body.ux383 #uxQuickSites button{max-width:180px!important;white-space:normal!important;line-height:1.35!important;font-size:12px!important;}
+ body.ux383 .detail-name,body.ux383 .detail-manager,body.ux383 .recent-person-card header strong,body.ux383 .mobile-cal-detail-manager span{white-space:normal!important;overflow-wrap:anywhere!important;text-overflow:clip!important;}
+ body.ux383 .detail-manager{font-size:13px!important;line-height:1.5!important;}
+}
+@media print{#v17BackRow,#v17LoadStatus,#v17Toast{display:none!important;}}
 </style>
 </body>
 </html>
