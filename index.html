@@ -8113,7 +8113,25 @@ const L = (function(){
       opts = opts||{};
       this.kmap = new kakao.maps.Map(el, {center: new kakao.maps.LatLng(37.5665,126.9780), level: 8});
       if(opts.zoomControl){
-        this.kmap.addControl(new kakao.maps.ZoomControl(), kakao.maps.ControlPosition.RIGHT);
+        // Kakao custom-control API: https://apis.map.kakao.com/web/sample/addMapCustomControl/
+        const desktopZoom=new kakao.maps.ZoomControl();
+        const mobileZoom=document.createElement('div');mobileZoom.className='v18-map-zoom';
+        mobileZoom.setAttribute('role','group');mobileZoom.setAttribute('aria-label','지도 확대 및 축소');
+        for(const [label,symbol,delta] of [['지도 확대','+',-1],['지도 축소','−',1]]){
+          const button=document.createElement('button');button.type='button';button.textContent=symbol;button.setAttribute('aria-label',label);
+          button.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();this.kmap.setLevel(this.kmap.getLevel()+delta)});
+          mobileZoom.append(button);
+        }
+        const media=window.matchMedia('(max-width:820px)');let applied=null;
+        const applyZoom=()=>{
+          const desired=media.matches?mobileZoom:desktopZoom;
+          if(applied===desired)return;
+          if(applied)this.kmap.removeControl(applied);
+          this.kmap.addControl(desired,media.matches?kakao.maps.ControlPosition.TOPRIGHT:kakao.maps.ControlPosition.RIGHT);
+          applied=desired;
+        };
+        applyZoom();
+        if(media.addEventListener)media.addEventListener('change',applyZoom);else media.addListener(applyZoom);
       }
     }
     invalidateSize(){ this.kmap.relayout(); return this; }
@@ -21956,6 +21974,76 @@ body.ux383 .mgr-breakdown-wrap .mgr-cal-summary-main{font-size:11px!important;}}
  body.ux383 .detail-manager{font-size:13px!important;line-height:1.5!important;}
 }
 @media print{#v17BackRow,#v17LoadStatus,#v17Toast{display:none!important;}}
+
+/* Mobile visual hierarchy: navigation, surfaces, typography and map share one scale. */
+@media screen and (max-width:820px){
+ body.ux383{--mobile-space-sm:8px;--mobile-space-md:12px;--mobile-space-lg:16px;--mobile-radius-control:8px;--mobile-radius-card:12px;}
+ body.ux383 .view-switch-bar{padding:0 8px!important;gap:8px!important;background:var(--card)!important;border-bottom:1px solid var(--line)!important;}
+ body.ux383 .view-switch-bar .view-switch-btn{border:0!important;border-radius:0!important;min-height:44px!important;height:44px!important;font-size:13px!important;font-weight:600!important;background:transparent!important;color:var(--text-dim)!important;box-shadow:none!important;}
+ body.ux383 .view-switch-bar .view-switch-btn.active{background:transparent!important;color:var(--text-main)!important;box-shadow:inset 0 -2px var(--accent)!important;font-weight:700!important;}
+ body.ux383 #mobileWorkspace16{padding:8px 12px 4px!important;background:var(--bg-side)!important;border:0!important;}
+ body.ux383 .v16-view-row{gap:8px!important;}
+ body.ux383 .v16-segments{padding:3px!important;gap:2px!important;border:0!important;border-radius:10px!important;background:var(--bg-side-2)!important;}
+ body.ux383 #mobileWorkspace16 .v16-segments button{min-width:44px!important;min-height:38px!important;border-radius:8px!important;font-size:12px!important;font-weight:500!important;padding:6px 10px!important;color:var(--text-dim)!important;}
+ body.ux383 #mobileWorkspace16 .v16-segments [aria-pressed="true"]{background:var(--card)!important;color:var(--text-main)!important;font-weight:650!important;box-shadow:0 1px 3px #00000010!important;}
+ body.ux383 #mobileWorkspace16 #v16Fold{min-height:44px!important;font-size:12px!important;font-weight:400!important;padding:6px 4px!important;}
+ body.ux383 .v16-results{padding-top:4px!important;font-weight:400!important;}
+ body.ux383 #tabs{gap:4px!important;padding:4px 8px!important;border-bottom:0!important;}
+ body.ux383 #tabs .tab{font-size:12px!important;font-weight:500!important;border:0!important;border-radius:8px!important;background:transparent!important;color:var(--text-dim)!important;}
+ body.ux383 #tabs .tab.active{background:var(--accent-soft)!important;color:var(--text-main)!important;font-weight:650!important;}
+ body.ux383 #uxQuickSites{border:0!important;background:transparent!important;padding:2px 4px!important;gap:8px!important;}
+ body.ux383 #uxQuickSites button{background:transparent!important;border:0!important;border-radius:8px!important;font-weight:500!important;}
+ body.ux383 #uxQuickSites button:first-child{background:var(--card)!important;color:var(--text-dim)!important;}
+ body.ux383 #uxQuickSites button[aria-pressed="true"]{background:var(--accent-soft)!important;color:var(--text-main)!important;}
+ body.ux383 .main{padding:8px!important;gap:12px!important;}
+ body.ux383 #sidebar{border:0!important;box-shadow:none!important;border-radius:12px!important;background:var(--card)!important;}
+ body.ux383 #masterList .name-item{border:0!important;border-bottom:1px solid color-mix(in srgb,var(--line) 55%,transparent)!important;border-radius:0!important;box-shadow:none!important;padding:8px 4px!important;}
+ body.ux383 #masterList .name-item.active{border:0!important;border-radius:8px!important;box-shadow:inset 3px 0 var(--accent)!important;background:var(--accent-soft)!important;}
+ body.ux383 #masterList .name-item-text{font-weight:650!important;}
+ body.ux383 #masterList .name-item-meta{font-size:11px!important;font-weight:400!important;color:var(--text-dim)!important;}
+ body.ux383 .detail{padding:12px!important;background:var(--bg-side)!important;}
+ body.ux383 #v17BackRow{background:var(--bg-side)!important;}
+ body.ux383 .detail-name{font-size:19px!important;font-weight:700!important;line-height:1.45!important;letter-spacing:-.3px!important;}
+ body.ux383 .detail-manager,body.ux383 .detail-sub{font-weight:400!important;}
+ body.ux383 .detail-head-actions .btn,body.ux383 #v17BackRow button{border:0!important;border-radius:8px!important;background:var(--card)!important;color:var(--text-main)!important;box-shadow:none!important;font-weight:500!important;}
+ body.ux383 .summary-strip{gap:8px!important;margin:12px 0!important;}
+ body.ux383 .summary-item{border:0!important;border-radius:12px!important;padding:12px!important;background:var(--card)!important;box-shadow:none!important;}
+ body.ux383 .summary-label{font-size:12px!important;font-weight:400!important;color:var(--text-dim)!important;}
+ body.ux383 .summary-value{font-size:18px!important;font-weight:700!important;color:var(--text-main)!important;}
+ body.ux383 .summary-value-text{font-size:15px!important;font-weight:600!important;}
+ body.ux383 #v16RecentReports,body.ux383 .detail-quad-box,body.ux383 #globalStatsBody .recent-person-card,body.ux383 .mobile-role-card,body.ux383 .mobile-cal-detail-card{border:1px solid var(--line)!important;border-radius:12px!important;box-shadow:none!important;background:var(--card)!important;padding:12px!important;}
+ body.ux383 .detail-quad-grid{gap:12px!important;}
+ body.ux383 .detail-quad-box .spec-heading{padding:0 0 8px!important;background:transparent!important;border:0!important;font-weight:600!important;}
+ body.ux383 .detail-quad-box .spec-line{border:0!important;font-weight:400!important;}
+ body.ux383 .detail-quad-box .spec-stage-detail{padding:0!important;}
+ body.ux383 .mobile-detail-field{border-color:color-mix(in srgb,var(--line) 55%,transparent)!important;}
+ body.ux383 .mobile-detail-field b,body.ux383 #globalStatsBody .recent-person-card dt{font-weight:400!important;color:var(--text-dim)!important;}
+ body.ux383 .mobile-detail-field span,body.ux383 .mobile-detail-grid.row2b .mobile-detail-field span,body.ux383 .mobile-detail-grid.rowContact .mobile-detail-field span,body.ux383 #globalStatsBody .recent-person-card dd{font-weight:500!important;}
+ body.ux383 #globalStatsBody .recent-person-card header strong{font-weight:650!important;}
+ body.ux383 .v16-section-head h3,body.ux383 .mobile-role-card h4,body.ux383 .mobile-cal-detail-date{font-weight:600!important;font-size:15px!important;}
+ body.ux383 .mobile-role-metrics button{border:0!important;border-radius:8px!important;background:var(--bg-side)!important;padding:8px!important;}
+ body.ux383 .mobile-role-metrics strong,body.ux383 .mobile-cal-detail-total,body.ux383 .mobile-cal-detail-manager b{color:var(--text-main)!important;font-weight:650!important;}
+ body.ux383 .mobile-cal-detail-manager{border:0!important;border-bottom:1px solid var(--line)!important;border-radius:0!important;background:transparent!important;padding:8px 0!important;}
+ body.ux383 .mobile-cal-detail-manager span{font-weight:400!important;}
+ body.ux383 .mobile-detail-note-body{border:0!important;background:var(--bg-side)!important;border-radius:8px!important;padding:12px!important;}
+ body.ux383 .badge-row .badge{padding:3px 8px!important;min-height:24px!important;border:0!important;background:var(--card)!important;color:var(--text-dim)!important;font-size:11px!important;font-weight:500!important;border-radius:8px!important;}
+ body.ux383 .stale-badge,body.ux383 .work-badge{padding:2px 6px!important;border-radius:6px!important;font-size:11px!important;font-weight:500!important;background:var(--warn-bg)!important;color:var(--warn-text)!important;}
+ body.ux383 .mobile-role-metrics button[data-drill="role_uncontacted"] strong{background:var(--warn-bg)!important;color:var(--warn-text)!important;font-size:13px!important;padding:2px 6px!important;border-radius:6px!important;}
+ body.ux383 .map-wrap{position:relative!important;border:1px solid var(--line)!important;border-radius:12px!important;background:var(--card)!important;box-shadow:none!important;overflow:hidden!important;}
+ body.ux383 #v16MapSelection{border:0!important;border-bottom:1px solid var(--line)!important;border-radius:0!important;padding:8px 12px!important;min-height:48px!important;background:var(--card)!important;font-weight:500!important;}
+ body.ux383 #v16MapSelection button{border-radius:8px!important;background:var(--bg-side)!important;font-size:12px!important;font-weight:500!important;min-height:40px!important;}
+ body.ux383 .map-wrap>#map{border:0!important;border-radius:0!important;box-shadow:none!important;}
+ body.ux383 .v18-map-zoom{display:flex;flex-direction:column;margin:12px 12px 0 0;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--card);box-shadow:0 2px 8px #0002;}
+ body.ux383 .v18-map-zoom button{appearance:none;width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;background:var(--card)!important;color:var(--text-main)!important;font:500 24px/1 system-ui!important;box-shadow:none!important;cursor:pointer;}
+ body.ux383 .v18-map-zoom button+button{border-top:1px solid var(--line)!important;}
+ body.ux383 button:focus-visible,body.ux383 summary:focus-visible{outline:2px solid var(--accent)!important;outline-offset:2px!important;}
+}
+@media screen and (max-width:820px){
+ body.ux383:not(.guest-mode) .detail-quad-box,
+ body.ux383:not(.guest-readonly):not(.sooni-guest-view) .detail-quad-box{border-radius:12px!important;padding:12px!important;}
+ body.ux383:not(.guest-mode) .detail-quad-box .spec-heading{padding:0 0 8px!important;font-weight:600!important;}
+ body.ux383:not(.guest-mode) .detail-quad-box .spec-stage-detail{padding:0!important;}
+}
 </style>
 </body>
 </html>
