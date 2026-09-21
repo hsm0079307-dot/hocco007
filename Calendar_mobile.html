@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>현장 일정표</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -3139,7 +3139,6 @@ document.getElementById("overlay").addEventListener("click",(e)=>{
   if(e.target.id==="overlay") closeModal();
 });
 function openInChecklist(){
-  document.body.classList.add("m13-show-details");
   closeModal();
   if(previewKey) selectDate(previewKey, true);
 }
@@ -3169,7 +3168,6 @@ function selectDate(key, scroll){
 
   body.innerHTML = html;
 
-  document.dispatchEvent(new CustomEvent("calendar-date-selected",{detail:key}));
   if(scroll){
     document.querySelector(".checklist-section").scrollIntoView({behavior:"smooth", block:"start"});
   }
@@ -3273,7 +3271,7 @@ function initSiteTitle(){
   const el = document.getElementById("siteTitle");
   const saved = localStorage.getItem(SITE_TITLE_KEY);
   const legacy = new Set(["목동 현장일정","(현장명)일정표","목동 현장일정표"]);
-  if(saved !== null) el.textContent = saved;
+  if(saved !== null && !legacy.has(saved.trim())) el.textContent = saved;
   else if(legacy.has((el.textContent||"").trim())) el.textContent = "";
   const syncTitle=()=>{
     const v=(el.textContent||"").trim();
@@ -3291,7 +3289,7 @@ function initSiteSubtitle(){
   const el = document.getElementById("siteSubtitle");
   const saved = localStorage.getItem(SITE_SUBTITLE_KEY);
   const legacy = /갤러리\s*&.*21차.*투어|언제\s*·\s*어느 현장/;
-  if(saved !== null) el.textContent = saved;
+  if(saved !== null && !legacy.test(saved)) el.textContent = saved;
   else if(legacy.test(el.textContent||"")) el.textContent = "현장 방문 일정을 한눈에 확인하세요.";
   el.addEventListener("blur", ()=>{
     const v=(el.textContent||"").trim() || "현장 방문 일정을 한눈에 확인하세요.";
@@ -4605,34 +4603,10 @@ function computeDateHeadcount(key){
   #mobileMockNav .m13-nav-btn svg{width:22px;height:22px}
 }
 </style>
-
-<script id="calendar-v23-data">
-function visibleScheduleRowsV23(key){
- const out=[];
- if(activeCategories.gallery && galleryMatchesDanjiFilter())
-  (GALLERY_ROWS[key]||[]).forEach((row,index)=>out.push({kind:'gallery',index,row}));
- if(activeCategories.tour)
-  (TOUR_ROWS[key]||[]).forEach((row,index)=>{
-   if(!activeDanjiFilter.size || activeDanjiFilter.has(row[1]))out.push({kind:'tour',index,row});
-  });
- return out;
-}
-function scheduleSummaryV23(key){
- const records=visibleScheduleRowsV23(key), groups=new Map();let people=0;
- records.forEach(item=>{
-  const r=reorderRow(item.kind,item.row), count=1+parseCompanionCount(String(r[4]||''));
-  const groupKey=JSON.stringify([item.kind,r[0]||'-',r[1]||'-',r[5]||'-']);
-  if(!groups.has(groupKey))groups.set(groupKey,{kind:item.kind,time:r[0]||'시간 미정',site:r[1]||'현장 미입력',manager:r[5]&&r[5]!=='-'?r[5]:'미지정',people:0});
-  groups.get(groupKey).people+=count;people+=count;
- });
- return {records,groups:Array.from(groups.values()),sessions:groups.size,people};
-}
-</script>
-
 <script id="calendar-mobile-v13-shell-js">
 (function(){
   const mq=()=>true;
-  const isDesktop=()=>window.matchMedia&&window.matchMedia('(min-width:1000px)').matches;
+  const isDesktop=()=>window.matchMedia&&window.matchMedia('(min-width:561px)').matches;
   let selectedKey=null;
   const svgCal='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5.5" width="17" height="15" rx="2.5"></rect><path d="M7 3.5v4M17 3.5v4M3.5 10h17"></path><path d="M8 14h2M14 14h2M8 17h2M14 17h2"></path></svg>';
   const svgPeople='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="9" r="3"></circle><circle cx="16.5" cy="8.5" r="2.5"></circle><path d="M4.5 19c.7-3.3 2.6-5 5.7-5s5 1.7 5.7 5"></path><path d="M14.3 18.6c.4-2.3 1.7-3.7 4-4.2"></path></svg>';
@@ -4666,7 +4640,7 @@ function scheduleSummaryV23(key){
         <div class="m15-brand">
           <div class="m15-brand-icon">${svgCal}</div>
           <div class="m15-brand-copy">
-            <button type="button" class="m19-title-edit" id="m19TitleEdit" aria-label="일정표 제목 수정"><span class="m13-title" id="m13Title"></span><span class="m19-pencil">수정</span></button>
+            <button type="button" class="m19-title-edit" id="m19TitleEdit" aria-label="일정표 제목 수정"><span class="m13-title" id="m13Title"></span><span class="m19-pencil">✎</span></button>
             <button type="button" class="m15-brand-sub m19-sub-edit" id="m19SubEdit" aria-label="부제목 수정"></button>
           </div>
         </div>
@@ -4690,9 +4664,9 @@ function scheduleSummaryV23(key){
           <button type="button" class="m15-period-btn" id="m15PeriodBtn">기간 설정</button>
         </div>
 
-        <div class="v24-month-summary" id="v24MonthSummary"></div><div class="m13-weekdays"><div class="m13-weekday sun">일</div><div class="m13-weekday">월</div><div class="m13-weekday">화</div><div class="m13-weekday">수</div><div class="m13-weekday">목</div><div class="m13-weekday">금</div><div class="m13-weekday sat">토</div></div>
+        <div class="m13-weekdays"><div class="m13-weekday sun">일</div><div class="m13-weekday">월</div><div class="m13-weekday">화</div><div class="m13-weekday">수</div><div class="m13-weekday">목</div><div class="m13-weekday">금</div><div class="m13-weekday sat">토</div></div>
         <div class="m13-days" id="m13Days"></div>
-        <div class="m15-calendar-foot">날짜를 선택하면 상세 일정이 표시됩니다. · ● 오늘 / 테두리 선택일</div>
+        <div class="m15-calendar-foot">날짜를 누르면 해당 일정의 상세 내용을 확인할 수 있습니다.</div>
       </section>
 
       <section class="m13-range" id="m13RangeCard" aria-hidden="true">
@@ -4785,21 +4759,42 @@ function scheduleSummaryV23(key){
     };
     const pbtn=document.getElementById('m15PeriodBtn');
     if(pbtn) pbtn.onclick=()=>{
-      const card=document.getElementById('m13RangeCard');
-      card.classList.toggle('range-open');
-      card.setAttribute('aria-hidden',String(!card.classList.contains('range-open')));
+      const start=document.getElementById('rangeStart');
+      const end=document.getElementById('rangeEnd');
+      const current=(start&&start.value?start.value:'')+' ~ '+(end&&end.value?end.value:'');
+      const next=prompt('조회 기간을 직접 바꾸려면 아래 형식으로 입력하세요.\nYYYY-MM-DD ~ YYYY-MM-DD',current);
+      if(!next) return;
+      const parts=next.split('~').map(v=>v.trim());
+      if(parts.length===2 && /^\d{4}-\d{2}-\d{2}$/.test(parts[0]) && /^\d{4}-\d{2}-\d{2}$/.test(parts[1])){
+        start.value=parts[0]; end.value=parts[1]; applyRange(); setTimeout(renderShell,0);
+      }else alert('예: 2026-08-01 ~ 2026-08-31 형식으로 입력해주세요.');
     };
     const abtn=document.getElementById('m15Admin');
     if(abtn) abtn.onclick=()=>{ if(typeof toggleMobileAdminMenu==='function') toggleMobileAdminMenu(); };
 
-    function editHeading(){
-      openForm('일정표 제목 수정',[
-        {id:'title',label:'일정표 제목',value:document.getElementById('siteTitle').textContent,placeholder:'예: 현장 방문 일정'},
-        {id:'subtitle',label:'부제목',value:document.getElementById('siteSubtitle').textContent,placeholder:'선택 입력'}
-      ],v=>{saveHeadingV24(v.title,v.subtitle);renderShell();});
-    }
-    document.getElementById('m19TitleEdit').onclick=editHeading;
-    document.getElementById('m19SubEdit').onclick=editHeading;
+    const titleBtn=document.getElementById('m19TitleEdit');
+    if(titleBtn) titleBtn.onclick=()=>{
+      const src=document.getElementById('siteTitle');
+      const current=(src?.textContent||'').trim();
+      const next=prompt('일정표 제목을 입력하세요.', current);
+      if(next===null) return;
+      const v=next.trim();
+      if(src) src.textContent=v;
+      if(v) localStorage.setItem(SITE_TITLE_KEY,v); else localStorage.removeItem(SITE_TITLE_KEY);
+      document.title=v||'현장 일정표';
+      renderShell();
+    };
+    const subBtn=document.getElementById('m19SubEdit');
+    if(subBtn) subBtn.onclick=()=>{
+      const src=document.getElementById('siteSubtitle');
+      const current=(src?.textContent||'').trim();
+      const next=prompt('부제목을 입력하세요.', current);
+      if(next===null) return;
+      const v=next.trim()||'현장 방문 일정을 한눈에 확인하세요.';
+      if(src) src.textContent=v;
+      localStorage.setItem(SITE_SUBTITLE_KEY,v);
+      renderShell();
+    };
   }
 
   function shiftMonth(delta){
@@ -4940,38 +4935,42 @@ function scheduleSummaryV23(key){
     document.getElementById('m13CalTitle').textContent = y+'년 '+(m+1)+'월';
     const days=document.getElementById('m13Days'); if(!days) return; days.innerHTML='';
     const first=new Date(y,m,1), start=new Date(y,m,1-first.getDay()), today=new Date();
-    if(!selectedKey || Number(selectedKey.split('-')[0])!==m+1){ selectedKey = (today.getFullYear()===y && today.getMonth()===m) ? key(today) : key(first); }
+    if(!selectedKey){ selectedKey = (today.getFullYear()===y && today.getMonth()===m) ? key(today) : key(first); }
 
     const desktop=isDesktop();
 
-    const cellCount=Math.ceil((first.getDay()+new Date(y,m+1,0).getDate())/7)*7;
-    for(let i=0;i<cellCount;i++){
+    for(let i=0;i<42;i++){
       const d=new Date(start); d.setDate(start.getDate()+i);
       const k=key(d), other=d.getMonth()!==m, ev=eventFor(k);
       const b=document.createElement('button');
       b.type='button';
       b.className='m13-day '+(other?'other ':'')+(d.getDay()===0?'sun ':'')+(d.getDay()===6?'sat ':'')+((selectedKey===k && !other)?'selected':'');
 
-      const isToday=!other && d.toDateString()===today.toDateString();
-      if(isToday){b.classList.add('is-today');b.setAttribute('aria-current','date');}
-      b.setAttribute('aria-pressed',String(selectedKey===k&&!other));
-      const summary=scheduleSummaryV23(k);
-      b.setAttribute('aria-label',`${y}년 ${d.getMonth()+1}월 ${d.getDate()}일${isToday?' 오늘':''}, 일정 ${summary.sessions}건, 방문 ${summary.people}명`);
       let inner=`<span class="m13-daynum">${d.getDate()}</span>`;
 
       if(!other && desktop){
-        if(summary.groups.length){
-          inner+='<div class="m13-desk-events">';
-          summary.groups.slice(0,3).forEach(x=>{
-            inner+=`<div class="m13-desk-event ${x.kind}"><div class="m13-desk-time">${escapeHtml(x.time)}</div><div class="v23-manager-line"><span>${escapeHtml(x.manager)}</span><strong>${x.people}명</strong></div></div>`;
+        const detail=detailedEventsFor(k);
+        if(detail.length){
+          const show=detail.slice(0,3);
+          inner += `<div class="m13-desk-events">`;
+          show.forEach(x=>{
+            inner += `
+              <div class="m13-desk-event ${x.kind}">
+                <div class="m13-desk-time">${escapeHtml(x.time)}</div>
+                <div class="m13-desk-copy">
+                  <strong>${escapeHtml(x.site)}</strong>
+                  <span>${escapeHtml(x.name)}</span>
+                  <small>${x.manager?('담당 '+escapeHtml(x.manager)):'담당 미지정'}</small>
+                </div>
+              </div>`;
           });
-          if(summary.groups.length>3)inner+=`<div class="m13-desk-more">+ ${summary.groups.length-3}건 더보기</div>`;
-          inner+='</div>';
+          if(detail.length>3) inner += `<div class="m13-desk-more">+ ${detail.length-3}건 더보기</div>`;
+          inner += `</div>`;
         }
-        if(ev.some(x=>x[0]==='closed'))inner+='<span class="v23-closed">휴관</span>';
-      }else if(!other){
-        if(summary.sessions)inner+=`<span class="m15-count">${summary.sessions}건<span class="v23-people">${summary.people}명</span></span>`;
-        else if(ev.some(x=>x[0]==='closed'))inner+='<span class="v23-closed">휴관</span>';
+      } else if(!other && ev.length){
+        const detail=detailedEventsFor(k);
+        const count=detail.length || ev.length;
+        inner += `<span class="m15-count">${count}건</span><span class="m15-dots">${ev.map(x=>`<i class="${x[0]}"></i>`).join('')}</span>`;
       }
 
       b.innerHTML=inner;
@@ -4984,7 +4983,6 @@ function scheduleSummaryV23(key){
         }
         selectedKey=k;
         currentDateKey=k;
-        selectDate(k,false);
         renderShell();
         openPreview(k);
       };
@@ -4999,7 +4997,7 @@ function scheduleSummaryV23(key){
     document.getElementById('m13Title').textContent=titleSource||'일정표 제목 입력';
     const subSource=(document.getElementById('siteSubtitle')?.textContent||'').trim();
     const subTarget=document.getElementById('m19SubEdit');
-    if(subTarget) subTarget.textContent=subSource;
+    if(subTarget) subTarget.textContent=subSource||'현장 방문 일정을 한눈에 확인하세요.';
     document.getElementById('m13MonthChip').querySelector('span').textContent=monthText();
     const rs=document.getElementById('rangeStart'), re=document.getElementById('rangeEnd');
     document.getElementById('m13Start').value=rs?.value||'';
@@ -5025,17 +5023,12 @@ function scheduleSummaryV23(key){
 
     renderFilters();
     renderSiteFilters();
-    let monthlySessions=0,monthlyPeople=0;
-    for(let day=1;day<=lastDay;day++){const summary=scheduleSummaryV23((mm+1)+'-'+day);monthlySessions+=summary.sessions;monthlyPeople+=summary.people;}
-    document.getElementById('v24MonthSummary').textContent='이번 달 · 일정 '+monthlySessions+'건 · 방문 '+monthlyPeople+'명';
     renderCalendar();
-    if(selectedKey){currentDateKey=selectedKey;selectDate(selectedKey,false);openPreview(selectedKey);}
   }
 
   const wrapFn=(name)=>{const old=window[name]; if(typeof old!=='function'||old.__m13) return; const f=function(){const r=old.apply(this,arguments); setTimeout(renderShell,0); return r;}; f.__m13=true; window[name]=f;};
   ['applyRange','setThisMonth','setNextMonth','toggleCategory','toggleClosedFilter','toggleDanjiFilter','onScheduleDataChanged'].forEach(wrapFn);
 
-  document.addEventListener('calendar-date-selected',e=>{if(selectedKey!==e.detail){selectedKey=e.detail;renderCalendar();openPreview(selectedKey);}});
   function init(){ if(mq()) renderShell(); window.addEventListener('resize',()=>{ if(mq()) renderShell(); }); }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
@@ -5674,22 +5667,18 @@ function scheduleSummaryV23(key){
 
     if(title) title.textContent=labelFor(key);
 
-    const summary=scheduleSummaryV23(key);
-    const gallery=summary.records.filter(x=>x.kind==='gallery');
-    const tour=summary.records.filter(x=>x.kind==='tour');
-    const total=summary.sessions;
-    const head=summary.people;
+    const gallery=(GALLERY_ROWS[key]||[]);
+    const tour=(TOUR_ROWS[key]||[]);
+    const total=gallery.length+tour.length;
+    const head=computeDateHeadcount(key);
     const cap=getCapacityForKey(key);
-    const isClosed=!!GALLERY_CLOSED[key] && showClosedToggle && galleryMatchesDanjiFilter();
+    const isClosed=!!GALLERY_CLOSED[key];
 
     let html=`<div class="preview-v2-summary">
       <span>일정 <strong>${total}건</strong></span>
-      <span>방문 <strong>${head}명</strong></span>
+      ${head>0?`<span>예상 인원 <strong>${head}명</strong></span>`:''}
     </div>`;
 
-    html+=`<p class="v23-count-note">같은 시간·현장·담당은 일정 1건 · 방문 인원은 동반 포함</p>`;
-    const filtered=activeDanjiFilter.size>0 || !activeCategories.gallery || !activeCategories.tour;
-    if(filtered)html+='<p class="v23-filter-note">선택한 현장·일정 구분에 해당하는 내용입니다.</p>';
     if(isClosed){
       html+=`<div class="preview-v2-group closed">
         <div class="preview-v2-group-head">휴관 / 이용 불가</div>
@@ -5699,9 +5688,9 @@ function scheduleSummaryV23(key){
 
     if(gallery.length){
       html+=`<section class="preview-v2-group gallery">
-        <div class="preview-v2-group-head">${esc2(CAT_LABEL.gallery)} · 예약 ${gallery.length}건</div>
+        <div class="preview-v2-group-head">갤러리 · ${gallery.length}건</div>
         <div class="preview-v2-list">`;
-      gallery.forEach(({row:r,index:idx})=>{
+      gallery.forEach((r,idx)=>{
         const [time,spot,name,plus,manager]=r;
         const meta=[
           plus&&plus!=='-'?plus:'',
@@ -5717,7 +5706,7 @@ function scheduleSummaryV23(key){
             </div>
             <div class="preview-v2-meta">${esc2(meta||'상세 정보 없음')}</div>
           </div>
-          <div class="v23-row-actions"><button aria-label="일정 수정" onclick="editEntryV23('gallery','${key}',${idx})">수정</button><button class="preview-v2-del" aria-label="일정 삭제" onclick="deleteEntry('gallery','${key}',${idx},this)">삭제</button></div>
+          <button class="preview-v2-del" title="삭제" onclick="deleteEntry('gallery','${key}',${idx},this)">×</button>
         </div>`;
       });
       html+=`</div></section>`;
@@ -5725,11 +5714,12 @@ function scheduleSummaryV23(key){
 
     if(tour.length){
       html+=`<section class="preview-v2-group tour">
-        <div class="preview-v2-group-head">${esc2(CAT_LABEL.tour)} · 예약 ${tour.length}건</div>
+        <div class="preview-v2-group-head">투어 · ${tour.length}건</div>
         <div class="preview-v2-list">`;
-      tour.forEach(({row:r,index:idx})=>{
+      tour.forEach((r,idx)=>{
         const [time,danji,ho,name,plus,manager]=r;
         const meta=[
+          name&&name!=='-'?name:'',
           ho&&ho!=='-'?ho:'',
           plus&&plus!=='-'?plus:'',
           manager&&manager!=='-'?'담당 '+manager:''
@@ -5743,24 +5733,24 @@ function scheduleSummaryV23(key){
             </div>
             <div class="preview-v2-meta">${esc2(meta||'상세 정보 없음')}</div>
           </div>
-          <div class="v23-row-actions"><button aria-label="일정 수정" onclick="editEntryV23('tour','${key}',${idx})">수정</button><button class="preview-v2-del" aria-label="일정 삭제" onclick="deleteEntry('tour','${key}',${idx},this)">삭제</button></div>
+          <button class="preview-v2-del" title="삭제" onclick="deleteEntry('tour','${key}',${idx},this)">×</button>
         </div>`;
       });
       html+=`</div></section>`;
     }
 
     if(!total && !isClosed){
-      html+=`<div class="preview-empty">선택한 날짜와 필터에 해당하는 일정이 없습니다.</div>`;
+      html+=`<div class="preview-empty">등록된 일정이 없습니다.</div>`;
     }
 
     html+=`<div class="preview-v2-settings">
-      <div class="preview-v2-cap">정원 <strong>${cap>0?cap+'명':'미설정'}${' · 전체 예약 '+computeDateHeadcount(key)+'명'}</strong></div>
+      <div class="preview-v2-cap">정원 <strong>${cap>0?cap+'명':'미설정'}${head>0?' · 현재 '+head+'명':''}</strong></div>
       <button onclick="openDateCapacitySettings()">이 날짜 정원 설정 ›</button>
     </div>`;
 
     html+=`<div class="preview-v2-actions">
-      <button class="gallery" onclick="addEntryFlow('gallery')">+ ${esc2(CAT_LABEL.gallery)} 일정</button>
-      <button class="tour" onclick="addEntryFlow('tour')">+ ${esc2(CAT_LABEL.tour)} 일정</button>
+      <button class="gallery" onclick="addEntryFlow('gallery')">+ 갤러리 일정</button>
+      <button class="tour" onclick="addEntryFlow('tour')">+ 투어 일정</button>
       <button class="primary" onclick="openInChecklist()">체크리스트 열기</button>
     </div>
     <div class="preview-v2-secondary">
@@ -7031,7 +7021,7 @@ tbody tr:hover td{background:#fbfdfd!important}
     bar.classList.toggle('mobile-open',open);
     if(scrim) scrim.classList.toggle('on',open);
     [topBtn,legacyBtn].forEach(b=>{if(b)b.setAttribute('aria-expanded',open?'true':'false')});
-    document.documentElement.style.overflow=(open&&mobile())?'hidden':'';
+    document.documentElement.style.overflow=open?'hidden':'';
   };
   window.closeMobileAdminMenu=function(){
     const bar=document.getElementById('adminToolbar');
@@ -7269,262 +7259,218 @@ tbody tr:hover td{background:#fbfdfd!important}
 })();
 </script>
 
-<style id="calendar-v22-responsive">
-html,body{background:#f3f5f5!important;color:#263b40!important;letter-spacing:-.015em!important}
-body{padding:24px!important;font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif!important}
-button,input,select,textarea{font-family:inherit}
-button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #287f75!important;outline-offset:3px}
-.wrap{max-width:1480px!important;width:100%!important;margin:auto!important}
-#mobileMockApp{display:flex!important;flex-direction:column!important;gap:16px!important;min-width:0!important;margin:0!important}
-#mobileMockApp .m15-top{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:12px!important;min-height:76px!important;height:auto!important;padding:16px 18px!important;background:white!important;border:1px solid #dfe5e3!important;border-radius:14px!important}
-.m15-brand{display:flex!important;align-items:center!important;gap:12px!important;min-width:0!important}
-.m15-brand-icon{width:40px!important;height:40px!important;flex:0 0 40px!important;background:#347f75!important;color:white!important;border-radius:12px!important;display:grid!important;place-items:center!important}
-.m15-brand-icon svg{width:22px!important;height:22px!important;fill:none;stroke:currentColor;stroke-width:1.7}
-.m15-brand-copy{min-width:0!important}
-#mobileMockApp .m19-title-edit,#mobileMockApp .m19-sub-edit{background:none!important;border:0!important;padding:0!important;text-align:left!important;font-family:inherit!important;cursor:pointer}
-#mobileMockApp .m19-title-edit{display:flex!important;align-items:center!important;gap:7px!important;max-width:100%!important}
-#mobileMockApp .m13-title{font-size:23px!important;line-height:1.35!important;font-weight:750!important;letter-spacing:-.035em!important;margin:0!important;overflow-wrap:anywhere!important;white-space:normal!important;color:#253d40!important}
-#mobileMockApp .m19-pencil{font-size:13px!important;color:#6b8580!important}
-#mobileMockApp .m19-sub-edit{display:block!important;font-size:12px!important;line-height:1.5!important;color:#637573!important;margin-top:3px!important;white-space:normal!important}
-.m15-admin{min-width:56px!important;height:44px!important;border:1px solid #d8e1de!important;border-radius:10px!important;background:#f7f9f8!important;color:#3e605a!important;font-size:13px!important;flex-shrink:0}
-#mobileMockApp .m15-calendar-card{padding:20px!important;border:1px solid #dfe5e3!important;border-radius:14px!important;background:white!important;min-width:0!important}
-#mobileMockApp .m13-cal-head{display:flex!important;justify-content:space-between!important;align-items:center!important;gap:12px!important;margin:0 0 16px!important;flex-wrap:wrap!important}
-#mobileMockApp .m13-cal-title{font-size:24px!important;font-weight:750!important;line-height:1.3!important;letter-spacing:-.04em!important}
-#mobileMockApp .m13-cal-actions{display:flex!important;gap:6px!important}
-#mobileMockApp .m13-cal-actions button{min-width:40px!important;height:42px!important;padding:0 10px!important;font-size:14px!important;border:1px solid #dce4e1!important;border-radius:9px!important;background:#fff!important;color:#365c56!important;box-shadow:none!important}
-#mobileMockApp .m13-cal-actions .filter.on{background:#347f75!important;color:white!important}
-.m15-filter-panel{display:none!important;padding:12px!important;margin-bottom:14px!important;border:1px solid #e1e7e4!important;border-radius:10px!important;background:#f7f9f8!important}
-.m15-filter-panel.open{display:block!important}
-#mobileMockApp .m13-filters,#mobileMockApp .m13-site-row{display:flex!important;flex-wrap:wrap!important;gap:6px!important;min-height:0!important;padding:0!important;margin:0 0 8px!important;background:none!important;border:0!important;white-space:normal!important}
-#mobileMockApp .m13-filter,#mobileMockApp .m13-site-chip,#mobileMockApp .m13-site-edit,.m15-period-btn{height:auto!important;min-height:40px!important;padding:8px 12px!important;font-size:12px!important;line-height:1.4!important;max-width:100%!important;border:1px solid #d7e2de!important;border-radius:8px!important;box-shadow:none!important}
-#mobileMockApp .m13-filter-label,#mobileMockApp .m13-site-label{font-size:12px!important;align-self:center!important}
-.m15-period-btn{background:white!important;color:#365c56!important;width:100%!important}
-#mobileMockApp #m13RangeCard{display:none!important}
-#mobileMockApp #m13RangeCard.range-open{display:block!important;padding:16px!important;border:1px solid #dfe5e3!important;border-radius:12px!important;min-height:0!important;background:white!important}
-#mobileMockApp #m13RangeCard .m13-range-head,#mobileMockApp #m13RangeCard .m17-month-control{display:none!important}
-#mobileMockApp #m13RangeCard.range-open .m17-period-row{display:grid!important;grid-template-columns:1fr 1fr!important;gap:12px!important;margin:0!important;padding:0!important;border:0!important}
-#mobileMockApp #m13RangeCard .m17-period-row .m13-date-card{display:block!important;height:auto!important;min-height:0!important;padding:0!important;background:none!important;border:0!important}
-#mobileMockApp #m13RangeCard .m13-date-card label{font-size:12px!important;margin-bottom:6px!important;display:block!important}
-#mobileMockApp #m13RangeCard .m13-date-line{display:block!important;height:auto!important;position:static!important}
-#mobileMockApp #m13RangeCard .m13-date-line svg,#mobileMockApp #m13RangeCard .m13-date-text{display:none!important}
-#mobileMockApp #m13RangeCard input[type=date]{display:block!important;position:static!important;opacity:1!important;width:100%!important;height:44px!important;font-size:16px!important;border:1px solid #cad8d2!important;padding:6px!important;border-radius:8px!important;background:white!important;color:#263b40!important}
-#mobileMockApp #m13RangeCard .m17-period-row .m13-apply{grid-column:1/-1!important;width:100%!important;height:44px!important;font-size:14px!important;border-radius:8px!important}
-#mobileMockApp .m13-weekdays,#mobileMockApp .m13-days{display:grid!important;grid-template-columns:repeat(7,minmax(0,1fr))!important;gap:5px!important}
-#mobileMockApp .m13-weekday{font-size:12px!important;padding:8px 0!important}
-#mobileMockApp .m13-day{position:relative!important;min-width:0!important;border:1px solid #e6ebe8!important;border-radius:8px!important;background:#fff!important;box-shadow:none!important;overflow:hidden!important;text-align:left!important}
-#mobileMockApp .m13-day.selected{background:#eef6f3!important;border:2px solid #347f75!important}
-#mobileMockApp .m13-daynum{font-size:14px!important;font-weight:700!important;position:absolute!important;top:8px!important;left:8px!important;right:auto!important;line-height:1.2!important}
-#mobileMockApp .m13-day.other{opacity:.38!important}
-#mobileMockApp .m15-calendar-foot{font-size:12px!important;line-height:1.5!important;color:#6a7c76!important;padding:12px 0 0!important;text-align:center!important}
-#mobileMockApp #m13Manager{display:flex!important;height:auto!important;min-height:64px!important;padding:12px 16px!important;border:1px solid #dfe5e3!important;border-radius:12px!important;background:white!important;gap:12px!important}
-#mobileMockApp .m13-manager-title{font-size:14px!important}#mobileMockApp .m13-manager-sub{font-size:12px!important;color:#657770!important}
-#mobileMockApp .m13-manager-ico{width:34px!important;height:34px!important;flex:0 0 34px!important}#mobileMockApp .m13-manager-ico svg{width:22px!important;height:22px!important;fill:none;stroke:currentColor;stroke-width:1.6}
-#mobileMockApp .m13-manager-arr{font-size:22px!important;margin-left:auto!important}
-.checklist-section,.car{border-radius:14px!important;box-shadow:none!important}
-#adminToolbar.bottom-toolbar{display:none!important;position:fixed!important;top:95px!important;bottom:auto!important;left:auto!important;right:24px!important;width:320px!important;max-height:75vh!important;overflow:auto!important;margin:0!important;padding:16px!important;z-index:10030!important;grid-template-columns:1fr 1fr!important;gap:8px!important;background:white!important;border:1px solid #dce4df!important;border-radius:14px!important}
-#adminToolbar.bottom-toolbar.open,#adminToolbar.bottom-toolbar.mobile-open{display:grid!important}
-#adminToolbar .m20-admin-head{display:flex!important;grid-column:1/-1!important;align-items:center!important;justify-content:space-between!important;font-size:15px!important}
-#adminToolbar button{min-height:44px!important;font-size:13px!important;border-radius:8px!important;background:#f4f7f5!important}
-#mobileAdminScrim.on{display:block!important;position:fixed!important;inset:0!important;z-index:10020!important;background:rgba(26,45,40,.2)!important}
-.preview-v2-item{grid-template-columns:58px minmax(0,1fr) 32px!important;gap:10px!important;padding:12px!important;min-height:78px!important;border-radius:10px!important;background:white!important}
-.preview-v2-title{display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:3px!important}
-.preview-v2-site{font-size:12px!important;white-space:normal!important;line-height:1.4!important}
-.preview-v2-name{font-size:15px!important;font-weight:700!important;line-height:1.4!important}
-.preview-v2-meta{font-size:12px!important;line-height:1.55!important;white-space:normal!important;overflow-wrap:anywhere!important}
-.preview-v2-time{font-size:12px!important;height:36px!important}
-.preview-v2-group-head,.preview-v2-summary span,.preview-v2-cap,.preview-v2-cap strong,.preview-v2-settings button{font-size:12px!important;line-height:1.5!important}
-.preview-v2-group-head{height:auto!important;min-height:36px!important}
-.preview-v2-actions{grid-template-columns:1fr 1fr!important;gap:8px!important}
-.preview-v2-actions button,.preview-v2-actions .primary{height:auto!important;min-height:44px!important;font-size:12px!important;white-space:normal!important;padding:8px!important}
-.preview-v2-actions .primary{grid-column:1/-1!important}
-.preview-v2-secondary button{font-size:12px!important;min-height:40px!important}
-@media(min-width:1000px){
- .wrap{display:grid!important;grid-template-columns:minmax(0,1fr) 360px!important;gap:20px!important;align-items:start!important}
- #mobileMockApp{grid-column:1!important;grid-row:1!important}
- #mobileMockApp .m13-day{height:146px!important;min-height:146px!important;padding:30px 5px 5px!important;display:block!important}
- #mobileMockApp .m13-desk-events{display:flex!important;flex-direction:column!important;gap:4px!important}
- #mobileMockApp .m13-desk-event{display:block!important;padding:4px!important;border-radius:5px!important;background:#f0f6f3!important}
- #mobileMockApp .m13-desk-time{font-size:11px!important;line-height:1.3!important}
- #mobileMockApp .m13-desk-copy strong,#mobileMockApp .m13-desk-copy small{display:none!important}
- #mobileMockApp .m13-desk-copy span{display:block!important;font-size:11px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;line-height:1.4!important}
- #mobileMockApp .m13-desk-more{font-size:11px!important}
- #overlay{display:block!important;position:sticky!important;top:24px!important;inset:auto!important;grid-column:2!important;grid-row:1!important;padding:0!important;background:transparent!important;backdrop-filter:none!important;z-index:1!important;align-self:start!important}
- #overlay .modal{width:100%!important;max-width:none!important;margin:0!important;padding:20px!important;max-height:calc(100vh - 48px)!important;overflow:auto!important;border:1px solid #dfe5e3!important;border-radius:14px!important;box-shadow:none!important;transform:none!important;background:white!important}
- #overlay .modal::before,#overlay .close{display:none!important}
- #overlay .modal h2{font-size:20px!important;line-height:1.4!important;margin:0 0 16px!important}
- #modalBody{max-height:none!important;overflow:visible!important}
- .wrap>.checklist-section,.wrap>.car{display:block!important;grid-column:1/-1!important;margin:0!important}
-}
-@media(max-width:999px){
- #mobileMockApp .m13-day{height:70px!important;min-height:70px!important}
- .m15-count{position:absolute!important;top:auto!important;bottom:8px!important;left:7px!important;font-size:10px!important;height:auto!important;line-height:1.4!important;max-width:none!important;padding:0!important;background:transparent!important;color:#416b60!important}
- .m15-dots{position:absolute!important;right:6px!important;left:auto!important;bottom:9px!important;display:flex!important;gap:3px!important}.m15-dots i{display:block!important;width:4px!important;height:4px!important;border-radius:50%!important}.m15-dots i.gallery{background:#347f75!important}.m15-dots i.tour{background:#bc854d!important}.m15-dots i.closed{background:#bb6262!important}
-}
-@media(max-width:560px){
- body{padding:12px 10px calc(24px + env(safe-area-inset-bottom))!important}
- #mobileMockApp{gap:12px!important}
- #mobileMockApp .m15-top{padding:12px!important;min-height:78px!important}
- #mobileMockApp .m13-title{font-size:19px!important}
- #mobileMockApp .m15-calendar-card{padding:14px 10px!important}
- #mobileMockApp .m13-cal-head{gap:10px!important}
- #mobileMockApp .m13-cal-title{font-size:21px!important;flex-basis:100%!important}
- #mobileMockApp .m13-cal-actions{width:100%!important;justify-content:flex-end!important}
- #mobileMockApp .m13-cal-actions button{height:44px!important;min-width:44px!important}
- #mobileMockApp .m13-cal-actions .filter{margin-left:auto!important}
- #mobileMockApp .m13-day{height:66px!important;min-height:66px!important}
- #mobileMockApp .m13-daynum{left:6px!important;top:7px!important}
- #mobileMockApp .m13-weekdays,#mobileMockApp .m13-days{gap:3px!important}
- body.m13-show-details .wrap>.checklist-section,body.m13-show-details .wrap>.car{display:block!important;overflow-x:auto!important}
- .manager-table{min-width:500px!important}
- #adminToolbar.bottom-toolbar{top:auto!important;bottom:calc(12px + env(safe-area-inset-bottom))!important;left:10px!important;right:10px!important;width:auto!important;max-height:75dvh!important}
- #statusBody .status-mobile-card{grid-template-columns:54px minmax(0,1fr) 32px!important;min-height:88px!important;padding:12px 10px!important;gap:9px!important}
- #statusBody .status-mobile-time{font-size:12px!important;min-height:38px!important}
- #statusBody .status-mobile-title{display:block!important;font-size:12px!important;white-space:normal!important;line-height:1.4!important}
- #statusBody .status-mobile-name{display:block!important;font-size:15px!important;line-height:1.5!important}
- #statusBody .status-mobile-meta{font-size:12px!important;line-height:1.55!important;white-space:normal!important;overflow:visible!important}
- #statusBody .m21-kind-count,#statusBody .m21-kind-head .tag,#statusBody .print-date-title{font-size:12px!important}
- #statusBody .status-mobile-check{min-height:44px!important}
- #formFields input,#formFields textarea{font-size:16px!important;min-height:44px!important}
- #formFields .field-label{font-size:13px!important}
-}
-@media print{.wrap{display:block!important}#overlay,#adminToolbar,#mobileAdminScrim{display:none!important}}
-</style>
-<script id="calendar-v23-behavior">
-function editEntryV23(kind,key,index){
- const store=kind==='gallery'?GALLERY_ROWS:TOUR_ROWS;
- const row=store[key]&&store[key][index];if(!row)return;
- const defs=kind==='gallery'?
-  [['time','시간',0],['name','성함',2],['plus','동반',3],['manager','담당',4],['spot','픽업/자가',1]]:
-  [['time','시간',0],['danji','현장명',1],['ho','동호수',2],['name','성함/업체',3],['plus','동반',4],['manager','담당',5]];
- openForm(CAT_LABEL[kind]+' 일정 수정',defs.map(([id,label,i])=>({id,label,value:row[i]||''})),v=>{
-  if(!store[key] || store[key][index]!==row){alert('일정이 변경되었습니다. 다시 선택해주세요.');return;}
-  defs.forEach(([id,label,i])=>{row[i]=v[id]||'-'});
-  onScheduleDataChanged();openPreview(key);
- });
-}
-(function(){
- function init(){
-  const overlay=document.getElementById('overlay');
-  document.querySelector('.wrap').appendChild(overlay);
-  overlay.setAttribute('role','region');overlay.setAttribute('aria-labelledby','modalTitle');
-  if(currentDateKey)openPreview(currentDateKey);
-  document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMobileAdminMenu()});
- }
- if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(init,0));else setTimeout(init,0);
-})();
-</script>
+<style id="calendar-mobile-v22-refine">
+@media (max-width:560px){
+  /* --- 1) 날짜 상세 카드 / 팝업: 덜 빽빽하게, 버튼은 더 슬림하게 --- */
+  .preview-v2-summary{
+    gap:6px!important;
+    margin:0 0 10px!important;
+  }
+  .preview-v2-summary span{
+    height:24px!important;
+    padding:0 10px!important;
+    font-size:9px!important;
+  }
+  .preview-v2-group{
+    margin:0 0 10px!important;
+  }
+  .preview-v2-group-head{
+    min-height:31px!important;
+    padding:6px 10px!important;
+    font-size:9.8px!important;
+    border-radius:11px!important;
+  }
+  .preview-v2-list{
+    gap:7px!important;
+  }
+  .preview-v2-item{
+    grid-template-columns:52px minmax(0,1fr) 52px!important;
+    gap:9px!important;
+    min-height:66px!important;
+    padding:9px!important;
+    border-radius:14px!important;
+  }
+  .preview-v2-time{
+    height:32px!important;
+    border-radius:10px!important;
+    font-size:9.4px!important;
+    line-height:1.15!important;
+  }
+  .preview-v2-title{
+    gap:4px!important;
+    margin-bottom:3px!important;
+  }
+  .preview-v2-site{
+    font-size:11px!important;
+  }
+  .preview-v2-name{
+    font-size:10.5px!important;
+  }
+  .preview-v2-meta{
+    font-size:8.6px!important;
+    line-height:1.3!important;
+  }
+  .preview-v2-del{
+    width:46px!important;
+    height:36px!important;
+    border-radius:10px!important;
+    font-size:9px!important;
+  }
+  .preview-v2-settings{
+    margin:10px 0 9px!important;
+    padding:10px 11px!important;
+    border-radius:13px!important;
+  }
+  .preview-v2-cap{
+    font-size:8.9px!important;
+  }
+  .preview-v2-cap strong{
+    font-size:10px!important;
+  }
+  .preview-v2-settings button{
+    font-size:9px!important;
+  }
+  .preview-v2-actions{
+    grid-template-columns:1fr 1fr!important;
+    gap:7px!important;
+    margin-top:6px!important;
+  }
+  .preview-v2-actions button{
+    min-height:37px!important;
+    height:37px!important;
+    padding:0 8px!important;
+    border-radius:11px!important;
+    font-size:9.4px!important;
+  }
+  .preview-v2-actions .primary{
+    grid-column:1 / -1!important;
+    min-height:40px!important;
+    height:40px!important;
+  }
+  .preview-v2-secondary{
+    margin-top:5px!important;
+  }
+  .preview-v2-secondary button{
+    font-size:8.8px!important;
+    padding:3px 1px!important;
+  }
 
+  /* 메인 체크리스트 카드도 조금 정리 */
+  .mobile-checklist-list{gap:6px!important;}
+  .mobile-entry-card{
+    grid-template-columns:58px minmax(0,1fr) auto!important;
+    gap:8px!important;
+    min-height:60px!important;
+    padding:8px!important;
+    border-radius:13px!important;
+  }
+  .mobile-entry-time{
+    padding:5px!important;
+    border-radius:9px!important;
+    font-size:9.2px!important;
+  }
+  .mobile-entry-title{font-size:10.6px!important;}
+  .mobile-entry-sub{margin-top:3px!important;font-size:8.4px!important;}
+  .mobile-status-check{
+    min-width:44px!important;
+    height:29px!important;
+    padding:0 7px!important;
+    font-size:8px!important;
+  }
 
-<style id="calendar-v23-layout">
-#mobileMockApp .m13-day.is-today .m13-daynum{background:#347f75!important;color:white!important;border-radius:50%!important;width:25px!important;height:25px!important;display:grid!important;place-items:center!important;top:4px!important;left:4px!important}
-#mobileMockApp .m13-day.selected{border:2px solid #347f75!important;background:#f0f6f3!important}
-.v23-manager-line{display:flex;align-items:center;justify-content:space-between;gap:3px;font-size:12px;line-height:1.4}
-.v23-manager-line span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.v23-manager-line strong{white-space:nowrap;font-weight:700}
-.v23-closed{display:block;font-size:10px;color:#a65a55;position:absolute;bottom:6px;left:5px}
-.v23-count-note,.v23-filter-note{font-size:12px;line-height:1.5;color:#60766c;margin:0 0 14px}
-.v23-filter-note{background:#edf5f1;padding:9px 10px;border-radius:8px}
-#overlay .preview-v2-item{grid-template-columns:54px minmax(0,1fr) 48px!important}
-.v23-row-actions{display:flex;flex-direction:column;gap:4px;align-items:stretch}
-#overlay .v23-row-actions button{height:auto!important;min-height:36px!important;width:48px!important;font-size:12px!important;padding:5px 2px!important;border:1px solid #dbe5df!important;border-radius:7px!important;background:#f6f8f6!important;color:#3d6558!important}
-#overlay .v23-row-actions .preview-v2-del{color:#9a5f59!important;background:#fffafa!important}
-#overlay .modal .close,#overlay .modal::before{display:none!important}
-#overlay .modal h2{margin:0 0 14px!important;font-size:20px!important;line-height:1.4!important}
-@media(min-width:1000px){
- #mobileMockApp .m13-day{height:178px!important;min-height:178px!important;padding-top:34px!important}
- #mobileMockApp .m13-desk-event{padding:5px!important}
- #mobileMockApp .m13-desk-time{font-size:11px!important;color:#567268!important}
- #mobileMockApp .m13-desk-event.tour{background:#faf3ea!important}
-}
-@media(max-width:999px){
- .wrap{display:flex!important;flex-direction:column!important;gap:14px!important}
- #mobileMockApp{display:contents!important}
- #mobileMockApp .m15-top{order:1!important}
- #mobileMockApp .m15-calendar-card{order:2!important}
- #mobileMockApp #m13RangeCard{order:3!important;width:100%!important}
- #overlay{order:4!important;display:block!important;position:static!important;inset:auto!important;width:100%!important;padding:0!important;background:none!important;backdrop-filter:none!important;z-index:auto!important}
- #overlay .modal{width:100%!important;max-width:none!important;max-height:none!important;margin:0!important;padding:18px 14px!important;border-radius:14px!important;border:1px solid #dfe5e3!important;background:white!important;overflow:visible!important;box-shadow:none!important;transform:none!important}
- #overlay #modalBody{max-height:none!important;overflow:visible!important;padding:0!important}
- #mobileMockApp #m13Manager{order:5!important;width:100%!important}
- .wrap>.checklist-section{order:6!important;width:100%!important;margin:0!important}.wrap>.car{order:7!important;width:100%!important;margin:0!important}
- #mobileMockApp .m13-day{height:82px!important;min-height:82px!important}
- #mobileMockApp .m15-count{left:5px!important;bottom:6px!important;line-height:1.45!important;font-size:10px!important}
- .v23-people{display:block;font-size:11px;color:#426456;font-weight:700}
-}
-@media print{#overlay{display:none!important}}
-</style>
+  /* --- 2) 담당자별 집계 필터 크기 통일 --- */
+  .managerFilterBar{
+    display:grid!important;
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    gap:7px!important;
+    margin:0 0 9px!important;
+    padding:8px!important;
+    align-items:stretch!important;
+  }
+  .managerFilterBar .colFilter,
+  .managerFilterBar .resetBtn{
+    min-width:0!important;
+    width:100%!important;
+  }
+  .managerFilterBar .colFilterBtn,
+  .managerFilterBar .resetBtn{
+    width:100%!important;
+    height:40px!important;
+    min-height:40px!important;
+    padding:0 10px!important;
+    border-radius:11px!important;
+    font-size:10.2px!important;
+    font-weight:850!important;
+    white-space:nowrap!important;
+  }
+  .managerFilterBar .colFilterDropdown{
+    min-width:100%!important;
+  }
 
-
-<script id="calendar-v24-heading">
-function saveHeadingV24(title,subtitle){
- const name=String(title||'').trim()||'현장 일정표';
- const sub=String(subtitle||'').trim();
- document.getElementById('siteTitle').textContent=name;
- document.getElementById('siteSubtitle').textContent=sub;
- document.title=name;
- try{localStorage.setItem(SITE_TITLE_KEY,name);localStorage.setItem(SITE_SUBTITLE_KEY,sub);}
- catch(e){alert('제목은 변경됐지만 이 브라우저에서 저장이 차단되어 새로 열면 유지되지 않을 수 있습니다.');}
+  /* --- 3) 담당자별 집계 테이블 다듬기 --- */
+  #managerTable{
+    margin-top:7px!important;
+    border:1px solid #dfe9e7!important;
+    border-radius:16px!important;
+    overflow:hidden!important;
+    background:#fff!important;
+    box-shadow:0 4px 12px rgba(31,72,76,.04)!important;
+  }
+  #managerTable .manager-table{
+    width:100%!important;
+    margin:0!important;
+    table-layout:fixed!important;
+    border-collapse:separate!important;
+    border-spacing:0!important;
+  }
+  #managerTable .manager-table thead th{
+    padding:10px 5px!important;
+    background:#1f3f5c!important;
+    color:#fff!important;
+    font-size:9.7px!important;
+    font-weight:850!important;
+    line-height:1.15!important;
+    border:0!important;
+    white-space:nowrap!important;
+  }
+  #managerTable .manager-table thead th:first-child{border-top-left-radius:14px!important;}
+  #managerTable .manager-table thead th:last-child{border-top-right-radius:14px!important;}
+  #managerTable .manager-table tbody td{
+    padding:10px 5px!important;
+    font-size:10px!important;
+    line-height:1.25!important;
+    color:#26464e!important;
+    border-color:#e8f0ee!important;
+    vertical-align:middle!important;
+    background:#fff!important;
+  }
+  #managerTable .manager-table tbody tr:nth-child(even) td{
+    background:#fcfefd!important;
+  }
+  #managerTable .manager-table th:nth-child(1),
+  #managerTable .manager-table td:nth-child(1){width:34px!important;}
+  #managerTable .manager-table th:nth-child(2),
+  #managerTable .manager-table td:nth-child(2){width:27%!important;}
+  #managerTable .manager-table th:nth-child(3),
+  #managerTable .manager-table td:nth-child(3){width:23%!important;}
+  #managerTable .manager-table th:nth-child(4),
+  #managerTable .manager-table td:nth-child(4),
+  #managerTable .manager-table th:nth-child(5),
+  #managerTable .manager-table td:nth-child(5),
+  #managerTable .manager-table th:nth-child(6),
+  #managerTable .manager-table td:nth-child(6),
+  #managerTable .manager-table th:nth-child(7),
+  #managerTable .manager-table td:nth-child(7){width:9.5%!important;}
+  #managerTable .manager-table td.mdanji,
+  #managerTable .manager-table td.mname{
+    font-weight:800!important;
+    word-break:keep-all!important;
+  }
+  #managerTable .manager-table td.clickable-count{
+    text-decoration-thickness:1px!important;
+    text-underline-offset:3px!important;
+  }
 }
-</script>
-<style id="calendar-v24-desktop">
-#mobileMockApp .m19-pencil{display:inline-flex!important;align-items:center!important;justify-content:center!important;padding:5px 9px!important;margin-left:5px!important;border:1px solid #d6e0db!important;border-radius:7px!important;font-size:12px!important;font-weight:500!important;color:#567368!important;white-space:nowrap!important}
-.v24-month-summary{font-size:13px;line-height:1.5;color:#5a7167;margin:0 0 12px}
-#formOverlay .modal{max-width:520px!important;width:calc(100% - 32px)!important;padding:24px!important;border-radius:16px!important}
-#formOverlay .field-label{font-size:14px!important;margin-bottom:7px!important;color:#415e52!important}
-#formFields .m20-field{margin-bottom:16px!important}
-#formFields input,#formFields textarea{width:100%!important;font-family:inherit!important;font-size:16px!important;min-height:46px!important;padding:10px 12px!important;border:1px solid #cbd8d1!important;border-radius:8px!important;box-sizing:border-box!important}
-@media(min-width:1000px){
- body{padding:24px 32px 48px!important}
- .wrap{max-width:1560px!important;display:grid!important;grid-template-columns:minmax(0,1fr) minmax(340px,400px)!important;gap:24px!important;align-items:start!important}
- #mobileMockApp{display:contents!important}
- #mobileMockApp .m15-top{grid-column:1/-1!important;grid-row:1!important;min-height:90px!important;margin:0!important;padding:20px 24px!important;background:#fff!important}
- #mobileMockApp .m13-title{font-size:24px!important;font-weight:700!important;line-height:1.4!important}
- #mobileMockApp .m19-sub-edit{font-size:14px!important;line-height:1.5!important;margin-top:5px!important}
- #mobileMockApp .m15-calendar-card{grid-column:1!important;grid-row:2!important;padding:24px!important;margin:0!important;min-width:0!important}
- #mobileMockApp #m13RangeCard{grid-column:1/-1!important;grid-row:3!important}
- #mobileMockApp #m13Manager{display:none!important}
- #mobileMockApp .m13-cal-head{margin-bottom:12px!important}
- #mobileMockApp .m13-cal-title{font-size:24px!important}
- #mobileMockApp .m13-day{min-height:142px!important;height:142px!important;padding:34px 6px 6px!important;border-radius:6px!important}
- #mobileMockApp .m13-desk-events{gap:4px!important}
- #mobileMockApp .m13-desk-event{display:flex!important;align-items:center!important;gap:6px!important;padding:5px!important;min-height:27px!important}
- #mobileMockApp .m13-desk-time{font-size:11px!important;flex:0 0 auto!important;max-width:42%!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
- .v23-manager-line{min-width:0!important;flex:1!important;font-size:12px!important}
- #mobileMockApp .m13-weekday{font-size:13px!important;padding:10px 0!important}
- #overlay{grid-column:2!important;grid-row:2!important;position:sticky!important;top:24px!important;align-self:start!important}
- #overlay .modal{padding:24px!important;max-height:calc(100vh - 48px)!important;overflow:auto!important}
- #overlay .modal h2{font-size:22px!important;margin:0 0 18px!important}
- #overlay .preview-v2-name{font-size:16px!important}#overlay .preview-v2-site{font-size:13px!important}
- #overlay .preview-v2-meta{font-size:13px!important;line-height:1.6!important}
- #overlay .preview-v2-actions button{font-size:13px!important;min-height:44px!important}
- .wrap>.checklist-section{grid-column:1/-1!important;grid-row:4!important;display:block!important;width:100%!important;padding:24px!important;overflow:visible!important;max-height:none!important}
- .wrap>.car{grid-column:1/-1!important;grid-row:5!important;padding:24px!important}
- .checklist-section>h2{font-size:20px!important;padding:0 0 14px!important;margin:0 0 18px!important;background:none!important;border:0!important}
- .checklist-section>h2:not(:first-child){margin-top:28px!important;padding-top:24px!important;border-top:1px solid #e2e8e4!important}
- .checklist-section>h3{font-size:16px!important;margin:24px 0 12px!important;font-weight:700!important}
- .checklist-section .summary-bar{display:flex!important;max-width:620px!important;gap:12px!important;padding:0!important;background:none!important;border:0!important;box-shadow:none!important;margin-bottom:24px!important}
- .checklist-section .summary-card{min-height:76px!important;padding:14px 18px!important;box-shadow:none!important;border-radius:10px!important}
- .checklist-section .summary-card .num{font-size:24px!important;font-weight:700!important}
- .checklist-section .summary-card .label{font-size:13px!important}
- .checklist-section .filterbar,.checklist-section .managerFilterBar{display:flex!important;flex-wrap:wrap!important;gap:10px!important;border:0!important;box-shadow:none!important;background:none!important;padding:0!important;margin-bottom:16px!important}
- .checklist-section select,.checklist-section button{font-family:inherit!important;font-size:14px!important;min-height:40px!important;padding:7px 12px!important}
- #managerTable,#checklistBody{max-height:none!important;overflow-x:auto!important;overflow-y:visible!important}
- .checklist-section table{font-size:14px!important;box-shadow:none!important;border-radius:8px!important}
- .checklist-section table thead th,.checklist-section table tbody td{font-size:14px!important;line-height:1.5!important;padding:12px 10px!important}
- .checklist-section table thead th{position:static!important;background:#f0f4f1!important;color:#456252!important;font-weight:650!important}
- .manager-table th:first-child,.manager-table td:first-child{width:52px!important}
- .manager-table th:nth-child(2),.manager-table td:nth-child(2){width:28%!important}
- .manager-table th:nth-child(3),.manager-table td:nth-child(3){width:18%!important}
- #checklistBody .empty-day{font-size:14px!important;padding:24px!important;background:#f7f9f7!important;border-radius:8px!important}
- .chartWeekBar{box-shadow:none!important;border:0!important;justify-content:flex-start!important;padding:0!important}
- .chartWeekBar span{font-size:14px!important}.chart-bars{max-width:680px!important;height:120px!important}.chart-label,.chart-count{font-size:12px!important}
-}
-@media(min-width:1000px) and (max-width:1199px){
- body{padding:20px!important}.wrap{grid-template-columns:minmax(0,1fr) 340px!important;gap:18px!important}
- #mobileMockApp .m15-calendar-card{padding:16px!important}#overlay .modal{padding:18px!important}
- #mobileMockApp .m13-desk-event{display:block!important;padding:3px!important}#mobileMockApp .m13-desk-time{max-width:none!important;font-size:10px!important}.v23-manager-line{font-size:11px!important}
- #mobileMockApp .m13-day{height:168px!important;min-height:168px!important}
-}
-@media print{.wrap{display:block!important}#mobileMockApp .m15-top,#overlay{display:none!important}}
 </style>
 
 </body>
