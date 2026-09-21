@@ -1,21 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<script id="calendar-mobile-early-redirect">
-(function(){
-  try{
-    var q=new URLSearchParams(location.search);
-    if(q.get('desktop')==='1') return;
-    var byWidth=window.matchMedia&&window.matchMedia('(max-width:760px)').matches;
-    var byUA=/iPhone|iPod|Android|Mobile/i.test(navigator.userAgent||'');
-    if(byWidth||byUA){
-      var target='Calendar_mobile.html'+location.search+location.hash;
-      if(!/Calendar_mobile\.html$/i.test(location.pathname)) location.replace(target);
-    }
-  }catch(e){}
-})();
-</script>
-
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>통합 일정표 &amp; 날짜별 체크리스트</title>
@@ -3622,10 +3607,13 @@ function computeDateHeadcount(key){
       const count=computeDateHeadcount(key);
       const barHeight=count>0?Math.max(6,Math.round((count/maxCount)*40)):2;
       const m=label.match(/\(([^)]+)\)/), dowLabel=m?m[1]:"";
+      const kp=String(key).split("-");
+      const dayNum=kp.length>1?parseInt(kp[1],10):"";
+      const dayText=dayNum?(dayNum+"일("+dowLabel+")"):dowLabel;
       html+="<div class='chart-col' onclick=\"openPreview('"+key+"')\" title='"+label+" · "+count+"명'>"+
         "<div class='chart-count'>"+(count>0?count:"")+"</div>"+
         "<div class='chart-bar-wrap'><div class='chart-bar' style='height:"+barHeight+"px;'></div></div>"+
-        "<div class='chart-label'>"+dowLabel+"</div></div>";
+        "<div class='chart-label'>"+dayText+"</div></div>";
     });
     html+="</div>";
     const chart=document.getElementById("statsChart"); if(chart) chart.innerHTML=html;
@@ -8044,7 +8032,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
     app.innerHTML=`
       <header class="fd-topbar">
         <div class="fd-brand">
-          <div class="fd-brand-copy fd-brand-inline"><strong>목동 현장일정</strong><input id="fdCustomTitle" class="fd-title-line" type="text" maxlength="24" aria-label="일정표 제목 추가 입력"></div>
+          <div class="fd-brand-copy fd-brand-inline"><div><strong id="fdMainTitle">현장 일정표</strong><span id="fdSubtitleText"></span></div><button id="fdEditTitle" type="button">수정</button><input id="fdCustomTitle" type="hidden"></div>
         </div>
         <div class="fd-search-wrap"><div class="fd-search">${icons.search}<input id="fdSearch" type="search" autocomplete="off" placeholder="검색하세요."></div><div class="fd-search-results" id="fdSearchResults"></div></div>
         <button type="button" class="fd-top-action" id="fdTodayTop">오늘</button>
@@ -8086,6 +8074,35 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
     qa('[data-site]',box).forEach(b=>b.onclick=()=>{siteFilter=(siteFilter===b.dataset.site?'':(b.dataset.site||''));render()});
     qa('[data-kind]',box).forEach(b=>b.onclick=()=>{if(b.dataset.kind==='gallery')showGallery=!showGallery;else showTour=!showTour;render()});
   }
+  function fdShortSite(n){
+    const x=String(n||'현장').trim();
+    if(/화랑/.test(x)) return '화랑';
+    if(/11/.test(x)) return '11단지';
+    if(/14/.test(x)) return '14단지';
+    return x.length>8?x.slice(0,8):x;
+  }
+  function fdEventHeadcount(x){
+    try{
+      if(!x||!x.raw) return 1;
+      const plus=x.kind==='gallery'?x.raw[3]:x.kind==='tour'?x.raw[4]:'';
+      return 1 + (typeof parseCompanionCount==='function'?parseCompanionCount(plus):0);
+    }catch(e){return 1}
+  }
+  function fdDayGroups(k){
+    const ev=rawEvents(k).filter(x=>x.kind==='gallery'||x.kind==='tour');
+    const map=new Map();
+    ev.forEach(x=>{
+      const time=String(x.time||'일정').trim();
+      const site=fdShortSite(x.site);
+      const id=x.kind+'|'+site+'|'+time;
+      if(!map.has(id)) map.set(id,{kind:x.kind,site,time,count:0});
+      map.get(id).count += fdEventHeadcount(x);
+    });
+    return Array.from(map.values()).sort((a,b)=>{
+      const ta=String(a.time),tb=String(b.time);
+      return ta.localeCompare(tb,'ko',{numeric:true}) || a.site.localeCompare(b.site,'ko',{numeric:true});
+    });
+  }
   function renderCalendar(){
     const days=q('#fdDays');if(!days||!viewDate)return;days.innerHTML='';
     const y=viewDate.getFullYear(),m=viewDate.getMonth(),first=new Date(y,m,1),start=new Date(y,m,1-first.getDay()),todayD=new Date();todayD.setHours(0,0,0,0);
@@ -8096,8 +8113,13 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
       const holiday=!other?holidayName(d):'';
       if(holiday)b.classList.add('holiday');
       const holidayHtml=holiday?`<span class="fd-holiday">${esc(holiday)}</span>`:'';
-      const note=!other&&vis.length?`<span class="fd-day-note">${esc(vis[0].site)}${vis.length>1?' 외 '+(vis.length-1)+'건':''}</span>`:'';
-      b.innerHTML=`<span class="fd-daynum">${d.getDate()}</span>${holidayHtml}${count}${note}${dots?`<span class="fd-dots">${dots}</span>`:''}`;
+      let daySummary='';
+      if(!other&&vis.length){
+        const groups=fdDayGroups(k);
+        const visibleGroups=groups.slice(0,3);
+        daySummary=`<span class="fd-day-summaries">${visibleGroups.map(g=>`<span class="fd-day-mini"><i class="${g.kind}"></i><b>${esc(g.site)}</b><em>${esc(g.time)}</em><strong>${g.count}명</strong></span>`).join('')}${groups.length>3?`<span class="fd-day-mini more">+${groups.length-3}개 일정</span>`:''}</span>`;
+      }
+      b.innerHTML=`<span class="fd-daynum">${d.getDate()}</span>${holidayHtml}${count}${daySummary}`;
       b.onclick=()=>{if(other){setMonth(d);selectedKey=k;}select(k)};days.appendChild(b);
     }
   }
@@ -8105,11 +8127,10 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
     const box=q('#fdDetail');if(!box||!viewDate)return;const d=parseKey(selectedKey,viewDate.getFullYear());const ev=rawEvents(selectedKey),hc=expected(selectedKey);let list='';
     if(ev.length){list='<div class="fd-detail-list">'+ev.map(x=>`<div class="fd-event ${x.kind}"><div class="fd-event-time">${esc(x.time)}</div><div class="fd-event-copy"><strong>${esc(x.site)} · ${esc(x.name)}</strong><span>${esc(x.meta|| (x.manager?'담당 '+x.manager:''))}</span></div><div class="fd-kind">${x.kind==='gallery'?'갤러리':x.kind==='tour'?'투어':'휴관'}</div></div>`).join('')+'</div>'}
     else list=`<div class="fd-empty"><strong>등록된 일정이 없습니다.</strong><span>필요하면 아래에서 바로 추가하세요.</span></div>`;
-    box.innerHTML=`<div class="fd-detail-top"><div><div class="fd-detail-date">${dateLabel(d)}</div><div class="fd-detail-meta"><span class="fd-meta-pill">일정 <strong>${ev.filter(x=>x.kind!=='closed').length}건</strong></span><span class="fd-meta-pill">예상 인원 <strong>${hc}명</strong></span>${GALLERY_CLOSED?.[selectedKey]?'<span class="fd-meta-pill">휴관 지정</span>':''}</div></div></div>${list}<div class="fd-detail-actions"><button type="button" id="fdAddGallery">+ 갤러리 일정</button><button type="button" id="fdAddTour">+ 투어 일정</button><button type="button" class="primary" id="fdChecklist">체크리스트 열기</button><button type="button" id="fdFullDetail">전체 상세보기</button><button type="button" class="danger" id="fdClosed">${GALLERY_CLOSED?.[selectedKey]?'휴관/불가 해제':'휴관/이용불가 지정'}</button></div>`;
+    box.innerHTML=`<div class="fd-detail-top"><div><div class="fd-detail-date">${dateLabel(d)}</div><div class="fd-detail-meta"><span class="fd-meta-pill">일정 <strong>${ev.filter(x=>x.kind!=='closed').length}건</strong></span><span class="fd-meta-pill">예상 인원 <strong>${hc}명</strong></span>${GALLERY_CLOSED?.[selectedKey]?'<span class="fd-meta-pill">휴관 지정</span>':''}</div></div></div>${list}<div class="fd-detail-actions"><button type="button" id="fdAddGallery">+ 갤러리 일정</button><button type="button" id="fdAddTour">+ 투어 일정</button><button type="button" class="primary" id="fdChecklist">체크리스트 열기</button><button type="button" class="danger" id="fdClosed">${GALLERY_CLOSED?.[selectedKey]?'휴관 해제':'휴관 지정'}</button></div>`;
     q('#fdAddGallery').onclick=()=>{try{previewKey=selectedKey;addEntryFlow('gallery')}catch(e){}};
     q('#fdAddTour').onclick=()=>{try{previewKey=selectedKey;addEntryFlow('tour')}catch(e){}};
     q('#fdClosed').onclick=()=>{try{previewKey=selectedKey;toggleClosedDay()}catch(e){}};
-    q('#fdFullDetail').onclick=()=>{try{previewKey=selectedKey;openPreview(selectedKey)}catch(e){}};
     q('#fdChecklist').onclick=()=>{try{selectDate(selectedKey,true);document.body.classList.add('fd-show-legacy');const sec=q('.checklist-section');if(sec){sec.style.setProperty('display','block','important');sec.scrollIntoView({behavior:'smooth',block:'start'})}}catch(e){}};
   }
   function renderSummary(){
@@ -8129,7 +8150,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
     const fmenu=q('#fdFilterMenu');q('#fdFilterBtn').onclick=e=>{e.stopPropagation();fmenu.classList.toggle('on')};
     const admin=q('#fdAdminMenu');q('#fdAdminBtn').onclick=e=>{e.stopPropagation();admin.classList.toggle('on')};admin.addEventListener('click',e=>{const b=e.target.closest('[data-admin]');if(!b)return;admin.classList.remove('on');const a=b.dataset.admin;try{if(a==='capacity')openCapacitySettings();else if(a==='excel')exportExcel();else if(a==='print')window.print();else if(a==='backup')backupScheduleData();else if(a==='restore')restoreScheduleDataPrompt();else if(a==='password')changePassword()}catch(err){}});document.addEventListener('click',e=>{if(!e.target.closest('.fd-admin-wrap'))admin.classList.remove('on');if(!e.target.closest('.fd-search-wrap'))q('#fdSearchResults')?.classList.remove('on');if(!e.target.closest('.fd-filter-wrap'))fmenu?.classList.remove('on')});
   }
-  function render(){if(!desktop())return;build();if(!viewDate)viewDate=monthFromHidden();q('#fdMonthTitle').textContent=`${viewDate.getFullYear()}년 ${viewDate.getMonth()+1}월`;const s=monthCount();q('#fdMonthHint').textContent=`전체 ${s.total}건 · 예상 ${s.head}명`;renderFilters();renderCalendar();renderDetail();renderSummary()}
+  function render(){if(!desktop())return;build();if(!viewDate)viewDate=monthFromHidden();q('#fdMonthTitle').textContent=`${viewDate.getFullYear()}년 ${viewDate.getMonth()+1}월`;const s=monthCount();q('#fdMonthHint').textContent=`전체 ${s.total}건 · 예상 ${s.head}명`;renderFilters();renderCalendar();renderDetail();renderSummary();try{if(selectedKey)selectDate(selectedKey,false)}catch(e){}}
   function init(){if(!desktop())return;build();viewDate=monthFromHidden();const now=new Date();let preferred='';if(now.getFullYear()===viewDate.getFullYear()&&now.getMonth()===viewDate.getMonth())preferred=key(now);if(!preferred){const ks=monthKeys(viewDate.getFullYear(),viewDate.getMonth());preferred=ks.find(k=>{const x=totalRawEvents(k);return x.total>0})||((viewDate.getMonth()+1)+'-1')}selectedKey=preferred;try{currentDateKey=selectedKey;previewKey=selectedKey}catch(e){};render();
     const oldChange=window.onScheduleDataChanged;if(typeof oldChange==='function'&&!oldChange.__fd){const f=function(){const r=oldChange.apply(this,arguments);setTimeout(render,0);return r};f.__fd=true;window.onScheduleDataChanged=f}
     const oldApply=window.applyRange;if(typeof oldApply==='function'&&!oldApply.__fd){const f=function(){const r=oldApply.apply(this,arguments);setTimeout(()=>{viewDate=monthFromHidden();render()},0);return r};f.__fd=true;window.applyRange=f}
@@ -8318,9 +8339,32 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
   const getYM=()=>{const v=document.getElementById('rangeStart')?.value;if(v){const d=new Date(v+'T00:00:00');if(!isNaN(d))return [d.getFullYear(),d.getMonth()]};const m=(document.getElementById('fdMonthTitle')?.textContent||'').match(/(\d{4})년\s*(\d{1,2})월/);return m?[+m[1],+m[2]-1]:[new Date().getFullYear(),new Date().getMonth()]};
   const key=(m,d)=>(m+1)+'-'+d;
   function ensureTitle(){
-    const input=document.getElementById('fdCustomTitle');if(!input||input.dataset.bound)return;input.dataset.bound='1';
-    try{input.value=localStorage.getItem('fdCustomTitle')||''}catch(e){}
-    input.addEventListener('input',()=>{try{localStorage.setItem('fdCustomTitle',input.value)}catch(e){}});
+    const edit=document.getElementById('fdEditTitle');if(!edit||edit.dataset.bound)return;edit.dataset.bound='1';
+    const title=document.getElementById('fdMainTitle'),sub=document.getElementById('fdSubtitleText');
+    let savedTitle='',savedSub='';
+    try{savedTitle=localStorage.getItem('fdDisplayTitle')||localStorage.getItem('site_title_v1')||'';savedSub=localStorage.getItem('fdCustomTitle')||''}catch(e){}
+    title.textContent=savedTitle||'현장 일정표';sub.textContent=savedSub;document.title=title.textContent;
+    edit.onclick=()=>{
+      let dialog=document.getElementById('fdTitleDialog');
+      if(!dialog){
+        dialog=document.createElement('dialog');dialog.id='fdTitleDialog';
+        dialog.innerHTML='<form method="dialog"><h2>일정표 제목 수정</h2><label>제목<input name="heading" required maxlength="80" autocomplete="off"></label><label>부제목<input name="subtitle" maxlength="120" autocomplete="off"></label><p class="fd-title-error" role="alert"></p><div><button type="button" class="cancel">취소</button><button type="submit" class="save">저장</button></div></form>';
+        document.body.appendChild(dialog);
+        dialog.querySelector('.cancel').onclick=()=>dialog.close();
+        dialog.querySelector('form').onsubmit=e=>{
+          e.preventDefault();const name=dialog.querySelector('[name=heading]').value.trim();const subtitle=dialog.querySelector('[name=subtitle]').value.trim();
+          if(!name){dialog.querySelector('.fd-title-error').textContent='제목을 입력해주세요.';return;}
+          try{localStorage.setItem('fdDisplayTitle',name);localStorage.setItem('site_title_v1',name);localStorage.setItem('fdCustomTitle',subtitle)}
+          catch(err){dialog.querySelector('.fd-title-error').textContent='브라우저 저장이 차단되어 있습니다. 저장을 허용한 뒤 다시 시도해주세요.';return;}
+          title.textContent=name;sub.textContent=subtitle;document.title=name;
+          const src=document.getElementById('siteTitle');if(src)src.textContent=name;
+          dialog.close();
+        };
+      }
+      dialog.querySelector('[name=heading]').value=title.textContent;
+      dialog.querySelector('[name=subtitle]').value=sub.textContent;
+      dialog.querySelector('.fd-title-error').textContent='';dialog.showModal();
+    };
   }
   function ensureModal(){
     let modal=document.getElementById('fdSummaryModal');if(modal)return modal;
@@ -8362,5 +8406,765 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(ensureTitle,120));else setTimeout(ensureTitle,120);
 })();
 </script>
+
+<style id="desktop-v9-original-layout-polish">
+@media(min-width:761px){
+ #freshDesktopApp{font-family:"SUIT Variable","Apple SD Gothic Neo","Malgun Gothic",sans-serif!important;font-size:12px!important;letter-spacing:-.015em!important;line-height:1.5!important}
+ #freshDesktopApp button,#freshDesktopApp input,#freshDesktopApp select,#freshDesktopApp table{font-family:inherit!important;letter-spacing:inherit!important}
+ #freshDesktopApp .fd-topbar{min-height:78px!important;height:auto!important;padding:16px 24px!important;gap:16px!important}
+ #freshDesktopApp .fd-brand{min-width:0!important;flex:1!important}
+ #freshDesktopApp .fd-brand-inline{white-space:normal!important;gap:12px!important}
+ #freshDesktopApp #fdMainTitle{font-size:20px!important;line-height:1.35!important;font-weight:700!important}
+ #freshDesktopApp #fdSubtitleText{font-size:12px!important;color:#71858a!important;line-height:1.4!important;margin-top:3px!important}
+ #freshDesktopApp #fdEditTitle{font-family:inherit!important;font-size:11px!important;min-height:30px!important;padding:4px 9px!important;border:1px solid #d6e2e2!important;border-radius:7px!important;background:#fff!important;color:#547477!important;white-space:nowrap!important;font-weight:500!important}
+ #freshDesktopApp .fd-search input{font-size:12px!important}#freshDesktopApp .fd-top-action{font-size:12px!important;height:36px!important}
+ #freshDesktopApp .fd-content{max-width:1760px!important;padding:20px 24px 28px!important}
+ #freshDesktopApp .fd-controlbar{margin-bottom:14px!important;gap:16px!important}
+ #freshDesktopApp .fd-month-title{font-size:21px!important;font-weight:700!important}
+ #freshDesktopApp .fd-filter-btn,#freshDesktopApp .fd-today{font-size:12px!important;height:34px!important}
+ /* Keep the original two-column hierarchy and definite panel heights. */
+ #freshDesktopApp .fd-grid{display:grid!important;grid-template-columns:minmax(0,1.42fr) minmax(0,1fr)!important;grid-template-rows:none!important;gap:16px!important;height:820px!important;min-height:820px!important;max-height:none!important;align-items:stretch!important}
+ #freshDesktopApp .fd-calendar-panel{height:820px!important;min-height:0!important;grid-column:auto!important;grid-row:auto!important}
+ #freshDesktopApp .fd-right-stack{display:grid!important;grid-template-columns:minmax(0,1fr)!important;grid-template-rows:320px minmax(0,1fr)!important;height:820px!important;gap:14px!important;min-height:0!important}
+ #freshDesktopApp .fd-right-top{display:grid!important;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr)!important;height:320px!important;gap:12px!important}
+ #freshDesktopApp .fd-right-top>.fd-panel{height:320px!important;min-width:0!important}
+ #freshDesktopApp .fd-panel{box-shadow:0 2px 6px rgba(25,56,60,.025)!important;border-radius:12px!important}
+ #freshDesktopApp .fd-cal-top{height:38px!important}#freshDesktopApp .fd-cal-top span{font-size:11px!important;color:#71848a!important}
+ #freshDesktopApp .fd-cal{height:calc(100% - 38px)!important;display:flex!important;flex-direction:column!important;padding:12px!important;box-sizing:border-box!important;min-height:0!important}
+ #freshDesktopApp .fd-weekdays{flex:0 0 34px!important}
+ #freshDesktopApp .fd-weekday{height:34px!important;font-size:12px!important;font-weight:600!important}
+ #freshDesktopApp .fd-days{flex:1 1 0!important;min-height:0!important;grid-template-rows:repeat(6,minmax(0,1fr))!important}
+ #freshDesktopApp .fd-day{height:auto!important;min-height:0!important;overflow:hidden!important}
+ #freshDesktopApp .fd-daynum{font-size:13px!important;font-weight:650!important}
+ #freshDesktopApp .fd-day.selected{box-shadow:inset 0 0 0 2px #3c9b92!important;background:#f0f8f6!important}
+ #freshDesktopApp .fd-day-note{font-size:11px!important;line-height:1.4!important;white-space:nowrap!important;text-overflow:ellipsis!important;overflow:hidden!important;right:8px!important}
+ #freshDesktopApp .fd-count{font-size:10px!important;height:20px!important;line-height:20px!important;padding:0 6px!important}
+ #freshDesktopApp .fd-holiday{font-size:10px!important}
+ #freshDesktopApp .fd-mini-head{height:40px!important;box-sizing:border-box!important;padding:0 13px!important}
+ #freshDesktopApp .fd-mini-head h2{font-size:13px!important;font-weight:650!important}#freshDesktopApp .fd-mini-head>span{font-size:10px!important}
+ #freshDesktopApp .fd-detail{height:calc(100% - 40px)!important;overflow:auto!important;padding:12px!important;box-sizing:border-box!important}
+ #freshDesktopApp .fd-detail-date{font-size:16px!important;font-weight:700!important}
+ #freshDesktopApp .fd-meta-pill{font-size:10px!important;height:23px!important}
+ #freshDesktopApp .fd-detail-list{max-height:110px!important;overflow:auto!important;gap:6px!important}
+ #freshDesktopApp .fd-event{min-height:54px!important;padding:7px!important;grid-template-columns:40px minmax(0,1fr)!important}
+ #freshDesktopApp .fd-event-time{font-size:11px!important;font-weight:600!important}
+ #freshDesktopApp .fd-event-copy strong{font-size:12px!important;line-height:1.4!important;font-weight:600!important;white-space:normal!important}
+ #freshDesktopApp .fd-event-copy span{font-size:10.5px!important;line-height:1.5!important;white-space:normal!important;color:#7c9195!important}
+ #freshDesktopApp .fd-empty{min-height:66px!important;padding:10px!important}#freshDesktopApp .fd-empty strong{font-size:11px!important;font-weight:500!important}#freshDesktopApp .fd-empty span{font-size:10px!important}
+ #freshDesktopApp .fd-detail-actions{grid-template-columns:1fr 1fr!important;gap:5px!important;margin-top:8px!important;padding-top:8px!important}
+ #freshDesktopApp .fd-detail-actions button,#freshDesktopApp .fd-detail-actions button.danger{height:31px!important;min-height:31px!important;font-size:10.5px!important;padding:3px 5px!important;font-weight:500!important}
+ #freshDesktopApp .fd-summary{height:calc(100% - 40px)!important;padding:12px!important;overflow:auto!important;box-sizing:border-box!important}
+ #freshDesktopApp .fd-kpi{min-height:52px!important;height:52px!important;padding:8px!important}
+ #freshDesktopApp .fd-kpi span{font-size:10px!important}#freshDesktopApp .fd-kpi strong{font-size:19px!important;font-weight:700!important}#freshDesktopApp .fd-kpi small{font-size:10px!important}
+ #freshDesktopApp .fd-section-label{font-size:11px!important;font-weight:600!important;margin:12px 0 7px!important}
+ #freshDesktopApp .fd-site-top span,#freshDesktopApp .fd-site-num,#freshDesktopApp .fd-busy time,#freshDesktopApp .fd-busy span,#freshDesktopApp .fd-busy strong{font-size:10.5px!important;line-height:1.4!important}
+ #freshDesktopApp .fd-busy{height:28px!important}#freshDesktopApp .fd-site-list{gap:8px!important}
+ #freshDesktopApp .fd-ops-panel{height:100%!important;min-height:0!important;overflow:hidden!important}
+ #freshDesktopApp #fdLegacyMount{height:calc(100% - 40px)!important;box-sizing:border-box!important;padding:12px!important;overflow:auto!important}
+ #freshDesktopApp #fdLegacyMount .fd-legacy-layout{height:100%!important;grid-template-rows:60px minmax(220px,1fr) 62px!important;gap:12px!important}
+ #freshDesktopApp #fdLegacyMount .fd-legacy-body{grid-template-columns:1fr 1.12fr!important;gap:10px!important}
+ #freshDesktopApp #fdLegacyMount .summary-bar{grid-template-columns:repeat(3,minmax(0,105px))!important;gap:8px!important;width:100%!important}
+ #freshDesktopApp #fdLegacyMount .summary-card{width:auto!important;min-width:0!important;height:56px!important;min-height:56px!important;padding:8px 10px!important}
+ #freshDesktopApp #fdLegacyMount .summary-card .num{font-size:20px!important;font-weight:700!important;line-height:1.2!important}
+ #freshDesktopApp #fdLegacyMount .summary-card .label{font-size:10px!important;margin-top:4px!important}
+ #freshDesktopApp #fdLegacyMount .fd-legacy-card-head{height:34px!important;font-size:12px!important;font-weight:600!important;padding:0 10px!important}
+ #freshDesktopApp #fdLegacyMount .fd-legacy-card-body{height:calc(100% - 34px)!important;padding:8px!important;box-sizing:border-box!important;overflow:auto!important}
+ #freshDesktopApp #fdLegacyMount .managerFilterBar,#freshDesktopApp #fdLegacyMount .filterbar{display:flex!important;flex-wrap:wrap!important;gap:5px!important;margin-bottom:8px!important}
+ #freshDesktopApp #fdLegacyMount .filterbar select{max-width:100%!important;min-width:0!important;flex:1 1 120px!important;width:auto!important}
+ #freshDesktopApp #fdLegacyMount button,#freshDesktopApp #fdLegacyMount select{font-size:11px!important;height:30px!important;min-height:30px!important;padding:4px 7px!important;line-height:1.3!important;width:auto!important}
+ #freshDesktopApp #fdLegacyMount #managerTable,#freshDesktopApp #fdLegacyMount #checklistBody{height:auto!important;max-height:230px!important;overflow:auto!important}
+ #freshDesktopApp #fdLegacyMount table{table-layout:auto!important}
+ #freshDesktopApp #fdLegacyMount #managerTable th,#freshDesktopApp #fdLegacyMount #managerTable td,#freshDesktopApp #fdLegacyMount #checklistBody th,#freshDesktopApp #fdLegacyMount #checklistBody td{font-size:11px!important;height:30px!important;padding:6px!important;font-weight:400!important;line-height:1.4!important}
+ #freshDesktopApp #fdLegacyMount thead th{font-weight:600!important;background:#eef4f3!important;color:#3d6265!important}
+ #freshDesktopApp #fdLegacyMount .empty-day{font-size:12px!important;line-height:1.5!important;padding:12px 6px!important}
+ #freshDesktopApp #fdLegacyMount .fd-chart-label,#freshDesktopApp #fdLegacyMount #chartWeekLabel{font-size:11px!important}
+ #freshDesktopApp #fdLegacyMount #statsChart *{font-size:9px!important}
+}
+@media(min-width:761px) and (max-width:1250px){
+ #freshDesktopApp .fd-grid{grid-template-columns:minmax(0,1fr)!important;height:auto!important;max-height:none!important}
+ #freshDesktopApp .fd-calendar-panel{height:650px!important}
+ #freshDesktopApp .fd-right-stack{height:820px!important}
+}
+</style>
+<style id="desktop-v9-title-dialog"> #fdTitleDialog{width:min(480px,calc(100vw - 40px));box-sizing:border-box;border:1px solid #dbe4dd;border-radius:14px;padding:26px;font:14px/1.6 "Malgun Gothic","Apple SD Gothic Neo",sans-serif;color:#2b3c37}
+ #fdTitleDialog::backdrop{background:rgba(20,35,26,.3)}#fdTitleDialog h2{margin:0 0 20px;font-size:20px}#fdTitleDialog label{display:block;margin-bottom:16px}#fdTitleDialog input{display:block;width:100%;box-sizing:border-box;font:inherit;font-size:16px;padding:10px;margin-top:6px;border:1px solid #c7d6cd;border-radius:8px}#fdTitleDialog form>div{display:flex;justify-content:flex-end;gap:8px}#fdTitleDialog button{font:inherit;padding:10px 18px;border:1px solid #d4dfd7;background:#fff;border-radius:8px}#fdTitleDialog .save{background:#347963;color:white;border-color:#347963}.fd-title-error{color:#a5483e}</style>
+
+<style id="desktop-cleanup-openfix-v11-css">
+@media (min-width:761px){
+  /* 상단 제목: 겹침 방지 + 깔끔한 기본값 */
+  #freshDesktopApp .fd-topbar{padding-left:24px!important;padding-right:24px!important;}
+  #freshDesktopApp .fd-brand{min-width:260px!important;flex:0 1 auto!important;display:flex!important;align-items:center!important;overflow:visible!important;}
+  #freshDesktopApp .fd-brand-copy{display:flex!important;align-items:center!important;gap:10px!important;min-width:0!important;}
+  #freshDesktopApp .fd-brand-copy>div{min-width:0!important;display:flex!important;align-items:center!important;gap:8px!important;}
+  #freshDesktopApp #fdMainTitle{display:block!important;font-size:20px!important;line-height:1.2!important;font-weight:700!important;color:#17343d!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;max-width:300px!important;}
+  #freshDesktopApp #fdSubtitleText{display:none!important;}
+  #freshDesktopApp #fdEditTitle{flex:0 0 auto!important;font-size:10px!important;height:28px!important;min-height:28px!important;padding:0 8px!important;border-radius:7px!important;}
+
+  /* 날짜별 체크리스트는 선택 일정과 중복이라 데스크탑 운영현황에서 숨김 */
+  #freshDesktopApp #fdLegacyMount .fd-duplicate-checklist{display:none!important;}
+  #freshDesktopApp #fdLegacyMount .fd-legacy-body{grid-template-columns:minmax(0,1fr)!important;gap:0!important;}
+  #freshDesktopApp #fdLegacyMount .fd-legacy-layout{grid-template-rows:44px minmax(0,1fr) 104px!important;gap:7px!important;}
+  #freshDesktopApp #fdLegacyMount .fd-legacy-card{min-width:0!important;}
+  #freshDesktopApp #fdLegacyMount .fd-legacy-card:not(.fd-duplicate-checklist){width:100%!important;}
+  #freshDesktopApp #fdLegacyMount #managerTable{height:calc(100% - 31px)!important;overflow:auto!important;}
+
+  /* 요일별 인원 현황이 잘리지 않도록 충분한 높이 확보 */
+  #freshDesktopApp #fdLegacyMount .fd-legacy-chart{height:104px!important;min-height:104px!important;grid-template-columns:126px minmax(0,1fr)!important;gap:9px!important;padding:7px 9px!important;overflow:hidden!important;align-items:center!important;}
+  #freshDesktopApp #fdLegacyMount .fd-chart-side{align-self:center!important;}
+  #freshDesktopApp #fdLegacyMount .fd-chart-label{font-size:9px!important;margin-bottom:5px!important;}
+  #freshDesktopApp #fdLegacyMount .chartWeekBar{justify-content:flex-start!important;}
+  #freshDesktopApp #fdLegacyMount #statsChart{height:82px!important;min-height:82px!important;overflow:visible!important;margin:0!important;}
+  #freshDesktopApp #fdLegacyMount #statsChart .chart-bars{height:78px!important;min-height:78px!important;max-width:none!important;width:100%!important;padding:5px 6px 0!important;overflow:visible!important;}
+  #freshDesktopApp #fdLegacyMount #statsChart .chart-col{min-width:0!important;}
+  #freshDesktopApp #fdLegacyMount #statsChart .chart-label{font-size:8px!important;line-height:1!important;}
+  #freshDesktopApp #fdLegacyMount #statsChart .chart-count{font-size:8px!important;line-height:1!important;}
+}
+</style>
+<script id="desktop-cleanup-openfix-v11-js">
+(function(){
+  function isDesktop(){return !!(window.matchMedia&&window.matchMedia('(min-width:761px)').matches);}
+  function cleanStoredTitle(v){
+    v=String(v||'').trim();
+    if(!v) return '';
+    if(/2차\s*&\s*갤러리/i.test(v)) return '';
+    if(/\(현장명\)/.test(v)) return '';
+    if(v==='통합 일정표 & 날짜별 체크리스트') return '';
+    return v;
+  }
+  function fixDesktop(){
+    if(!isDesktop()) return;
+    var app=document.getElementById('freshDesktopApp');
+    if(!app) return;
+
+    /* 제목은 이상한 과거 저장값만 정리하고 수정 버튼 기능은 그대로 유지 */
+    var title=document.getElementById('fdMainTitle');
+    var sub=document.getElementById('fdSubtitleText');
+    if(title){
+      var saved='';
+      try{saved=cleanStoredTitle(localStorage.getItem('fdDisplayTitle')||localStorage.getItem('site_title_v1')||'');}catch(e){}
+      if(!saved) saved='현장 일정표';
+      title.textContent=saved;
+      document.title=saved;
+    }
+    if(sub) sub.textContent='';
+
+    /* 운영현황 제목도 실제 구성에 맞게 수정 */
+    var ops=app.querySelector('.fd-ops-title span');
+    if(ops) ops.textContent='집계 · 담당자 · 요일별 현황';
+
+    /* 중복 날짜별 체크리스트 카드 숨김 */
+    var mount=document.getElementById('fdLegacyMount');
+    if(mount){
+      var cards=mount.querySelectorAll('.fd-legacy-card');
+      cards.forEach(function(card){
+        var head=card.querySelector('.fd-legacy-card-head');
+        if(head && /날짜별\s*체크리스트/.test(head.textContent||'')) card.classList.add('fd-duplicate-checklist');
+      });
+    }
+  }
+  function schedule(){fixDesktop();setTimeout(fixDesktop,120);setTimeout(fixDesktop,500);setTimeout(fixDesktop,1200);}
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',schedule,{once:true}); else schedule();
+  window.addEventListener('load',schedule,{once:true});
+})();
+</script>
+
+
+<style id="desktop-cleanup-v12-css">
+@media (min-width:761px){
+  /* v12: 데스크탑 상단 제목/아이콘 완전 정리 */
+  #freshDesktopApp .fd-topbar::before,
+  #freshDesktopApp .fd-topbar::after{content:none!important;display:none!important;}
+  #freshDesktopApp .fd-topbar{overflow:visible!important;}
+  #freshDesktopApp .fd-brand{min-width:330px!important;}
+  #freshDesktopApp #fdMainTitle{font-size:19px!important;font-weight:760!important;max-width:330px!important;letter-spacing:-.035em!important;}
+  #freshDesktopApp #fdEditTitle{margin-left:2px!important;}
+
+  /* 운영현황: 날짜별 체크리스트 완전 제거, 담당자 표 + 요일현황만 사용 */
+  #freshDesktopApp #fdLegacyMount .fd-duplicate-checklist{display:none!important;}
+  #freshDesktopApp #fdLegacyMount .fd-legacy-body{grid-template-columns:minmax(0,1fr)!important;}
+  #freshDesktopApp #fdLegacyMount .fd-legacy-layout{
+    grid-template-rows:44px minmax(205px,1fr) 132px!important;
+    gap:8px!important;
+  }
+  #freshDesktopApp #fdLegacyMount .fd-legacy-card:not(.fd-duplicate-checklist){min-height:0!important;height:100%!important;}
+  #freshDesktopApp #fdLegacyMount .fd-legacy-card-body{overflow:hidden!important;}
+  #freshDesktopApp #fdLegacyMount #managerTable{
+    height:calc(100% - 38px)!important;
+    max-height:none!important;
+    overflow:auto!important;
+  }
+
+  /* 요일별 인원 현황: 하단 잘림 방지 */
+  #freshDesktopApp #fdLegacyMount .fd-legacy-chart{
+    height:132px!important;min-height:132px!important;
+    grid-template-columns:118px minmax(0,1fr)!important;
+    gap:10px!important;padding:9px 10px 11px!important;
+    overflow:visible!important;align-items:stretch!important;
+  }
+  #freshDesktopApp #fdLegacyMount .fd-chart-side{display:flex!important;flex-direction:column!important;justify-content:center!important;min-width:0!important;}
+  #freshDesktopApp #fdLegacyMount .fd-chart-label{font-size:10px!important;margin-bottom:8px!important;white-space:nowrap!important;}
+  #freshDesktopApp #fdLegacyMount .chartWeekBar{margin:0!important;gap:6px!important;justify-content:flex-start!important;}
+  #freshDesktopApp #fdLegacyMount .chartWeekBar button{width:28px!important;height:28px!important;min-height:28px!important;padding:0!important;}
+  #freshDesktopApp #fdLegacyMount #chartWeekLabel{font-size:10px!important;min-width:52px!important;}
+  #freshDesktopApp #fdLegacyMount #statsChart{
+    height:110px!important;min-height:110px!important;
+    overflow:visible!important;margin:0!important;padding:0!important;
+    align-self:end!important;
+  }
+  #freshDesktopApp #fdLegacyMount #statsChart .chart-bars{
+    height:106px!important;min-height:106px!important;width:100%!important;max-width:none!important;
+    padding:8px 10px 18px!important;overflow:visible!important;box-sizing:border-box!important;
+    align-items:flex-end!important;
+  }
+  #freshDesktopApp #fdLegacyMount #statsChart .chart-col{height:82px!important;min-width:0!important;overflow:visible!important;}
+  #freshDesktopApp #fdLegacyMount #statsChart .chart-bar-wrap{min-height:48px!important;}
+  #freshDesktopApp #fdLegacyMount #statsChart .chart-label{font-size:9px!important;line-height:1.1!important;margin-top:4px!important;}
+  #freshDesktopApp #fdLegacyMount #statsChart .chart-count{font-size:9px!important;line-height:1!important;margin-bottom:2px!important;}
+}
+</style>
+<script id="desktop-cleanup-v12-js">
+(function(){
+  function desktop(){return !!(window.matchMedia&&window.matchMedia('(min-width:761px)').matches)}
+  function invalidTitle(v){
+    v=String(v||'').trim();
+    if(!v) return true;
+    if(/(?:21차|2차).*갤러리|갤러리.*(?:21차|2차)/i.test(v)) return true;
+    if(/\(현장명\)/.test(v)) return true;
+    if(/통합\s*일정표.*체크리스트/.test(v)) return true;
+    return false;
+  }
+  function fix(){
+    if(!desktop()) return;
+    const app=document.getElementById('freshDesktopApp'); if(!app) return;
+
+    /* 잘못 저장된 과거 제목은 일반 제목으로 복구. '수정' 버튼은 그대로 사용 */
+    const title=document.getElementById('fdMainTitle');
+    if(title){
+      let current=title.textContent||'';
+      let saved='';
+      try{saved=localStorage.getItem('fdDisplayTitle')||localStorage.getItem('site_title_v1')||'';}catch(e){}
+      if(invalidTitle(saved) || invalidTitle(current)){
+        title.textContent='현장 일정표';
+        document.title='현장 일정표';
+        try{
+          localStorage.setItem('fdDisplayTitle','현장 일정표');
+          localStorage.setItem('site_title_v1','현장 일정표');
+        }catch(e){}
+        const src=document.getElementById('siteTitle'); if(src) src.textContent='현장 일정표';
+      }
+    }
+    const sub=document.getElementById('fdSubtitleText'); if(sub) sub.textContent='';
+
+    /* 날짜별 체크리스트 카드는 DOM상 있어도 화면에는 절대 노출하지 않음 */
+    const mount=document.getElementById('fdLegacyMount');
+    if(mount){
+      mount.querySelectorAll('.fd-legacy-card').forEach(card=>{
+        const head=card.querySelector('.fd-legacy-card-head');
+        if(head && /날짜별\s*체크리스트/.test(head.textContent||'')) card.classList.add('fd-duplicate-checklist');
+      });
+    }
+    const ops=app.querySelector('.fd-ops-title span');
+    if(ops) ops.textContent='집계 · 담당자 · 요일별 현황';
+  }
+  function run(){fix();setTimeout(fix,100);setTimeout(fix,450);setTimeout(fix,1000)}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',run,{once:true}); else run();
+  window.addEventListener('load',run,{once:true});
+})();
+</script>
+
+
+<style id="desktop-cleanup-v13-css">
+@media (min-width:761px){
+  /* 1) 선택 일정: 바깥/안쪽 이중 스크롤 제거 — 일정 목록만 한 번 스크롤 */
+  #freshDesktopApp .fd-detail{
+    overflow:hidden!important;
+    display:flex!important;
+    flex-direction:column!important;
+    min-height:0!important;
+  }
+  #freshDesktopApp .fd-detail-top{
+    flex:0 0 auto!important;
+    margin-bottom:6px!important;
+  }
+  #freshDesktopApp .fd-detail-list{
+    flex:1 1 auto!important;
+    min-height:0!important;
+    max-height:none!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+    padding-right:3px!important;
+    scrollbar-width:thin;
+  }
+  #freshDesktopApp .fd-detail-list::-webkit-scrollbar{width:7px!important;}
+  #freshDesktopApp .fd-detail-list::-webkit-scrollbar-track{background:transparent!important;}
+  #freshDesktopApp .fd-detail-list::-webkit-scrollbar-thumb{background:#9aa2a5!important;border-radius:999px!important;}
+
+  /* 선택 일정의 보조기능은 한 줄 툴바로 정리 */
+  #freshDesktopApp .fd-detail-actions{
+    flex:0 0 auto!important;
+    display:grid!important;
+    grid-template-columns:repeat(5,minmax(0,1fr))!important;
+    gap:4px!important;
+    margin-top:7px!important;
+    padding-top:7px!important;
+    border-top:1px solid #e7eeee!important;
+  }
+  #freshDesktopApp .fd-detail-actions button,
+  #freshDesktopApp .fd-detail-actions button.danger{
+    grid-column:auto!important;
+    width:100%!important;
+    height:27px!important;
+    min-height:27px!important;
+    padding:0 3px!important;
+    border-radius:6px!important;
+    font-size:8.7px!important;
+    line-height:1!important;
+    font-weight:600!important;
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+  }
+  #freshDesktopApp .fd-detail-actions button.primary{
+    background:#1b7f79!important;
+    border-color:#1b7f79!important;
+    color:#fff!important;
+  }
+  #freshDesktopApp .fd-detail-actions button.danger{
+    background:#fff8f8!important;
+    border-color:#efc9cd!important;
+    color:#bd6170!important;
+  }
+
+  /* 2) 참석/불참/예정 팝업: 데스크탑에서는 가로 스크롤 없이 읽히게 */
+  #statusOverlay{
+    padding:28px!important;
+    align-items:center!important;
+    justify-content:center!important;
+  }
+  #statusOverlay .modal{
+    width:min(780px,calc(100vw - 72px))!important;
+    max-width:780px!important;
+    max-height:80vh!important;
+    overflow:hidden!important;
+    padding:16px 18px 18px!important;
+    border-radius:16px!important;
+  }
+  #statusOverlay .modal h2{
+    margin:1px 0 12px!important;
+    font-size:16px!important;
+    line-height:1.25!important;
+  }
+  #statusOverlay .modal .close{
+    width:31px!important;
+    height:31px!important;
+    border-radius:9px!important;
+  }
+  #statusBody{
+    max-height:calc(80vh - 68px)!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+    padding-right:5px!important;
+    scrollbar-width:thin;
+  }
+  #statusBody .print-date-block{margin:0 0 16px!important;}
+  #statusBody .print-date-title{
+    margin:0 0 8px!important;
+    padding:7px 3px!important;
+    border-bottom:1.5px solid #274f58!important;
+    font-size:12.5px!important;
+    line-height:1!important;
+    font-weight:800!important;
+    color:#24464f!important;
+  }
+  #statusBody .sub-title{margin:7px 0 6px!important;}
+  #statusBody .sub-title .tag{font-size:9px!important;padding:3px 8px!important;}
+  #statusBody .table-scroll{
+    width:100%!important;
+    overflow:visible!important;
+    border:1px solid #dce7e6!important;
+    border-radius:10px!important;
+  }
+  #statusBody table{
+    width:100%!important;
+    min-width:0!important;
+    table-layout:fixed!important;
+    margin:0!important;
+    border:0!important;
+    border-radius:10px!important;
+  }
+  #statusBody th,#statusBody td{
+    padding:7px 5px!important;
+    height:38px!important;
+    font-size:9.8px!important;
+    line-height:1.25!important;
+    white-space:normal!important;
+    word-break:keep-all!important;
+    overflow-wrap:anywhere!important;
+  }
+  #statusBody th{font-size:9px!important;font-weight:700!important;}
+  #statusBody th:nth-child(1),#statusBody td:nth-child(1){width:10%!important;}
+  #statusBody th:nth-child(2),#statusBody td:nth-child(2){width:16%!important;}
+  #statusBody th:nth-child(3),#statusBody td:nth-child(3){width:14%!important;}
+  #statusBody th:nth-child(4),#statusBody td:nth-child(4){width:15%!important;}
+  #statusBody th:nth-child(5),#statusBody td:nth-child(5){width:11%!important;}
+  #statusBody th:nth-child(6),#statusBody td:nth-child(6){width:13%!important;}
+  #statusBody th:nth-child(7),#statusBody td:nth-child(7){width:13%!important;}
+  #statusBody th:nth-child(8),#statusBody td:nth-child(8){width:8%!important;}
+  #statusBody input[type=checkbox]{width:15px!important;height:15px!important;}
+
+  /* 3) 요일별 인원 현황: 20일(월)처럼 날짜+요일을 한 번에 */
+  #freshDesktopApp #fdLegacyMount #statsChart .chart-label{
+    font-size:9px!important;
+    line-height:1.15!important;
+    white-space:nowrap!important;
+    margin-top:5px!important;
+    color:#365d65!important;
+    font-weight:700!important;
+  }
+  #freshDesktopApp #fdLegacyMount #statsChart .chart-bars{
+    padding-bottom:20px!important;
+  }
+}
+</style>
+
+<script id="desktop-cleanup-v13-js">
+(function(){
+  function desktop(){return !!(window.matchMedia&&window.matchMedia('(min-width:761px)').matches);}
+
+  function compactDetailActions(){
+    if(!desktop()) return;
+    var labels={
+      fdAddGallery:'갤러리 +',
+      fdAddTour:'투어 +',
+      fdChecklist:'체크리스트',
+      fdFullDetail:'상세보기'
+    };
+    Object.keys(labels).forEach(function(id){
+      var b=document.getElementById(id);
+      if(b) b.textContent=labels[id];
+    });
+    var closed=document.getElementById('fdClosed');
+    if(closed){
+      closed.textContent=/해제/.test(closed.textContent||'')?'휴관 해제':'휴관 지정';
+      closed.title='휴관/이용불가 지정 또는 해제';
+    }
+  }
+
+  function run(){
+    compactDetailActions();
+    setTimeout(compactDetailActions,80);
+    setTimeout(compactDetailActions,300);
+  }
+
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',run,{once:true});
+  }else{
+    run();
+  }
+
+  /* 날짜를 바꾸면 fdDetail이 다시 렌더링되므로 버튼 라벨을 다시 압축 */
+  var observer=new MutationObserver(function(muts){
+    if(!desktop()) return;
+    for(var i=0;i<muts.length;i++){
+      var t=muts[i].target;
+      if(t && (t.id==='fdDetail' || (t.closest && t.closest('#fdDetail')))){
+        compactDetailActions();
+        break;
+      }
+    }
+  });
+  function bind(){
+    var d=document.getElementById('fdDetail');
+    if(d) observer.observe(d,{childList:true,subtree:true});
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});else bind();
+})();
+</script>
+
+
+<style id="desktop-cleanup-v14-css">
+@media (min-width:761px){
+  html,body{
+    width:100%!important;
+    height:100%!important;
+    overflow:hidden!important;
+  }
+  #appRoot,#freshDesktopApp{
+    width:100%!important;
+    height:100vh!important;
+    min-height:0!important;
+    overflow:hidden!important;
+  }
+
+  /* 한 화면 안에 고정: 페이지 자체 세로 스크롤 제거 */
+  #freshDesktopApp .fd-content{
+    width:100%!important;
+    max-width:1760px!important;
+    height:calc(100vh - 66px)!important;
+    margin:0 auto!important;
+    padding:15px 18px 14px!important;
+    display:flex!important;
+    flex-direction:column!important;
+    overflow:hidden!important;
+    min-height:0!important;
+  }
+  #freshDesktopApp .fd-controlbar{
+    flex:0 0 40px!important;
+    min-height:40px!important;
+    margin:0 0 10px!important;
+  }
+  #freshDesktopApp .fd-grid{
+    flex:1 1 auto!important;
+    min-height:0!important;
+    height:auto!important;
+    max-height:none!important;
+    grid-template-columns:minmax(0,1.22fr) minmax(0,1fr)!important;
+    gap:12px!important;
+    overflow:hidden!important;
+  }
+
+  /* 달력은 조금 줄이고 오른쪽 정보 영역 확대 */
+  #freshDesktopApp .fd-calendar-panel,
+  #freshDesktopApp .fd-right-stack{
+    height:100%!important;
+    min-height:0!important;
+  }
+  #freshDesktopApp .fd-right-stack{
+    grid-template-rows:minmax(245px,34%) minmax(0,1fr)!important;
+    gap:12px!important;
+    overflow:hidden!important;
+  }
+  #freshDesktopApp .fd-right-top{
+    height:100%!important;
+    min-height:0!important;
+    grid-template-columns:minmax(0,1.08fr) minmax(0,.92fr)!important;
+    gap:12px!important;
+  }
+  #freshDesktopApp .fd-right-top>.fd-panel{
+    height:100%!important;
+    min-height:0!important;
+  }
+  #freshDesktopApp .fd-ops-panel{
+    height:100%!important;
+    min-height:0!important;
+  }
+
+  /* 달력도 뷰포트에 맞게 6주가 정확히 들어가도록 */
+  #freshDesktopApp .fd-cal{
+    height:calc(100% - 38px)!important;
+    min-height:0!important;
+    display:flex!important;
+    flex-direction:column!important;
+    padding:10px!important;
+  }
+  #freshDesktopApp .fd-weekdays{flex:0 0 30px!important;}
+  #freshDesktopApp .fd-days{
+    flex:1 1 auto!important;
+    min-height:0!important;
+    grid-template-rows:repeat(6,minmax(0,1fr))!important;
+  }
+  #freshDesktopApp .fd-day{
+    height:auto!important;
+    min-height:0!important;
+    padding:7px!important;
+  }
+
+  /* 달력 셀: '화랑 10:30 3명 / 14단지 13:30 2명' 식으로 실제 내용 표시 */
+  #freshDesktopApp .fd-day-summaries{
+    position:absolute!important;
+    left:7px!important;
+    right:7px!important;
+    bottom:7px!important;
+    display:flex!important;
+    flex-direction:column!important;
+    gap:2px!important;
+    min-width:0!important;
+    pointer-events:none!important;
+  }
+  #freshDesktopApp .fd-day-mini{
+    height:14px!important;
+    display:grid!important;
+    grid-template-columns:5px minmax(0,1fr) auto auto!important;
+    align-items:center!important;
+    gap:4px!important;
+    min-width:0!important;
+    color:#58727a!important;
+    font-size:8.6px!important;
+    line-height:1!important;
+  }
+  #freshDesktopApp .fd-day-mini i{
+    width:4px!important;
+    height:4px!important;
+    border-radius:50%!important;
+    background:#13948a!important;
+  }
+  #freshDesktopApp .fd-day-mini i.tour{background:#ee9d48!important;}
+  #freshDesktopApp .fd-day-mini b{
+    min-width:0!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    white-space:nowrap!important;
+    font-weight:760!important;
+    color:#45666e!important;
+  }
+  #freshDesktopApp .fd-day-mini em{
+    font-style:normal!important;
+    color:#768a90!important;
+    white-space:nowrap!important;
+  }
+  #freshDesktopApp .fd-day-mini strong{
+    color:#315a61!important;
+    font-weight:820!important;
+    white-space:nowrap!important;
+  }
+  #freshDesktopApp .fd-day-mini.more{
+    display:block!important;
+    color:#85969b!important;
+    font-size:8px!important;
+    padding-left:9px!important;
+  }
+  #freshDesktopApp .fd-day-note,
+  #freshDesktopApp .fd-dots{display:none!important;}
+
+  /* 전체 상세보기 제거 후 4개 기능을 한 줄로 */
+  #freshDesktopApp .fd-detail-actions{
+    grid-template-columns:repeat(4,minmax(0,1fr))!important;
+    gap:4px!important;
+    margin-top:6px!important;
+    padding-top:6px!important;
+  }
+  #freshDesktopApp .fd-detail-actions button,
+  #freshDesktopApp .fd-detail-actions button.danger{
+    grid-column:auto!important;
+    height:27px!important;
+    min-height:27px!important;
+    font-size:8.5px!important;
+    padding:0 3px!important;
+    white-space:nowrap!important;
+  }
+
+  /* 운영 현황도 남는 높이에 맞춰서 내부에서만 정돈 */
+  #freshDesktopApp #fdLegacyMount{
+    height:calc(100% - 40px)!important;
+    min-height:0!important;
+    overflow:hidden!important;
+  }
+}
+</style>
+
+
+<style id="desktop-cleanup-v15-css">
+@media (min-width:761px){
+
+  /* 선택 일정 영역을 넓히고, 월간 집계는 조금 더 슬림하게 */
+  #freshDesktopApp .fd-right-top{
+    grid-template-columns:minmax(0,1.45fr) minmax(0,.65fr)!important;
+    gap:10px!important;
+  }
+
+  /* 선택 일정: 한 줄 1개 → 2열 카드 */
+  #freshDesktopApp .fd-detail{
+    padding:10px 11px!important;
+  }
+  #freshDesktopApp .fd-detail-top{
+    margin-bottom:6px!important;
+    padding-bottom:7px!important;
+  }
+  #freshDesktopApp .fd-detail-list{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    grid-auto-rows:minmax(46px,auto)!important;
+    align-content:start!important;
+    gap:6px!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+    padding-right:3px!important;
+    max-height:none!important;
+    min-height:0!important;
+  }
+  #freshDesktopApp .fd-event{
+    min-width:0!important;
+    min-height:46px!important;
+    padding:5px 7px!important;
+    grid-template-columns:34px minmax(0,1fr)!important;
+    gap:6px!important;
+    border-radius:7px!important;
+  }
+  #freshDesktopApp .fd-event-time{
+    font-size:9.3px!important;
+    line-height:1.15!important;
+  }
+  #freshDesktopApp .fd-event-copy strong{
+    font-size:10.5px!important;
+    line-height:1.25!important;
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+  }
+  #freshDesktopApp .fd-event-copy span{
+    font-size:8.9px!important;
+    line-height:1.25!important;
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+  }
+
+  /* 월간 집계는 작은 폭에서도 핵심값이 잘 보이게 */
+  #freshDesktopApp .fd-summary{
+    padding:9px 9px 10px!important;
+  }
+  #freshDesktopApp .fd-kpis{
+    gap:5px!important;
+  }
+  #freshDesktopApp .fd-kpi{
+    min-height:48px!important;
+    height:48px!important;
+    padding:7px!important;
+  }
+  #freshDesktopApp .fd-kpi span{
+    font-size:8.6px!important;
+  }
+  #freshDesktopApp .fd-kpi strong{
+    margin-top:4px!important;
+    font-size:17px!important;
+  }
+  #freshDesktopApp .fd-section-label{
+    margin:9px 0 5px!important;
+    font-size:9.5px!important;
+  }
+  #freshDesktopApp .fd-site-row{
+    grid-template-columns:minmax(0,1fr) 28px!important;
+    gap:5px!important;
+  }
+  #freshDesktopApp .fd-site-top span,
+  #freshDesktopApp .fd-site-num,
+  #freshDesktopApp .fd-busy time,
+  #freshDesktopApp .fd-busy span,
+  #freshDesktopApp .fd-busy strong{
+    font-size:9.3px!important;
+  }
+
+  /* 달력 안 현장 / 시간 / 인원은 지금보다 '조금만' 크게 */
+  #freshDesktopApp .fd-day-mini{
+    height:15px!important;
+    grid-template-columns:5px minmax(0,1fr) auto auto!important;
+    gap:4px!important;
+    font-size:9.3px!important;
+  }
+  #freshDesktopApp .fd-day-mini b{
+    font-size:9.4px!important;
+  }
+  #freshDesktopApp .fd-day-mini em{
+    font-size:8.9px!important;
+  }
+  #freshDesktopApp .fd-day-mini strong{
+    font-size:9.5px!important;
+  }
+  #freshDesktopApp .fd-day-mini.more{
+    font-size:8.5px!important;
+  }
+}
+</style>
+
 </body>
 </html>
