@@ -7233,6 +7233,45 @@ body.guest-readonly #reportViewTabTours{
 
 
 
+
+<style id="overviewCoreBriefingV1">
+  /* 개요: 사업현황 + 진행단계, 그 아래 현장 핵심 브리핑 */
+  body.ux383 .overview-core-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    align-items:start!important;
+    grid-auto-rows:auto!important;
+    margin-bottom:10px!important;
+  }
+  body.ux383 .overview-core-grid .detail-quad-box{
+    height:auto!important;
+    min-height:0!important;
+    max-height:none!important;
+  }
+  body.ux383 .overview-brief-slot{
+    width:100%;
+    min-width:0;
+    margin:0 0 14px;
+  }
+  body.ux383 .overview-brief-slot .bf-brief{
+    margin:0!important;
+  }
+  @media(max-width:1200px){
+    body.ux383 .overview-core-grid{
+      grid-template-columns:1fr!important;
+    }
+  }
+  @media(max-width:820px){
+    body.ux383 .overview-core-grid{
+      grid-template-columns:1fr!important;
+      gap:10px!important;
+      margin-bottom:10px!important;
+    }
+    body.ux383 .overview-brief-slot{
+      margin-bottom:10px!important;
+    }
+  }
+</style>
+
 </head>
 <body data-report-source="excel-only">
 <div id="entryGate" style="position:fixed;inset:0;background:rgba(3,12,22,.94);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;">
@@ -11602,8 +11641,12 @@ function renderDetailPanel(site){
     site.designCompany = document.getElementById('e_designCo').value.trim();
     site.trustCompany = document.getElementById('e_trustCo').value.trim();
     site.stageDetail = document.getElementById('e_stageDetail').value;
-    site.salesNote = document.getElementById('e_salesNote').value;
-    site.progressNote = document.getElementById('e_progressNote').value;
+    // 비고/타사활동은 개요에서 제거했으므로, 해당 입력칸이 있을 때만 갱신한다.
+    // 현장 정보 수정창에 저장된 기존 값은 그대로 보존한다.
+    const salesNoteEl = document.getElementById('e_salesNote');
+    const progressNoteEl = document.getElementById('e_progressNote');
+    if(salesNoteEl) site.salesNote = salesNoteEl.value;
+    if(progressNoteEl) site.progressNote = progressNoteEl.value;
     const extracted = extractDatedEventsFromText(site.stageDetail);
     if(extracted.length){
       site.events = mergeEvents(eventsOf(site), extracted);
@@ -11674,12 +11717,11 @@ function renderDetailPanel(site){
           <div class="summary-item"><div class="summary-label">신축세대</div><div class="summary-value">${escapeHtml(site.households||'-')}</div></div>
           <div class="summary-item"><div class="summary-label">규모</div><div class="summary-value">${escapeHtml(site.scale||'-')}</div></div>
         </div>` : ''}
-        <div class="detail-quad-grid">
+        <div class="detail-quad-grid overview-core-grid">
           ${statusBoxHtml}
-          ${noteBox('비고', 'e_salesNote', site.salesNote)}
           ${noteBox('진행단계', 'e_stageDetail', site.stageDetail, {alignDates:true})}
-          ${noteBox('타사활동', 'e_progressNote', site.progressNote)}
         </div>
+        ${!editMode ? `<div class="overview-brief-slot">${buildSiteReportBrief(site)}</div>` : ''}
         ${editMode ? `<div class="hint">날짜 적힌 줄(예: 26.05.09 전체회의)은 저장 시 캘린더 일정에 자동으로 반영돼요.<br>강조 표시: *텍스트*(굵게) · **텍스트**(빨간색, 굵게)</div>` : ''}
         ${(!editMode && site.photos && site.photos.length) ? `
         <div class="kv" style="margin-top:14px;">
@@ -11764,7 +11806,6 @@ function renderDetailPanel(site){
           ${guestMode ? '' : '<button class="btn btn-primary btn-sm no-print canva-report-input-btn" id="logOpenFormBtn">✏️ 보고서 입력</button>'}
           `}
         </div>
-        ${buildSiteReportBrief(site)}
         ${buildManagerBreakdownTable(site)}
         <div class="log-list" id="logListArea">
           ${(()=>{
@@ -19953,8 +19994,8 @@ function v21PlaceFilters(){
   [document.getElementById('searchInput')?.closest('.search-box'),document.getElementById('uxGlobalSearch'),document.getElementById('tabs')].filter(Boolean).forEach(node=>{const anchor=document.createComment('mobile filter original position');node.before(anchor);v21FilterNodes.push({node,anchor})});
  }
  const mobile=window.innerWidth<=820;
- v21FilterNodes.forEach(({node,anchor})=>{if(mobile){const target=node.id==='uxGlobalSearch'?bar:panel;if(node.parentElement!==target)target.append(node)}else if(node.previousSibling!==anchor){anchor.after(node)}});
- panel.hidden=!mobile;
+ v21FilterNodes.forEach(({node,anchor})=>{if(mobile){if(node.parentElement!==panel)panel.append(node)}else if(node.previousSibling!==anchor){anchor.after(node)}});
+ panel.hidden=!mobile||v16State.collapsed;
 }
 window.addEventListener('resize',()=>{v21PlaceFilters();v16ResizeMap()});
 
@@ -21081,7 +21122,7 @@ body.ux383 .rf-optional{margin:10px 0;font-size:13px}
 body.ux383 .rf-optional summary{cursor:pointer;color:var(--text-dim)}
 @media(max-width:820px){body.ux383 .rf-basic-grid{grid-template-columns:1fr}}
 
-@media(max-width:820px){body.ux383:not(.rf-controls-open) #uxFilters{display:none!important}}
+body.ux383:not(.rf-controls-open) #uxFilters{display:none!important}
 body.ux383 #calInlineAgenda:not(:has(.cal-inline-item)){display:none!important}
 body.ux383 .report-brief-head{background:var(--bg-side)!important;color:var(--text-main)!important;padding:8px!important;border-radius:6px!important}
 body.ux383 .report-brief-range{color:var(--text-dim)!important;font-size:11px!important}
@@ -22191,16 +22232,6 @@ body.ux383 .mgr-breakdown-wrap .mgr-cal-summary-main{font-size:11px!important;}}
   background-position:right 8px center!important;background-repeat:no-repeat!important;background-size:12px 12px!important;
  }
  body.ux383 #rfPrintCard,body.ux383 #siteManageWrap{display:none!important;}
-}
-
-/* One mobile search entry beside the view selector. */
-@media screen and (max-width:820px){
- body.ux383 #mobileWorkspace16{grid-template-columns:minmax(0,1fr) 110px 80px!important;}
- body.ux383 #mobileWorkspace16 #v16Fold{display:none!important;}
- body.ux383 #mobileWorkspace16 #uxGlobalSearch{display:inline-flex!important;grid-column:3!important;grid-row:1!important;align-items:center!important;justify-content:center!important;width:100%!important;min-width:0!important;height:40px!important;min-height:40px!important;margin:0!important;padding:6px!important;font-family:inherit!important;font-size:13px!important;font-weight:500!important;white-space:nowrap!important;border:1px solid var(--line)!important;border-radius:8px!important;box-shadow:none!important;background:var(--card)!important;color:var(--text-main)!important;}
- body.ux383 #v21FilterPanel .search-box{display:none!important;}
- body.ux383 #v21FilterPanel:not([hidden]){grid-template-columns:minmax(0,1fr)!important;gap:0!important;padding:6px 12px!important;}
- body.ux383 #v21FilterPanel #tabs{grid-column:1!important;grid-row:1!important;display:flex!important;}
 }
 </style>
 <script id="v20ReportLabels">
