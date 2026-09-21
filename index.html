@@ -19953,8 +19953,8 @@ function v21PlaceFilters(){
   [document.getElementById('searchInput')?.closest('.search-box'),document.getElementById('uxGlobalSearch'),document.getElementById('tabs')].filter(Boolean).forEach(node=>{const anchor=document.createComment('mobile filter original position');node.before(anchor);v21FilterNodes.push({node,anchor})});
  }
  const mobile=window.innerWidth<=820;
- v21FilterNodes.forEach(({node,anchor})=>{if(mobile){if(node.parentElement!==panel)panel.append(node)}else if(node.previousSibling!==anchor){anchor.after(node)}});
- panel.hidden=!mobile||v16State.collapsed;
+ v21FilterNodes.forEach(({node,anchor})=>{if(mobile){const target=node.id==='uxGlobalSearch'?bar:panel;if(node.parentElement!==target)target.append(node)}else if(node.previousSibling!==anchor){anchor.after(node)}});
+ panel.hidden=!mobile;
 }
 window.addEventListener('resize',()=>{v21PlaceFilters();v16ResizeMap()});
 
@@ -22191,6 +22191,16 @@ body.ux383 .mgr-breakdown-wrap .mgr-cal-summary-main{font-size:11px!important;}}
   background-position:right 8px center!important;background-repeat:no-repeat!important;background-size:12px 12px!important;
  }
  body.ux383 #rfPrintCard,body.ux383 #siteManageWrap{display:none!important;}
+}
+
+/* One mobile search entry beside the view selector. */
+@media screen and (max-width:820px){
+ body.ux383 #mobileWorkspace16{grid-template-columns:minmax(0,1fr) 110px 80px!important;}
+ body.ux383 #mobileWorkspace16 #v16Fold{display:none!important;}
+ body.ux383 #mobileWorkspace16 #uxGlobalSearch{display:inline-flex!important;grid-column:3!important;grid-row:1!important;align-items:center!important;justify-content:center!important;width:100%!important;min-width:0!important;height:40px!important;min-height:40px!important;margin:0!important;padding:6px!important;font-family:inherit!important;font-size:13px!important;font-weight:500!important;white-space:nowrap!important;border:1px solid var(--line)!important;border-radius:8px!important;box-shadow:none!important;background:var(--card)!important;color:var(--text-main)!important;}
+ body.ux383 #v21FilterPanel .search-box{display:none!important;}
+ body.ux383 #v21FilterPanel:not([hidden]){grid-template-columns:minmax(0,1fr)!important;gap:0!important;padding:6px 12px!important;}
+ body.ux383 #v21FilterPanel #tabs{grid-column:1!important;grid-row:1!important;display:flex!important;}
 }
 </style>
 <script id="v20ReportLabels">

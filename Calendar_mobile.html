@@ -3139,6 +3139,7 @@ document.getElementById("overlay").addEventListener("click",(e)=>{
   if(e.target.id==="overlay") closeModal();
 });
 function openInChecklist(){
+  document.body.classList.add("m13-show-details");
   closeModal();
   if(previewKey) selectDate(previewKey, true);
 }
@@ -3168,6 +3169,7 @@ function selectDate(key, scroll){
 
   body.innerHTML = html;
 
+  document.dispatchEvent(new CustomEvent("calendar-date-selected",{detail:key}));
   if(scroll){
     document.querySelector(".checklist-section").scrollIntoView({behavior:"smooth", block:"start"});
   }
@@ -3271,7 +3273,7 @@ function initSiteTitle(){
   const el = document.getElementById("siteTitle");
   const saved = localStorage.getItem(SITE_TITLE_KEY);
   const legacy = new Set(["목동 현장일정","(현장명)일정표","목동 현장일정표"]);
-  if(saved !== null && !legacy.has(saved.trim())) el.textContent = saved;
+  if(saved !== null) el.textContent = saved;
   else if(legacy.has((el.textContent||"").trim())) el.textContent = "";
   const syncTitle=()=>{
     const v=(el.textContent||"").trim();
@@ -3289,7 +3291,7 @@ function initSiteSubtitle(){
   const el = document.getElementById("siteSubtitle");
   const saved = localStorage.getItem(SITE_SUBTITLE_KEY);
   const legacy = /갤러리\s*&.*21차.*투어|언제\s*·\s*어느 현장/;
-  if(saved !== null && !legacy.test(saved)) el.textContent = saved;
+  if(saved !== null) el.textContent = saved;
   else if(legacy.test(el.textContent||"")) el.textContent = "현장 방문 일정을 한눈에 확인하세요.";
   el.addEventListener("blur", ()=>{
     const v=(el.textContent||"").trim() || "현장 방문 일정을 한눈에 확인하세요.";
@@ -4664,7 +4666,7 @@ function scheduleSummaryV23(key){
         <div class="m15-brand">
           <div class="m15-brand-icon">${svgCal}</div>
           <div class="m15-brand-copy">
-            <button type="button" class="m19-title-edit" id="m19TitleEdit" aria-label="일정표 제목 수정"><span class="m13-title" id="m13Title"></span><span class="m19-pencil">✎</span></button>
+            <button type="button" class="m19-title-edit" id="m19TitleEdit" aria-label="일정표 제목 수정"><span class="m13-title" id="m13Title"></span><span class="m19-pencil">수정</span></button>
             <button type="button" class="m15-brand-sub m19-sub-edit" id="m19SubEdit" aria-label="부제목 수정"></button>
           </div>
         </div>
@@ -4688,7 +4690,7 @@ function scheduleSummaryV23(key){
           <button type="button" class="m15-period-btn" id="m15PeriodBtn">기간 설정</button>
         </div>
 
-        <div class="m13-weekdays"><div class="m13-weekday sun">일</div><div class="m13-weekday">월</div><div class="m13-weekday">화</div><div class="m13-weekday">수</div><div class="m13-weekday">목</div><div class="m13-weekday">금</div><div class="m13-weekday sat">토</div></div>
+        <div class="v24-month-summary" id="v24MonthSummary"></div><div class="m13-weekdays"><div class="m13-weekday sun">일</div><div class="m13-weekday">월</div><div class="m13-weekday">화</div><div class="m13-weekday">수</div><div class="m13-weekday">목</div><div class="m13-weekday">금</div><div class="m13-weekday sat">토</div></div>
         <div class="m13-days" id="m13Days"></div>
         <div class="m15-calendar-foot">날짜를 선택하면 상세 일정이 표시됩니다. · ● 오늘 / 테두리 선택일</div>
       </section>
@@ -4790,29 +4792,14 @@ function scheduleSummaryV23(key){
     const abtn=document.getElementById('m15Admin');
     if(abtn) abtn.onclick=()=>{ if(typeof toggleMobileAdminMenu==='function') toggleMobileAdminMenu(); };
 
-    const titleBtn=document.getElementById('m19TitleEdit');
-    if(titleBtn) titleBtn.onclick=()=>{
-      const src=document.getElementById('siteTitle');
-      const current=(src?.textContent||'').trim();
-      const next=prompt('일정표 제목을 입력하세요.', current);
-      if(next===null) return;
-      const v=next.trim();
-      if(src) src.textContent=v;
-      if(v) localStorage.setItem(SITE_TITLE_KEY,v); else localStorage.removeItem(SITE_TITLE_KEY);
-      document.title=v||'현장 일정표';
-      renderShell();
-    };
-    const subBtn=document.getElementById('m19SubEdit');
-    if(subBtn) subBtn.onclick=()=>{
-      const src=document.getElementById('siteSubtitle');
-      const current=(src?.textContent||'').trim();
-      const next=prompt('부제목을 입력하세요.', current);
-      if(next===null) return;
-      const v=next.trim()||'현장 방문 일정을 한눈에 확인하세요.';
-      if(src) src.textContent=v;
-      localStorage.setItem(SITE_SUBTITLE_KEY,v);
-      renderShell();
-    };
+    function editHeading(){
+      openForm('일정표 제목 수정',[
+        {id:'title',label:'일정표 제목',value:document.getElementById('siteTitle').textContent,placeholder:'예: 현장 방문 일정'},
+        {id:'subtitle',label:'부제목',value:document.getElementById('siteSubtitle').textContent,placeholder:'선택 입력'}
+      ],v=>{saveHeadingV24(v.title,v.subtitle);renderShell();});
+    }
+    document.getElementById('m19TitleEdit').onclick=editHeading;
+    document.getElementById('m19SubEdit').onclick=editHeading;
   }
 
   function shiftMonth(delta){
@@ -4957,7 +4944,8 @@ function scheduleSummaryV23(key){
 
     const desktop=isDesktop();
 
-    for(let i=0;i<42;i++){
+    const cellCount=Math.ceil((first.getDay()+new Date(y,m+1,0).getDate())/7)*7;
+    for(let i=0;i<cellCount;i++){
       const d=new Date(start); d.setDate(start.getDate()+i);
       const k=key(d), other=d.getMonth()!==m, ev=eventFor(k);
       const b=document.createElement('button');
@@ -5011,7 +4999,7 @@ function scheduleSummaryV23(key){
     document.getElementById('m13Title').textContent=titleSource||'일정표 제목 입력';
     const subSource=(document.getElementById('siteSubtitle')?.textContent||'').trim();
     const subTarget=document.getElementById('m19SubEdit');
-    if(subTarget) subTarget.textContent=subSource||'현장 방문 일정을 한눈에 확인하세요.';
+    if(subTarget) subTarget.textContent=subSource;
     document.getElementById('m13MonthChip').querySelector('span').textContent=monthText();
     const rs=document.getElementById('rangeStart'), re=document.getElementById('rangeEnd');
     document.getElementById('m13Start').value=rs?.value||'';
@@ -5037,13 +5025,17 @@ function scheduleSummaryV23(key){
 
     renderFilters();
     renderSiteFilters();
+    let monthlySessions=0,monthlyPeople=0;
+    for(let day=1;day<=lastDay;day++){const summary=scheduleSummaryV23((mm+1)+'-'+day);monthlySessions+=summary.sessions;monthlyPeople+=summary.people;}
+    document.getElementById('v24MonthSummary').textContent='이번 달 · 일정 '+monthlySessions+'건 · 방문 '+monthlyPeople+'명';
     renderCalendar();
-    if(selectedKey){currentDateKey=selectedKey;openPreview(selectedKey);}
+    if(selectedKey){currentDateKey=selectedKey;selectDate(selectedKey,false);openPreview(selectedKey);}
   }
 
   const wrapFn=(name)=>{const old=window[name]; if(typeof old!=='function'||old.__m13) return; const f=function(){const r=old.apply(this,arguments); setTimeout(renderShell,0); return r;}; f.__m13=true; window[name]=f;};
   ['applyRange','setThisMonth','setNextMonth','toggleCategory','toggleClosedFilter','toggleDanjiFilter','onScheduleDataChanged'].forEach(wrapFn);
 
+  document.addEventListener('calendar-date-selected',e=>{if(selectedKey!==e.detail){selectedKey=e.detail;renderCalendar();openPreview(selectedKey);}});
   function init(){ if(mq()) renderShell(); window.addEventListener('resize',()=>{ if(mq()) renderShell(); }); }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
@@ -7459,6 +7451,80 @@ function editEntryV23(kind,key,index){
  .v23-people{display:block;font-size:11px;color:#426456;font-weight:700}
 }
 @media print{#overlay{display:none!important}}
+</style>
+
+
+<script id="calendar-v24-heading">
+function saveHeadingV24(title,subtitle){
+ const name=String(title||'').trim()||'현장 일정표';
+ const sub=String(subtitle||'').trim();
+ document.getElementById('siteTitle').textContent=name;
+ document.getElementById('siteSubtitle').textContent=sub;
+ document.title=name;
+ try{localStorage.setItem(SITE_TITLE_KEY,name);localStorage.setItem(SITE_SUBTITLE_KEY,sub);}
+ catch(e){alert('제목은 변경됐지만 이 브라우저에서 저장이 차단되어 새로 열면 유지되지 않을 수 있습니다.');}
+}
+</script>
+<style id="calendar-v24-desktop">
+#mobileMockApp .m19-pencil{display:inline-flex!important;align-items:center!important;justify-content:center!important;padding:5px 9px!important;margin-left:5px!important;border:1px solid #d6e0db!important;border-radius:7px!important;font-size:12px!important;font-weight:500!important;color:#567368!important;white-space:nowrap!important}
+.v24-month-summary{font-size:13px;line-height:1.5;color:#5a7167;margin:0 0 12px}
+#formOverlay .modal{max-width:520px!important;width:calc(100% - 32px)!important;padding:24px!important;border-radius:16px!important}
+#formOverlay .field-label{font-size:14px!important;margin-bottom:7px!important;color:#415e52!important}
+#formFields .m20-field{margin-bottom:16px!important}
+#formFields input,#formFields textarea{width:100%!important;font-family:inherit!important;font-size:16px!important;min-height:46px!important;padding:10px 12px!important;border:1px solid #cbd8d1!important;border-radius:8px!important;box-sizing:border-box!important}
+@media(min-width:1000px){
+ body{padding:24px 32px 48px!important}
+ .wrap{max-width:1560px!important;display:grid!important;grid-template-columns:minmax(0,1fr) minmax(340px,400px)!important;gap:24px!important;align-items:start!important}
+ #mobileMockApp{display:contents!important}
+ #mobileMockApp .m15-top{grid-column:1/-1!important;grid-row:1!important;min-height:90px!important;margin:0!important;padding:20px 24px!important;background:#fff!important}
+ #mobileMockApp .m13-title{font-size:24px!important;font-weight:700!important;line-height:1.4!important}
+ #mobileMockApp .m19-sub-edit{font-size:14px!important;line-height:1.5!important;margin-top:5px!important}
+ #mobileMockApp .m15-calendar-card{grid-column:1!important;grid-row:2!important;padding:24px!important;margin:0!important;min-width:0!important}
+ #mobileMockApp #m13RangeCard{grid-column:1/-1!important;grid-row:3!important}
+ #mobileMockApp #m13Manager{display:none!important}
+ #mobileMockApp .m13-cal-head{margin-bottom:12px!important}
+ #mobileMockApp .m13-cal-title{font-size:24px!important}
+ #mobileMockApp .m13-day{min-height:142px!important;height:142px!important;padding:34px 6px 6px!important;border-radius:6px!important}
+ #mobileMockApp .m13-desk-events{gap:4px!important}
+ #mobileMockApp .m13-desk-event{display:flex!important;align-items:center!important;gap:6px!important;padding:5px!important;min-height:27px!important}
+ #mobileMockApp .m13-desk-time{font-size:11px!important;flex:0 0 auto!important;max-width:42%!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
+ .v23-manager-line{min-width:0!important;flex:1!important;font-size:12px!important}
+ #mobileMockApp .m13-weekday{font-size:13px!important;padding:10px 0!important}
+ #overlay{grid-column:2!important;grid-row:2!important;position:sticky!important;top:24px!important;align-self:start!important}
+ #overlay .modal{padding:24px!important;max-height:calc(100vh - 48px)!important;overflow:auto!important}
+ #overlay .modal h2{font-size:22px!important;margin:0 0 18px!important}
+ #overlay .preview-v2-name{font-size:16px!important}#overlay .preview-v2-site{font-size:13px!important}
+ #overlay .preview-v2-meta{font-size:13px!important;line-height:1.6!important}
+ #overlay .preview-v2-actions button{font-size:13px!important;min-height:44px!important}
+ .wrap>.checklist-section{grid-column:1/-1!important;grid-row:4!important;display:block!important;width:100%!important;padding:24px!important;overflow:visible!important;max-height:none!important}
+ .wrap>.car{grid-column:1/-1!important;grid-row:5!important;padding:24px!important}
+ .checklist-section>h2{font-size:20px!important;padding:0 0 14px!important;margin:0 0 18px!important;background:none!important;border:0!important}
+ .checklist-section>h2:not(:first-child){margin-top:28px!important;padding-top:24px!important;border-top:1px solid #e2e8e4!important}
+ .checklist-section>h3{font-size:16px!important;margin:24px 0 12px!important;font-weight:700!important}
+ .checklist-section .summary-bar{display:flex!important;max-width:620px!important;gap:12px!important;padding:0!important;background:none!important;border:0!important;box-shadow:none!important;margin-bottom:24px!important}
+ .checklist-section .summary-card{min-height:76px!important;padding:14px 18px!important;box-shadow:none!important;border-radius:10px!important}
+ .checklist-section .summary-card .num{font-size:24px!important;font-weight:700!important}
+ .checklist-section .summary-card .label{font-size:13px!important}
+ .checklist-section .filterbar,.checklist-section .managerFilterBar{display:flex!important;flex-wrap:wrap!important;gap:10px!important;border:0!important;box-shadow:none!important;background:none!important;padding:0!important;margin-bottom:16px!important}
+ .checklist-section select,.checklist-section button{font-family:inherit!important;font-size:14px!important;min-height:40px!important;padding:7px 12px!important}
+ #managerTable,#checklistBody{max-height:none!important;overflow-x:auto!important;overflow-y:visible!important}
+ .checklist-section table{font-size:14px!important;box-shadow:none!important;border-radius:8px!important}
+ .checklist-section table thead th,.checklist-section table tbody td{font-size:14px!important;line-height:1.5!important;padding:12px 10px!important}
+ .checklist-section table thead th{position:static!important;background:#f0f4f1!important;color:#456252!important;font-weight:650!important}
+ .manager-table th:first-child,.manager-table td:first-child{width:52px!important}
+ .manager-table th:nth-child(2),.manager-table td:nth-child(2){width:28%!important}
+ .manager-table th:nth-child(3),.manager-table td:nth-child(3){width:18%!important}
+ #checklistBody .empty-day{font-size:14px!important;padding:24px!important;background:#f7f9f7!important;border-radius:8px!important}
+ .chartWeekBar{box-shadow:none!important;border:0!important;justify-content:flex-start!important;padding:0!important}
+ .chartWeekBar span{font-size:14px!important}.chart-bars{max-width:680px!important;height:120px!important}.chart-label,.chart-count{font-size:12px!important}
+}
+@media(min-width:1000px) and (max-width:1199px){
+ body{padding:20px!important}.wrap{grid-template-columns:minmax(0,1fr) 340px!important;gap:18px!important}
+ #mobileMockApp .m15-calendar-card{padding:16px!important}#overlay .modal{padding:18px!important}
+ #mobileMockApp .m13-desk-event{display:block!important;padding:3px!important}#mobileMockApp .m13-desk-time{max-width:none!important;font-size:10px!important}.v23-manager-line{font-size:11px!important}
+ #mobileMockApp .m13-day{height:168px!important;min-height:168px!important}
+}
+@media print{.wrap{display:block!important}#mobileMockApp .m15-top,#overlay{display:none!important}}
 </style>
 
 </body>
