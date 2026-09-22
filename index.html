@@ -31626,3 +31626,181 @@ body.ux383.entry-unlocked-v82 #modeOverlay.show #guestPwRow .btn{
 }
 </style>
 
+<!-- v89: 모바일 비조합원 표 압축 + 보고서 카드 필드 재배치 -->
+<style id="mobile-report-card-table-fix-v89">
+@media screen and (max-width:820px){
+
+  /* =========================================================
+     1) 비조합원 접촉현황
+        - 6개 열을 화면 안에 모두 표시
+        - 가로로 과하게 늘어나던 고정폭/최소폭 해제
+     ========================================================= */
+  body.ux383 .rf-nonmember > .ux-scroll:first-of-type{
+    width:100%!important;
+    max-width:100%!important;
+    overflow-x:hidden!important;
+    margin:0!important;
+  }
+
+  body.ux383 .rf-nonmember > .ux-scroll:first-of-type > table{
+    width:100%!important;
+    min-width:0!important;
+    max-width:100%!important;
+    table-layout:fixed!important;
+    border-collapse:collapse!important;
+  }
+
+  body.ux383 .rf-nonmember > .ux-scroll:first-of-type > table th,
+  body.ux383 .rf-nonmember > .ux-scroll:first-of-type > table td{
+    width:auto!important;
+    min-width:0!important;
+    height:31px!important;
+    padding:5px 3px!important;
+    font-size:10.5px!important;
+    line-height:1.25!important;
+    vertical-align:middle!important;
+    box-sizing:border-box!important;
+  }
+
+  body.ux383 .rf-nonmember > .ux-scroll:first-of-type > table thead th{
+    white-space:normal!important;
+    word-break:keep-all!important;
+    overflow-wrap:normal!important;
+    text-align:center!important;
+  }
+
+  body.ux383 .rf-nonmember > .ux-scroll:first-of-type > table tbody th{
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    text-align:left!important;
+  }
+
+  body.ux383 .rf-nonmember > .ux-scroll:first-of-type > table tbody td{
+    white-space:nowrap!important;
+    text-align:center!important;
+  }
+
+  /* 열 비율: 담당자 / 대상 / 접촉 / 미접촉 / 접촉률 / 기간접촉건수 */
+  body.ux383 .rf-nonmember > .ux-scroll:first-of-type > table th:nth-child(1),
+  body.ux383 .rf-nonmember > .ux-scroll:first-of-type > table td:nth-child(1){width:27%!important;}
+  body.ux383 .rf-nonmember > .ux-scroll:first-of-type > table th:nth-child(2),
+  body.ux383 .rf-nonmember > .ux-scroll:first-of-type > table td:nth-child(2){width:11%!important;}
+  body.ux383 .rf-nonmember > .ux-scroll:first-of-type > table th:nth-child(3),
+  body.ux383 .rf-nonmember > .ux-scroll:first-of-type > table td:nth-child(3){width:11%!important;}
+  body.ux383 .rf-nonmember > .ux-scroll:first-of-type > table th:nth-child(4),
+  body.ux383 .rf-nonmember > .ux-scroll:first-of-type > table td:nth-child(4){width:12%!important;}
+  body.ux383 .rf-nonmember > .ux-scroll:first-of-type > table th:nth-child(5),
+  body.ux383 .rf-nonmember > .ux-scroll:first-of-type > table td:nth-child(5){width:16%!important;}
+  body.ux383 .rf-nonmember > .ux-scroll:first-of-type > table th:nth-child(6),
+  body.ux383 .rf-nonmember > .ux-scroll:first-of-type > table td:nth-child(6){width:23%!important;}
+
+
+  /* =========================================================
+     2) 모바일 보고서 카드
+        요청 순서:
+        [담당] [직책] [접촉방법]
+        [동호수]
+        [접촉]
+     기존 DOM은 유지하고 CSS Grid로 위치만 재배치
+     ========================================================= */
+  body.ux383 .mi-excel-report .mobile-detail-fields,
+  body.ux383 .report-log-card .mobile-detail-fields{
+    display:grid!important;
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    column-gap:10px!important;
+    row-gap:0!important;
+    margin-top:8px!important;
+  }
+
+  body.ux383 .mi-excel-report .mobile-detail-grid,
+  body.ux383 .report-log-card .mobile-detail-grid{
+    display:contents!important;
+  }
+
+  /* 담당 */
+  body.ux383 .mi-excel-report .mobile-detail-grid.row2 > .mobile-detail-field:nth-child(1),
+  body.ux383 .report-log-card .mobile-detail-grid.row2 > .mobile-detail-field:nth-child(1){
+    grid-column:1!important;
+    grid-row:1!important;
+  }
+
+  /* 직책 */
+  body.ux383 .mi-excel-report .mobile-detail-grid.row2b > .mobile-detail-field:nth-child(1),
+  body.ux383 .report-log-card .mobile-detail-grid.row2b > .mobile-detail-field:nth-child(1){
+    grid-column:2!important;
+    grid-row:1!important;
+  }
+
+  /* 접촉방법 */
+  body.ux383 .mi-excel-report .mobile-detail-grid.row2b > .mobile-detail-field:nth-child(2),
+  body.ux383 .report-log-card .mobile-detail-grid.row2b > .mobile-detail-field:nth-child(2){
+    grid-column:3!important;
+    grid-row:1!important;
+  }
+
+  /* 동호수 */
+  body.ux383 .mi-excel-report .mobile-detail-grid.row2 > .mobile-detail-field:nth-child(2),
+  body.ux383 .report-log-card .mobile-detail-grid.row2 > .mobile-detail-field:nth-child(2){
+    grid-column:1 / -1!important;
+    grid-row:2!important;
+  }
+
+  /* 접촉 */
+  body.ux383 .mi-excel-report .mobile-detail-grid.rowContact > .mobile-detail-field,
+  body.ux383 .report-log-card .mobile-detail-grid.rowContact > .mobile-detail-field{
+    grid-column:1 / -1!important;
+    grid-row:3!important;
+  }
+
+  /* 상담내용 */
+  body.ux383 .mi-excel-report .mobile-detail-note,
+  body.ux383 .report-log-card .mobile-detail-note{
+    grid-column:1 / -1!important;
+    grid-row:4!important;
+    margin-top:2px!important;
+  }
+
+  /* 각 필드 크기/간격 정돈 */
+  body.ux383 .mi-excel-report .mobile-detail-field,
+  body.ux383 .report-log-card .mobile-detail-field{
+    min-width:0!important;
+    padding:7px 2px 8px!important;
+    margin:0!important;
+    border-bottom:1px solid color-mix(in srgb,var(--line) 72%,transparent)!important;
+  }
+
+  body.ux383 .mi-excel-report .mobile-detail-field b,
+  body.ux383 .report-log-card .mobile-detail-field b{
+    font-size:10.5px!important;
+    line-height:1.25!important;
+    font-weight:600!important;
+    color:var(--text-dim)!important;
+  }
+
+  body.ux383 .mi-excel-report .mobile-detail-field span,
+  body.ux383 .report-log-card .mobile-detail-field span,
+  body.ux383 .mi-excel-report .mobile-detail-grid.row2b .mobile-detail-field span,
+  body.ux383 .report-log-card .mobile-detail-grid.row2b .mobile-detail-field span,
+  body.ux383 .mi-excel-report .mobile-detail-grid.rowContact .mobile-detail-field span,
+  body.ux383 .report-log-card .mobile-detail-grid.rowContact .mobile-detail-field span{
+    margin-top:3px!important;
+    font-size:13px!important;
+    line-height:1.38!important;
+    font-weight:600!important;
+    word-break:keep-all!important;
+    overflow-wrap:anywhere!important;
+  }
+
+  /* 첫 줄 3칸 값이 너무 길 경우 주변 칸을 밀지 않게 */
+  body.ux383 .mi-excel-report .mobile-detail-grid.row2 > .mobile-detail-field:nth-child(1) span,
+  body.ux383 .mi-excel-report .mobile-detail-grid.row2b > .mobile-detail-field span,
+  body.ux383 .report-log-card .mobile-detail-grid.row2 > .mobile-detail-field:nth-child(1) span,
+  body.ux383 .report-log-card .mobile-detail-grid.row2b > .mobile-detail-field span{
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+  }
+}
+</style>
+
