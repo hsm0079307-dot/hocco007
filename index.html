@@ -31933,3 +31933,158 @@ body.ux383.entry-unlocked-v82 #modeOverlay.show #guestPwRow .btn{
 }
 </style>
 
+<!-- v93: 모바일 현장상세 집계/카드/달력/로그인모달 추가 보정 -->
+<style id="mobile-modal-calendar-login-tune-v93">
+@media screen and (max-width:820px){
+  /* 1) 현장상세 집계 표: 폭/정렬 통일 */
+  body.ux383 #globalStatsBody .pdf-table,
+  body.ux383 #globalStatsBody .rf-nonmember > .ux-scroll:first-of-type > table{
+    width:100%!important;
+    table-layout:fixed!important;
+  }
+  body.ux383 #globalStatsBody .pdf-table th,
+  body.ux383 #globalStatsBody .pdf-table td,
+  body.ux383 #globalStatsBody .rf-nonmember > .ux-scroll:first-of-type > table th,
+  body.ux383 #globalStatsBody .rf-nonmember > .ux-scroll:first-of-type > table td{
+    text-align:center!important;
+    vertical-align:middle!important;
+    white-space:nowrap!important;
+  }
+
+  /* 2) 모바일 보고서 카드: 2열 정리
+     1행: 담당 | 직책
+     2행: 동호수·지번 | 접촉
+     3행: 접촉방법 (전체폭)
+  */
+  body.ux383 .mi-excel-report .mobile-detail-fields,
+  body.ux383 .report-log-card .mobile-detail-fields{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    column-gap:12px!important;
+    row-gap:0!important;
+    margin-top:8px!important;
+  }
+  body.ux383 .mi-excel-report .mobile-detail-grid,
+  body.ux383 .report-log-card .mobile-detail-grid{
+    display:contents!important;
+  }
+  body.ux383 .mi-excel-report .mobile-detail-grid.row2 > .mobile-detail-field:nth-child(1),
+  body.ux383 .report-log-card .mobile-detail-grid.row2 > .mobile-detail-field:nth-child(1){
+    grid-column:1!important; grid-row:1!important;
+  }
+  body.ux383 .mi-excel-report .mobile-detail-grid.row2b > .mobile-detail-field:nth-child(1),
+  body.ux383 .report-log-card .mobile-detail-grid.row2b > .mobile-detail-field:nth-child(1){
+    grid-column:2!important; grid-row:1!important;
+  }
+  body.ux383 .mi-excel-report .mobile-detail-grid.row2 > .mobile-detail-field:nth-child(2),
+  body.ux383 .report-log-card .mobile-detail-grid.row2 > .mobile-detail-field:nth-child(2){
+    grid-column:1!important; grid-row:2!important;
+  }
+  body.ux383 .mi-excel-report .mobile-detail-grid.rowContact > .mobile-detail-field,
+  body.ux383 .report-log-card .mobile-detail-grid.rowContact > .mobile-detail-field{
+    grid-column:2!important; grid-row:2!important;
+  }
+  body.ux383 .mi-excel-report .mobile-detail-grid.row2b > .mobile-detail-field:nth-child(2),
+  body.ux383 .report-log-card .mobile-detail-grid.row2b > .mobile-detail-field:nth-child(2){
+    grid-column:1 / -1!important; grid-row:3!important;
+  }
+  body.ux383 .mi-excel-report .mobile-detail-note,
+  body.ux383 .report-log-card .mobile-detail-note{
+    grid-column:1 / -1!important; grid-row:4!important; margin-top:4px!important;
+  }
+
+  /* 3) 모바일 달력: 세로칸 높이 축소 */
+  body.ux383 .mgr-breakdown-wrap .mgr-cal-cell,
+  body.ux383 .mgr-breakdown-wrap .mgr-cal-cell.has-log,
+  body.ux383 .mgr-breakdown-wrap .mgr-cal-cell.mgr-cal-empty{
+    height:64px!important;
+    min-height:64px!important;
+    max-height:64px!important;
+    padding:4px 2px!important;
+    border-radius:8px!important;
+  }
+  body.ux383 .mgr-breakdown-wrap .mgr-cal-daynum,
+  body.ux383 .mgr-breakdown-wrap .mgr-cal-cell.is-today .mgr-cal-daynum{
+    height:20px!important;
+    line-height:20px!important;
+    font-size:12px!important;
+  }
+
+  /* 4) 접속 방식 선택 모달: 가운데 정렬 + 입장 비밀번호 단계와 같은 색감 */
+  body.ux383.entry-unlocked-v82 #modeOverlay.show .mode-login-simple-v31{
+    width:min(260px,calc(100vw - 54px))!important;
+    max-width:260px!important;
+    padding:16px!important;
+    border-radius:16px!important;
+    border:1px solid color-mix(in srgb,var(--line) 82%,transparent)!important;
+    background:color-mix(in srgb,var(--card) 97%,transparent)!important;
+    box-shadow:0 16px 42px rgba(0,0,0,.18)!important;
+  }
+  body.ux383.entry-unlocked-v82 #modeOverlay.show #modeChoiceRow::before{
+    text-align:center!important;
+    margin:0 0 12px!important;
+  }
+  body.ux383.entry-unlocked-v82 #modeOverlay.show #modeChoiceRow{
+    justify-items:center!important;
+    align-items:center!important;
+  }
+  body.ux383.entry-unlocked-v82 #modeOverlay.show #modeChoiceRow .btn{
+    justify-content:center!important;
+    text-align:center!important;
+    width:100%!important;
+    height:46px!important;
+    min-height:46px!important;
+    border-radius:12px!important;
+    padding:0 12px!important;
+    font-size:14px!important;
+  }
+  body.ux383.entry-unlocked-v82 #modeOverlay.show #adminModeBtn{
+    background:var(--accent)!important;
+    border:1px solid var(--accent)!important;
+    color:var(--accent-ink)!important;
+  }
+  body.ux383.entry-unlocked-v82 #modeOverlay.show #guestModeBtn,
+  body.ux383.entry-unlocked-v82 #modeOverlay.show #guestViewBtn{
+    background:color-mix(in srgb,var(--bg-side) 86%,white)!important;
+    border:1px solid var(--line)!important;
+    color:var(--text-main)!important;
+  }
+}
+</style>
+
+<script id="mobile-modal-percent-clean-v93">
+(function(){
+  function cleanPercentText(root){
+    if(!root) return;
+    root.querySelectorAll('*').forEach(function(el){
+      if(el.children.length) return;
+      const t = (el.textContent || '').trim();
+      if(!t) return;
+      const nt = t.replace(/(\d+)\.0%/g, '$1%');
+      if(nt !== t) el.textContent = nt;
+    });
+  }
+
+  function run(){
+    cleanPercentText(document.getElementById('globalStatsModalBox'));
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', run, {once:true});
+  }else{
+    run();
+  }
+
+  const target = document.getElementById('globalStatsModalBox') || document.body;
+  try{
+    const mo = new MutationObserver(function(){ run(); });
+    mo.observe(target, {childList:true, subtree:true, characterData:true});
+  }catch(e){}
+
+  document.addEventListener('click', function(){
+    setTimeout(run, 50);
+    setTimeout(run, 250);
+  }, true);
+})();
+</script>
+
