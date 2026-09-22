@@ -31276,3 +31276,53 @@ body.ux383.entry-unlocked-v82 #modeOverlay.show #guestPwRow .btn{
 }
 </style>
 
+<!-- v84: 모바일에서 현장명 검색 / 투어 예약 / 단계 보기 제거 -->
+<style id="mobile-hide-search-tour-stage-v84">
+@media screen and (max-width:820px){
+
+  /* 모바일 상단 '현장명 · 구 · 담당자 …' 검색 영역 제거 */
+  body.ux383 #searchInput{
+    display:none!important;
+  }
+
+  /* 모바일 상세의 투어 예약 버튼 제거 */
+  body.ux383 #tourBtn,
+  body.ux383 .detail #tourBtn,
+  body.ux383 .detail-head-actions #tourBtn{
+    display:none!important;
+  }
+
+  /* 모바일 상세의 단계 보기 버튼 제거 */
+  body.ux383 .mt-stage-toggle{
+    display:none!important;
+  }
+}
+</style>
+
+<script id="mobile-hide-search-tour-stage-v84-script">
+(function(){
+  function hideMobileSearchWrapV84(){
+    if(window.innerWidth > 820) return;
+    var input = document.getElementById('searchInput');
+    if(!input) return;
+
+    /* 입력창을 감싸는 실제 박스를 통째로 숨김 */
+    var box =
+      input.closest('.search-bar') ||
+      input.closest('.search-row') ||
+      input.closest('.search-wrap') ||
+      input.closest('.search-box') ||
+      input.parentElement;
+
+    if(box) box.style.display = 'none';
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', hideMobileSearchWrapV84, {once:true});
+  }else{
+    hideMobileSearchWrapV84();
+  }
+  window.addEventListener('resize', hideMobileSearchWrapV84);
+})();
+</script>
+
