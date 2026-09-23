@@ -21313,9 +21313,22 @@ ead><body>
   const smDrillBodyRoot=document.getElementById('globalStatsBody');
   if(smDrillBodyRoot){
     smDrillBodyRoot.addEventListener('click',e=>{
+      /* v124: 사용자가 실제로 클릭 동작을 확인한 v122의 캡처 경로는 그대로 사용.
+         단, 아래 긴 명단을 펼치지 않고 비조합원 전용 팝업을 연다. */
+      const nmZone=e.target.closest('.rf-nm-open-zone-v122');
+      if(nmZone && smDrillBodyRoot.contains(nmZone)){
+        const sec=nmZone.closest('.rf-nonmember');
+        if(sec && typeof window.__rfNmOpenWorkingV124==='function'){
+          e.preventDefault();
+          e.stopPropagation();
+          if(typeof e.stopImmediatePropagation==='function') e.stopImmediatePropagation();
+          window.__rfNmOpenWorkingV124(sec,e.target);
+          return;
+        }
+      }
       const el=e.target.closest('.sm-drill');
       if(el && smDrillBodyRoot.contains(el)) smOpenDrill(el);
-    });
+    },true);
   }
 
   function openGlobalStats(){
@@ -21915,12 +21928,69 @@ function rfEditList(){
 function rfNonMemberBlock(site,range,manager){
  const ex=smExcel(site);if(!ex)return '';
  const n=ex.nonMembers;
- if(!n)return '<section class="rf-nonmember"><h3>비조합원 접촉현황</h3></section>';
- const people=(n.people||[]).filter(p=>!manager||p.manager===manager),events=(n.contactEvents||[]).filter(e=>(!range||(e.date>=range.start&&e.date<=range.end))&&(!manager||e.manager===manager));
- const seen=new Set(events.map(e=>e.personId)),contacted=range?people.filter(p=>seen.has(p.personId)).length:people.filter(p=>p.contacted).length;
+ if(!n)return '<section class="rf-nonmember rf-nonmember-v69"><h3>비조합원 접촉현황</h3></section>';
+
+ const people=(n.people||[]).filter(p=>!manager||p.manager===manager);
+ const events=(n.contactEvents||[]).filter(e=>
+   (!range||(e.date>=range.start&&e.date<=range.end)) &&
+   (!manager||e.manager===manager)
+ );
+ const seen=new Set(events.map(e=>String(e.personId||'')));
+ const eventCountByPerson={};
+ events.forEach(e=>{
+   const k=String(e.personId||'');
+   if(k)eventCountByPerson[k]=(eventCountByPerson[k]||0)+1;
+ });
  const groups=[...new Set(people.map(p=>p.manager||'미지정'))];
- const row=ps=>{const ids=new Set(ps.map(p=>p.personId)),es=events.filter(e=>ids.has(e.personId)),ct=range?ps.filter(p=>seen.has(p.personId)).length:ps.filter(p=>p.contacted).length;return `<td>${ps.length}</td><td>${ct}</td><td>${ps.length-ct}</td><td>${ps.length?(ct/ps.length*100).toFixed(1):'0.0'}%</td><td>${es.length}</td>`};
- return `<section class="rf-nonmember"><h3>비조합원 접촉현황</h3><div class="ux-scroll"><table><thead><tr><th>담당자</th><th>대상</th><th>접촉</th><th>미접촉</th><th>접촉률</th><th>${range?'기간':'이력'} 접촉건수</th></tr></thead><tbody>${groups.map(g=>`<tr><th>${escapeHtml(g)}</th>${row(people.filter(p=>(p.manager||'미지정')===g))}</tr>`).join('')}<tr><th>별도 합계</th>${row(people)}</tr></tbody></table></div><details><summary>대상 명단 및 상담내용 (${people.length}명)</summary><div class="ux-scroll"><table><thead><tr><th>성명 / 상호</th><th>담당</th><th>동호수 / 지번</th><th>현재 상태</th><th>상담내용</th></tr></thead><tbody>${people.map(p=>`<tr><td>${escapeHtml(p.name)}</td><td>${escapeHtml(p.manager||'미지정')}</td><td>${escapeHtml(p.unit||p.parcel||'-')}</td><td>${escapeHtml(p.contactMethod)}</td><td><details class="rf-note"><summary>내용 보기</summary><div>${escapeHtml(p.note||'기록 없음')}</div></details></td></tr>`).join('')}</tbody></table></div></details></section>`;
+
+ const summaryCells=ps=>{
+   const ids=new Set(ps.map(p=>String(p.personId||'')));
+   const es=events.filter(e=>ids.has(String(e.personId||'')));
+   const ct=range
+     ? ps.filter(p=>seen.has(String(p.personId||''))).length
+     : ps.filter(p=>p.contacted).length;
+   return `<td>${ps.length}</td><td>${ct}</td><td>${ps.length-ct}</td><td>${ps.length?(ct/ps.length*100).toFixed(1):'0.0'}%</td><td>${es.length}</td>`;
+ };
+
+ const rosterRows=people.map((p,i)=>`
+   <tr class="rf-nonmember-person-row-v69"
+       data-rf-nm-manager="${escapeHtml(p.manager||'미지정')}"
+       data-rf-nm-contacted="${p.contacted?'1':'0'}"
+       data-rf-nm-seen="${seen.has(String(p.personId||''))?'1':'0'}"
+       data-rf-nm-events="${eventCountByPerson[String(p.personId||'')]||0}">
+     <td>${escapeHtml(p.name||'-')}</td>
+     <td>${escapeHtml(p.manager||'미지정')}</td>
+     <td>${escapeHtml(p.unit||p.parcel||'-')}</td>
+     <td>${escapeHtml(p.contactMethod||'-')}</td>
+     <td>
+       <button type="button" class="rf-nm-note-toggle-v69" aria-expanded="false" data-rf-nm-note="${i}">▶ 내용 보기</button>
+     </td>
+   </tr>
+   <tr class="rf-nonmember-note-row-v69" data-rf-nm-note-row="${i}" hidden>
+     <td colspan="5"><div class="rf-nonmember-note-body-v69">${escapeHtml(p.note||'기록 없음')}</div></td>
+   </tr>`).join('');
+
+ return `<section class="rf-nonmember rf-nonmember-v69 rf-nm-direct-v122" data-rf-nm-range="${range?'1':'0'}">
+   <h3 class="rf-nm-open-zone-v122">비조합원 접촉현황 <span class="rf-nm-open-hint-v122">명단 보기 ›</span></h3>
+   <div class="ux-scroll rf-nm-open-zone-v122">
+     <table class="rf-nonmember-summary-table-v69">
+       <thead><tr><th>담당자</th><th>대상</th><th>접촉</th><th>미접촉</th><th>접촉률</th><th>${range?'기간':'이력'} 접촉건수</th></tr></thead>
+       <tbody>
+         ${groups.map(g=>`<tr data-rf-nm-summary-manager="${escapeHtml(g)}"><th>${escapeHtml(g)}</th>${summaryCells(people.filter(p=>(p.manager||'미지정')===g))}</tr>`).join('')}
+         <tr data-rf-nm-summary-manager=""><th>별도 합계</th>${summaryCells(people)}</tr>
+       </tbody>
+     </table>
+   </div>
+   <details class="rf-nonmember-roster-v69 rf-nm-direct-details-v122">
+     <summary>대상 명단 및 상담내용 (${people.length}명)</summary>
+     <div class="ux-scroll">
+       <table class="rf-nonmember-people-table-v69">
+         <thead><tr><th>성명 / 상호</th><th>담당</th><th>동호수 / 지번</th><th>현재 상태</th><th>상담내용</th></tr></thead>
+         <tbody>${rosterRows}</tbody>
+       </table>
+     </div>
+   </details>
+ </section>`;
 }
 function rfDecorate(){
 
@@ -30238,6 +30308,11 @@ body.ux383.theme-dark .rf-nonmember-note-body-v69{
         (!manager||e.manager===manager)
       );
       const seen=new Set(events.map(e=>e.personId));
+      const eventCountByPerson={};
+      events.forEach(e=>{
+        const k=String(e.personId||'');
+        if(k) eventCountByPerson[k]=(eventCountByPerson[k]||0)+1;
+      });
       const groups=[...new Set(people.map(p=>p.manager||'미지정'))];
 
       const summaryCells = (ps,mgrLabel)=>{
@@ -30247,20 +30322,23 @@ body.ux383.theme-dark .rf-nonmember-note-body-v69{
           ? ps.filter(p=>seen.has(p.personId)).length
           : ps.filter(p=>p.contacted).length;
         const miss=Math.max(0,ps.length-ct);
-        const mgrData=mgrLabel||'';
-        const a=(type,val,extra={})=>val
-          ? smDrillAttr(type,{manager:mgrData,...extra})
-          : '';
+        const rate=ps.length?(ct/ps.length*100).toFixed(1):'0.0';
+        const nmBtn=(mode,label,disabled=false)=>
+          `<button type="button" class="rf-nm-stat-btn-v121${disabled?' is-disabled':''}"
+                   data-nm-mode="${mode}" ${disabled?'disabled':''}>${label}</button>`;
         return `
-          <td ${a('nonmember_total',ps.length)}>${ps.length}</td>
-          <td ${a('nonmember_contacted',ct)}>${ct}</td>
-          <td ${a('nonmember_uncontacted',miss)}>${miss}</td>
-          <td ${ps.length?smDrillAttr('nonmember_rate',{manager:mgrData}):''}>${ps.length?(ct/ps.length*100).toFixed(1):'0.0'}%</td>
-          <td ${a('nonmember_events',es.length)}>${es.length}</td>`;
+          <td>${nmBtn('total',ps.length,ps.length===0)}</td>
+          <td>${nmBtn('contacted',ct,ct===0)}</td>
+          <td>${nmBtn('uncontacted',miss,miss===0)}</td>
+          <td>${nmBtn('contacted',rate+'%',ps.length===0)}</td>
+          <td>${nmBtn('events',es.length,es.length===0)}</td>`;
       };
-
       const rosterRows = people.map((p,i)=>`
-        <tr class="rf-nonmember-person-row-v69">
+        <tr class="rf-nonmember-person-row-v69"
+            data-rf-nm-manager="${escapeHtml(p.manager||'미지정')}"
+            data-rf-nm-contacted="${p.contacted?'1':'0'}"
+            data-rf-nm-seen="${seen.has(p.personId)?'1':'0'}"
+            data-rf-nm-events="${eventCountByPerson[String(p.personId||'')]||0}">
           <td>${escapeHtml(p.name||'-')}</td>
           <td>${escapeHtml(p.manager||'미지정')}</td>
           <td>${escapeHtml(p.unit||p.parcel||'-')}</td>
@@ -30279,10 +30357,10 @@ body.ux383.theme-dark .rf-nonmember-note-body-v69{
         </tr>`).join('');
 
       return `
-        <section class="rf-nonmember rf-nonmember-v69">
-          <h3>비조합원 접촉현황</h3>
+        <section class="rf-nonmember rf-nonmember-v69 rf-nm-direct-v122" data-rf-nm-range="${range?'1':'0'}">
+          <h3 class="rf-nm-open-zone-v122"><button type="button" class="rf-nm-title-btn-v121" data-nm-mode="total">비조합원 접촉현황 <span>명단 보기 ›</span></button></h3>
 
-          <div class="ux-scroll rf-nonmember-summary-scroll-v69">
+          <div class="ux-scroll rf-nonmember-summary-scroll-v69 rf-nm-open-zone-v122">
             <table class="rf-nonmember-summary-table-v69">
               <colgroup>
                 <col style="width:170px">
@@ -30304,23 +30382,19 @@ body.ux383.theme-dark .rf-nonmember-note-body-v69{
               </thead>
               <tbody>
                 ${groups.map(g=>`
-                  <tr>
-                    <th class="sm-drill sm-drill-link rf-nm-manager-click-v117"
-                        data-drill="nonmember_total"
-                        data-manager="${escapeHtml(g)}">${escapeHtml(g)}</th>
+                  <tr data-rf-nm-summary-manager="${escapeHtml(g)}">
+                    <th><button type="button" class="rf-nm-manager-btn-v121" data-nm-mode="total">${escapeHtml(g)}</button></th>
                     ${summaryCells(people.filter(p=>(p.manager||'미지정')===g),g)}
                   </tr>`).join('')}
-                <tr>
-                  <th class="sm-drill sm-drill-link rf-nm-manager-click-v117"
-                      data-drill="nonmember_total"
-                      data-manager="">별도 합계</th>
+                <tr data-rf-nm-summary-manager="">
+                  <th><button type="button" class="rf-nm-manager-btn-v121" data-nm-mode="total">별도 합계</button></th>
                   ${summaryCells(people,'')}
                 </tr>
               </tbody>
             </table>
           </div>
 
-          <details class="rf-nonmember-roster-v69">
+          <details class="rf-nonmember-roster-v69 rf-nm-direct-details-v122">
             <summary>대상 명단 및 상담내용 (${people.length}명)</summary>
             <div class="ux-scroll rf-nonmember-roster-scroll-v69">
               <table class="rf-nonmember-people-table-v69">
@@ -30348,16 +30422,318 @@ body.ux383.theme-dark .rf-nonmember-note-body-v69{
     };
   }catch(e){}
 
-  /* 비조합원 요약표 숫자 클릭: 다른 핸들러/stopPropagation 영향 없이 확실하게 상세 모달 오픈 */
+
+  /* v124: v122에서 실제로 먹었던 상위 캡처 클릭 경로가 호출하는 팝업 */
+  function rfNmPopupEscV124(v){
+    return String(v??'').replace(/[&<>"']/g,m=>({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[m]));
+  }
+
+  function rfNmPopupShellV124(){
+    let ov=document.getElementById('rfNmPopupOverlayV124');
+    if(ov) return ov;
+
+    ov=document.createElement('div');
+    ov.id='rfNmPopupOverlayV124';
+    ov.className='rf-nm-popup-overlay-v124';
+    ov.innerHTML=`
+      <div class="rf-nm-popup-v124" role="dialog" aria-modal="true">
+        <header class="rf-nm-popup-head-v124">
+          <div class="rf-nm-popup-headtext-v124">
+            <strong id="rfNmPopupTitleV124">비조합원 상세</strong>
+            <span id="rfNmPopupCountV124">0명</span>
+          </div>
+          <button type="button" id="rfNmPopupCloseV124" aria-label="닫기">×</button>
+        </header>
+
+        <div class="rf-nm-popup-search-v124">
+          <input id="rfNmPopupSearchV124" type="search"
+                 placeholder="성명 · 담당 · 동호수 · 상담내용 검색">
+        </div>
+
+        <div class="rf-nm-popup-scroll-v124">
+          <table class="rf-nm-popup-table-v124">
+            <thead>
+              <tr>
+                <th>No</th>
+                <th>성명 / 상호</th>
+                <th>담당</th>
+                <th>동호수 / 지번</th>
+                <th>현재 상태</th>
+                <th>기간 접촉</th>
+                <th>최근 내용</th>
+              </tr>
+            </thead>
+            <tbody id="rfNmPopupRowsV124"></tbody>
+          </table>
+          <div id="rfNmPopupEmptyV124" class="rf-nm-popup-empty-v124" hidden>
+            해당 인원이 없습니다.
+          </div>
+        </div>
+      </div>`;
+
+    document.body.appendChild(ov);
+
+    const close=()=>ov.classList.remove('show');
+    ov.querySelector('#rfNmPopupCloseV124').addEventListener('click',close);
+    ov.addEventListener('click',e=>{ if(e.target===ov) close(); });
+
+    ov.querySelector('#rfNmPopupSearchV124').addEventListener('input',e=>{
+      const q=String(e.target.value||'').trim().toLowerCase();
+      ov.querySelectorAll('#rfNmPopupRowsV124 tr.rf-nm-popup-main-v127').forEach(tr=>{
+        const detail=tr.nextElementSibling;
+        const hay=(tr.textContent+' '+(detail?.textContent||'')).toLowerCase();
+        const hide=!!q && !hay.includes(q);
+        tr.hidden=hide;
+        if(detail){
+          detail.hidden = hide || detail.dataset.open!=='1';
+        }
+      });
+    });
+
+    document.addEventListener('keydown',e=>{
+      if(e.key==='Escape' && ov.classList.contains('show')) close();
+    });
+
+    ov.addEventListener('click',e=>{
+      const btn=e.target.closest('.rf-nm-popup-note-btn-v127');
+      if(!btn)return;
+      const main=btn.closest('tr.rf-nm-popup-main-v127');
+      const detail=main?.nextElementSibling;
+      if(!detail)return;
+      const opening=detail.dataset.open!=='1';
+      detail.dataset.open=opening?'1':'0';
+      detail.hidden=!opening;
+      btn.setAttribute('aria-expanded',opening?'true':'false');
+      btn.textContent=opening?'▼ 상담내용 닫기':'▶ 상담내용 보기';
+    });
+
+    return ov;
+  }
+
+  function rfNmModeFromTargetV124(sec,target){
+    const btn=target.closest?.('[data-nm-mode]');
+    if(btn) return String(btn.dataset.nmMode||'total');
+
+    /* 초기 렌더 표도 지원:
+       0 담당 / 1 대상 / 2 접촉 / 3 미접촉 / 4 접촉률 / 5 기간접촉건수 */
+    const cell=target.closest?.('th,td');
+    const row=cell?.closest?.('tbody tr');
+    if(cell && row){
+      const idx=[...row.children].indexOf(cell);
+      if(idx===2) return 'contacted';
+      if(idx===3) return 'uncontacted';
+      if(idx===4) return 'contacted';
+      if(idx===5) return 'events';
+      return 'total';
+    }
+    return 'total';
+  }
+
+  function rfNmManagerFromTargetV124(target){
+    const row=target.closest?.('tbody tr');
+    if(!row) return '';
+    if(row.dataset?.rfNmSummaryManager!==undefined){
+      return String(row.dataset.rfNmSummaryManager||'');
+    }
+    const first=row.children?.[0];
+    const txt=String(first?.textContent||'').trim();
+    return txt==='별도 합계' ? '' : txt;
+  }
+
+  function rfNmRowsFromSectionV126(sec){
+    const rows=[...sec.querySelectorAll('.rf-nonmember-person-row-v69')];
+    return rows.map(row=>{
+      const c=row.children;
+      const noteRow=row.nextElementSibling;
+      const note=noteRow?.querySelector('.rf-nonmember-note-body-v69')?.textContent?.trim()
+        || '기록 없음';
+      return{
+        el:row,
+        name:String(c[0]?.textContent||'-').trim()||'-',
+        manager:String(c[1]?.textContent||'미지정').trim()||'미지정',
+        unit:String(c[2]?.textContent||'-').trim()||'-',
+        method:String(c[3]?.textContent||'-').trim()||'-',
+        contacted:row.dataset.rfNmContacted==='1',
+        seen:row.dataset.rfNmSeen==='1',
+        eventCount:Number(row.dataset.rfNmEvents||0),
+        note
+      };
+    });
+  }
+
+  window.__rfNmOpenWorkingV124 = function(sec,target){
+    if(!sec)return;
+
+    const mode=rfNmModeFromTargetV124(sec,target);
+    const manager=rfNmManagerFromTargetV124(target);
+    const isRange=sec.dataset.rfNmRange==='1';
+
+    /* 핵심: 현재 화면에 이미 렌더된 비조합원 34명/59명 등의 실제 행을 직접 사용 */
+    const source=rfNmRowsFromSectionV126(sec);
+
+    const filtered=source.filter(r=>{
+      if(manager && r.manager!==manager)return false;
+      const contacted=isRange ? r.seen : r.contacted;
+      if(mode==='contacted' && !contacted)return false;
+      if(mode==='uncontacted' && contacted)return false;
+      if(mode==='events' && r.eventCount<=0)return false;
+      return true;
+    });
+
+    const modeLabel=
+      mode==='contacted'?'접촉':
+      mode==='uncontacted'?'미접촉':
+      mode==='events'?(isRange?'기간 접촉':'접촉 이력'):
+      '대상';
+
+    const ov=rfNmPopupShellV124();
+    ov.querySelector('#rfNmPopupTitleV124').textContent=
+      `비조합원 · ${manager||'전체'} · ${modeLabel}`;
+    ov.querySelector('#rfNmPopupCountV124').textContent=`${filtered.length}명`;
+    ov.querySelector('#rfNmPopupSearchV124').value='';
+
+    ov.querySelector('#rfNmPopupRowsV124').innerHTML=filtered.map((r,i)=>{
+      const hasNote=String(r.note||'').trim() && String(r.note||'').trim()!=='기록 없음';
+      return `
+      <tr class="rf-nm-popup-main-v127">
+        <td>${i+1}</td>
+        <td>${rfNmPopupEscV124(r.name)}</td>
+        <td>${rfNmPopupEscV124(r.manager)}</td>
+        <td>${rfNmPopupEscV124(r.unit)}</td>
+        <td><span class="rf-nm-popup-method-v127">${rfNmPopupEscV124(r.method)}</span></td>
+        <td>${r.eventCount?`${r.eventCount}회`:'-'}</td>
+        <td>
+          ${hasNote
+            ? '<button type="button" class="rf-nm-popup-note-btn-v127" aria-expanded="false">▶ 상담내용 보기</button>'
+            : '<span class="rf-nm-popup-no-note-v127">내용 없음</span>'}
+        </td>
+      </tr>
+      <tr class="rf-nm-popup-detail-v127" data-open="0" hidden>
+        <td colspan="7">
+          <div class="rf-nm-popup-detail-box-v127">${rfNmPopupEscV124(r.note)}</div>
+        </td>
+      </tr>`;
+    }).join('');
+
+    ov.querySelector('#rfNmPopupEmptyV124').hidden=filtered.length!==0;
+    ov.classList.add('show');
+  };
+
+
+  /* v121: 비조합원 전용 독립 모달.
+     표 안의 '실제 button'을 눌러 열기 때문에 기존 상세집계 이벤트와 충돌하지 않는다. */
+  function rfNmEscV121(v){
+    return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+
+  function rfNmModalV121(){
+    let ov=document.getElementById('rfNmDetailOverlayV121');
+    if(ov) return ov;
+    ov=document.createElement('div');
+    ov.id='rfNmDetailOverlayV121';
+    ov.className='rf-nm-modal-overlay-v121';
+    ov.innerHTML=`
+      <div class="rf-nm-modal-v121" role="dialog" aria-modal="true" aria-labelledby="rfNmModalTitleV121">
+        <header class="rf-nm-modal-head-v121">
+          <div>
+            <strong id="rfNmModalTitleV121">비조합원 상세</strong>
+            <span id="rfNmModalCountV121"></span>
+          </div>
+          <button type="button" id="rfNmModalCloseV121" aria-label="닫기">×</button>
+        </header>
+        <div class="rf-nm-modal-search-v121">
+          <input id="rfNmModalSearchV121" type="search" placeholder="성명 · 담당 · 동호수 · 상담내용 검색">
+        </div>
+        <div class="rf-nm-modal-body-v121">
+          <table>
+            <thead>
+              <tr>
+                <th>No</th><th>성명 / 상호</th><th>담당</th><th>동호수 / 지번</th>
+                <th>현재 상태</th><th>접촉건수</th><th>상담내용</th>
+              </tr>
+            </thead>
+            <tbody id="rfNmModalRowsV121"></tbody>
+          </table>
+          <div id="rfNmModalEmptyV121" class="rf-nm-modal-empty-v121" hidden>해당 인원이 없습니다.</div>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+
+    const close=()=>ov.classList.remove('show');
+    ov.querySelector('#rfNmModalCloseV121').addEventListener('click',close);
+    ov.addEventListener('click',e=>{if(e.target===ov)close();});
+    document.addEventListener('keydown',e=>{if(e.key==='Escape'&&ov.classList.contains('show'))close();});
+
+    ov.querySelector('#rfNmModalSearchV121').addEventListener('input',e=>{
+      const q=String(e.target.value||'').trim().toLowerCase();
+      ov.querySelectorAll('#rfNmModalRowsV121 tr').forEach(tr=>{
+        tr.hidden=!!q&&!tr.textContent.toLowerCase().includes(q);
+      });
+    });
+    return ov;
+  }
+
+  function rfNmOpenV121(btn){
+    const sec=btn.closest('.rf-nonmember-v69');
+    if(!sec) return;
+    const summaryRow=btn.closest('tr[data-rf-nm-summary-manager]');
+    const manager=summaryRow ? String(summaryRow.dataset.rfNmSummaryManager||'') : '';
+    const mode=String(btn.dataset.nmMode||'total');
+    const isRange=sec.dataset.rfNmRange==='1';
+
+    const source=[...sec.querySelectorAll('.rf-nonmember-person-row-v69')];
+    const filtered=source.filter(row=>{
+      if(manager && String(row.dataset.rfNmManager||'')!==manager) return false;
+      const contacted=isRange ? row.dataset.rfNmSeen==='1' : row.dataset.rfNmContacted==='1';
+      const eventCount=Number(row.dataset.rfNmEvents||0);
+      if(mode==='contacted' && !contacted) return false;
+      if(mode==='uncontacted' && contacted) return false;
+      if(mode==='events' && eventCount<=0) return false;
+      return true;
+    });
+
+    const modeLabel=mode==='contacted'?'접촉'
+      :mode==='uncontacted'?'미접촉'
+      :mode==='events'?(isRange?'기간 접촉':'이력 접촉')
+      :'대상';
+    const title=`비조합원 · ${manager||'전체'} · ${modeLabel}`;
+
+    const ov=rfNmModalV121();
+    ov.querySelector('#rfNmModalTitleV121').textContent=title;
+    ov.querySelector('#rfNmModalCountV121').textContent=`${filtered.length}명`;
+    ov.querySelector('#rfNmModalSearchV121').value='';
+
+    const rows=filtered.map((row,i)=>{
+      const c=row.children;
+      const noteRow=row.nextElementSibling;
+      const note=noteRow?.querySelector('.rf-nonmember-note-body-v69')?.textContent?.trim()||'기록 없음';
+      const eventCount=Number(row.dataset.rfNmEvents||0);
+      return `<tr>
+        <td>${i+1}</td>
+        <td>${rfNmEscV121(c[0]?.textContent?.trim()||'-')}</td>
+        <td>${rfNmEscV121(c[1]?.textContent?.trim()||'-')}</td>
+        <td>${rfNmEscV121(c[2]?.textContent?.trim()||'-')}</td>
+        <td>${rfNmEscV121(c[3]?.textContent?.trim()||'-')}</td>
+        <td>${eventCount||'-'}</td>
+        <td class="rf-nm-modal-note-v121">${rfNmEscV121(note)}</td>
+      </tr>`;
+    }).join('');
+
+    const tbody=ov.querySelector('#rfNmModalRowsV121');
+    tbody.innerHTML=rows;
+    ov.querySelector('#rfNmModalEmptyV121').hidden=filtered.length!==0;
+    ov.classList.add('show');
+  }
+
   document.addEventListener('click',function(e){
-    const cell=e.target.closest('.rf-nonmember-summary-table-v69 .sm-drill');
-    if(!cell) return;
-    if(typeof window.__smOpenDrill!=='function') return;
+    const btn=e.target.closest('.rf-nm-stat-btn-v121,.rf-nm-manager-btn-v121,.rf-nm-title-btn-v121');
+    if(!btn) return;
     e.preventDefault();
     e.stopPropagation();
-    if(typeof e.stopImmediatePropagation==='function') e.stopImmediatePropagation();
-    window.__smOpenDrill(cell);
-  },true);
+    rfNmOpenV121(btn);
+  });
 
   /* 동적 렌더링 표의 상담내용 펼치기 */
   document.addEventListener('click',function(e){
@@ -33596,6 +33972,460 @@ body.ux383.theme-dark .bf-speaker-v118{
   }
   #contactReportOverlay.tour-standalone-v119 #contactReportTitle{
     font-size:16px!important;
+  }
+}
+</style>
+
+<style id="nonmember-inline-open-v120">
+body.ux383 .rf-nm-open-v120{
+  display:flex!important;
+  align-items:center!important;
+  gap:6px!important;
+  cursor:pointer!important;
+  user-select:none!important;
+}
+body.ux383 .rf-nm-open-mark-v120{
+  font-size:16px!important;
+  color:var(--accent)!important;
+  transform:translateY(-1px);
+}
+body.ux383 .rf-nonmember-summary-table-v69 tbody th,
+body.ux383 .rf-nonmember-summary-table-v69 tbody td{
+  cursor:pointer!important;
+}
+body.ux383 .rf-nonmember-summary-table-v69 tbody tr:hover th,
+body.ux383 .rf-nonmember-summary-table-v69 tbody tr:hover td{
+  background:color-mix(in srgb,var(--accent-soft) 42%,var(--card))!important;
+}
+body.ux383 .rf-nonmember-roster-v69[open] > summary{
+  color:var(--accent)!important;
+  font-weight:800!important;
+}
+</style>
+
+<style id="nonmember-real-click-v121">
+body.ux383 .rf-nm-title-btn-v121,
+body.ux383 .rf-nm-manager-btn-v121,
+body.ux383 .rf-nm-stat-btn-v121{
+  appearance:none!important;
+  border:0!important;
+  background:transparent!important;
+  font:inherit!important;
+  color:inherit!important;
+  padding:0!important;
+  margin:0!important;
+  cursor:pointer!important;
+}
+body.ux383 .rf-nm-title-btn-v121{
+  display:inline-flex!important;
+  align-items:center!important;
+  gap:6px!important;
+  font-size:15px!important;
+  font-weight:800!important;
+}
+body.ux383 .rf-nm-title-btn-v121 span{
+  color:var(--accent)!important;
+  font-size:17px!important;
+}
+body.ux383 .rf-nm-manager-btn-v121{
+  font-weight:800!important;
+  text-decoration:underline dotted color-mix(in srgb,var(--accent) 45%,transparent)!important;
+  text-underline-offset:3px!important;
+}
+body.ux383 .rf-nm-stat-btn-v121{
+  min-width:100%!important;
+  min-height:28px!important;
+  font-weight:800!important;
+  color:var(--accent)!important;
+  border-radius:6px!important;
+}
+body.ux383 .rf-nm-stat-btn-v121:not(:disabled):hover,
+body.ux383 .rf-nm-manager-btn-v121:hover,
+body.ux383 .rf-nm-title-btn-v121:hover{
+  background:color-mix(in srgb,var(--accent-soft) 48%,transparent)!important;
+}
+body.ux383 .rf-nm-stat-btn-v121:disabled{
+  cursor:default!important;
+  color:var(--text-dim)!important;
+  opacity:.55!important;
+}
+
+/* 독립 비조합원 상세 모달 */
+.rf-nm-modal-overlay-v121{
+  position:fixed!important;
+  inset:0!important;
+  z-index:1000000!important;
+  display:none!important;
+  align-items:center!important;
+  justify-content:center!important;
+  padding:24px!important;
+  background:rgba(18,28,27,.58)!important;
+  backdrop-filter:blur(3px)!important;
+}
+.rf-nm-modal-overlay-v121.show{display:flex!important;}
+.rf-nm-modal-v121{
+  width:min(1120px,94vw)!important;
+  max-height:84vh!important;
+  display:flex!important;
+  flex-direction:column!important;
+  overflow:hidden!important;
+  background:var(--card,#fff)!important;
+  color:var(--text-main,#142820)!important;
+  border:1px solid var(--line,#d8e4e8)!important;
+  border-radius:14px!important;
+  box-shadow:0 24px 70px rgba(0,0,0,.24)!important;
+}
+.rf-nm-modal-head-v121{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  padding:13px 16px!important;
+  border-bottom:1px solid var(--line,#d8e4e8)!important;
+}
+.rf-nm-modal-head-v121>div{
+  display:flex!important;align-items:center!important;gap:10px!important;
+}
+.rf-nm-modal-head-v121 strong{font-size:15px!important;}
+.rf-nm-modal-head-v121 span{
+  padding:3px 8px!important;border-radius:999px!important;
+  background:var(--accent-soft,#e8f5ef)!important;color:var(--accent,#138166)!important;
+  font-weight:800!important;
+}
+.rf-nm-modal-head-v121 button{
+  width:34px!important;height:34px!important;border:1px solid var(--line,#d8e4e8)!important;
+  border-radius:9px!important;background:transparent!important;cursor:pointer!important;font-size:20px!important;
+}
+.rf-nm-modal-search-v121{
+  padding:10px 14px!important;background:var(--bg-side,#f5f8f7)!important;
+  border-bottom:1px solid var(--line,#d8e4e8)!important;
+}
+.rf-nm-modal-search-v121 input{
+  width:360px!important;max-width:100%!important;height:34px!important;padding:0 11px!important;
+  border:1px solid var(--line,#d8e4e8)!important;border-radius:8px!important;
+  background:var(--card,#fff)!important;color:inherit!important;
+}
+.rf-nm-modal-body-v121{overflow:auto!important;min-height:180px!important;}
+.rf-nm-modal-body-v121 table{
+  width:100%!important;border-collapse:collapse!important;table-layout:fixed!important;
+}
+.rf-nm-modal-body-v121 th,.rf-nm-modal-body-v121 td{
+  padding:9px 8px!important;border-bottom:1px solid var(--line,#e2eaed)!important;
+  vertical-align:top!important;font-size:11px!important;line-height:1.45!important;
+}
+.rf-nm-modal-body-v121 th{position:sticky!important;top:0!important;z-index:1!important;background:var(--bg-side,#f1f5f7)!important;}
+.rf-nm-modal-body-v121 th:nth-child(1){width:48px!important;}
+.rf-nm-modal-body-v121 th:nth-child(2){width:20%!important;}
+.rf-nm-modal-body-v121 th:nth-child(3){width:10%!important;}
+.rf-nm-modal-body-v121 th:nth-child(4){width:13%!important;}
+.rf-nm-modal-body-v121 th:nth-child(5){width:11%!important;}
+.rf-nm-modal-body-v121 th:nth-child(6){width:76px!important;}
+.rf-nm-modal-note-v121{white-space:pre-wrap!important;overflow-wrap:anywhere!important;word-break:keep-all!important;}
+.rf-nm-modal-empty-v121{padding:60px 20px!important;text-align:center!important;color:var(--text-dim,#72827d)!important;}
+
+@media(max-width:820px){
+  .rf-nm-modal-overlay-v121{padding:8px!important;}
+  .rf-nm-modal-v121{width:100%!important;max-height:92dvh!important;border-radius:12px!important;}
+  .rf-nm-modal-body-v121 table{min-width:780px!important;}
+  .rf-nm-modal-search-v121 input{width:100%!important;font-size:16px!important;}
+}
+</style>
+
+<style id="nonmember-direct-open-v122">
+body.ux383 #globalStatsBody .rf-nm-open-zone-v122{
+  cursor:pointer!important;
+}
+body.ux383 #globalStatsBody h3.rf-nm-open-zone-v122{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:10px!important;
+}
+body.ux383 #globalStatsBody .rf-nm-open-hint-v122,
+body.ux383 #globalStatsBody .rf-nm-title-btn-v121 span{
+  margin-left:auto!important;
+  color:var(--accent)!important;
+  font-size:11px!important;
+  font-weight:800!important;
+  white-space:nowrap!important;
+}
+body.ux383 #globalStatsBody .rf-nm-open-zone-v122:hover{
+  background:color-mix(in srgb,var(--accent-soft) 36%,transparent)!important;
+}
+body.ux383 #globalStatsBody .rf-nm-direct-details-v122[open] > summary{
+  color:var(--accent)!important;
+  font-weight:800!important;
+}
+</style>
+
+<!-- v124: 비조합원 팝업 - v122의 '실제 작동 클릭 경로' 재사용 -->
+<style id="nonmember-popup-working-v124">
+
+/* 아래로 길게 펼쳐지는 명단은 숨김. 팝업 데이터 소스로만 DOM에 유지 */
+body.ux383 #globalStatsBody .rf-nonmember-v69 > .rf-nonmember-roster-v69{
+  display:none!important;
+}
+
+/* 전체 표는 클릭 영역이라는 느낌만 가볍게 */
+body.ux383 #globalStatsBody .rf-nonmember-v69 .rf-nm-open-zone-v122{
+  cursor:pointer!important;
+}
+body.ux383 #globalStatsBody .rf-nonmember-summary-table-v69 tbody tr:hover th,
+body.ux383 #globalStatsBody .rf-nonmember-summary-table-v69 tbody tr:hover td{
+  background:color-mix(in srgb,var(--accent-soft) 38%,var(--card))!important;
+}
+body.ux383 #globalStatsBody .rf-nm-open-hint-v122{
+  margin-left:auto!important;
+  color:var(--accent)!important;
+  font-size:11px!important;
+  font-weight:800!important;
+}
+
+/* 팝업 */
+.rf-nm-popup-overlay-v124{
+  position:fixed!important;
+  inset:0!important;
+  z-index:2147483000!important;
+  display:none!important;
+  align-items:center!important;
+  justify-content:center!important;
+  padding:22px!important;
+  background:rgba(20,28,27,.60)!important;
+  backdrop-filter:blur(3px)!important;
+}
+.rf-nm-popup-overlay-v124.show{
+  display:flex!important;
+}
+.rf-nm-popup-v124{
+  width:min(1120px,94vw)!important;
+  max-height:84vh!important;
+  display:flex!important;
+  flex-direction:column!important;
+  overflow:hidden!important;
+  border:1px solid var(--line,#d8e3e5)!important;
+  border-radius:14px!important;
+  background:var(--card,#fff)!important;
+  color:var(--text-main,#142821)!important;
+  box-shadow:0 24px 70px rgba(0,0,0,.28)!important;
+}
+.rf-nm-popup-head-v124{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  min-height:54px!important;
+  padding:10px 14px!important;
+  border-bottom:1px solid var(--line,#d8e3e5)!important;
+}
+.rf-nm-popup-headtext-v124{
+  display:flex!important;
+  align-items:center!important;
+  gap:10px!important;
+}
+.rf-nm-popup-headtext-v124 strong{
+  font-size:15px!important;
+  font-weight:850!important;
+}
+.rf-nm-popup-headtext-v124 span{
+  padding:3px 8px!important;
+  border-radius:999px!important;
+  background:var(--accent-soft,#e6f4ee)!important;
+  color:var(--accent,#128469)!important;
+  font-weight:850!important;
+}
+.rf-nm-popup-head-v124 button{
+  width:34px!important;
+  height:34px!important;
+  border:1px solid var(--line,#d8e3e5)!important;
+  border-radius:9px!important;
+  background:transparent!important;
+  color:inherit!important;
+  font-size:20px!important;
+  cursor:pointer!important;
+}
+.rf-nm-popup-search-v124{
+  padding:9px 13px!important;
+  border-bottom:1px solid var(--line,#d8e3e5)!important;
+  background:var(--bg-side,#f3f7f6)!important;
+}
+.rf-nm-popup-search-v124 input{
+  width:360px!important;
+  max-width:100%!important;
+  height:34px!important;
+  padding:0 11px!important;
+  border:1px solid var(--line,#d8e3e5)!important;
+  border-radius:8px!important;
+  background:var(--card,#fff)!important;
+  color:inherit!important;
+}
+.rf-nm-popup-scroll-v124{
+  min-height:190px!important;
+  overflow:auto!important;
+}
+.rf-nm-popup-table-v124{
+  width:100%!important;
+  border-collapse:collapse!important;
+  table-layout:fixed!important;
+}
+.rf-nm-popup-table-v124 th,
+.rf-nm-popup-table-v124 td{
+  padding:9px 8px!important;
+  border-bottom:1px solid var(--line,#e1e8ea)!important;
+  vertical-align:top!important;
+  font-size:11px!important;
+  line-height:1.5!important;
+}
+.rf-nm-popup-table-v124 thead th{
+  position:sticky!important;
+  top:0!important;
+  z-index:2!important;
+  background:var(--bg-side,#eef3f4)!important;
+}
+.rf-nm-popup-table-v124 th:nth-child(1){width:48px!important;}
+.rf-nm-popup-table-v124 th:nth-child(2){width:19%!important;}
+.rf-nm-popup-table-v124 th:nth-child(3){width:10%!important;}
+.rf-nm-popup-table-v124 th:nth-child(4){width:13%!important;}
+.rf-nm-popup-table-v124 th:nth-child(5){width:11%!important;}
+.rf-nm-popup-table-v124 th:nth-child(6){width:82px!important;}
+.rf-nm-popup-note-v124{
+  white-space:pre-wrap!important;
+  overflow-wrap:anywhere!important;
+  word-break:keep-all!important;
+}
+.rf-nm-popup-empty-v124{
+  padding:60px 20px!important;
+  text-align:center!important;
+  color:var(--text-dim,#74827e)!important;
+}
+
+@media(max-width:820px){
+  .rf-nm-popup-overlay-v124{
+    padding:8px!important;
+  }
+  .rf-nm-popup-v124{
+    width:100%!important;
+    max-height:92dvh!important;
+    border-radius:12px!important;
+  }
+  .rf-nm-popup-table-v124{
+    min-width:800px!important;
+  }
+  .rf-nm-popup-search-v124 input{
+    width:100%!important;
+    font-size:16px!important;
+  }
+}
+</style>
+
+<!-- v125: 비조합원 팝업 데이터는 DOM이 아니라 실제 Excel 데이터에서 직접 조회 -->
+<style id="nonmember-popup-data-fix-v125">
+body.ux383 #globalStatsBody .rf-nm-direct-details-v122,
+body.ux383 #globalStatsBody .rf-nonmember-v69 > .rf-nonmember-roster-v69{
+  display:none!important;
+}
+</style>
+
+<!-- v126: 비조합원 팝업은 현재 렌더된 명단 DOM을 직접 사용 -->
+<style id="nonmember-dom-data-v126">
+body.ux383 #globalStatsBody .rf-nonmember-v69 > .rf-nonmember-roster-v69{
+  display:none!important;
+}
+</style>
+
+<!-- v127: 비조합원 팝업을 일반 접촉자 상세처럼 간결하게 -->
+<style id="nonmember-compact-popup-v127">
+.rf-nm-popup-v124{
+  width:min(1060px,94vw)!important;
+}
+
+.rf-nm-popup-table-v124 th,
+.rf-nm-popup-table-v124 td{
+  padding:10px 8px!important;
+  vertical-align:middle!important;
+}
+
+.rf-nm-popup-table-v124 th:nth-child(1){width:46px!important;}
+.rf-nm-popup-table-v124 th:nth-child(2){width:22%!important;}
+.rf-nm-popup-table-v124 th:nth-child(3){width:11%!important;}
+.rf-nm-popup-table-v124 th:nth-child(4){width:14%!important;}
+.rf-nm-popup-table-v124 th:nth-child(5){width:11%!important;}
+.rf-nm-popup-table-v124 th:nth-child(6){width:86px!important;}
+.rf-nm-popup-table-v124 th:nth-child(7){width:auto!important;}
+
+.rf-nm-popup-main-v127 td{
+  height:46px!important;
+}
+
+.rf-nm-popup-method-v127{
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  min-height:24px!important;
+  padding:2px 7px!important;
+  border-radius:7px!important;
+  background:var(--accent-soft,#e7f4ef)!important;
+  color:var(--accent,#128469)!important;
+  font-weight:800!important;
+  white-space:nowrap!important;
+}
+
+.rf-nm-popup-note-btn-v127{
+  appearance:none!important;
+  border:0!important;
+  background:transparent!important;
+  color:var(--accent,#128469)!important;
+  font:inherit!important;
+  font-weight:800!important;
+  cursor:pointer!important;
+  padding:4px 0!important;
+  white-space:nowrap!important;
+}
+.rf-nm-popup-note-btn-v127:hover{
+  text-decoration:underline!important;
+  text-underline-offset:3px!important;
+}
+
+.rf-nm-popup-no-note-v127{
+  color:var(--text-dim,#7a8984)!important;
+  font-size:10.5px!important;
+}
+
+.rf-nm-popup-detail-v127 td{
+  padding:0 12px 12px!important;
+  background:color-mix(in srgb,var(--bg-side,#f3f7f6) 74%,var(--card,#fff))!important;
+}
+.rf-nm-popup-detail-box-v127{
+  max-height:220px!important;
+  overflow:auto!important;
+  padding:11px 13px!important;
+  border-radius:9px!important;
+  background:var(--card,#fff)!important;
+  color:var(--text-main,#20342d)!important;
+  font-size:11px!important;
+  line-height:1.62!important;
+  white-space:pre-wrap!important;
+  word-break:keep-all!important;
+  overflow-wrap:anywhere!important;
+}
+
+/* 긴 상호명은 줄바꿈 허용, 나머지는 최대한 한 줄 */
+.rf-nm-popup-main-v127 td:nth-child(2){
+  white-space:normal!important;
+  word-break:keep-all!important;
+}
+.rf-nm-popup-main-v127 td:nth-child(3),
+.rf-nm-popup-main-v127 td:nth-child(4),
+.rf-nm-popup-main-v127 td:nth-child(5),
+.rf-nm-popup-main-v127 td:nth-child(6),
+.rf-nm-popup-main-v127 td:nth-child(7){
+  white-space:nowrap!important;
+}
+
+@media(max-width:820px){
+  .rf-nm-popup-table-v124{
+    min-width:760px!important;
+  }
+  .rf-nm-popup-detail-box-v127{
+    max-height:260px!important;
+    font-size:12px!important;
   }
 }
 </style>
