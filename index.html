@@ -32676,3 +32676,124 @@ body.ux383.theme-dark #masterList .name-item[data-progress-status="타사선정"
 }
 </style>
 
+<!-- v100: 사업현황/진행단계 = 주요내용과 같은 은은한 라운딩 톤 -->
+<style id="overview-soft-green-v100">
+@media screen and (min-width:821px){
+
+  /* 두 칸 높이를 동일하게 맞춤 */
+  body.ux383 .overview-core-grid{
+    align-items:stretch!important;
+    gap:8px!important;
+    width:100%!important;
+  }
+
+  /* 사업현황 / 진행단계 각각 주요내용과 같은 부드러운 카드 톤 */
+  body.ux383 .overview-core-grid .detail-quad-box{
+    height:100%!important;
+    min-height:220px!important;
+    border:1px solid color-mix(in srgb,var(--accent) 16%,var(--line))!important;
+    border-radius:12px!important;
+    background:color-mix(in srgb,var(--accent-soft) 18%,var(--card))!important;
+    box-shadow:none!important;
+    overflow:hidden!important;
+  }
+
+  /* 상단 제목줄은 주요내용 헤더처럼 조금 더 은은한 초록 */
+  body.ux383 .overview-core-grid .detail-quad-box .spec-heading{
+    padding:10px 12px!important;
+    background:color-mix(in srgb,var(--accent-soft) 42%,var(--card))!important;
+    border-bottom:1px solid color-mix(in srgb,var(--accent) 13%,var(--line))!important;
+    border-radius:0!important;
+  }
+
+  /* 안쪽 내용도 흰 박스로 끊지 않고 같은 카드 안에서 이어지게 */
+  body.ux383 .overview-core-grid .detail-quad-box .spec-lines-2col,
+  body.ux383 .overview-core-grid .detail-quad-box .spec-stage-detail{
+    height:calc(100% - 43px)!important;
+    background:transparent!important;
+  }
+}
+
+/* 다크모드도 너무 밝지 않게 같은 톤 유지 */
+body.ux383.theme-dark .overview-core-grid .detail-quad-box{
+  background:color-mix(in srgb,var(--accent-soft) 10%,var(--card))!important;
+  border-color:color-mix(in srgb,var(--accent) 20%,var(--line))!important;
+}
+body.ux383.theme-dark .overview-core-grid .detail-quad-box .spec-heading{
+  background:color-mix(in srgb,var(--accent-soft) 18%,var(--card))!important;
+}
+</style>
+
+<!-- v101: 사업현황/진행단계 톤을 '주요 내용' 카드와 정확히 맞춤 -->
+<style id="overview-match-brief-v101">
+@media screen and (min-width:821px){
+
+  /* 1) 제목 앞 세로 초록 막대 제거 */
+  body.ux383 .overview-core-grid > .detail-quad-box > .spec-heading::before{
+    content:none!important;
+    display:none!important;
+  }
+
+  /* 막대가 빠진 만큼 제목 왼쪽 여백도 정상화 */
+  body.ux383 .overview-core-grid > .detail-quad-box > .spec-heading{
+    padding-left:12px!important;
+  }
+
+  /* 2) 사업현황 / 진행단계 두 카드 완전히 동일한 외형 */
+  body.ux383 .overview-core-grid > .detail-quad-box{
+    height:100%!important;
+    min-height:220px!important;
+    padding:0!important;
+    border:1px solid var(--gw-border-strong)!important;
+    border-radius:var(--gw-radius-lg)!important;
+    background:var(--card)!important;
+    box-shadow:none!important;
+    overflow:hidden!important;
+  }
+
+  /* 예전 두 영역 사이 별도 세로선 제거 */
+  body.ux383 .overview-core-grid > .detail-quad-box:nth-child(2){
+    border-left:1px solid var(--gw-border-strong)!important;
+    padding-left:0!important;
+  }
+
+  /* 3) 제목 색감 = '주요 내용' 제목줄과 동일 */
+  body.ux383 .overview-core-grid > .detail-quad-box > .spec-heading,
+  body.ux383.theme-dark .overview-core-grid > .detail-quad-box > .spec-heading{
+    min-height:43px!important;
+    margin:0!important;
+    padding:10px 12px!important;
+    border:0!important;
+    border-bottom:1px solid var(--gw-border)!important;
+    border-radius:0!important;
+    background:linear-gradient(180deg,var(--gw-soft-2),var(--card))!important;
+    color:var(--text-main)!important;
+    font-size:14.5px!important;
+    font-weight:800!important;
+    line-height:1.25!important;
+    box-shadow:none!important;
+  }
+
+  /* 4) 양쪽 내용 배경도 동일하게 */
+  body.ux383 .overview-core-grid > .detail-quad-box .spec-lines-2col,
+  body.ux383 .overview-core-grid > .detail-quad-box .spec-stage-detail{
+    height:calc(100% - 43px)!important;
+    margin:0!important;
+    padding:12px 13px!important;
+    background:var(--card)!important;
+  }
+
+  /* 진행단계 안쪽만 다른 색으로 보이던 부분 강제 통일 */
+  body.ux383 .overview-core-grid > .detail-quad-box:nth-child(2) .spec-stage-detail,
+  body.ux383.theme-dark .overview-core-grid > .detail-quad-box:nth-child(2) .spec-stage-detail{
+    background:var(--card)!important;
+  }
+}
+
+/* 다크모드도 주요내용과 동일한 변수 체계 사용 */
+body.ux383.theme-dark .overview-core-grid > .detail-quad-box{
+  background:var(--card)!important;
+  border-color:var(--gw-border-strong)!important;
+}
+</style>
+
