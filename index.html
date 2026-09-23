@@ -8435,7 +8435,7 @@ body.ux383 .v235-map-hint,
 <div class="overlay" id="contactReportOverlay">
   <div class="modal" id="contactReportModalBox" style="max-width:min(97vw,1180px);">
     <div class="v20-report-head" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
-      <h3 style="margin:0;">통합 접촉현황</h3>
+      <h3 id="contactReportTitle" style="margin:0;">통합 접촉현황</h3>
       <span style="font-size:9.5px;color:var(--text-dim);opacity:0.6;">build 2026-09-11-v382</span>
       <div class="report-period-toggle no-print" id="reportPeriodToggleWrap">
         <button class="btn btn-ghost btn-sm" id="reportModeWeekBtn" data-mode="week">주간</button>
@@ -17575,6 +17575,32 @@ function bfGroupItems(items){
  }
  return groups.sort((a,b)=>b.score-a.score||b.date.localeCompare(a.date)).map(g=>({...g,text:g.texts.join(' ')}));
 }
+function bfSpeakerLabel(item){
+ const names=[];
+ const seen=new Set();
+ for(const r of item?.refs||[]){
+   const raw=String(r?.name||'').trim();
+   if(!raw)continue;
+   const parts=(typeof splitMultiNames==='function'?splitMultiNames(raw):raw.split(/[,，;/|]+/))
+     .map(v=>{
+       if(typeof v==='string')return v.trim();
+       return String(v||'').trim();
+     })
+     .filter(Boolean);
+   for(const p0 of parts){
+     let p=p0;
+     try{
+       if(typeof fullyStripRoles==='function'){
+         const x=fullyStripRoles(p0);
+         p=String(x?.name||p0).trim();
+       }
+     }catch(_){}
+     if(p&&!seen.has(p)){seen.add(p);names.push(p);}
+   }
+ }
+ if(!names.length)return '';
+ return names.length===1?names[0]:`${names[0]} 외 ${names.length-1}명`;
+}
 function bfAutoText(data,key){return bfGroupItems(data.sections[key]).slice(0,3).map(i=>'• '+i.topic+' · '+i.text).join('\n')}
 function bfPeriodDisplay(range){
  const d=new Date(bfView.date+'T12:00:00');
@@ -17614,8 +17640,10 @@ function buildSiteReportBrief(site){
  const range=bfRange(),data=bfData(site),override=bfOverride(site),esc=escapeHtml,snapshot=bfSnapshot(data),periodLabel=bfPeriodDisplay(range);
  return `<section class="report-brief bf-brief"><header class="bf-head"><div class="bf-headline"><strong>주요 내용</strong></div><div class="bf-head-tools no-print"><span class="bf-view-label">보기</span><select id="bfMode" aria-label="브리핑 보기 방식">${[['day','일별'],['week','주별'],['month','월별'],['custom','기간 지정']].map(([v,t])=>`<option value="${v}" ${bfView.mode===v?'selected':''}>${t}</option>`).join('')}</select>${bfView.mode==='custom'?`<input id="bfStart" type="date" value="${range.start}" aria-label="시작 날짜"><input id="bfEnd" type="date" value="${range.end}" aria-label="종료 날짜"><button class="btn" data-bf-apply>조회</button>`:`<button class="btn bf-nav-btn" data-bf-step="-1" aria-label="이전 기간">‹</button><button type="button" class="bf-period-display" data-bf-date-picker aria-label="기준 날짜 선택">${esc(periodLabel)}</button><input id="bfDate" class="bf-date-native" type="date" aria-label="브리핑 기준 날짜" value="${bfView.date}"><button class="btn bf-nav-btn" data-bf-step="1" aria-label="다음 기간">›</button>`}${guestMode?'':`<button class="btn bf-edit-btn" data-bf-edit>브리핑 수정</button>`}</div></header><div class="bf-grid">${HoccoBrief.fields.map(([key,title])=>{
  const manual=override&&Object.prototype.hasOwnProperty.call(override.sections||{},key),rawItems=data.sections[key],items=bfGroupItems(rawItems);
- const itemHtml=item=>
-   `<article class="bf-entry"><div class="bf-entry-topline"><p><strong>${esc(item.topic||'핵심')}</strong> · ${esc(item.text)}</p></div></article>`;
+ const itemHtml=item=>{
+   const speaker=bfSpeakerLabel(item);
+   return `<article class="bf-entry"><div class="bf-entry-topline"><p><strong>${esc(item.topic||'핵심')}</strong>${speaker?` <span class="bf-speaker-v118">${esc(speaker)}</span>`:''} · ${esc(item.text)}</p></div></article>`;
+ };
 
  const sourceRefs=[],sourceSeen=new Set();
  items.forEach(item=>(item.refs||[]).forEach(r=>{
@@ -19311,6 +19339,11 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
     reportSummaryOffice = '__ALL__';
     reportManagerFilter = null;
     reportViewTab = targetTab || 'summary';
+    const reportOverlay=document.getElementById('contactReportOverlay');
+    const isTourStandalone = reportViewTab === 'tours';
+    reportOverlay?.classList.toggle('tour-standalone-v119', isTourStandalone);
+    const reportTitle=document.getElementById('contactReportTitle');
+    if(reportTitle) reportTitle.textContent = isTourStandalone ? '투어 예약 현황' : '통합 접촉현황';
     reportSearchQuery = '';
     reportToursMonth = new Date();
     reportGalleryRows = null;
@@ -19334,7 +19367,11 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
   document.getElementById('reportViewTabSearch').addEventListener('click', ()=>{ reportViewTab='search'; renderContactReport(); });
   document.getElementById('reportViewTabTours').addEventListener('click', ()=>{ reportViewTab='tours'; renderContactReport(); });
   document.getElementById('contactReportCloseBtn').addEventListener('click', ()=>{
-    document.getElementById('contactReportOverlay').classList.remove('show');
+    const ov=document.getElementById('contactReportOverlay');
+    ov.classList.remove('show');
+    ov.classList.remove('tour-standalone-v119');
+    const t=document.getElementById('contactReportTitle');
+    if(t)t.textContent='통합 접촉현황';
   });
   // 접촉현황은 "처음 열 때"만 최신 데이터를 통째로 받아오고, 그 안에서 날짜 이동/주간·월간 전환은
   // 그냥 화면만 다시 그렸었다. 그래서 열어둔 채로 시간이 좀 지나면, 그 사이 다른 담당자가 텔레그램
@@ -20577,6 +20614,76 @@ ead><body>
     return out;
   }
   function smSuccessMethods(m){return Number(m&&m.상담||0)+Number(m&&m.단순||0)+Number(m&&m.TM||0);}
+
+  const SM_SUCCESS_METHODS=['상담','단순','TM'];
+  const SM_FAIL_METHODS=['거부','부재','불명'];
+  function smIsSuccessMethod(v){return SM_SUCCESS_METHODS.includes(String(v||'').trim());}
+  function smIsKnownMethod(v){
+    const m=String(v||'').trim();
+    return SM_SUCCESS_METHODS.includes(m)||SM_FAIL_METHODS.includes(m);
+  }
+
+  // 이벤트를 담당자 > 사람 단위로 묶는다.
+  // "누계접촉"은 성공 접촉한 고유 인원 수이고,
+  // 방법 칸(상담/단순/TM)은 각 사람의 '가장 최근 성공방법' 하나만 사용한다.
+  // 그래서 같은 사람이 상담 2회 + TM 3회를 했어도 누계 1명, 방법도 한 칸에만 1명으로 잡힌다.
+  function smManagerPersonBuckets(events){
+    const managers={};
+    (events||[]).forEach((e,idx)=>{
+      const manager=smManagerKey(e&&e.manager);
+      const pk=miPersonKey(e);
+      if(!pk)return;
+      if(!managers[manager])managers[manager]={people:{},methods:{상담:0,단순:0,TM:0,거부:0,부재:0,불명:0},contacted:0};
+      const g=managers[manager];
+      if(!g.people[pk]){
+        g.people[pk]={
+          key:pk,personId:e.personId||'',name:e.name||'-',manager,
+          unit:e.unit||'',dong:e.dong||'',role:smPrimaryRoleOnly(e.role||''),
+          count:0,last:'',note:'',successMethod:'',successStamp:'',failMethod:'',failStamp:''
+        };
+      }
+      const p=g.people[pk];
+      p.count++;
+      const date=String(e.date||'');
+      const stamp=date+'|'+String(idx).padStart(8,'0');
+      if(date>=String(p.last||'')){
+        p.last=date;
+        p.unit=e.unit||p.unit;
+        p.dong=e.dong||p.dong;
+        p.role=smPrimaryRoleOnly(e.role||p.role||'');
+        if(String(e.text||'').trim())p.note=String(e.text||'').trim();
+      }
+      const method=String(e.method||'').trim();
+      if(smIsSuccessMethod(method)){
+        if(stamp>=p.successStamp){p.successStamp=stamp;p.successMethod=method;}
+      }else{
+        const fail=SM_FAIL_METHODS.includes(method)?method:'불명';
+        if(stamp>=p.failStamp){p.failStamp=stamp;p.failMethod=fail;}
+      }
+    });
+
+    Object.values(managers).forEach(g=>{
+      Object.values(g.people).forEach(p=>{
+        // 성공 접촉이 한 번이라도 있으면 실패/부재보다 성공을 우선한다.
+        p.bucket=p.successMethod||(p.failMethod||'불명');
+        p.contacted=!!p.successMethod;
+        if(g.methods[p.bucket]!==undefined)g.methods[p.bucket]++;
+        if(p.contacted)g.contacted++;
+      });
+    });
+    return managers;
+  }
+
+  function smBucketRowsForManager(site,manager,range){
+    const buckets=smManagerPersonBuckets(smEvents(site,range));
+    const g=buckets[smManagerKey(manager)]||{people:{}};
+    return Object.values(g.people||{}).map(p=>({
+      personId:p.personId||'',name:p.name||'-',manager:p.manager||smManagerKey(manager),
+      unit:p.unit||'',dong:p.dong||'',role:p.role||'',method:p.bucket||'',
+      contacted:!!p.contacted,count:p.count||0,last:p.last||'',note:p.note||''
+    })).sort((a,b)=>String(b.last||'').localeCompare(String(a.last||''))||String(a.name||'').localeCompare(String(b.name||''),'ko'));
+  }
+
   function smOverallMetrics(x){
     const bm=smMergeManagers(x&&x.byManager||{});
     const total=Number(x&&x.totalOwners||0);
@@ -20686,14 +20793,14 @@ ead><body>
     if(!periodMode){
       return Object.entries(totals).map(([name,d])=>({name,total:d.total,contacted:d.contacted,uncontacted:Math.max(0,d.total-d.contacted),rate:d.total?d.contacted/d.total*100:0}));
     }
-    const a=smAggregateEvents(events),keys=Array.from(new Set(Object.keys(totals).concat(Object.keys(a.role))));
+    const a=smAggregateEvents((events||[]).filter(e=>smIsSuccessMethod(e&&e.method))),keys=Array.from(new Set(Object.keys(totals).concat(Object.keys(a.role))));
     return keys.map(name=>{const total=Number(totals[name]&&totals[name].total||0),contacted=(a.role[name]&&a.role[name].people.size)||0;return{name,total,contacted,uncontacted:Math.max(0,total-contacted),rate:total?contacted/total*100:0};});
   }
   function smDongRows(site,x,events,periodMode){
     if(!periodMode){
       return Object.entries(x.byDong||{}).map(([name,d])=>{const total=Number(d.total||0),contacted=(d.methods?smSuccessMethods(d.methods):Number(d.contacted||0));return{name,total,contacted,uncontacted:Math.max(0,total-contacted),rate:total?contacted/total*100:0};}).sort((a,b)=>a.name.localeCompare(b.name,'ko',{numeric:true}));
     }
-    const a=smAggregateEvents(events),all=x.byDong||{},keys=Array.from(new Set(Object.keys(all).concat(Object.keys(a.dong))));
+    const a=smAggregateEvents((events||[]).filter(e=>smIsSuccessMethod(e&&e.method))),all=x.byDong||{},keys=Array.from(new Set(Object.keys(all).concat(Object.keys(a.dong))));
     return keys.map(name=>{const total=Number(all[name]&&all[name].total||0),contacted=(a.dong[name]&&a.dong[name].people.size)||0;return{name,total,contacted,uncontacted:Math.max(0,total-contacted),rate:total?contacted/total*100:0};}).sort((a,b)=>a.name.localeCompare(b.name,'ko',{numeric:true}));
   }
 
@@ -20708,19 +20815,35 @@ ead><body>
   }
 
   function smManagerRows(x,events,periodMode){
-    // Excel-master 전체 누계는 byManager 캐시를 다시 합산하지 않고,
-    // Excel 사람별 snapshot(people)을 직접 1명씩 세어 담당자표를 만든다.
+    const eventBuckets=smManagerPersonBuckets(events||[]);
+
+    // Excel 전체 누계는 명부의 현재 담당/인원을 기준으로 잡되,
+    // 접촉방법은 '사람 1명 = 성공방법 1개'로 분류한다.
     if(x&&x.source==='excel-master'&&!periodMode&&Array.isArray(x.people)){
       const groups={};
       let unassigned=0;
       const aliases=smManagerAliasMap(x.people.map(p=>p&&p.manager));
+      const eventByPerson={};
+
+      // 명부의 contactMethod가 비어 있는데 실제 접촉 이벤트가 있는 경우를 보완하기 위한 index
+      Object.values(eventBuckets).forEach(g=>{
+        Object.values(g.people||{}).forEach(p=>{
+          if(!eventByPerson[p.key] || String(p.last||'')>String(eventByPerson[p.key].last||'')) eventByPerson[p.key]=p;
+        });
+      });
 
       x.people.forEach(p=>{
         if(!p||!String(p.name||'').trim())return;
         const manager=smManagerAlias(p.manager,aliases);
-        const contacted=!!p.contacted || ['상담','단순','TM'].includes(String(p.contactMethod||'').trim());
-        const method=String(p.contactMethod||'').trim();
-        const todayMethod=String(p.todayContactMethod||'').trim();
+        const pk=miPersonKey(p);
+        const evp=eventByPerson[pk]||null;
+        let method=String(p.contactMethod||'').trim();
+
+        // 원장 snapshot의 방법이 명확하지 않으면 실제 이벤트의 성공방법으로 보완
+        if(!smIsKnownMethod(method) && evp){
+          method=evp.successMethod||evp.failMethod||'';
+        }
+        const contacted=smIsSuccessMethod(method);
 
         if(manager==='(미지정)'){
           if(contacted)unassigned++;
@@ -20730,46 +20853,73 @@ ead><body>
         if(!groups[manager]){
           groups[manager]={
             name:manager,total:0,contacted:0,rate:0,today:0,
-            methods:{상담:0,단순:0,TM:0,미접촉:0,거부:0,부재:0,불명:0}
+            methods:{상담:0,단순:0,TM:0,거부:0,부재:0,불명:0}
           };
         }
         const g=groups[manager];
         g.total++;
         if(contacted)g.contacted++;
         if(method&&g.methods[method]!==undefined)g.methods[method]++;
-        if(['상담','단순','TM'].includes(todayMethod))g.today++;
+        else if(!contacted && evp && g.methods[evp.bucket]!==undefined)g.methods[evp.bucket]++;
+
+        const todayMethod=String(p.todayContactMethod||'').trim();
+        if(smIsSuccessMethod(todayMethod))g.today++;
       });
 
       const rows=Object.values(groups)
         .filter(r=>r.total>0)
-        .map(r=>({...r,rate:r.total?r.contacted/r.total*100:0}))
+        .map(r=>{
+          // 절대 규칙: 누계접촉 = 상담 + 단순 + TM
+          r.contacted=smSuccessMethods(r.methods);
+          r.rate=r.total?r.contacted/r.total*100:0;
+          return r;
+        })
         .sort((a,b)=>a.name.localeCompare(b.name,'ko'));
 
       return{rows,unassigned};
     }
 
-    // 월/주/일은 Excel-master면 events 자체가 Excel contactEvents이고,
-    // Excel 없는 현장만 Dashboard events가 들어온다.
-    const bm=smMergeManagers(x.byManager||{}),a=smAggregateEvents(events),rows=[];
+    // 월/주/일 또는 Dashboard fallback:
+    // 이벤트 건수가 아니라 '고유 인원'을 방법별 1회만 센다.
+    const bm=smMergeManagers(x.byManager||{}),rows=[];
     Object.entries(bm).forEach(([name,d])=>{
       if(name==='(미지정)'||Number(d.total||0)<=0)return;
-      if(!periodMode){
-        const contacted=Number(d.contacted||0);
-        rows.push({name,total:Number(d.total||0),contacted,rate:Number(d.total||0)?contacted/Number(d.total||0)*100:0,today:Number(d.todayContacted||0),methods:d.methods});
+
+      if(periodMode){
+        const p=eventBuckets[name]||{contacted:0,methods:{상담:0,단순:0,TM:0,거부:0,부재:0,불명:0}};
+        const methods={상담:0,단순:0,TM:0,거부:0,부재:0,불명:0,...p.methods};
+        const contacted=smSuccessMethods(methods);
+        rows.push({
+          name,total:Number(d.total||0),contacted,
+          rate:Number(d.total||0)?Math.min(100,contacted/Number(d.total||0)*100):0,
+          today:0,methods
+        });
       }else{
-        const p=a.mgr[name],contacted=p?p.people.size:0,methods=p?p.methods:{상담:0,단순:0,TM:0,미접촉:0,거부:0,부재:0,불명:0};
-        rows.push({name,total:Number(d.total||0),contacted,rate:Number(d.total||0)?Math.min(100,contacted/Number(d.total||0)*100):0,today:0,methods});
+        // Excel이 아닌 전체보기 역시 이벤트를 사람 단위로 재분류하여 합계 일치
+        const p=eventBuckets[name]||null;
+        const methods=p
+          ? {상담:0,단순:0,TM:0,거부:0,부재:0,불명:0,...p.methods}
+          : {상담:0,단순:0,TM:0,거부:0,부재:0,불명:0,...(d.methods||{})};
+        const contacted=smSuccessMethods(methods);
+        rows.push({
+          name,total:Number(d.total||0),contacted,
+          rate:Number(d.total||0)?Math.min(100,contacted/Number(d.total||0)*100):0,
+          today:Number(d.todayContacted||0),methods
+        });
       }
     });
+
     rows.sort((a,b)=>a.name.localeCompare(b.name,'ko'));
-    const un=bm['(미지정)'];
-    const unassigned=!periodMode?(un?Number(un.contacted||0):0):((a.mgr['(미지정)']&&a.mgr['(미지정)'].people.size)||0);
+
+    const unBucket=eventBuckets['(미지정)'];
+    const unassigned=unBucket?Number(unBucket.contacted||0):0;
     return{rows,unassigned};
   }
 
   function smSummaryMetrics(x,events,periodMode){
     if(!periodMode)return smOverallMetrics(x);
-    const a=smAggregateEvents(events),total=Number(x.totalOwners||0),contacted=a.uniquePeople;
+    const successEvents=(events||[]).filter(e=>smIsSuccessMethod(e&&e.method));
+    const a=smAggregateEvents(successEvents),total=Number(x.totalOwners||0),contacted=a.uniquePeople;
     return{total,contacted,uncontacted:Math.max(0,total-contacted),rate:total?contacted/total*100:0,today:siteMgmtPeriod==='day'?contacted:0,bm:smMergeManagers(x.byManager||{})};
   }
 
@@ -20870,10 +21020,53 @@ ead><body>
     return Object.values(map).sort((a,b)=>String(b.last||'').localeCompare(String(a.last||''))||String(a.name).localeCompare(String(b.name),'ko'));
   }
 
+  function smNonMemberDrillRows(site,range,manager){
+    const ex=smExcel(site);
+    const n=ex&&ex.nonMembers;
+    if(!n)return [];
+
+    const mgr=String(manager||'').trim();
+    const people=(n.people||[]).filter(p=>!mgr||(p.manager||'미지정')===mgr);
+    const events=(n.contactEvents||[]).filter(e=>
+      (!range||(String(e.date||'')>=range.start&&String(e.date||'')<=range.end)) &&
+      (!mgr||(e.manager||'미지정')===mgr)
+    );
+
+    const eventMap={};
+    events.forEach((e,idx)=>{
+      const k=String(e.personId||'')||miPersonKey(e);
+      if(!eventMap[k])eventMap[k]=[];
+      eventMap[k].push({...e,_idx:idx});
+    });
+
+    return people.map(p=>{
+      const k=String(p.personId||'')||miPersonKey(p);
+      const ev=(eventMap[k]||[]).slice().sort((a,b)=>
+        String(b.date||'').localeCompare(String(a.date||'')) || Number(b._idx||0)-Number(a._idx||0)
+      );
+      const latest=ev[0]||{};
+      const contacted=range ? ev.length>0 : !!p.contacted;
+      return{
+        personId:p.personId||'',
+        name:p.name||'-',
+        manager:p.manager||'미지정',
+        unit:p.unit||p.parcel||'-',
+        dong:p.dong||'',
+        role:p.role||'비조합원',
+        method:range ? (latest.method||p.contactMethod||'-') : (p.contactMethod||latest.method||'-'),
+        contacted,
+        count:ev.length,
+        last:latest.date||p.lastContactDate||'',
+        note:p.note||latest.text||'기록 없음'
+      };
+    });
+  }
+
   function smFilterDrill(site,type,d){
     const roster=smPersonRows(site),events=smAllEventsFor(site);
     const mgr=d.manager||'',role=d.role||'',dong=d.dong||'',method=d.method||'';
-    const rolePeriodIds=new Set(smEvents(site,smRange()).map(miPersonKey));const success=r=>type.startsWith('role_')&&siteMgmtPeriod!=='all'?rolePeriodIds.has(miPersonKey(r)):r.contacted;
+    const periodSuccessEvents=smEvents(site,smRange()).filter(e=>smIsSuccessMethod(e&&e.method));
+    const rolePeriodIds=new Set(periodSuccessEvents.map(miPersonKey));const success=r=>type.startsWith('role_')&&siteMgmtPeriod!=='all'?rolePeriodIds.has(miPersonKey(r)):r.contacted;
     const mgrMatch=r=>!mgr||smManagerKey(r.manager)===smManagerKey(mgr);
     const roleMatch=r=>!role||String(r.role||'')===(site.roleView?.items?.find(i=>i.name===role)?.source||role);
     const dongMatch=r=>!dong||String(r.dong||'')===dong;
@@ -20883,10 +21076,48 @@ ead><body>
     else if(type==='site_contacted'||type==='site_rate'){title='누계 접촉자';rows=roster.filter(success);}
     else if(type==='site_uncontacted'){title='미접촉자';rows=roster.filter(r=>!success(r));}
     else if(type==='manager_total'){title=`${mgr} · 담당 인원`;rows=roster.filter(mgrMatch);}
-    else if(type==='manager_contacted'||type==='manager_rate'){title=`${mgr} · 누계접촉`;rows=roster.filter(r=>mgrMatch(r)&&success(r));}
-    else if(type==='manager_uncontacted'){title=`${mgr} · 미접촉`;rows=roster.filter(r=>mgrMatch(r)&&!success(r));}
-    else if(type==='manager_today'){title=`${mgr} · 금일접촉`;rows=roster.filter(r=>mgrMatch(r)&&['상담','단순','TM'].includes(r.todayMethod));}
-    else if(type==='manager_method'){title=`${mgr} · ${method}`;rows=roster.filter(r=>mgrMatch(r)&&r.method===method);}
+    else if(type==='manager_contacted'||type==='manager_rate'){
+      title=`${mgr} · 누계접촉`;
+      if(siteMgmtPeriod!=='all'){
+        rows=smBucketRowsForManager(site,mgr,smRange()).filter(r=>r.contacted);
+      }else rows=roster.filter(r=>mgrMatch(r)&&r.contacted);
+    }
+    else if(type==='manager_uncontacted'){
+      title=`${mgr} · 미접촉`;
+      if(siteMgmtPeriod!=='all'){
+        const hit=new Set(smBucketRowsForManager(site,mgr,smRange()).filter(r=>r.contacted).map(miPersonKey));
+        rows=roster.filter(r=>mgrMatch(r)&&!hit.has(miPersonKey(r)));
+      }else rows=roster.filter(r=>mgrMatch(r)&&!r.contacted);
+    }
+    else if(type==='manager_today'){title=`${mgr} · 금일접촉`;rows=roster.filter(r=>mgrMatch(r)&&smIsSuccessMethod(r.todayMethod));}
+    else if(type==='nonmember_total'||type==='nonmember_contacted'||type==='nonmember_uncontacted'||type==='nonmember_rate'||type==='nonmember_events'){
+      const nmManager=String(d.manager||'').trim();
+      const nmRange=siteMgmtPeriod==='all'?null:smRange();
+      const allNm=smNonMemberDrillRows(site,nmRange,nmManager);
+      const mgrText=nmManager||'전체';
+
+      if(type==='nonmember_total'){
+        title=`비조합원 · ${mgrText} · 대상`;
+        rows=allNm;
+      }else if(type==='nonmember_contacted'||type==='nonmember_rate'){
+        title=`비조합원 · ${mgrText} · 접촉`;
+        rows=allNm.filter(r=>r.contacted);
+      }else if(type==='nonmember_uncontacted'){
+        title=`비조합원 · ${mgrText} · 미접촉`;
+        rows=allNm.filter(r=>!r.contacted);
+      }else{
+        title=`비조합원 · ${mgrText} · ${siteMgmtPeriod==='all'?'이력':'기간'} 접촉`;
+        rows=allNm.filter(r=>Number(r.count||0)>0);
+        rawCount=rows.reduce((s,r)=>s+Number(r.count||0),0);
+        sub=`${rawCount}건 · ${rows.length}명`;
+      }
+    }
+    else if(type==='manager_method'){
+      title=`${mgr} · ${method}`;
+      if(siteMgmtPeriod!=='all'){
+        rows=smBucketRowsForManager(site,mgr,smRange()).filter(r=>r.method===method);
+      }else rows=roster.filter(r=>mgrMatch(r)&&String(r.method||'').trim()===method);
+    }
     else if(type==='role_total'){title=`${role} · 인원`;rows=roster.filter(roleMatch);}
     else if(type==='role_contacted'||type==='role_rate'){title=`${role} · 접촉`;rows=roster.filter(r=>roleMatch(r)&&success(r));}
     else if(type==='role_uncontacted'){title=`${role} · 미접촉`;rows=roster.filter(r=>roleMatch(r)&&!success(r));}
@@ -20955,6 +21186,8 @@ ead><body>
     smRenderDrillRows();
     ov.classList.add('show');
   }
+  /* 비조합원 등 후행 동적 표에서도 동일 상세 모달을 열 수 있게 전역 브리지 */
+  window.__smOpenDrill = smOpenDrill;
 
   function smTrendSection(site,range){
     let rows,title;
@@ -21743,7 +21976,13 @@ function rfPrintCard(site){
      }
    });
  }
- const pairs=[['사업단계',site.progressStage||site.stage],['담당',site.manager],['조합원',site.unionMembers],['신축세대',site.households],['구역면적',site.area],['연면적',site.totalFloorArea],['규모',site.scale],['정비업체',site.managementCompany],['설계업체',site.designCompany],['신탁사',site.trustCompany]];
+ const printArea=(v)=>{
+   const s=String(v||'').trim();
+   if(!s)return '-';
+   if(/㎡|m²|m2|m\^2/i.test(s))return s.replace(/m²|m2|m\^2/gi,'㎡');
+   return s+'㎡';
+ };
+ const pairs=[['사업단계',site.progressStage||site.stage],['담당',site.manager],['조합원',site.unionMembers],['신축세대',site.households],['구역면적',printArea(site.area)],['연면적',printArea(site.totalFloorArea)],['규모',site.scale],['정비업체',site.managementCompany],['설계업체',site.designCompany],['신탁사',site.trustCompany]];
  const clean=(v)=>String(v||'').replace(/\r\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
  const clip=(v,n)=>{const s=clean(v);return s?(s.length>n?s.slice(0,n).trimEnd()+'…':s):'입력된 내용 없음'};
  const note=(title,value,limit,wide='')=>`<section class="note-card ${wide}"><div class="note-head"><span>${escapeHtml(title)}</span></div><div class="note-body">${escapeHtml(clip(value,limit))}</div></section>`;
@@ -21754,7 +21993,7 @@ function rfPrintCard(site){
  *{box-sizing:border-box;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
  :root{--ink:#1f312b;--sub:#788680;--accent:#3f7966;--accent2:#6d9a88;--pale:#edf4f0;--pale2:#f6f8f6;--line:#d9e2dd;--paper:#fffefb;--white:#fff}
  html,body{margin:0;padding:0}
- body{background:#e8ece9;color:var(--ink);font-family:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:10px;line-height:1.48;letter-spacing:-.15px}
+ body{background:#e8ece9;color:var(--ink);font-family:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:11px;line-height:1.5;letter-spacing:-.15px}
  nav{position:sticky;top:0;z-index:20;padding:9px 12px;background:rgba(232,236,233,.94);backdrop-filter:blur(8px);border-bottom:1px solid #d5ddd8;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
  nav button{height:36px;padding:0 16px;border:0;border-radius:9px;background:#315f51;color:#fff;font:800 11px/1 'Pretendard',sans-serif;cursor:pointer;box-shadow:0 5px 14px rgba(42,83,68,.14)}
  .print-map-controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;color:#53675f;font-size:10px;font-weight:700}
@@ -21765,18 +22004,18 @@ function rfPrintCard(site){
  .page{width:196mm;min-height:283mm;margin:14px auto;background:var(--paper);box-shadow:0 12px 34px rgba(38,58,49,.12);overflow:hidden}
  .sheet{padding:10mm 10.5mm 7mm}
  .hero{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10mm;align-items:end;padding:0 0 5mm;border-bottom:1.6px solid #507c6d}
- .eyebrow{display:flex;align-items:center;gap:6px;margin-bottom:3px;color:#608073;font-size:7.8px;font-weight:800;letter-spacing:1.25px;text-transform:uppercase}
+ .eyebrow{display:flex;align-items:center;gap:6px;margin-bottom:3px;color:#608073;font-size:8.6px;font-weight:800;letter-spacing:1.15px;text-transform:uppercase}
  .eyebrow:before{content:'';width:14px;height:2px;border-radius:2px;background:var(--accent)}
- .hero h1{margin:0;color:#1a3028;font-size:19px;line-height:1.12;font-weight:850;letter-spacing:-.55px}
- .hero-meta{margin-top:4px;color:var(--sub);font-size:8.8px;font-weight:500}
- .stage-chip{align-self:center;display:inline-flex;align-items:center;justify-content:center;min-height:27px;padding:0 10px;border:1px solid #bfd0c8;border-radius:999px;background:#f9fbfa;color:#315e4e;font-size:8.8px;font-weight:800;white-space:nowrap}
+ .hero h1{margin:0;color:#1a3028;font-size:21px;line-height:1.12;font-weight:850;letter-spacing:-.55px}
+ .hero-meta{margin-top:4px;color:var(--sub);font-size:9.6px;font-weight:500}
+ .stage-chip{align-self:center;display:inline-flex;align-items:center;justify-content:center;min-height:28px;padding:0 11px;border:1px solid #bfd0c8;border-radius:999px;background:#f9fbfa;color:#315e4e;font-size:9.6px;font-weight:800;white-space:nowrap}
  .facts{margin-top:4.5mm;display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--line);border-left:1px solid var(--line);background:#fff}
  .fact{display:grid;grid-template-columns:24mm minmax(0,1fr);min-height:7.4mm;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
- .fact-label{display:flex;align-items:center;padding:4px 7px;background:#f5f8f6;color:#5d7068;font-size:9.2px;font-weight:750}
- .fact-value{display:flex;align-items:center;padding:4px 8px;color:#20362d;font-size:10px;font-weight:700;overflow-wrap:anywhere}
+ .fact-label{display:flex;align-items:center;padding:4px 7px;background:#f5f8f6;color:#5d7068;font-size:10px;font-weight:750}
+ .fact-value{display:flex;align-items:center;padding:4px 8px;color:#20362d;font-size:11px;font-weight:700;overflow-wrap:anywhere}
  .main-grid{margin-top:4.8mm;display:grid;grid-template-columns:minmax(0,1.62fr) minmax(0,.88fr);gap:4mm;align-items:stretch}
  .panel{border:1px solid var(--line);background:#fff;overflow:hidden}
- .panel-head,.note-head{height:8.5mm;display:flex;align-items:center;gap:6px;padding:0 9px;border-bottom:1px solid var(--line);background:#f7f9f7;color:#365f51;font-size:9px;font-weight:850}
+ .panel-head,.note-head{height:8.5mm;display:flex;align-items:center;gap:6px;padding:0 9px;border-bottom:1px solid var(--line);background:#f7f9f7;color:#365f51;font-size:10px;font-weight:850}
  .panel-head:before,.note-head:before{content:'';width:3px;height:10px;border-radius:2px;background:var(--accent)}
  .map-card{position:relative;height:59mm;background:#edf2ee;overflow:hidden}
  .map{position:absolute;inset:0;overflow:hidden;background:#edf2ee}
@@ -21789,8 +22028,8 @@ function rfPrintCard(site){
  .lower-grid{margin-top:4mm;display:grid;grid-template-columns:1fr 1fr;gap:4mm}
  .note-card{border:1px solid var(--line);background:#fff;overflow:hidden;min-width:0}
  .note-card.wide{grid-column:1/-1}
- .note-body{padding:7px 9px 8px;color:#31443c;font-size:8.8px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere;word-break:keep-all}
- .stage-card .note-body{font-size:9px;line-height:1.53}
+ .note-body{padding:7px 9px 8px;color:#31443c;font-size:9.7px;line-height:1.52;white-space:pre-wrap;overflow-wrap:anywhere;word-break:keep-all}
+ .stage-card .note-body{font-size:9.9px;line-height:1.55}
  .lower-grid .note-card:not(.wide){min-height:38mm}
  .lower-grid .note-card.wide{min-height:31mm}
  @media print{
@@ -21799,122 +22038,7 @@ function rfPrintCard(site){
    .page{width:auto;min-height:0;margin:0;box-shadow:none}
    .sheet{padding:3mm 3.5mm 1mm}
  }
- </style></h
-
-<style id="mobileReportCalendarCompactV3">
-/* Mobile report calendar: keep the month grid, but show only the information that fits clearly. */
-@media screen and (max-width:820px){
-  /* Guest mode does not need the counting-rule explanation box. */
-  body.guest-readonly .mgr-breakdown-wrap .cal-count-guide{display:none!important;}
-
-  /* Remove the legacy forced wide calendar / horizontal scroll. */
-  .mgr-breakdown-wrap .mgr-subtab-body,
-  .mgr-breakdown-wrap .mgr-subtab-body:has(.mgr-cal-grid){
-    overflow-x:hidden!important;
-    padding-left:8px!important;
-    padding-right:8px!important;
-  }
-  .mgr-breakdown-wrap .mgr-cal-grid{
-    width:100%!important;
-    min-width:0!important;
-    grid-template-columns:repeat(7,minmax(0,1fr))!important;
-    gap:4px!important;
-  }
-  .mgr-breakdown-wrap .mgr-cal-dayhead{
-    height:26px!important;
-    font-size:10px!important;
-    font-weight:800!important;
-    color:var(--text-dim)!important;
-  }
-
-  /* Date cards are intentionally compact on phones. Details open on tap. */
-  .mgr-breakdown-wrap .mgr-cal-cell,
-  .mgr-breakdown-wrap .mgr-cal-cell.has-log,
-  .mgr-breakdown-wrap .mgr-cal-cell.mgr-cal-empty{
-    min-width:0!important;
-    min-height:84px!important;
-    height:84px!important;
-    padding:6px 4px!important;
-    border-radius:9px!important;
-    overflow:hidden!important;
-  }
-  .mgr-breakdown-wrap .mgr-cal-cell.mgr-cal-empty{
-    border:1px solid color-mix(in srgb,var(--line) 48%,transparent)!important;
-    background:color-mix(in srgb,var(--card) 72%,transparent)!important;
-    opacity:.45!important;
-  }
-  .mgr-breakdown-wrap .mgr-cal-cell.has-log{
-    background:linear-gradient(180deg,color-mix(in srgb,var(--accent-soft) 56%,var(--card)) 0%,var(--card) 100%)!important;
-    border-color:color-mix(in srgb,var(--accent) 34%,var(--line))!important;
-  }
-  .mgr-breakdown-wrap .mgr-cal-cell.has-log::before{
-    width:3px!important;
-    opacity:.72!important;
-  }
-  .mgr-breakdown-wrap .mgr-cal-daynum{
-    font-size:12px!important;
-    line-height:20px!important;
-    font-weight:900!important;
-  }
-  .mgr-breakdown-wrap .mgr-cal-cell.is-today .mgr-cal-daynum{
-    min-width:23px!important;
-    height:23px!important;
-    line-height:23px!important;
-    padding:0 5px!important;
-    border-radius:999px!important;
-  }
-  .mgr-breakdown-wrap .mgr-cal-summary-chip{margin-top:5px!important;}
-  .mgr-breakdown-wrap .mgr-cal-grid .mi-date-reports-btn{
-    display:flex!important;
-    flex-direction:column!important;
-    align-items:flex-start!important;
-    justify-content:flex-start!important;
-    gap:3px!important;
-    min-height:0!important;
-    width:100%!important;
-    overflow:hidden!important;
-  }
-  .mgr-breakdown-wrap .mgr-cal-summary-main{
-    display:block!important;
-    max-width:100%!important;
-    font-size:10px!important;
-    line-height:1.15!important;
-    font-weight:900!important;
-    white-space:nowrap!important;
-    overflow:hidden!important;
-    text-overflow:ellipsis!important;
-  }
-  .mgr-breakdown-wrap .mgr-cal-nonmember{
-    display:inline-flex!important;
-    align-items:center!important;
-    min-height:17px!important;
-    max-width:100%!important;
-    padding:0 5px!important;
-    border-radius:999px!important;
-    font-size:7.5px!important;
-    line-height:17px!important;
-    font-weight:850!important;
-    white-space:nowrap!important;
-  }
-
-  /* Long per-manager/method text belongs in the tap detail view, not inside a 7-column phone grid. */
-  .mgr-breakdown-wrap .mgr-cal-manager-mini,
-  .mgr-breakdown-wrap .cal-manager-list,
-  .mgr-breakdown-wrap .cal-manager-more{
-    display:none!important;
-  }
-
-  /* Slightly tighter navigation on phone. */
-  .mgr-breakdown-wrap .mgr-nav-row{
-    grid-template-columns:34px minmax(110px,1fr) 34px auto!important;
-    gap:6px!important;
-    padding:3px 8px 8px!important;
-  }
-  .mgr-breakdown-wrap .mgr-nav-label{font-size:13px!important;}
-  .mgr-breakdown-wrap .mgr-nav-today-btn{grid-column:4!important;}
-}
-</style>
-ead><body><nav><button onclick="window.print()">인쇄 / PDF 저장</button><div class="print-map-controls"><label>지도 높이 <input id="mapHeightRange" type="range" min="42" max="76" value="59"><output id="mapHeightVal">59mm</output></label><label>지도 폭 <input id="mapWidthRange" type="range" min="54" max="74" value="64"><output id="mapWidthVal">64%</output></label><button type="button" class="map-reset" onclick="resetPrintMapSize()">기본 크기</button></div></nav><main class="page"><div class="sheet"><header class="hero"><div><div class="eyebrow">SITE BRIEF · 현장카드</div><h1>${escapeHtml(site.name)}</h1><div class="hero-meta">${escapeHtml(site.district||'지역 미입력')} · ${new Date().toLocaleDateString('ko-KR')}</div></div><span class="stage-chip">${escapeHtml(stageLabel)}</span></header><div class="facts">${pairs.map(([k,v])=>`<div class="fact"><div class="fact-label">${escapeHtml(k)}</div><div class="fact-value">${escapeHtml(String(v||'-'))}</div></div>`).join('')}</div><div class="main-grid"><section class="panel"><div class="panel-head">현장 위치</div><div class="map-card"><div class="map" id="printMap"></div><div class="print-map-zoom" aria-label="지도 확대 축소"><button type="button" id="printMapZoomIn" title="지도 확대">+</button><button type="button" id="printMapZoomOut" title="지도 축소">−</button></div></div></section>${note('진행단계',site.stageDetail,300,'stage-card')}</div><div class="lower-grid">${note('주요 비고',site.salesNote||site.memo,330)}${note('타사활동',site.progressNote,300)}${note('최근 보고 · 발췌',recent,360,'wide')}</div></div></main><script>
+ </style></head><body><nav><button onclick="window.print()">인쇄 / PDF 저장</button><div class="print-map-controls"><label>지도 높이 <input id="mapHeightRange" type="range" min="42" max="76" value="59"><output id="mapHeightVal">59mm</output></label><label>지도 폭 <input id="mapWidthRange" type="range" min="54" max="74" value="64"><output id="mapWidthVal">64%</output></label><button type="button" class="map-reset" onclick="resetPrintMapSize()">기본 크기</button></div></nav><main class="page"><div class="sheet"><header class="hero"><div><div class="eyebrow">SITE BRIEF · 현장카드</div><h1>${escapeHtml(site.name)}</h1><div class="hero-meta">${escapeHtml(site.district||'지역 미입력')} · ${new Date().toLocaleDateString('ko-KR')}</div></div><span class="stage-chip">${escapeHtml(stageLabel)}</span></header><div class="facts">${pairs.map(([k,v])=>`<div class="fact"><div class="fact-label">${escapeHtml(k)}</div><div class="fact-value">${escapeHtml(String(v||'-'))}</div></div>`).join('')}</div><div class="main-grid"><section class="panel"><div class="panel-head">현장 위치</div><div class="map-card"><div class="map" id="printMap"></div><div class="print-map-zoom" aria-label="지도 확대 축소"><button type="button" id="printMapZoomIn" title="지도 확대">+</button><button type="button" id="printMapZoomOut" title="지도 축소">−</button></div></div></section>${note('진행단계',site.stageDetail,300,'stage-card')}</div><div class="lower-grid">${note('주요 비고',site.salesNote||site.memo,330)}${note('타사활동',site.progressNote,300)}${note('최근 보고 · 발췌',recent,360,'wide')}</div></div></main><script>
 (function(){
  var h=document.getElementById('mapHeightRange'),wv=document.getElementById('mapWidthRange'),ho=document.getElementById('mapHeightVal'),wo=document.getElementById('mapWidthVal');
  function apply(){
@@ -30116,18 +30240,23 @@ body.ux383.theme-dark .rf-nonmember-note-body-v69{
       const seen=new Set(events.map(e=>e.personId));
       const groups=[...new Set(people.map(p=>p.manager||'미지정'))];
 
-      const summaryCells = ps=>{
+      const summaryCells = (ps,mgrLabel)=>{
         const ids=new Set(ps.map(p=>p.personId));
         const es=events.filter(e=>ids.has(e.personId));
         const ct=range
           ? ps.filter(p=>seen.has(p.personId)).length
           : ps.filter(p=>p.contacted).length;
+        const miss=Math.max(0,ps.length-ct);
+        const mgrData=mgrLabel||'';
+        const a=(type,val,extra={})=>val
+          ? smDrillAttr(type,{manager:mgrData,...extra})
+          : '';
         return `
-          <td>${ps.length}</td>
-          <td>${ct}</td>
-          <td>${ps.length-ct}</td>
-          <td>${ps.length?(ct/ps.length*100).toFixed(1):'0.0'}%</td>
-          <td>${es.length}</td>`;
+          <td ${a('nonmember_total',ps.length)}>${ps.length}</td>
+          <td ${a('nonmember_contacted',ct)}>${ct}</td>
+          <td ${a('nonmember_uncontacted',miss)}>${miss}</td>
+          <td ${ps.length?smDrillAttr('nonmember_rate',{manager:mgrData}):''}>${ps.length?(ct/ps.length*100).toFixed(1):'0.0'}%</td>
+          <td ${a('nonmember_events',es.length)}>${es.length}</td>`;
       };
 
       const rosterRows = people.map((p,i)=>`
@@ -30176,12 +30305,16 @@ body.ux383.theme-dark .rf-nonmember-note-body-v69{
               <tbody>
                 ${groups.map(g=>`
                   <tr>
-                    <th>${escapeHtml(g)}</th>
-                    ${summaryCells(people.filter(p=>(p.manager||'미지정')===g))}
+                    <th class="sm-drill sm-drill-link rf-nm-manager-click-v117"
+                        data-drill="nonmember_total"
+                        data-manager="${escapeHtml(g)}">${escapeHtml(g)}</th>
+                    ${summaryCells(people.filter(p=>(p.manager||'미지정')===g),g)}
                   </tr>`).join('')}
                 <tr>
-                  <th>별도 합계</th>
-                  ${summaryCells(people)}
+                  <th class="sm-drill sm-drill-link rf-nm-manager-click-v117"
+                      data-drill="nonmember_total"
+                      data-manager="">별도 합계</th>
+                  ${summaryCells(people,'')}
                 </tr>
               </tbody>
             </table>
@@ -30215,7 +30348,18 @@ body.ux383.theme-dark .rf-nonmember-note-body-v69{
     };
   }catch(e){}
 
-  /* 동적 렌더링 표에서도 동작하도록 이벤트 위임 */
+  /* 비조합원 요약표 숫자 클릭: 다른 핸들러/stopPropagation 영향 없이 확실하게 상세 모달 오픈 */
+  document.addEventListener('click',function(e){
+    const cell=e.target.closest('.rf-nonmember-summary-table-v69 .sm-drill');
+    if(!cell) return;
+    if(typeof window.__smOpenDrill!=='function') return;
+    e.preventDefault();
+    e.stopPropagation();
+    if(typeof e.stopImmediatePropagation==='function') e.stopImmediatePropagation();
+    window.__smOpenDrill(cell);
+  },true);
+
+  /* 동적 렌더링 표의 상담내용 펼치기 */
   document.addEventListener('click',function(e){
     const btn=e.target.closest('.rf-nm-note-toggle-v69');
     if(!btn) return;
@@ -33107,6 +33251,352 @@ body.ux383 .sooni-sch-filter[data-type="otherType"].active{
 body.ux383.theme-dark #masterList .name-item.active{
   background:color-mix(in srgb,var(--accent-soft) 16%,var(--bg-side))!important;
   border-color:color-mix(in srgb,var(--accent) 24%,var(--line))!important;
+}
+</style>
+
+<!-- v110: 주요내용처럼 '색만' 보이게 - 사업현황/진행단계/뉴스 테두리 제거 -->
+<style id="soft-cards-no-border-v110">
+@media screen and (min-width:821px){
+
+  /* =========================================================
+     사업현황 / 진행단계
+     - 외곽 테두리 제거
+     - 제목줄 구분선 제거
+     - 은은한 녹색 배경 + 라운딩만 유지
+     ========================================================= */
+  body.ux383 .overview-core-grid > .detail-quad-box,
+  body.ux383.theme-dark .overview-core-grid > .detail-quad-box{
+    border:0!important;
+    box-shadow:none!important;
+    border-radius:12px!important;
+    background:linear-gradient(180deg,var(--gw-soft-2),var(--card))!important;
+    overflow:hidden!important;
+  }
+
+  body.ux383 .overview-core-grid > .detail-quad-box:nth-child(2),
+  body.ux383.theme-dark .overview-core-grid > .detail-quad-box:nth-child(2){
+    border-left:0!important;
+  }
+
+  body.ux383 .overview-core-grid > .detail-quad-box > .spec-heading,
+  body.ux383.theme-dark .overview-core-grid > .detail-quad-box > .spec-heading{
+    border:0!important;
+    border-bottom:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+  }
+
+  body.ux383 .overview-core-grid > .detail-quad-box .spec-lines-2col,
+  body.ux383 .overview-core-grid > .detail-quad-box .spec-stage-detail,
+  body.ux383.theme-dark .overview-core-grid > .detail-quad-box .spec-lines-2col,
+  body.ux383.theme-dark .overview-core-grid > .detail-quad-box .spec-stage-detail{
+    background:transparent!important;
+  }
+
+
+  /* =========================================================
+     최근 소식 / 포스코이앤씨 소식
+     - 외곽 테두리 제거
+     - 헤더 하단선 제거
+     - 주요내용과 같은 '색만 있는 라운딩' 스타일
+     ========================================================= */
+  body.ux383 .site-news-block-v59,
+  body.ux383.theme-dark .site-news-block-v59{
+    border:0!important;
+    box-shadow:none!important;
+    border-radius:12px!important;
+    background:linear-gradient(180deg,var(--gw-soft-2),var(--card))!important;
+    overflow:hidden!important;
+  }
+
+  body.ux383 .site-news-block-v59 .site-recent-news-head-v52,
+  body.ux383.theme-dark .site-news-block-v59 .site-recent-news-head-v52{
+    border:0!important;
+    border-bottom:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+  }
+
+  body.ux383 .site-news-block-v59 .site-recent-news-list-v52,
+  body.ux383 .site-news-block-v59 .site-posco-news-list-v59,
+  body.ux383.theme-dark .site-news-block-v59 .site-recent-news-list-v52,
+  body.ux383.theme-dark .site-news-block-v59 .site-posco-news-list-v59{
+    background:transparent!important;
+  }
+
+  /* 기사 사이 얇은 선은 유지하되 너무 진하지 않게 */
+  body.ux383 .site-news-block-v59 .site-recent-news-item-v52{
+    border-bottom-color:color-mix(in srgb,var(--line) 55%,transparent)!important;
+  }
+}
+</style>
+
+<!-- v112: 사업현황/진행단계/최근소식/포스코소식 초록 외곽선 완전 제거 -->
+<style id="remove-green-outlines-v112">
+@media screen and (min-width:821px){
+
+  /* 사업현황 / 진행단계 */
+  body.ux383 .overview-core-grid > .detail-quad-box,
+  body.ux383.theme-dark .overview-core-grid > .detail-quad-box{
+    border:none!important;
+    border-width:0!important;
+    outline:none!important;
+    box-shadow:none!important;
+  }
+
+  body.ux383 .overview-core-grid > .detail-quad-box::before,
+  body.ux383 .overview-core-grid > .detail-quad-box::after,
+  body.ux383.theme-dark .overview-core-grid > .detail-quad-box::before,
+  body.ux383.theme-dark .overview-core-grid > .detail-quad-box::after{
+    content:none!important;
+    display:none!important;
+    border:0!important;
+  }
+
+  body.ux383 .overview-core-grid > .detail-quad-box > .spec-heading,
+  body.ux383.theme-dark .overview-core-grid > .detail-quad-box > .spec-heading{
+    border:none!important;
+    border-width:0!important;
+    outline:none!important;
+    box-shadow:none!important;
+  }
+
+  body.ux383 .overview-core-grid > .detail-quad-box .spec-lines-2col,
+  body.ux383 .overview-core-grid > .detail-quad-box .spec-stage-detail,
+  body.ux383.theme-dark .overview-core-grid > .detail-quad-box .spec-lines-2col,
+  body.ux383.theme-dark .overview-core-grid > .detail-quad-box .spec-stage-detail{
+    border:none!important;
+    outline:none!important;
+    box-shadow:none!important;
+  }
+
+  /* 최근 소식 / 포스코이앤씨 소식 */
+  body.ux383 .site-recent-news-v52 .site-news-block-v59,
+  body.ux383.theme-dark .site-recent-news-v52 .site-news-block-v59{
+    border:none!important;
+    border-width:0!important;
+    outline:none!important;
+    box-shadow:none!important;
+  }
+
+  body.ux383 .site-recent-news-v52 .site-news-block-v59::before,
+  body.ux383 .site-recent-news-v52 .site-news-block-v59::after,
+  body.ux383.theme-dark .site-recent-news-v52 .site-news-block-v59::before,
+  body.ux383.theme-dark .site-recent-news-v52 .site-news-block-v59::after{
+    content:none!important;
+    display:none!important;
+  }
+
+  body.ux383 .site-recent-news-v52 .site-recent-news-head-v52,
+  body.ux383.theme-dark .site-recent-news-v52 .site-recent-news-head-v52{
+    border:none!important;
+    border-bottom:none!important;
+    outline:none!important;
+    box-shadow:none!important;
+  }
+
+  body.ux383 .site-recent-news-v52 .site-recent-news-list-v52,
+  body.ux383 .site-recent-news-v52 .site-posco-news-list-v59,
+  body.ux383.theme-dark .site-recent-news-v52 .site-recent-news-list-v52,
+  body.ux383.theme-dark .site-recent-news-v52 .site-posco-news-list-v59{
+    border:none!important;
+    outline:none!important;
+    box-shadow:none!important;
+  }
+
+  /* 네 개 영역은 주요내용처럼 색과 라운딩만 유지 */
+  body.ux383 .overview-core-grid > .detail-quad-box,
+  body.ux383 .site-recent-news-v52 .site-news-block-v59{
+    border-radius:12px!important;
+    background:linear-gradient(180deg,var(--gw-soft-2),var(--card))!important;
+  }
+}
+</style>
+
+<!-- v113: 주요내용처럼 '제목줄만 은은한 녹색' / 본문은 흰색 -->
+<style id="header-tint-only-v113">
+@media screen and (min-width:821px){
+
+  /* =========================================================
+     사업현황 / 진행단계
+     - 외곽선 없음
+     - 카드 전체 색칠 없음
+     - 제목줄만 주요내용과 같은 은은한 녹색
+     ========================================================= */
+  body.ux383 .overview-core-grid > .detail-quad-box,
+  body.ux383.theme-dark .overview-core-grid > .detail-quad-box{
+    border:0!important;
+    outline:0!important;
+    box-shadow:none!important;
+    border-radius:12px!important;
+    background:var(--card)!important;
+    overflow:hidden!important;
+  }
+
+  body.ux383 .overview-core-grid > .detail-quad-box > .spec-heading,
+  body.ux383.theme-dark .overview-core-grid > .detail-quad-box > .spec-heading{
+    margin:0!important;
+    border:0!important;
+    border-bottom:0!important;
+    outline:0!important;
+    box-shadow:none!important;
+    border-radius:12px 12px 0 0!important;
+    background:linear-gradient(180deg,var(--gw-soft-2),var(--card))!important;
+  }
+
+  body.ux383 .overview-core-grid > .detail-quad-box .spec-lines-2col,
+  body.ux383 .overview-core-grid > .detail-quad-box .spec-stage-detail,
+  body.ux383.theme-dark .overview-core-grid > .detail-quad-box .spec-lines-2col,
+  body.ux383.theme-dark .overview-core-grid > .detail-quad-box .spec-stage-detail{
+    border:0!important;
+    outline:0!important;
+    box-shadow:none!important;
+    background:var(--card)!important;
+  }
+
+  /* =========================================================
+     최근 소식 / 포스코이앤씨 소식
+     - 제목줄만 녹색
+     - 기사 목록 영역은 흰색
+     - 외곽 초록선 없음
+     ========================================================= */
+  body.ux383 .site-recent-news-v52 .site-news-block-v59,
+  body.ux383.theme-dark .site-recent-news-v52 .site-news-block-v59{
+    border:0!important;
+    outline:0!important;
+    box-shadow:none!important;
+    border-radius:12px!important;
+    background:var(--card)!important;
+    overflow:hidden!important;
+  }
+
+  body.ux383 .site-recent-news-v52 .site-news-block-v59 .site-recent-news-head-v52,
+  body.ux383.theme-dark .site-recent-news-v52 .site-news-block-v59 .site-recent-news-head-v52{
+    margin:0!important;
+    border:0!important;
+    border-bottom:0!important;
+    outline:0!important;
+    box-shadow:none!important;
+    border-radius:12px 12px 0 0!important;
+    background:linear-gradient(180deg,var(--gw-soft-2),var(--card))!important;
+  }
+
+  body.ux383 .site-recent-news-v52 .site-news-block-v59 .site-recent-news-list-v52,
+  body.ux383 .site-recent-news-v52 .site-news-block-v59 .site-posco-news-list-v59,
+  body.ux383.theme-dark .site-recent-news-v52 .site-news-block-v59 .site-recent-news-list-v52,
+  body.ux383.theme-dark .site-recent-news-v52 .site-news-block-v59 .site-posco-news-list-v59{
+    border:0!important;
+    outline:0!important;
+    box-shadow:none!important;
+    background:var(--card)!important;
+  }
+
+  /* 기사 사이 구분선만 아주 연하게 유지 */
+  body.ux383 .site-recent-news-v52 .site-recent-news-item-v52{
+    border-bottom-color:color-mix(in srgb,var(--line) 42%,transparent)!important;
+  }
+}
+</style>
+
+<style id="nonmember-drilldown-v115">
+body.ux383 .rf-nonmember-summary-table-v69 td.sm-drill{
+  cursor:pointer!important;
+  font-weight:700!important;
+  color:var(--accent)!important;
+}
+body.ux383 .rf-nonmember-summary-table-v69 td.sm-drill:hover{
+  background:color-mix(in srgb,var(--accent-soft) 42%,var(--card))!important;
+}
+</style>
+
+<style id="nonmember-click-fix-v117">
+body.ux383 .rf-nonmember-summary-table-v69 .sm-drill{
+  cursor:pointer!important;
+  user-select:none!important;
+}
+body.ux383 .rf-nonmember-summary-table-v69 td.sm-drill{
+  color:var(--accent)!important;
+  font-weight:800!important;
+}
+body.ux383 .rf-nonmember-summary-table-v69 th.rf-nm-manager-click-v117{
+  cursor:pointer!important;
+  text-decoration:underline dotted color-mix(in srgb,var(--accent) 45%,transparent)!important;
+  text-underline-offset:3px!important;
+}
+body.ux383 .rf-nonmember-summary-table-v69 .sm-drill:hover{
+  background:color-mix(in srgb,var(--accent-soft) 48%,var(--card))!important;
+}
+</style>
+
+<style id="brief-speaker-label-v118">
+body.ux383 .bf-speaker-v118{
+  display:inline-flex;
+  align-items:center;
+  margin-left:5px;
+  padding:1px 6px;
+  border-radius:999px;
+  background:color-mix(in srgb,var(--accent-soft) 72%,var(--card));
+  color:var(--accent);
+  font-size:10px;
+  line-height:1.45;
+  font-weight:750;
+  vertical-align:1px;
+  white-space:nowrap;
+}
+body.ux383.theme-dark .bf-speaker-v118{
+  background:color-mix(in srgb,var(--accent-soft) 24%,var(--card));
+}
+</style>
+
+<!-- v119: 상단 '투어' 직접 진입 = 투어 전용 화면 -->
+<style id="tour-standalone-v119">
+/* 전체요약 / 현장상세 스위치 제거 */
+#contactReportOverlay.tour-standalone-v119 .ux-report-switch{
+  display:none!important;
+}
+
+/* 통합현황 / 방문현황 / 접촉자 / 검색 / 투어예약 탭 제거 */
+#contactReportOverlay.tour-standalone-v119 .report-view-tabs{
+  display:none!important;
+}
+
+/* 주간/월간, 기간 이동은 투어 전용 달력에 필요 없음 */
+#contactReportOverlay.tour-standalone-v119 #reportPeriodToggleWrap,
+#contactReportOverlay.tour-standalone-v119 #reportDateNavWrap{
+  display:none!important;
+}
+
+/* 빌드 번호는 투어 화면에서는 굳이 노출하지 않음 */
+#contactReportOverlay.tour-standalone-v119 .v20-report-head > span{
+  display:none!important;
+}
+
+/* 제목 + 오른쪽 도구/닫기만 남도록 간결하게 */
+#contactReportOverlay.tour-standalone-v119 .v20-report-head{
+  margin-bottom:14px!important;
+  padding-bottom:10px!important;
+  border-bottom:1px solid color-mix(in srgb,var(--line) 55%,transparent)!important;
+}
+
+#contactReportOverlay.tour-standalone-v119 #contactReportTitle{
+  font-size:18px!important;
+  font-weight:850!important;
+  letter-spacing:-.35px!important;
+}
+
+/* 투어 전용 본문은 조금 더 넉넉하게 */
+#contactReportOverlay.tour-standalone-v119 #contactReportBody{
+  max-height:78vh!important;
+}
+
+/* 모바일도 같은 원칙: 투어 내용만 */
+@media screen and (max-width:820px){
+  #contactReportOverlay.tour-standalone-v119 .v20-report-head{
+    padding:0 0 8px!important;
+  }
+  #contactReportOverlay.tour-standalone-v119 #contactReportTitle{
+    font-size:16px!important;
+  }
 }
 </style>
 
