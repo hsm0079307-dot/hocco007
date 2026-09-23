@@ -32247,30 +32247,13 @@ body.ux383.entry-unlocked-v82 #modeOverlay.show #guestPwRow .btn{
   function dashboardSiteNamesV96(){
     const names = [];
 
-    /* 저장된 대시보드 원장에서 전체 현장목록을 우선 읽는다.
-       현재 화면에 지역/단계 필터가 걸려 있어도 전체 현장이 동기화되도록 함. */
-    try{
-      const raw = localStorage.getItem('realestate-sites-v1');
-      if(raw){
-        const data = JSON.parse(raw);
-        if(Array.isArray(data)){
-          data.forEach(s=>{ if(s?.name) names.push(String(s.name).trim()); });
-        }else if(data && typeof data==='object'){
-          Object.values(data).forEach(arr=>{
-            if(Array.isArray(arr)) arr.forEach(s=>{ if(s?.name) names.push(String(s.name).trim()); });
-          });
-        }
-      }
-    }catch(e){}
+    /* 현재 화면 현장목록에서 우선 수집 */
+    document.querySelectorAll('#masterList .name-item-text, #masterList .name-item strong, #masterList [data-site-name]').forEach(el=>{
+      const v = el.getAttribute?.('data-site-name') || el.textContent || '';
+      if(v) names.push(v.trim());
+    });
 
-    /* 로컬 원장을 못 읽는 환경에서는 현재 화면 현장목록에서 보조 수집 */
-    if(!names.length){
-      document.querySelectorAll('#masterList .name-item-text, #masterList .name-item strong, #masterList [data-site-name]').forEach(el=>{
-        const v = el.getAttribute?.('data-site-name') || el.textContent || '';
-        if(v) names.push(v.trim());
-      });
-    }
-
+    /* 목록 DOM 구조가 바뀌어도 좌측 현장행에서 보조 수집 */
     if(!names.length){
       document.querySelectorAll('#masterList .name-item').forEach(el=>{
         const txt = el.querySelector('.name-item-text')?.textContent || el.firstElementChild?.textContent || '';
@@ -32467,4 +32450,28 @@ body.ux383.entry-unlocked-v82 #modeOverlay.show #guestPwRow .btn{
   };
 })();
 </script>
+
+<!-- v97: 데스크탑 접속 방식 선택창 내부 가운데 정렬 -->
+<style id="desktop-login-center-v97">
+@media screen and (min-width:821px){
+  body.ux383.entry-unlocked-v82 #modeOverlay.show .mode-login-simple-v31{
+    text-align:center!important;
+  }
+
+  body.ux383.entry-unlocked-v82 #modeOverlay.show #modeChoiceRow::before{
+    text-align:center!important;
+    width:100%!important;
+  }
+
+  body.ux383.entry-unlocked-v82 #modeOverlay.show #modeChoiceRow{
+    justify-items:center!important;
+    align-items:center!important;
+  }
+
+  body.ux383.entry-unlocked-v82 #modeOverlay.show #modeChoiceRow .btn{
+    justify-content:center!important;
+    text-align:center!important;
+  }
+}
+</style>
 
