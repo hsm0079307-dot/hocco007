@@ -10513,7 +10513,7 @@ async function mfRetrySync(){
     return 'otherType';
   }
   function sooniTypeLabel(type){
-    return type==='assembly'?'총회/회의':type==='bid'?'입찰/현설':type==='meeting'?'설명회/미팅':'기타';
+    return type==='assembly'?'총회/회의':type==='bid'?'입찰/현설':type==='meeting'?'설명회/미팅':'그외';
   }
   function sooniFlatEventsForMonth(year, month){
     const rows=[];
@@ -10707,6 +10707,7 @@ async function mfRetrySync(){
     const nAssembly=allRows.filter(x=>x.type==='assembly').length;
     const nBid=allRows.filter(x=>x.type==='bid').length;
     const nMeeting=allRows.filter(x=>x.type==='meeting').length;
+    const nOther=allRows.filter(x=>x.type==='otherType').length;
     const nToday=allRows.filter(x=>x.date===todayStr).length;
     const managers=new Set(allRows.map(x=>x.site.manager).filter(Boolean)).size;
 
@@ -10732,6 +10733,7 @@ async function mfRetrySync(){
         <button class="sooni-sch-filter ${sooniCalFilter==='assembly'?'active':''}" data-type="assembly">총회/회의</button>
         <button class="sooni-sch-filter ${sooniCalFilter==='bid'?'active':''}" data-type="bid">입찰/현설</button>
         <button class="sooni-sch-filter ${sooniCalFilter==='meeting'?'active':''}" data-type="meeting">설명회/미팅</button>
+        <button class="sooni-sch-filter ${sooniCalFilter==='otherType'?'active':''}" data-type="otherType">그외</button>
         <span class="sooni-sch-spacer"></span>
         <button id="sooniAddToday" class="sooni-sch-add">＋ 일정 추가</button>
       </div>
@@ -10741,6 +10743,7 @@ async function mfRetrySync(){
         <div class="sooni-sch-stat"><div class="sooni-sch-stat-lbl">총회 / 회의</div><div class="sooni-sch-stat-num">${nAssembly}건</div><div class="sooni-sch-stat-sub">주요 의사결정 일정</div></div>
         <div class="sooni-sch-stat"><div class="sooni-sch-stat-lbl">입찰 / 현설</div><div class="sooni-sch-stat-num">${nBid}건</div><div class="sooni-sch-stat-sub">입찰 및 현장설명</div></div>
         <div class="sooni-sch-stat"><div class="sooni-sch-stat-lbl">설명회 / 미팅</div><div class="sooni-sch-stat-num">${nMeeting}건</div><div class="sooni-sch-stat-sub">대면 및 설명 일정</div></div>
+        <div class="sooni-sch-stat"><div class="sooni-sch-stat-lbl">그외</div><div class="sooni-sch-stat-num">${nOther}건</div><div class="sooni-sch-stat-sub">3개 분류 외 일정</div></div>
         <div class="sooni-sch-stat"><div class="sooni-sch-stat-lbl">오늘 / 담당자</div><div class="sooni-sch-stat-num">${nToday}건</div><div class="sooni-sch-stat-sub">이번 달 담당자 ${managers}명</div></div>
       </div>
 
@@ -10755,6 +10758,7 @@ async function mfRetrySync(){
               <span><i style="background:#159386"></i>총회/회의</span>
               <span><i style="background:#f39a3e"></i>입찰/현설</span>
               <span><i style="background:#e95b7d"></i>설명회/미팅</span>
+              <span><i style="background:#4a90d9"></i>그외</span>
             </div>
           </div>
           <div class="sooni-sch-grid">
@@ -12031,7 +12035,7 @@ async function mfRetrySync(){
             </div>
             <div class="sidebar-local-search-v19">
               <span class="sidebar-search-icon-v19">⌕</span>
-              <input id="sidebarSearchV19" type="search" autocomplete="off" placeholder="현장명 · 담당자 · 접촉자 통합검색" value="${escapeHtml(sidebarLocalState.search||'')}">
+              <input id="sidebarSearchV19" type="search" autocomplete="off" placeholder="현장명 · 담당자 · 접촉자 검색" value="${escapeHtml(sidebarLocalState.search||'')}">
             </div>
           </div>
 
@@ -21033,7 +21037,7 @@ ead><body>
         </colgroup>
         <thead><tr><th>No</th><th>담당</th><th>인원</th><th>누계접촉</th><th>접촉률</th><th>금일접촉</th><th>상담</th><th>단순</th><th>TM</th><th>미접촉</th><th>거부</th><th>부재</th><th>불명</th></tr></thead>
         <tbody>${managerRows||'<tr><td colspan="13" class="pdf-empty">담당별 집계 없음</td></tr>'}${mr.rows.length?`<tr class="pdf-total"><td colspan="2">합계</td><td>${managerTotal.total}</td><td>${managerTotal.contacted}</td><td>${managerTotal.total?(managerTotal.contacted/managerTotal.total*100).toFixed(1):'0.0'}%</td><td>${managerTotal.today||'-'}</td><td>${managerTotal.상담||'-'}</td><td>${managerTotal.단순||'-'}</td><td>${managerTotal.TM||'-'}</td><td>${Math.max(0,managerTotal.total-managerTotal.contacted)||'-'}</td><td>${managerTotal.거부||'-'}</td><td>${managerTotal.부재||'-'}</td><td>${managerTotal.불명||'-'}</td></tr>`:''}</tbody>
-      </table>${guestMode?'':`<div class="pdf-note-line">＊ 같은 현장에 '이름' + '이름 직급'이 함께 있으면 기존 이름으로 합산 (예: 오지현 + 오지현 차장 → 오지현)</div>${mr.unassigned?`<div class="pdf-note-line">＊ 담당 미지정 접촉 ${mr.unassigned}명 · 담당별 합계는 담당 입력된 인원만 표시</div>`:''}`}</div>`;
+      </table>${guestMode?'':`${mr.unassigned?`<div class="pdf-note-line">＊ 담당 미지정 접촉 ${mr.unassigned}명 · 담당별 합계는 담당 입력된 인원만 표시</div>`:''}`}</div>`;
 
     const roleRows=roles.map((r,i)=>`<tr><td>${i+1}</td><td class="sm-drill sm-drill-link" data-drill="role_contacted" data-role="${escapeHtml(r.name)}">${escapeHtml(r.name)}</td><td ${smDrillAttr('role_total',{role:r.name})}>${r.total}</td><td ${r.contacted?smDrillAttr('role_contacted',{role:r.name}):''}>${r.contacted||'-'}</td><td ${r.uncontacted?smDrillAttr('role_uncontacted',{role:r.name}):''}>${r.uncontacted||'-'}</td><td ${r.total?smDrillAttr('role_rate',{role:r.name}):''}>${r.rate.toFixed(1)}%</td></tr>`).join('');
     const mobileRoleCards=roles.map(r=>`<article class="mobile-role-card">
@@ -32831,6 +32835,139 @@ body.ux383.theme-dark .overview-core-grid > .detail-quad-box{
   body.ux383 .sidebar-column-v21 .sidebar-local-filters-v19{
     padding:0 8px 5px!important;
   }
+}
+</style>
+
+<!-- v104: 좌측 필터 글자 잘림 보정 -->
+<style id="sidebar-filter-text-fix-v104">
+@media screen and (min-width:821px){
+
+  /* '지역'은 짧으므로 조금 줄이고, 사업단계/진행상태에 폭을 더 배분 */
+  body.ux383 .sidebar-column-v21 .sidebar-local-selects-v19{
+    grid-template-columns:.76fr 1.12fr 1.12fr!important;
+    gap:3px!important;
+  }
+
+  /* 네이티브 화살표 공간은 남기되 글자 영역을 최대한 확보 */
+  body.ux383 .sidebar-column-v21 .sidebar-local-selects-v19 select{
+    min-width:0!important;
+    padding-left:5px!important;
+    padding-right:15px!important;
+    font-size:10.5px!important;
+    letter-spacing:-.15px!important;
+    text-overflow:clip!important;
+  }
+
+  /* 검색창은 크기는 유지하고 글자만 살짝 줄여 끝 잘림 방지 */
+  body.ux383 .sidebar-column-v21 #sidebarSearchV19{
+    font-size:10.4px!important;
+    letter-spacing:-.15px!important;
+  }
+
+  body.ux383 .sidebar-column-v21 #sidebarSearchV19::placeholder{
+    font-size:10.4px!important;
+    letter-spacing:-.15px!important;
+  }
+}
+</style>
+
+<!-- v106: 통합 접촉현황 주간표 - 날짜칸 잘림 보정 + 담당자 전체 표시 -->
+<style id="week-matrix-width-fix-v106">
+
+/* 날짜칸 안의 막대가 td 폭보다 커져 끝이 잘리던 문제 보정 */
+body.ux383 #contactReportBody .rm-table th.rm-daylabel-cell,
+body.ux383 #contactReportBody .rm-table td.rm-daylabel-cell{
+  width:50px!important;
+  padding-left:3px!important;
+  padding-right:3px!important;
+  box-sizing:border-box!important;
+}
+
+body.ux383 #contactReportBody .report-matrix2-cell{
+  width:100%!important;
+  max-width:44px!important;
+  min-width:0!important;
+  height:20px!important;
+  margin:0 auto!important;
+  box-sizing:border-box!important;
+  transform-origin:center!important;
+}
+
+/* 담당 칸을 넓히고 이름을 ... 으로 자르지 않음 */
+body.ux383 #contactReportBody .rm-col-mgr{
+  width:118px!important;
+  min-width:118px!important;
+  max-width:118px!important;
+  white-space:normal!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+  word-break:keep-all!important;
+  overflow-wrap:anywhere!important;
+  line-height:1.25!important;
+  padding-left:6px!important;
+  padding-right:6px!important;
+}
+
+/* 현장명도 너무 눌리지 않게 약간 여유 */
+body.ux383 #contactReportBody .rm-col-name{
+  width:96px!important;
+  min-width:96px!important;
+  max-width:96px!important;
+}
+
+/* 표 자체는 필요한 실제 열 폭을 그대로 사용 */
+body.ux383 #contactReportBody .rm-table{
+  width:auto!important;
+  min-width:max-content!important;
+  table-layout:fixed!important;
+}
+
+/* 래퍼 안쪽 여백 때문에 마지막 칸이 잘려 보이지 않도록 */
+body.ux383 #contactReportBody .report-matrix-wrap{
+  padding:9px 12px!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+}
+
+/* 좁은 화면에서도 담당 이름은 가능한 한 보이게 */
+@media screen and (max-width:820px){
+  body.ux383 #contactReportBody .rm-col-mgr{
+    width:92px!important;
+    min-width:92px!important;
+    max-width:92px!important;
+    font-size:9.5px!important;
+  }
+  body.ux383 #contactReportBody .rm-col-name{
+    width:72px!important;
+    min-width:72px!important;
+    max-width:72px!important;
+  }
+  body.ux383 #contactReportBody .rm-table th.rm-daylabel-cell,
+  body.ux383 #contactReportBody .rm-table td.rm-daylabel-cell{
+    width:38px!important;
+    padding-left:2px!important;
+    padding-right:2px!important;
+  }
+  body.ux383 #contactReportBody .report-matrix2-cell{
+    max-width:34px!important;
+    height:18px!important;
+  }
+}
+</style>
+
+<!-- v107: 일정 캘린더 '그외' 분류 추가 -->
+<style id="calendar-other-filter-v107">
+@media screen and (min-width:821px){
+  body.ux383 .sooni-sch-stats{
+    grid-template-columns:1.18fr repeat(5,1fr)!important;
+  }
+}
+
+/* 그외 필터를 기존 otherType 파란 계열과 맞춤 */
+body.ux383 .sooni-sch-filter[data-type="otherType"].active{
+  background:#e9f4fb!important;
+  border-color:#b9d9eb!important;
+  color:#3c8ebf!important;
 }
 </style>
 
