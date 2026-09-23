@@ -32224,3 +32224,247 @@ body.ux383.entry-unlocked-v82 #modeOverlay.show #guestPwRow .btn{
 }
 </style>
 
+<!-- v96: 뉴스모니터 현장목록 동기화 + 대시보드 최근소식을 동일 뉴스 프록시와 연결 -->
+<script id="news-monitor-sync-v96">
+(function(){
+  'use strict';
+
+  const NEWS_MONITOR_URL_V96 = 'https://stately-sfogliatella-7ab674.netlify.app/';
+  const NEWS_PROXY_V96 = NEWS_MONITOR_URL_V96 + '.netlify/functions/proxy';
+
+  function uniqueV96(arr){
+    return [...new Set((arr||[]).map(x=>String(x||'').trim()).filter(Boolean))];
+  }
+
+  function cleanSiteNameV96(name){
+    return String(name||'')
+      .replace(/\([^)]*\)/g,' ')
+      .replace(/\[[^\]]*\]/g,' ')
+      .replace(/\s+/g,' ')
+      .trim();
+  }
+
+  function dashboardSiteNamesV96(){
+    const names = [];
+
+    /* 저장된 대시보드 원장에서 전체 현장목록을 우선 읽는다.
+       현재 화면에 지역/단계 필터가 걸려 있어도 전체 현장이 동기화되도록 함. */
+    try{
+      const raw = localStorage.getItem('realestate-sites-v1');
+      if(raw){
+        const data = JSON.parse(raw);
+        if(Array.isArray(data)){
+          data.forEach(s=>{ if(s?.name) names.push(String(s.name).trim()); });
+        }else if(data && typeof data==='object'){
+          Object.values(data).forEach(arr=>{
+            if(Array.isArray(arr)) arr.forEach(s=>{ if(s?.name) names.push(String(s.name).trim()); });
+          });
+        }
+      }
+    }catch(e){}
+
+    /* 로컬 원장을 못 읽는 환경에서는 현재 화면 현장목록에서 보조 수집 */
+    if(!names.length){
+      document.querySelectorAll('#masterList .name-item-text, #masterList .name-item strong, #masterList [data-site-name]').forEach(el=>{
+        const v = el.getAttribute?.('data-site-name') || el.textContent || '';
+        if(v) names.push(v.trim());
+      });
+    }
+
+    if(!names.length){
+      document.querySelectorAll('#masterList .name-item').forEach(el=>{
+        const txt = el.querySelector('.name-item-text')?.textContent || el.firstElementChild?.textContent || '';
+        if(txt) names.push(txt.trim());
+      });
+    }
+
+    return uniqueV96(names);
+  }
+
+  function monitorUrlV96(site){
+    const u = new URL(NEWS_MONITOR_URL_V96);
+    const names = dashboardSiteNamesV96();
+
+    if(names.length){
+      u.searchParams.set('sites', JSON.stringify(names));
+    }
+    const focus = cleanSiteNameV96(site?.name || '');
+    if(focus) u.searchParams.set('focus', focus);
+    return u.toString();
+  }
+
+  function applyMonitorLinkV96(site){
+    const url = monitorUrlV96(site);
+    document.querySelectorAll('.site-recent-news-more-v52, .site-posco-news-more-v59').forEach(a=>{
+      a.href = url;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      if(a.classList.contains('site-recent-news-more-v52')){
+        a.title = `${site?.name||'선택 현장'} · 대시보드 현장목록을 뉴스모니터와 동기화`;
+      }
+    });
+  }
+
+  function sourceFromLinkV96(link){
+    try{return new URL(link).hostname.replace(/^www\./,'');}
+    catch(e){return '뉴스';}
+  }
+
+  function normalizeMatchV96(s){
+    return String(s||'').toLowerCase().replace(/[\s·ㆍ\-_()[\]{}'"]/g,'');
+  }
+
+  function siteAliasesV96(siteName){
+    const base = cleanSiteNameV96(siteName);
+    const out = [base];
+    const m = base.match(/^목동\s*(\d+)\s*단지$/);
+    if(m){
+      out.push(`목동 ${m[1]}단지`, `목동신시가지 ${m[1]}단지`, `목동신시가지${m[1]}단지`);
+    }
+    return uniqueV96(out);
+  }
+
+  function relevantForSiteV96(item, siteName){
+    const title = normalizeMatchV96(item?.title || '');
+    return siteAliasesV96(siteName).some(a=> title.includes(normalizeMatchV96(a)));
+  }
+
+  async function proxySearchV96(query, engine){
+    const url = `${NEWS_PROXY_V96}?query=${encodeURIComponent(query)}&type=news&engine=${encodeURIComponent(engine||'naver')}&display=20`;
+    const res = await fetch(url,{cache:'no-store'});
+    if(!res.ok) throw new Error(`news proxy ${res.status}`);
+    const data = await res.json();
+    return (Array.isArray(data?.items)?data.items:[]).map(it=>{
+      const link = it.originallink || it.link || '#';
+      return {
+        title: String(it.title||'').replace(/<[^>]*>/g,'').replace(/&quot;/g,'"').replace(/&amp;/g,'&'),
+        link,
+        guid: link,
+        pubDate: it.pubDate || it.date || new Date().toISOString(),
+        author: it.source || sourceFromLinkV96(link)
+      };
+    });
+  }
+
+  async function fetchSiteNewsFromMonitorV96(site){
+    const base = cleanSiteNameV96(site?.name);
+    if(!base) return {items:[],query:''};
+
+    const aliases = siteAliasesV96(base);
+    const queries = uniqueV96([
+      base,
+      `${base} 재건축`,
+      `${base} 재개발`,
+      ...aliases
+    ]).slice(0,4);
+
+    const all = [];
+    for(const q of queries){
+      for(const engine of ['naver','google']){
+        try{
+          const rows = await proxySearchV96(q,engine);
+          rows.filter(x=>relevantForSiteV96(x,base)).forEach(x=>all.push(x));
+          if(all.length >= 9) break;
+        }catch(e){}
+      }
+      if(all.length >= 9) break;
+    }
+
+    const seen = new Set();
+    const items = all.filter(x=>{
+      const k=x.link||x.title;
+      if(!k||seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    }).sort((a,b)=>new Date(b.pubDate)-new Date(a.pubDate));
+
+    return {items,query:queries[0]||base};
+  }
+
+  /* 기존 최근소식 렌더러는 유지하고 링크만 동기화 URL로 교체 */
+  try{
+    if(typeof renderNewsItemsV52 === 'function'){
+      const oldRenderV96 = renderNewsItemsV52;
+      renderNewsItemsV52 = function(panel,items,site,query){
+        oldRenderV96(panel,items,site,query);
+        applyMonitorLinkV96(site);
+      };
+    }
+  }catch(e){}
+
+  /* 최근소식 조회를 뉴스모니터와 동일한 Netlify 프록시 우선으로 교체.
+     프록시가 실패하면 기존 Google RSS 방식으로 자동 fallback. */
+  try{
+    if(typeof fetchRecentSiteNewsV52 === 'function'){
+      const oldFetchV96 = fetchRecentSiteNewsV52;
+      fetchRecentSiteNewsV52 = async function(site){
+        const panel = (typeof ensureRecentNewsPanelV52==='function') ? ensureRecentNewsPanelV52() : null;
+        if(!panel || !site) return oldFetchV96(site);
+
+        applyMonitorLinkV96(site);
+
+        const base = cleanSiteNameV96(site.name);
+        const cacheKey = 'monitor:'+base;
+        try{
+          if(typeof recentNewsCacheV52 !== 'undefined'){
+            const cached = recentNewsCacheV52.get(cacheKey);
+            if(cached && Date.now()-cached.time < 30*60*1000){
+              renderNewsItemsV52(panel,cached.items,site,cached.query);
+              return;
+            }
+          }
+        }catch(e){}
+
+        const list = panel.querySelector('.site-recent-news-list-v52');
+        if(list) list.innerHTML = `<div class="site-recent-news-state-v52">${site.name} 관련 기사를 뉴스모니터에서 불러오는 중…</div>`;
+
+        try{
+          const found = await fetchSiteNewsFromMonitorV96(site);
+          if(found.items.length){
+            try{
+              if(typeof recentNewsCacheV52 !== 'undefined'){
+                recentNewsCacheV52.set(cacheKey,{time:Date.now(),items:found.items,query:found.query});
+              }
+            }catch(e){}
+            renderNewsItemsV52(panel,found.items,site,found.query);
+            return;
+          }
+        }catch(e){}
+
+        return oldFetchV96(site);
+      };
+    }
+  }catch(e){}
+
+  /* 현장을 바꿀 때 링크도 즉시 현재 현장으로 갱신 */
+  document.addEventListener('click',function(e){
+    const row=e.target.closest?.('#masterList .name-item');
+    if(!row) return;
+    setTimeout(()=>{
+      try{
+        const selected=document.querySelector('#masterList .name-item.active .name-item-text')?.textContent?.trim() || '';
+        applyMonitorLinkV96({name:selected});
+      }catch(_e){}
+    },100);
+  },true);
+
+  function bootV96(){
+    try{
+      const selected =
+        document.querySelector('#masterList .name-item.active .name-item-text')?.textContent?.trim() ||
+        document.querySelector('.detail-name')?.textContent?.trim() || '';
+      applyMonitorLinkV96({name:selected});
+    }catch(e){}
+  }
+
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(bootV96,300),{once:true});
+  else setTimeout(bootV96,300);
+
+  /* 디버깅/확인용 공개 함수 */
+  window.hoccoNewsMonitorSync = {
+    getDashboardSites: dashboardSiteNamesV96,
+    buildUrl: monitorUrlV96
+  };
+})();
+</script>
+
