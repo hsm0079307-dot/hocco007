@@ -15331,7 +15331,10 @@ function renderDetailPanel(site){
     currentDetailId = null;
     selectedStage = '전체';
     const brandEl = document.querySelector('.brand');
-    if(brandEl) brandEl.textContent = (office===ALL_OFFICE?'전체':office) + ' 스크린';
+    if(brandEl){
+      const main = (office===ALL_OFFICE?'전체':office);
+      brandEl.innerHTML = `<span class="brand-icon-v54" aria-hidden="true">🏗️</span><span class="brand-main-v54">${escapeHtml(main)}</span><span class="brand-sub-v54">스크린</span>`;
+    }
     renderOfficeSwitcher();
     renderAll();
     renderSeoulShapes();
@@ -16616,7 +16619,9 @@ function renderDetailPanel(site){
     // 다만 특정 담당자로 로그인한 경우엔 자기 담당 현장만 보므로 계속 숨긴다.
     const officeSwitcherEl = document.getElementById('officeSwitcher');
     if(officeSwitcherEl) officeSwitcherEl.style.display = currentGuest ? 'none' : '';
-    const brandEl = document.querySelector('.brand'); if(brandEl && currentGuest) brandEl.textContent = currentGuest.name + ' 담당 현장';
+    const brandEl = document.querySelector('.brand'); if(brandEl && currentGuest){
+      brandEl.innerHTML = `<span class="brand-icon-v54" aria-hidden="true">🏗️</span><span class="brand-main-v54">${escapeHtml(currentGuest.name)}</span><span class="brand-sub-v54">담당 현장</span>`;
+    }
     // 특정 담당자로 로그인한 경우엔, 자기 현장 몇 개만 관리하는 게 보통이라 굳이 필요 없는 것들(표/캘린더/단계탭)은 더 걷어내서 화면을 단순하게 만든다.
     if(currentGuest){
       const simplifyIds = ['sheetViewBtn','calendarBtn'];
@@ -20381,7 +20386,9 @@ ead><body>
         try{ await loadDistrictLabelOverrides(); }catch(e){ console.warn('구 라벨 설정 로드 실패',e); }
 
         const brandEl = document.querySelector('.brand');
-        if(brandEl) brandEl.textContent = currentOffice + ' 스크린';
+        if(brandEl){
+      brandEl.innerHTML = `<span class="brand-icon-v54" aria-hidden="true">🏗️</span><span class="brand-main-v54">${escapeHtml(currentOffice)}</span><span class="brand-sub-v54">스크린</span>`;
+    }
         syncState = uxLoadFailed ? 'bad' : 'ok';
         renderSyncStatus();
         renderOfficeSwitcher();
@@ -32536,6 +32543,136 @@ body.ux383.entry-unlocked-v82 #modeOverlay.show #guestPwRow .btn{
     color:inherit!important;
     transform:translateY(-1px)!important;
   }
+}
+</style>
+
+<!-- v99: 상단 브랜드 실제 유지 + 진행단계별 색 분리 -->
+<style id="brand-stage-colors-v99">
+@media screen and (min-width:821px){
+
+  /* 상단 브랜드 */
+  body.ux383 #brandHomeV54{
+    display:inline-flex!important;
+    align-items:center!important;
+    gap:6px!important;
+    font-family:"Arial","Noto Sans KR","Malgun Gothic",sans-serif!important;
+    font-weight:800!important;
+    line-height:1!important;
+  }
+
+  body.ux383 #brandHomeV54 .brand-icon-v54{
+    display:inline-flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    width:23px!important;
+    height:23px!important;
+    min-width:23px!important;
+    border-radius:6px!important;
+    background:color-mix(in srgb,var(--accent) 11%,var(--card))!important;
+    border:1px solid color-mix(in srgb,var(--accent) 25%,var(--line))!important;
+    font-size:14px!important;
+    line-height:1!important;
+    overflow:hidden!important;
+  }
+
+  /* '강서사업소'는 확실히 크게 */
+  body.ux383 #brandHomeV54 .brand-main-v54{
+    display:inline-block!important;
+    font-family:"Arial","Noto Sans KR","Malgun Gothic",sans-serif!important;
+    font-size:22px!important;
+    font-weight:900!important;
+    line-height:1!important;
+    letter-spacing:-.8px!important;
+    color:var(--text-main)!important;
+  }
+
+  /* '스크린'은 기존 수준 유지 */
+  body.ux383 #brandHomeV54 .brand-sub-v54{
+    display:inline-block!important;
+    font-family:"Arial","Noto Sans KR","Malgun Gothic",sans-serif!important;
+    font-size:13px!important;
+    font-weight:800!important;
+    line-height:1!important;
+    letter-spacing:-.3px!important;
+    color:var(--text-main)!important;
+  }
+
+  /* ==========================================================
+     좌측 현장목록 진행상태 색상
+     각 단계가 바로 구분되도록 톤은 부드럽게, 색은 서로 다르게
+     ========================================================== */
+
+  /* 미관리 - 회색 */
+  body.ux383 #masterList .name-item[data-progress-status="미관리"] .workflow-v53{
+    background:#f2f4f5!important;
+    color:#6f7d82!important;
+    border-color:#dfe5e7!important;
+  }
+
+  /* 모니터링 - 청록 */
+  body.ux383 #masterList .name-item[data-progress-status="모니터링"] .workflow-v53{
+    background:#e9f7f4!important;
+    color:#16806d!important;
+    border-color:#c6e8df!important;
+  }
+
+  /* 스크린 - 파랑 */
+  body.ux383 #masterList .name-item[data-progress-status="스크린"] .workflow-v53{
+    background:#eaf3ff!important;
+    color:#3477bf!important;
+    border-color:#c9ddf5!important;
+  }
+
+  /* 중점 - 주황 */
+  body.ux383 #masterList .name-item[data-progress-status="중점"] .workflow-v53{
+    background:#fff4e5!important;
+    color:#b66b17!important;
+    border-color:#f2d6ad!important;
+  }
+
+  /* 입찰 - 보라 */
+  body.ux383 #masterList .name-item[data-progress-status="입찰"] .workflow-v53{
+    background:#f2edff!important;
+    color:#7351b7!important;
+    border-color:#dcd0f4!important;
+  }
+
+  /* 수주 - 녹색 */
+  body.ux383 #masterList .name-item[data-progress-status="수주"] .workflow-v53{
+    background:#eaf7ec!important;
+    color:#397f48!important;
+    border-color:#cbe6d0!important;
+  }
+
+  /* 타사선정 - 적갈/로즈 */
+  body.ux383 #masterList .name-item[data-progress-status="타사선정"] .workflow-v53{
+    background:#fbecee!important;
+    color:#a65560!important;
+    border-color:#efd0d5!important;
+  }
+}
+
+/* 다크모드에서도 단계별 차이는 유지 */
+body.ux383.theme-dark #masterList .name-item[data-progress-status="미관리"] .workflow-v53{
+  background:#2b3533!important;color:#aebbb7!important;border-color:#43504d!important;
+}
+body.ux383.theme-dark #masterList .name-item[data-progress-status="모니터링"] .workflow-v53{
+  background:#173b35!important;color:#72c9b5!important;border-color:#2e5b52!important;
+}
+body.ux383.theme-dark #masterList .name-item[data-progress-status="스크린"] .workflow-v53{
+  background:#1b3349!important;color:#82b8e6!important;border-color:#34536d!important;
+}
+body.ux383.theme-dark #masterList .name-item[data-progress-status="중점"] .workflow-v53{
+  background:#49351f!important;color:#e3ad65!important;border-color:#685038!important;
+}
+body.ux383.theme-dark #masterList .name-item[data-progress-status="입찰"] .workflow-v53{
+  background:#35294b!important;color:#b49ae3!important;border-color:#55436f!important;
+}
+body.ux383.theme-dark #masterList .name-item[data-progress-status="수주"] .workflow-v53{
+  background:#233d2a!important;color:#86c994!important;border-color:#3c5c44!important;
+}
+body.ux383.theme-dark #masterList .name-item[data-progress-status="타사선정"] .workflow-v53{
+  background:#492a30!important;color:#d8929d!important;border-color:#684149!important;
 }
 </style>
 
