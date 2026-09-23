@@ -8737,8 +8737,11 @@ const clean=v=>String(v||'').trim(),norm=v=>clean(v).replace(/\s+/g,'');
 const fields=[['issue','주요 이슈'],['competitor','경쟁사 동향'],['executive','집행부 반응'],['next','다음 접촉 포인트']];
 const projectCore=/재건축|재개발|정비사업|정비계획|사업시행|관리처분|조합|추진위|총회|대의원회|시공사|입찰|공사비|분담금|설계|인허가|동의율|신탁|정비업체|현수막|홍보관|라운지|홍보|수주|선정|제안서|사업비|이주|철거|착공|준공|금융조건|사업조건/;
 const issueStrong=/분담금|공사비|입찰|총회|대의원회|정비계획|사업시행|관리처분|인허가|소송|보상|동의율|시공사\s*선정|정비업체|설계\s*(변경|안|계획)|사업비|신탁|이주|철거|착공|민원|금융조건|사업조건|입찰공고/;
-const companyRe=/(?:포스코(?:이앤씨|건설)?|롯데|삼성|대우|현대|GS|DL|HDC|SK|호반|한화|코오롱|두산|H사|타사|경쟁사)/i;
-const compAction=/활동|홍보|접촉|방문|제안|설명회|입찰|수주|부스|지원|배포|라운지|현수막|자료|행사|설치|운영|일정|참여|조건/;
+const ownCompanyRe=/(?:포스코(?:이앤씨|건설)?|더샵)/i;
+const competitorCompanyRe=/(?:롯데(?:건설|캐슬)?|삼성(?:물산|건설|래미안)?|대우(?:건설|푸르지오)?|현대(?:건설|엔지니어링|힐스테이트)?|GS(?:건설|자이)?|DL(?:이앤씨|건설|아크로)?|HDC(?:현대산업개발|아이파크)?|SK(?:에코플랜트)?|호반(?:건설)?|한화(?:건설|오션)?|코오롱(?:글로벌)?|두산(?:건설)?|H사|타사|경쟁사)/i;
+const anyCompanyRe=/(?:포스코(?:이앤씨|건설)?|더샵|롯데(?:건설|캐슬)?|삼성(?:물산|건설|래미안)?|대우(?:건설|푸르지오)?|현대(?:건설|엔지니어링|힐스테이트)?|GS(?:건설|자이)?|DL(?:이앤씨|건설|아크로)?|HDC(?:현대산업개발|아이파크)?|SK(?:에코플랜트)?|호반(?:건설)?|한화(?:건설|오션)?|코오롱(?:글로벌)?|두산(?:건설)?|H사|타사|경쟁사)/i;
+/* 경쟁사 동향은 '타사명 + 실제 활동'이 같은 문장에 있을 때만 인정 */
+const compAction=/활동|홍보|접촉|방문|다녀(?:감|옴|갔|왔)|제안|제시|설명회|입찰|수주|부스|지원|배포|브로셔|홍보물|라운지|현수막|행사|설치|운영|참여|상주|출입|조건\s*(?:제시|제안)/;
 const execRole=/조합장|위원장|집행부|대의원|이사|감사|동대표|추진위원|추진위원장|비대위/;
 const execReaction=/입장|의견|반응|요청|평가|찬성|반대|우려|요구|선호|지지|결정|검토|강조|말|전함|밝힘|설명|중요|필요/;
 const future=/예정|계획|조율|약속|재연락|다음\s*주|내일|추후|후속|하기로|할\s*예정|확인\s*필요|방문하기로|연락하기로|만나기로|재방문|추가\s*면담|참석하기로/;
@@ -8761,7 +8764,7 @@ function detailSignal(c){
  if(/\d/.test(c))n+=2;
  if(/\d{1,2}\s*(?:월|일|시)|이번\s*주|다음\s*주|금주|내일|목요일|월요일|화요일|수요일|금요일/.test(c))n+=2;
  if(/확정|결정|예정|공고|선정|참여|요청|검토|면담|방문|회의|조건|자료/.test(c))n+=2;
- if(companyRe.test(c))n+=2;
+ if(anyCompanyRe.test(c))n+=2;
  if(execRole.test(c))n+=1;
  return n;
 }
@@ -8773,9 +8776,11 @@ function scoreClause(k,c,role){
   if(/문제|우려|부담|지연|변경|확정|결정|검토|가능성|최소화|증가|감소|중요/.test(c))n+=3;
   if(lowValue.test(c)&&!issueStrong.test(c))n-=15;
  }else if(k==='competitor'){
-  if(companyRe.test(c))n+=10;
-  if(compAction.test(c))n+=7;
-  if(!companyRe.test(c))n-=6;
+  if(competitorCompanyRe.test(c))n+=10;
+  if(compAction.test(c))n+=8;
+  if(!competitorCompanyRe.test(c))n-=10;
+  if(!compAction.test(c))n-=8;
+  if(ownCompanyRe.test(c)&&!competitorCompanyRe.test(c))n-=14;
  }else if(k==='executive'){
   if(execRole.test(c)||execRole.test(role||''))n+=8;
   if(execReaction.test(c))n+=7;
@@ -8833,10 +8838,13 @@ function topic(text){
 function classify(text,role){
  const scores={issue:0,competitor:0,executive:0,next:0};
  scores.issue=scoreClause('issue',text,role);
- scores.competitor=scoreClause('competitor',text,role);
+ /* 경쟁사 동향: 실제 경쟁사/타사 표현 + 구체 활동이 모두 있어야 후보가 됨.
+    포스코/더샵 자체 설명, 브랜드 평가, 단순 선호 문장은 여기로 보내지 않음. */
+ scores.competitor=(competitorCompanyRe.test(text)&&compAction.test(text))
+   ?scoreClause('competitor',text,role):-999;
  scores.executive=scoreClause('executive',text,role);
  scores.next=scoreClause('next',text,role);
- if(lowValue.test(text)&&!issueStrong.test(text)&&!companyRe.test(text)&&!future.test(text))return null;
+ if(lowValue.test(text)&&!issueStrong.test(text)&&!anyCompanyRe.test(text)&&!future.test(text))return null;
  const order=['issue','competitor','executive','next'];
  const key=order.sort((a,b)=>scores[b]-scores[a])[0];
  return scores[key]>4?{key,score:scores[key]}:null;
@@ -8863,7 +8871,7 @@ function generate(logs,range){
   out[k].sort((a,b)=>b.score-a.score||b.date.localeCompare(a.date));
   const topicCount=new Map(),picked=[];
   for(const item of out[k]){
-   const tag=(k==='competitor'?(item.text.match(companyRe)||['기타'])[0]+' · ':'')+item.topic;
+   const tag=(k==='competitor'?(item.text.match(competitorCompanyRe)||['경쟁사'])[0]+' · ':'')+item.topic;
    const cnt=topicCount.get(tag)||0;
    if(cnt>=2)continue;
    topicCount.set(tag,cnt+1);picked.push({...item,topic:tag});
@@ -17613,7 +17621,7 @@ function buildSiteReportBrief(site){
    ?`<div class="bf-source-group-v46" hidden>${sourceRefs.map(r=>`<div class="bf-source"><small>${esc([r.date,r.name,r.author].filter(Boolean).join(' · '))}</small><p>${esc(r.text||r._fallback||'')}</p></div>`).join('')}</div>`:'';
 
  const topItems=items.slice(0,3),extraItems=items.slice(3);
- return `<section class="bf-section"><h3><span>${title}</span>${checkButton}</h3>${manual?`<div class="bf-manual">${esc(override.sections[key]||'직접 작성된 내용이 없습니다.')}</div><p class="bf-meta">수정 ${esc(override.updatedAt?.slice(0,16).replace('T',' ')||'')} · ${esc(override.author||'관리자')}</p>`:(topItems.length?topItems.map(itemHtml).join('')+(extraItems.length?`<details class="bf-extra"><summary>추가 핵심 ${extraItems.length}개</summary>${extraItems.map(itemHtml).join('')}</details>`:''):'<p class="bf-empty">이 기간 보고서에서 이 항목을 뒷받침하는 구체적인 내용을 찾지 못했습니다.</p>')}${sourceGroup}</section>`;
+ return `<section class="bf-section"><h3><span>${title}</span>${checkButton}</h3>${manual?`<div class="bf-manual">${esc(override.sections[key]||'직접 작성된 내용이 없습니다.')}</div><p class="bf-meta">수정 ${esc(override.updatedAt?.slice(0,16).replace('T',' ')||'')} · ${esc(override.author||'관리자')}</p>`:(topItems.length?topItems.map(itemHtml).join('')+(extraItems.length?`<details class="bf-extra"><summary>추가 핵심 ${extraItems.length}개</summary>${extraItems.map(itemHtml).join('')}</details>`:''):(key==='competitor'?'<p class="bf-empty">해당 기간 확인된 경쟁사 활동이 없습니다.</p>':'<p class="bf-empty">이 기간 보고서에서 이 항목을 뒷받침하는 구체적인 내용을 찾지 못했습니다.</p>'))}${sourceGroup}</section>`;
  }).join('')}</div></section>`;
 }
 async function bfSaveField(site,field,baseline,value){
