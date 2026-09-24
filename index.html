@@ -18743,7 +18743,16 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
     const dateParam = day ? `${y}-${String(m).padStart(2,'0')}-${String(day).padStart(2,'0')}` : '';
     let url = GALLERY_CALENDAR_URL + (GALLERY_CALENDAR_URL.includes('?') ? '&' : '?') + 'entry=' + encodeURIComponent(GALLERY_ENTRY_TOKEN) + '&mode=admin';
     if(dateParam) url += '&date=' + encodeURIComponent(dateParam);
-    try{ window.open(url, '_blank'); }catch(e){ location.href = url; }
+
+    /* iPhone/카카오 인앱브라우저는 window.open('_blank')를 조용히 막아 null을 반환하는 경우가 있음.
+       모바일에선 같은 창 이동이 가장 안정적이다. */
+    const isMobile = window.matchMedia && window.matchMedia('(max-width: 820px)').matches;
+    if(isMobile){
+      window.location.href = url;
+      return;
+    }
+    const w = window.open(url, '_blank', 'noopener');
+    if(!w) window.location.href = url;
   }
   function renderToursView(){
     const body = document.getElementById('contactReportBody');
@@ -31858,6 +31867,15 @@ body.ux383 .mgr-subtab-body > div:has(> .mgr-week-table){
 }
 </style>
 
+
+<style id="mobile-tour-booking-nav-v134">
+@media screen and (max-width:820px){
+  body.ux383 #contactReportBody :is(#toursBookBtn,#toursBookSelectedBtn){
+    touch-action:manipulation!important;
+    -webkit-tap-highlight-color:transparent!important;
+  }
+}
+</style>
 </body>
 </html>
 
