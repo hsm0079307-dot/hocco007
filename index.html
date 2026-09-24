@@ -16629,7 +16629,7 @@ function renderDetailPanel(site){
     const writeIds = [
       'manualSaveBtn','addBtn','desktopAddProxy','labelEditBtn',
       'guestManageBtn','undoBtn','changeAdminPwBtn','changeEntryPwBtn',
-      'galleryBookBtn','tourBookingTopBtn','mobileNavTourBtn',
+      'galleryBookBtn',
       'sidebarEditListV21','rfEditList','editInfoBtn','siteMatchMenuBtn','deleteSiteBtn',
       'logOpenFormBtn','ownerRosterAddRowBtn','ownerRosterSaveBtn',
       'docLinkAddBtn','sooniAddToday'
@@ -16646,6 +16646,12 @@ function renderDetailPanel(site){
     if(tabsEl) tabsEl.style.display='';
     const managerFilterWrapEl=document.getElementById('managerFilterWrap');
     if(managerFilterWrapEl) managerFilterWrapEl.style.display='';
+
+    // Guest에서도 투어예약은 사용 가능: 관리자와 같은 투어 화면/예약 흐름을 그대로 사용
+    ['tourBookingTopBtn','mobileNavTourBtn','desktopTourProxy','reportViewTabTours'].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el) el.style.display='';
+    });
 
     // 기존 관리자 로그아웃 버튼을 그대로 사용해 역할 선택으로 돌아갈 수 있게 한다.
     const adminLogout=document.getElementById('adminLogoutBtn');
@@ -31889,6 +31895,48 @@ body.ux383 .mgr-subtab-body > div:has(> .mgr-week-table){
   }
 }
 </style>
+
+<style id="mobile-guest-tour-manager-label-fix-v144">
+/* Guest에서도 투어예약은 관리자와 동일하게 진입 가능 */
+body.guest-viewer-readonly #tourBookingTopBtn{
+  display:inline-flex!important;
+}
+body.guest-viewer-readonly #mobileNavTourBtn{
+  display:flex!important;
+}
+body.guest-viewer-readonly #desktopTourProxy,
+body.guest-viewer-readonly #reportViewTabTours{
+  display:inline-flex!important;
+}
+
+@media screen and (max-width:820px){
+  /* 담당자 아래 첫 번째 탭(일자별)이 배경색과 섞여 안 보이던 문제를 확실히 복구 */
+  body.ux383 .mgr-breakdown-wrap .mgr-subtab[data-mgr-subtab="달력"]{
+    font-size:0!important;
+    color:transparent!important;
+  }
+  body.ux383 .mgr-breakdown-wrap .mgr-subtab[data-mgr-subtab="달력"]::after{
+    content:"일자별"!important;
+    display:block!important;
+    font-size:11.5px!important;
+    line-height:1!important;
+    font-weight:650!important;
+    color:var(--text-dim)!important;
+    opacity:1!important;
+    visibility:visible!important;
+  }
+  body.ux383 .mgr-breakdown-wrap .mgr-subtab[data-mgr-subtab="달력"].active::after{
+    font-weight:800!important;
+    color:var(--accent-ink)!important;
+  }
+
+  /* 다크모드에서도 첫 탭 글자 대비 보장 */
+  body.ux383.theme-dark .mgr-breakdown-wrap .mgr-subtab[data-mgr-subtab="달력"].active::after{
+    color:#17281f!important;
+  }
+}
+</style>
+
 </body>
 </html>
 
@@ -35064,8 +35112,6 @@ body.guest-viewer-readonly #undoBtn,
 body.guest-viewer-readonly #changeAdminPwBtn,
 body.guest-viewer-readonly #changeEntryPwBtn,
 body.guest-viewer-readonly #galleryBookBtn,
-body.guest-viewer-readonly #tourBookingTopBtn,
-body.guest-viewer-readonly #mobileNavTourBtn,
 body.guest-viewer-readonly #editInfoBtn,
 body.guest-viewer-readonly #siteMatchMenuBtn,
 body.guest-viewer-readonly #deleteSiteBtn,
@@ -35164,7 +35210,7 @@ body.guest-viewer-readonly #ownerRosterModal .roster-edit-area{
   const WRITE_SELECTORS = [
     '#manualSaveBtn','.file-label','#excelInput','#addBtn','#desktopAddProxy',
     '#sidebarEditListV21','#rfEditList','#labelEditBtn','#guestManageBtn','#undoBtn',
-    '#changeAdminPwBtn','#changeEntryPwBtn','#galleryBookBtn','#tourBookingTopBtn','#mobileNavTourBtn',
+    '#changeAdminPwBtn','#changeEntryPwBtn','#galleryBookBtn',
     '#editInfoBtn','#siteMatchMenuBtn','#deleteSiteBtn','#tabEditToggle','#logOpenFormBtn',
     '.canva-report-input-btn','.quad-edit-btn','[data-quad-edit="1"]','[data-bf-edit]','[data-bf-role-edit]',
     '.log-edit','.log-del','.report-site-note-pencil','.mgr-owner-bulk-edit-btn',
@@ -35195,4 +35241,56 @@ body.guest-viewer-readonly #ownerRosterModal .roster-edit-area{
   }, true);
 })();
 </script>
+
+
+
+<style id="guest-tour-daily-label-final-v145">
+/* Guest에서도 투어예약은 관리자와 같은 흐름으로 사용 가능 */
+body.guest-viewer-readonly #tourBookingTopBtn,
+body.guest-viewer-readonly #desktopTourProxy,
+body.guest-viewer-readonly #reportViewTabTours{
+  display:inline-flex!important;
+}
+body.guest-viewer-readonly #mobileNavTourBtn{
+  display:flex!important;
+}
+
+@media screen and (max-width:820px){
+  /* 모바일은 상단 직접 버튼이 아니라 '일정·투어' 메뉴 안의 투어예약을 사용 */
+  body.ux383.guest-viewer-readonly #tourBookingTopBtn{
+    display:none!important;
+  }
+  body.ux383.guest-viewer-readonly #mobileNavTourBtn{
+    display:flex!important;
+  }
+
+  /* 담당자 아래 첫 탭 '일자별'이 빈 박스로 보이던 문제 */
+  body.ux383 .mgr-breakdown-wrap .mgr-subtab[data-mgr-subtab="달력"]{
+    position:relative!important;
+    font-size:0!important;
+    color:transparent!important;
+  }
+  body.ux383 .mgr-breakdown-wrap .mgr-subtab[data-mgr-subtab="달력"]::after{
+    content:"일자별"!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    width:100%!important;
+    height:100%!important;
+    font-size:11.5px!important;
+    line-height:1!important;
+    font-weight:650!important;
+    color:var(--text-dim)!important;
+    opacity:1!important;
+    visibility:visible!important;
+  }
+  body.ux383 .mgr-breakdown-wrap .mgr-subtab[data-mgr-subtab="달력"].active::after{
+    font-weight:800!important;
+    color:var(--accent-ink)!important;
+  }
+  body.ux383.theme-dark .mgr-breakdown-wrap .mgr-subtab[data-mgr-subtab="달력"].active::after{
+    color:#17281f!important;
+  }
+}
+</style>
 
