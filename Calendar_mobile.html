@@ -5205,28 +5205,26 @@ function computeDateHeadcount(key){
         </div>
         <div class="m13-hero-scene" aria-hidden="true"></div>
       </section>
-      <section class="m13-card m13-range m13-toolbar-card" id="m13RangeCard">
-        <div class="m13-toolbar-row">
-          <div class="m13-quick">
-            <button type="button" id="m13This" aria-label="지난 달"><span class="chev">‹</span></button>
-            <button type="button" class="m13-month-chip" id="m13MonthChip">${svgCal}<span></span></button>
-            <button type="button" class="next" id="m13Next" aria-label="다음 달"><span class="chev">›</span></button>
+      <section class="m13-card v141-toolbar-card" id="m13RangeCard">
+        <div class="v141-toolbar-row">
+          <div class="v141-monthnav">
+            <button type="button" id="m13This" class="v141-icon-btn" aria-label="지난 달"><span class="chev">‹</span></button>
+            <button type="button" id="m13MonthChip" class="v141-cal-btn" aria-label="달력">${svgCal}<span></span></button>
+            <button type="button" id="m13Next" class="v141-icon-btn" aria-label="다음 달"><span class="chev">›</span></button>
           </div>
-          <div class="m13-range-head">
-            <button type="button" class="m13-range-toggle" id="m13RangeToggle">기간</button>
-          </div>
-          <button type="button" class="m13-apply" id="m13Apply">적용</button>
-          <div class="m13-filters m13-inline-filters" id="m13Filters"></div>
+          <button type="button" class="v141-period-btn" id="m13RangeToggle">기간</button>
+          <button type="button" class="v141-apply-btn" id="m13Apply">적용</button>
+          <div class="v141-filters" id="m13Filters"></div>
         </div>
-        <div class="m13-range-grid">
-          <div class="m13-date-card">
-            <label>시작일</label>
-            <div class="m13-date-line">${svgCal}<span class="m13-date-text" id="m13StartText"></span><input type="date" id="m13Start" aria-label="시작일"></div>
+
+        <div class="v141-range-panel">
+          <div class="v141-date-card">
+            <label>시작</label>
+            <div class="v141-date-line">${svgCal}<span class="m13-date-text" id="m13StartText"></span><input type="date" id="m13Start" aria-label="시작일"></div>
           </div>
-          <div class="m13-wave">~</div>
-          <div class="m13-date-card">
-            <label>종료일</label>
-            <div class="m13-date-line">${svgCal}<span class="m13-date-text" id="m13EndText"></span><input type="date" id="m13End" aria-label="종료일"></div>
+          <div class="v141-date-card">
+            <label>종료</label>
+            <div class="v141-date-line">${svgCal}<span class="m13-date-text" id="m13EndText"></span><input type="date" id="m13End" aria-label="종료일"></div>
           </div>
         </div>
       </section>
@@ -7535,6 +7533,253 @@ tbody tr:hover td{background:#fbfdfd!important}
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',shortLabel);
   else shortLabel();
   setTimeout(shortLabel,350);
+})();
+</script>
+
+
+<style id="calendar-mobile-v141-true-one-row">
+@media screen and (max-width:560px){
+  /* 기존 v140/이전 range/filter 규칙과 완전히 분리 */
+  #mobileMockApp .v141-toolbar-card{
+    min-height:0!important;
+    height:auto!important;
+    padding:5px!important;
+    margin:0 0 5px!important;
+    border-radius:12px!important;
+    background:#fff!important;
+    overflow:visible!important;
+  }
+
+  #mobileMockApp .v141-toolbar-row{
+    display:grid!important;
+    grid-template-columns:96px 38px 38px minmax(108px,1fr)!important;
+    gap:4px!important;
+    align-items:center!important;
+    width:100%!important;
+    min-width:0!important;
+  }
+
+  /* ‹  달력  › */
+  #mobileMockApp .v141-monthnav{
+    display:grid!important;
+    grid-template-columns:28px 34px 28px!important;
+    gap:3px!important;
+    align-items:center!important;
+    min-width:0!important;
+  }
+  #mobileMockApp .v141-icon-btn,
+  #mobileMockApp .v141-cal-btn,
+  #mobileMockApp .v141-period-btn,
+  #mobileMockApp .v141-apply-btn{
+    appearance:none!important;
+    margin:0!important;
+    padding:0!important;
+    height:30px!important;
+    min-height:30px!important;
+    min-width:0!important;
+    border:1px solid #dce7e5!important;
+    border-radius:8px!important;
+    box-shadow:none!important;
+    font-family:inherit!important;
+    font-weight:850!important;
+  }
+  #mobileMockApp .v141-icon-btn{
+    width:28px!important;
+    background:#fbfdfd!important;
+    color:#385961!important;
+  }
+  #mobileMockApp .v141-icon-btn .chev{
+    display:block!important;
+    margin:0!important;
+    font-size:18px!important;
+    line-height:28px!important;
+  }
+  #mobileMockApp .v141-cal-btn{
+    width:34px!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    background:#f1f8f6!important;
+    color:#18877d!important;
+  }
+  #mobileMockApp .v141-cal-btn svg{
+    width:13px!important;
+    height:13px!important;
+  }
+  #mobileMockApp .v141-cal-btn span{
+    display:none!important;
+  }
+
+  /* 기간 / 적용 */
+  #mobileMockApp .v141-period-btn{
+    width:38px!important;
+    background:#f8fbfa!important;
+    color:#536d72!important;
+    font-size:7.8px!important;
+    white-space:nowrap!important;
+  }
+  #mobileMockApp .v141-apply-btn{
+    width:38px!important;
+    border-color:#198e84!important;
+    background:#198e84!important;
+    color:#fff!important;
+    font-size:7.8px!important;
+    white-space:nowrap!important;
+  }
+
+  /* 갤러리 / 투어 2칸 */
+  #mobileMockApp .v141-filters{
+    display:grid!important;
+    grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr)!important;
+    gap:3px!important;
+    min-width:0!important;
+    margin:0!important;
+    padding:0!important;
+    border:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+  }
+  #mobileMockApp .v141-filters .m13-filter-label{
+    display:none!important;
+  }
+  #mobileMockApp .v141-filters .m13-filter{
+    width:100%!important;
+    min-width:0!important;
+    height:30px!important;
+    min-height:30px!important;
+    margin:0!important;
+    padding:0 3px!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:3px!important;
+    border-radius:8px!important;
+    font-size:7.4px!important;
+    font-weight:850!important;
+    white-space:nowrap!important;
+    box-shadow:none!important;
+  }
+  #mobileMockApp .v141-filters .m13-filter i{
+    width:6px!important;
+    height:6px!important;
+    flex:0 0 6px!important;
+    margin:0!important;
+    border-width:1px!important;
+  }
+
+  /* 기간 버튼 눌렀을 때만 아래에 시작/종료 한 줄 */
+  #mobileMockApp .v141-range-panel{
+    display:none!important;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+    gap:4px!important;
+    margin:0!important;
+    padding:0!important;
+  }
+  #mobileMockApp #m13RangeCard.range-open .v141-range-panel{
+    display:grid!important;
+    margin-top:5px!important;
+    padding-top:5px!important;
+    border-top:1px solid #edf2f1!important;
+  }
+  #mobileMockApp .v141-date-card{
+    height:30px!important;
+    min-height:30px!important;
+    min-width:0!important;
+    padding:0 6px!important;
+    display:flex!important;
+    align-items:center!important;
+    gap:4px!important;
+    border:1px solid #e0e9e7!important;
+    border-radius:8px!important;
+    background:#fafcfc!important;
+  }
+  #mobileMockApp .v141-date-card label{
+    flex:0 0 auto!important;
+    margin:0!important;
+    font-size:6.8px!important;
+    color:#819296!important;
+    font-weight:800!important;
+  }
+  #mobileMockApp .v141-date-line{
+    position:relative!important;
+    min-width:0!important;
+    flex:1!important;
+    display:flex!important;
+    align-items:center!important;
+    gap:2px!important;
+  }
+  #mobileMockApp .v141-date-line svg{
+    width:9px!important;
+    height:9px!important;
+    flex:0 0 9px!important;
+  }
+  #mobileMockApp .v141-date-line .m13-date-text{
+    min-width:0!important;
+    font-size:7.8px!important;
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+  }
+  #mobileMockApp .v141-date-line input[type=date]{
+    position:absolute!important;
+    inset:0!important;
+    width:100%!important;
+    height:100%!important;
+    opacity:0!important;
+    cursor:pointer!important;
+  }
+
+  /* 제목 바로 아래 붙고 달력도 바로 이어지게 */
+  #mobileMockApp .m13-hero{
+    margin-bottom:5px!important;
+  }
+  #mobileMockApp .m13-calendar{
+    margin-top:0!important;
+  }
+}
+
+@media screen and (max-width:360px){
+  #mobileMockApp .v141-toolbar-row{
+    grid-template-columns:90px 35px 35px minmax(96px,1fr)!important;
+    gap:3px!important;
+  }
+  #mobileMockApp .v141-monthnav{
+    grid-template-columns:26px 32px 26px!important;
+    gap:3px!important;
+  }
+  #mobileMockApp .v141-icon-btn{width:26px!important;}
+  #mobileMockApp .v141-cal-btn{width:32px!important;}
+  #mobileMockApp .v141-period-btn,
+  #mobileMockApp .v141-apply-btn{
+    width:35px!important;
+    font-size:7.2px!important;
+  }
+  #mobileMockApp .v141-filters .m13-filter{
+    font-size:6.8px!important;
+    padding:0 2px!important;
+  }
+}
+</style>
+
+<script id="calendar-mobile-v141-toolbar-fix">
+(function(){
+  function sync(){
+    var card=document.getElementById('m13RangeCard');
+    var btn=document.getElementById('m13RangeToggle');
+    if(btn) btn.textContent='기간';
+    if(card && !btn?.dataset.v141bound){
+      if(btn){
+        btn.dataset.v141bound='1';
+        btn.addEventListener('click',function(){
+          setTimeout(function(){ btn.textContent='기간'; },0);
+        },true);
+      }
+    }
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',sync);
+  else sync();
+  document.addEventListener('click',function(){setTimeout(sync,0);},true);
+  setTimeout(sync,300);
 })();
 </script>
 
