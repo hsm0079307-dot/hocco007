@@ -31449,6 +31449,65 @@ body.ux383 .mgr-subtab-body > div:has(> .mgr-week-table){
   }
 }
 </style>
+
+<style id="mobile-summary-fixes-v129">
+@media screen and (max-width:820px){
+  /* 1) 현장상세집계 모바일에서 불필요한 항목 편집 버튼 숨김 */
+  body.ux383 #globalStatsOverlay [data-bf-role-edit]{display:none!important;}
+
+  /* 2) 접촉 숫자 클릭 상세 모달이 현장상세 오버레이 뒤로 숨지 않도록 최상단으로 */
+  body.ux383 #smDrillOverlay{z-index:2147483600!important;}
+
+  /* 3) 모바일 전체요약 화면에서는 인쇄 버튼 숨김 */
+  body.ux383 #contactReportOverlay[data-report-view="summary"] #reportPrintBtn{display:none!important;}
+}
+</style>
+<script id="mobile-summary-fixes-script-v129">
+(function(){
+  function syncContactReportViewState(){
+    try{
+      var ov=document.getElementById('contactReportOverlay');
+      if(!ov) return;
+      ov.dataset.reportView=String(typeof reportViewTab!=='undefined' && reportViewTab ? reportViewTab : 'summary');
+      var printBtn=document.getElementById('reportPrintBtn');
+      if(printBtn && window.innerWidth<=820){
+        printBtn.style.display=(ov.dataset.reportView==='summary')?'none':'';
+      }
+    }catch(e){}
+  }
+
+  /* 모바일 전체요약/탭 전환 시 현재 뷰 상태를 overlay dataset에 반영 */
+  if(typeof renderContactReport==='function'){
+    var __oldRenderContactReport=renderContactReport;
+    renderContactReport=function(){
+      var r=__oldRenderContactReport.apply(this, arguments);
+      syncContactReportViewState();
+      return r;
+    };
+  }
+  document.addEventListener('click', function(){ setTimeout(syncContactReportViewState, 0); }, true);
+  window.addEventListener('resize', syncContactReportViewState);
+
+  /* 모바일 현장상세집계: 숫자 셀 터치 시 상세 명단 모달을 확실히 열기 */
+  document.addEventListener('click', function(e){
+    try{
+      var root=document.getElementById('globalStatsBody');
+      var overlay=document.getElementById('globalStatsOverlay');
+      if(!root || !overlay || !overlay.classList.contains('show')) return;
+      var el=e.target.closest('.pdf-summary-cell[data-drill], .pdf-manager-card [data-drill], .pdf-role-card [data-drill], .pdf-dong-card [data-drill], .pdf-period-card [data-drill], .mobile-role-metrics [data-drill]');
+      if(!el || !root.contains(el)) return;
+      if(typeof smOpenDrill!=='function') return;
+      e.preventDefault();
+      e.stopPropagation();
+      if(typeof e.stopImmediatePropagation==='function') e.stopImmediatePropagation();
+      smOpenDrill(el);
+    }catch(err){}
+  }, true);
+
+  setTimeout(syncContactReportViewState, 0);
+})();
+</script>
+
 </body>
 </html>
 
