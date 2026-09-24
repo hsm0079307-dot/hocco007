@@ -31707,6 +31707,107 @@ body.ux383 .mgr-subtab-body > div:has(> .mgr-week-table){
 })();
 </script>
 
+
+<!-- v132: 모바일 최종 사용성 마감 - 디자인/데이터 로직은 건드리지 않음 -->
+<style id="mobile-final-polish-v132">
+@media screen and (max-width:820px){
+  /* 공통: 탭/버튼 터치 오동작 감소 */
+  body.ux383 :is(
+    .report-view-tab,.mgr-subtab,.dtab,
+    #contactReportModalBox button,#globalStatsModalBox button,
+    #smDrillOverlay button,.rf-nm-popup-overlay-v124 button
+  ){
+    touch-action:manipulation!important;
+    -webkit-tap-highlight-color:transparent!important;
+  }
+
+  /* 모달은 화면 폭을 넘기지 않고 내부만 스크롤 */
+  body.ux383 #contactReportModalBox,
+  body.ux383 #globalStatsModalBox,
+  body.ux383 #smDrillOverlay .sm-drill-modal,
+  body.ux383 .rf-nm-popup-v124{
+    max-width:calc(100vw - 12px)!important;
+    box-sizing:border-box!important;
+    overscroll-behavior:contain!important;
+  }
+
+  body.ux383 #contactReportBody,
+  body.ux383 #globalStatsBody,
+  body.ux383 #smDrillBody,
+  body.ux383 .rf-nm-popup-scroll-v124{
+    -webkit-overflow-scrolling:touch!important;
+    overscroll-behavior:contain!important;
+  }
+
+  /* 가로표는 페이지 전체가 아니라 표 영역 안에서만 움직임 */
+  body.ux383 :is(
+    #globalStatsBody .ux-scroll,
+    #globalStatsBody .mgr-subtab-body,
+    #globalStatsBody .rf-nonmember-summary-scroll-v69,
+    #smDrillBody,
+    .rf-nm-popup-scroll-v124
+  ){
+    max-width:100%!important;
+    overflow-x:auto!important;
+    overflow-y:visible;
+    -webkit-overflow-scrolling:touch!important;
+  }
+
+  /* 긴 현장명/담당자/상담내용이 모바일 폭을 밀어내지 않도록 */
+  body.ux383 :is(
+    .detail-name,.detail-manager,.detail-sub,
+    .recent-person-card strong,
+    .mobile-role-card h4,
+    .cis-site-name,
+    .rf-nm-popup-main-v127 td,
+    .sm-drill-table td
+  ){
+    overflow-wrap:anywhere!important;
+    word-break:keep-all!important;
+  }
+
+  /* 상단 고정 컨트롤은 최소 터치 영역 확보 */
+  body.ux383 #contactReportModalBox :is(#mobileReportRefreshV131,#contactReportCloseBtn),
+  body.ux383 #globalStatsModalBox :is(#globalStatsRefreshBtn,#globalStatsCloseBtn),
+  body.ux383 #smDrillOverlay .sm-drill-close{
+    min-width:40px!important;
+    min-height:40px!important;
+  }
+
+  /* 현장 상세 탭은 너무 빽빽해지지 않게, 필요하면 가로 이동 */
+  body.ux383 .master-panel .detail-tabs{
+    max-width:100%!important;
+    overflow-x:auto!important;
+    overflow-y:hidden!important;
+    -webkit-overflow-scrolling:touch!important;
+    scrollbar-width:none!important;
+  }
+  body.ux383 .master-panel .detail-tabs::-webkit-scrollbar{display:none!important;}
+
+  /* 달력/투어 날짜칸의 글자 잘림 방지 */
+  body.ux383 :is(.mgr-cal-cell,.mobile-cal-cell){
+    min-width:0!important;
+  }
+  body.ux383 :is(.mgr-cal-daynum,.mobile-cal-daynum){
+    white-space:nowrap!important;
+  }
+
+  /* 모바일 카드 안의 우측 버튼이 긴 제목을 밀어내지 않도록 */
+  body.ux383 :is(.v16-section-head,.pdf-section-title,.rf-nm-popup-head-v124){
+    min-width:0!important;
+  }
+  body.ux383 :is(.v16-section-head h3,.pdf-section-title .section-heading-text){
+    min-width:0!important;
+    overflow-wrap:anywhere!important;
+  }
+
+  /* hover 기반 움직임 제거: 폰에서 터치 후 잔상/튐 방지 */
+  body.ux383 :is(button,.btn,.view-switch-btn,.name-item,.sm-drill){
+    transform:none!important;
+  }
+}
+</style>
+
 </body>
 </html>
 
