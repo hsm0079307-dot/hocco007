@@ -31601,6 +31601,112 @@ body.ux383 .mgr-subtab-body > div:has(> .mgr-week-table){
 })();
 </script>
 
+
+<style id="mobile-refresh-icon-only-v131">
+@media screen and (max-width:820px){
+  /* 기존 도구 안의 새로고침/인쇄는 모바일 헤더에서 완전히 숨김 */
+  body.ux383 #contactReportModalBox #v20ReportTools{display:none!important;}
+  body.ux383 #contactReportModalBox .v20-tools-toggle{display:none!important;}
+
+  /* 새로고침은 텍스트 없이 독립 아이콘 버튼 하나만 */
+  body.ux383 #contactReportModalBox #mobileReportRefreshV131{
+    display:inline-flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    flex:0 0 40px!important;
+    width:40px!important;
+    min-width:40px!important;
+    height:40px!important;
+    min-height:40px!important;
+    padding:0!important;
+    margin:0!important;
+    border:0!important;
+    border-radius:8px!important;
+    background:var(--bg-side)!important;
+    color:var(--text-main)!important;
+    box-shadow:none!important;
+    font-size:23px!important;
+    font-weight:650!important;
+    line-height:1!important;
+    overflow:hidden!important;
+    white-space:nowrap!important;
+  }
+  body.ux383 #contactReportModalBox #mobileReportRefreshV131:disabled{
+    opacity:.55!important;
+  }
+  body.ux383 #contactReportModalBox #mobileReportRefreshV131.is-loading{
+    animation:v131RefreshSpin .85s linear infinite;
+  }
+  body.ux383 #contactReportModalBox .v20-report-actions{
+    width:auto!important;
+    min-width:0!important;
+    margin-left:auto!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:flex-end!important;
+    gap:6px!important;
+    flex-wrap:nowrap!important;
+  }
+  body.ux383 #contactReportModalBox #contactReportCloseBtn{
+    flex:0 0 auto!important;
+    min-width:46px!important;
+  }
+}
+@keyframes v131RefreshSpin{to{transform:rotate(360deg)}}
+</style>
+<script id="mobile-refresh-icon-only-script-v131">
+(function(){
+  function installMobileRefreshV131(){
+    if(window.innerWidth>820) return;
+    var box=document.getElementById('contactReportModalBox');
+    var actions=box && box.querySelector('.v20-report-actions');
+    var original=document.getElementById('reportRefreshBtn');
+    var close=document.getElementById('contactReportCloseBtn');
+    if(!actions || !original || !close) return;
+
+    var direct=document.getElementById('mobileReportRefreshV131');
+    if(!direct){
+      direct=document.createElement('button');
+      direct.type='button';
+      direct.id='mobileReportRefreshV131';
+      direct.className='no-print';
+      direct.setAttribute('aria-label','새로고침');
+      direct.title='새로고침';
+      direct.textContent='↻';
+      actions.insertBefore(direct,close);
+      direct.addEventListener('click',function(e){
+        e.preventDefault();
+        if(original.disabled) return;
+        original.click();
+      });
+    }
+
+    function sync(){
+      direct.disabled=!!original.disabled;
+      direct.classList.toggle('is-loading',!!original.disabled);
+      direct.textContent='↻';
+    }
+    sync();
+    if(!original.__v131Observer){
+      original.__v131Observer=new MutationObserver(sync);
+      original.__v131Observer.observe(original,{attributes:true,attributeFilter:['disabled']});
+    }
+  }
+
+  var oldOpen = typeof openContactReport==='function' ? openContactReport : null;
+  if(oldOpen){
+    openContactReport=async function(){
+      var r=await oldOpen.apply(this,arguments);
+      installMobileRefreshV131();
+      return r;
+    };
+  }
+  document.addEventListener('click',function(){setTimeout(installMobileRefreshV131,0)},true);
+  window.addEventListener('resize',installMobileRefreshV131);
+  setTimeout(installMobileRefreshV131,0);
+})();
+</script>
+
 </body>
 </html>
 
