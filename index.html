@@ -21501,11 +21501,46 @@ function uxOpenSite(id){
  currentDetailId=id;currentView='detail';detailTab='개요';editMode=false;
  document.body.classList.add('ux-mobile-detail');document.body.classList.remove('ux-mobile-list');renderAll();refreshLogsForSiteIfNeeded(s);
 }
+
+function uxRenderRecentSitesV149(){
+  const sidebar=uxById('sidebar');
+  if(!sidebar)return;
+  const old=uxById('uxRecentSitesV149');
+  if(old)old.remove();
+
+  const filterBox=sidebar.querySelector('.sidebar-local-filters-v19');
+  if(!filterBox)return;
+
+  const recent=(Array.isArray(uxRecentIds)?uxRecentIds:[])
+    .map(id=>sites.find(s=>String(s.id)===String(id)))
+    .filter(Boolean)
+    .slice(0,3);
+
+  if(!recent.length)return;
+
+  const bar=document.createElement('div');
+  bar.id='uxRecentSitesV149';
+  bar.className='ux-recent-sites-v149 no-print';
+  bar.innerHTML=
+    '<span class="ux-recent-label-v149">최근</span>'+
+    recent.map(s=>`<button type="button" data-recent-site="${escapeHtml(String(s.id||''))}" title="${escapeHtml(s.name||'')}">${escapeHtml(s.name||'')}</button>`).join('');
+
+  filterBox.insertAdjacentElement('afterend',bar);
+
+  bar.querySelectorAll('[data-recent-site]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const id=btn.getAttribute('data-recent-site');
+      if(id)uxOpenSite(id);
+    });
+  });
+}
+
 function uxDecorate(){
  const active=sites.find(s=>s.id===currentDetailId);
  if(active&&uxLastSelected!==active.id){uxLastSelected=active.id;uxRecentIds=[active.id,...uxRecentIds.filter(x=>x!==active.id)].slice(0,8);uxSaveFilters();document.body.classList.add('ux-mobile-detail');document.body.classList.remove('ux-mobile-list')}
  const host=uxById('sidebar');if(uxFavoriteOnly&&host?.querySelector('.empty'))host.querySelector('.empty').textContent='즐겨찾기한 현장이 없습니다. 목록의 별을 눌러 추가해 주세요.';
  const oldQuick=uxById('uxQuickSites');if(oldQuick)oldQuick.remove();
+ uxRenderRecentSitesV149();
  uxCleanIcons();
  if(v16State)v16Sync();
 }
@@ -35473,6 +35508,228 @@ body.guest-viewer-readonly #mobileNavTourBtn{
   }
   body.ux383.theme-dark .mgr-breakdown-wrap .mgr-subtab[data-mgr-subtab="달력"].active::after{
     color:#17281f!important;
+  }
+}
+</style>
+
+
+
+<style id="mobile-detail-polish-v149">
+/* =========================================================
+   v149 — 기능/데이터 로직은 유지하고 디자인 체계만 통일
+   ========================================================= */
+
+/* 1) 진행상태 색: 연한 배경 + 각 단계 고유 색 */
+body.ux383 .tabs .tab[data-stage]{
+  --v149-stage:#71817b;
+  --v149-soft:color-mix(in srgb,var(--v149-stage) 10%,var(--card));
+  --v149-border:color-mix(in srgb,var(--v149-stage) 24%,var(--line));
+  color:var(--v149-stage)!important;
+  border-color:transparent!important;
+  background:transparent!important;
+}
+body.ux383 .tabs .tab[data-stage="전체"]{--v149-stage:#557066;}
+body.ux383 .tabs .tab[data-stage="미관리"]{--v149-stage:#7b8580;}
+body.ux383 .tabs .tab[data-stage="모니터링"]{--v149-stage:#52769a;}
+body.ux383 .tabs .tab[data-stage="스크린"]{--v149-stage:#2d8077;}
+body.ux383 .tabs .tab[data-stage="중점"]{--v149-stage:#a16f2c;}
+body.ux383 .tabs .tab[data-stage="입찰"]{--v149-stage:#6b61a3;}
+body.ux383 .tabs .tab[data-stage="수주"]{--v149-stage:#537d5b;}
+body.ux383 .tabs .tab[data-stage="타사선정"]{--v149-stage:#9a6262;}
+
+body.ux383 .tabs .tab[data-stage].active{
+  color:var(--v149-stage)!important;
+  background:var(--v149-soft)!important;
+  border-color:var(--v149-border)!important;
+  box-shadow:inset 0 -2px var(--v149-stage)!important;
+  font-weight:850!important;
+}
+body.ux383 .tabs .tab[data-stage] .count{
+  color:inherit!important;
+  opacity:.74!important;
+}
+
+/* 2) 선택 상태 표현을 한 가지 문법으로 통일
+      연한 배경 + 하단 2px 선, 과한 테두리/그림자 제거 */
+body.ux383 :is(
+  .view-switch-btn.active,
+  .report-view-tab.active-toggle,
+  .report-period-toggle .btn.active-toggle,
+  .mgr-subtab.active,
+  .dtab.active
+){
+  background:var(--accent-soft)!important;
+  color:var(--text-main)!important;
+  border-color:transparent!important;
+  box-shadow:inset 0 -2px var(--accent)!important;
+  font-weight:800!important;
+}
+
+/* 3) 빈 화면 표시 통일 */
+body.ux383 :is(
+  .master-list .empty,
+  .master-panel>.empty,
+  .pdf-empty,
+  .sm-drill-empty,
+  .cis-empty,
+  .mgr-empty,
+  .manager-filter-empty,
+  .mobile-stage-list-empty,
+  .report-chart-empty,
+  .cal-agenda-empty
+){
+  min-height:72px!important;
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:5px!important;
+  padding:16px 12px!important;
+  border:1px dashed color-mix(in srgb,var(--line) 78%,transparent)!important;
+  border-radius:11px!important;
+  background:color-mix(in srgb,var(--bg-side) 54%,transparent)!important;
+  color:var(--text-dim)!important;
+  text-align:center!important;
+  font-size:11.5px!important;
+  line-height:1.5!important;
+}
+body.ux383 :is(
+  .master-list .empty,
+  .master-panel>.empty,
+  .pdf-empty,
+  .sm-drill-empty,
+  .cis-empty,
+  .mgr-empty,
+  .manager-filter-empty,
+  .mobile-stage-list-empty,
+  .report-chart-empty,
+  .cal-agenda-empty
+)::before{
+  content:"◇"!important;
+  display:block!important;
+  color:color-mix(in srgb,var(--accent) 62%,var(--text-dim))!important;
+  font-size:15px!important;
+  line-height:1!important;
+  font-weight:900!important;
+}
+
+/* 4) 최근 본 현장 3개 — 모바일에서만 작고 얇게 */
+#uxRecentSitesV149{display:none;}
+@media screen and (max-width:820px){
+  body.ux383 #uxRecentSitesV149{
+    display:flex!important;
+    align-items:center!important;
+    gap:5px!important;
+    min-width:0!important;
+    margin:0!important;
+    padding:5px 10px!important;
+    border-bottom:1px solid var(--line)!important;
+    background:var(--card)!important;
+    overflow-x:auto!important;
+    overflow-y:hidden!important;
+    scrollbar-width:none!important;
+  }
+  body.ux383 #uxRecentSitesV149::-webkit-scrollbar{display:none!important;}
+  body.ux383 #uxRecentSitesV149 .ux-recent-label-v149{
+    flex:0 0 auto!important;
+    color:var(--text-dim)!important;
+    font-size:9.5px!important;
+    font-weight:800!important;
+    letter-spacing:-.2px!important;
+  }
+  body.ux383 #uxRecentSitesV149 button{
+    flex:0 0 auto!important;
+    max-width:112px!important;
+    height:28px!important;
+    min-height:28px!important;
+    margin:0!important;
+    padding:0 8px!important;
+    border:1px solid var(--line)!important;
+    border-radius:8px!important;
+    background:var(--bg-side)!important;
+    color:var(--text-main)!important;
+    font-family:inherit!important;
+    font-size:9.5px!important;
+    font-weight:750!important;
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    box-shadow:none!important;
+  }
+
+  /* 5) 상단/보조 버튼 체계 통일: 높이·라운딩·폰트 */
+  body.ux383 :is(
+    #mobileWorkspace16 #v16Fold,
+    #mobileWorkspace16 #v16Reset,
+    .view-switch-btn,
+    .sidebar-filter-action-v30,
+    .report-view-tab,
+    .report-period-toggle .btn,
+    .mgr-subtab,
+    .detail-tabs .dtab,
+    #contactReportCloseBtn,
+    #mobileReportRefreshV131,
+    #globalStatsRefreshBtn,
+    #globalStatsCloseBtn
+  ){
+    min-height:34px!important;
+    height:34px!important;
+    border-radius:8px!important;
+    font-size:10.5px!important;
+    line-height:1!important;
+    font-weight:700!important;
+    box-shadow:none!important;
+  }
+
+  /* 모바일 상단 높이를 서로 비슷하게 */
+  body.ux383 .topbar{
+    min-height:48px!important;
+    padding-top:6px!important;
+    padding-bottom:6px!important;
+  }
+  body.ux383 #mobileWorkspace16{
+    min-height:48px!important;
+    padding-top:5px!important;
+    padding-bottom:5px!important;
+  }
+  body.ux383 #v21FilterPanel{
+    padding-top:6px!important;
+    padding-bottom:6px!important;
+  }
+
+  /* 상세 탭도 동일 높이/간격 */
+  body.ux383 .master-panel .detail-tabs{
+    gap:4px!important;
+    min-height:38px!important;
+  }
+  body.ux383 .master-panel .detail-tabs .dtab{
+    padding:0 9px!important;
+  }
+
+  /* 현장목록 선택도 같은 원칙: 연한 배경 + 왼쪽 얇은 강조 */
+  body.ux383 #masterList .name-item.active{
+    background:var(--accent-soft)!important;
+    color:var(--text-main)!important;
+    border-color:transparent!important;
+    box-shadow:inset 3px 0 var(--accent)!important;
+  }
+  body.ux383 #masterList .name-item.active .name-item-text{
+    color:var(--text-main)!important;
+  }
+  body.ux383 #masterList .name-item.active .name-item-meta{
+    color:var(--text-dim)!important;
+  }
+
+  /* 각 카드/필터의 둥근 정도도 8~12px 안에서 통일 */
+  body.ux383 :is(
+    .sidebar-local-filters-v19,
+    .mgr-breakdown-wrap,
+    .report-log-card,
+    .pdf-summary,
+    .rf-nonmember,
+    .cis-toolbar
+  ){
+    border-radius:10px!important;
   }
 }
 </style>
