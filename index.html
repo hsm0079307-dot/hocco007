@@ -35477,3 +35477,298 @@ body.guest-viewer-readonly #mobileNavTourBtn{
 }
 </style>
 
+
+
+<style id="mobile-onehand-mode-v148">
+@media screen and (max-width:820px){
+  /* 접힌 상태: 작은 손잡이만 */
+  #oneHandDock{
+    position:fixed!important;
+    left:50%!important;
+    bottom:calc(10px + env(safe-area-inset-bottom))!important;
+    transform:translateX(-50%)!important;
+    z-index:2147482500!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    pointer-events:none!important;
+  }
+
+  #oneHandDock .oh-shell{
+    pointer-events:auto!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:0!important;
+    min-width:44px!important;
+    height:42px!important;
+    padding:0!important;
+    border:1px solid rgba(22,112,101,.24)!important;
+    border-radius:21px!important;
+    background:rgba(246,252,250,.96)!important;
+    box-shadow:0 10px 28px rgba(18,55,53,.18)!important;
+    backdrop-filter:blur(14px)!important;
+    -webkit-backdrop-filter:blur(14px)!important;
+    overflow:hidden!important;
+    transition:width .18s ease,padding .18s ease,border-radius .18s ease!important;
+  }
+
+  #oneHandDock.open .oh-shell{
+    width:min(320px,calc(100vw - 28px))!important;
+    padding:4px!important;
+    border-radius:18px!important;
+    gap:4px!important;
+  }
+
+  #oneHandDock .oh-toggle{
+    appearance:none!important;
+    border:0!important;
+    width:42px!important;
+    min-width:42px!important;
+    height:40px!important;
+    margin:0!important;
+    padding:0!important;
+    border-radius:20px!important;
+    background:#168b80!important;
+    color:#fff!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    font-size:18px!important;
+    font-weight:900!important;
+    line-height:1!important;
+  }
+
+  #oneHandDock.open .oh-toggle{
+    width:34px!important;
+    min-width:34px!important;
+    height:34px!important;
+    border-radius:12px!important;
+    font-size:15px!important;
+  }
+
+  #oneHandDock .oh-actions{
+    display:none!important;
+    grid-template-columns:repeat(4,minmax(0,1fr))!important;
+    gap:4px!important;
+    flex:1 1 auto!important;
+    min-width:0!important;
+  }
+
+  #oneHandDock.open .oh-actions{
+    display:grid!important;
+  }
+
+  #oneHandDock .oh-btn{
+    appearance:none!important;
+    min-width:0!important;
+    height:34px!important;
+    padding:0 4px!important;
+    margin:0!important;
+    border:1px solid #d9e7e4!important;
+    border-radius:11px!important;
+    background:#fff!important;
+    color:#264b50!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:3px!important;
+    font-size:10px!important;
+    font-weight:800!important;
+    white-space:nowrap!important;
+  }
+
+  #oneHandDock .oh-btn:active{
+    transform:scale(.97)!important;
+    background:#edf7f4!important;
+  }
+
+  #oneHandDock .oh-ico{
+    font-size:13px!important;
+    line-height:1!important;
+  }
+
+  /* 한손바가 펼쳐져 있을 때 기존 우하단 플로팅 버튼이 겹치지 않게 살짝 위로 */
+  body.onehand-open .mobile-admin-fab,
+  body.onehand-open #scrollTopBtn,
+  body.onehand-open .scroll-top-btn{
+    bottom:calc(68px + env(safe-area-inset-bottom))!important;
+  }
+
+  /* 모바일 하단 콘텐츠가 손잡이 뒤에 완전히 가려지지 않도록 약간의 여유 */
+  body.has-onehand-dock{
+    padding-bottom:calc(56px + env(safe-area-inset-bottom))!important;
+  }
+}
+
+/* 데스크탑에서는 완전 숨김 */
+@media screen and (min-width:821px){
+  #oneHandDock{display:none!important;}
+}
+</style>
+
+<div id="oneHandDock" aria-label="한손 조작 모드">
+  <div class="oh-shell">
+    <button type="button" class="oh-toggle" id="oneHandToggle" aria-expanded="false" title="한손 조작 열기">⌃</button>
+    <div class="oh-actions" aria-hidden="true">
+      <button type="button" class="oh-btn" id="oneHandHome"><span class="oh-ico">⌂</span><span>현장</span></button>
+      <button type="button" class="oh-btn" id="oneHandTop"><span class="oh-ico">↑</span><span>위로</span></button>
+      <button type="button" class="oh-btn" id="oneHandRefresh"><span class="oh-ico">↻</span><span>새로고침</span></button>
+      <button type="button" class="oh-btn" id="oneHandClose"><span class="oh-ico">×</span><span>닫기</span></button>
+    </div>
+  </div>
+</div>
+
+<script id="mobile-onehand-mode-script-v148">
+(function(){
+  const dock = document.getElementById('oneHandDock');
+  if(!dock) return;
+
+  const toggle = document.getElementById('oneHandToggle');
+  const actions = dock.querySelector('.oh-actions');
+
+  function isMobile(){
+    return window.matchMedia && window.matchMedia('(max-width:820px)').matches;
+  }
+
+  function setOpen(open){
+    if(!isMobile()) open = false;
+    dock.classList.toggle('open', !!open);
+    document.body.classList.toggle('onehand-open', !!open);
+    document.body.classList.add('has-onehand-dock');
+    if(toggle){
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      toggle.textContent = open ? '⌄' : '⌃';
+      toggle.title = open ? '한손 조작 닫기' : '한손 조작 열기';
+    }
+    if(actions) actions.setAttribute('aria-hidden', open ? 'false' : 'true');
+    try{ localStorage.setItem('oneHandDockOpen', open ? '1' : '0'); }catch(e){}
+  }
+
+  function visible(el){
+    if(!el) return false;
+    const s = getComputedStyle(el);
+    if(s.display==='none' || s.visibility==='hidden' || Number(s.opacity)===0) return false;
+    const r = el.getBoundingClientRect();
+    return r.width>0 && r.height>0;
+  }
+
+  function clickFirst(selectors){
+    for(const sel of selectors){
+      const els = Array.from(document.querySelectorAll(sel));
+      const el = els.find(visible);
+      if(el){
+        try{ el.click(); return true; }catch(e){}
+      }
+    }
+    return false;
+  }
+
+  function getActiveScroller(){
+    const candidates = [
+      '#contactReportModalBox',
+      '#globalStatsBody',
+      '#globalStatsOverlay .modal-card',
+      '.modal.show .modal-body',
+      '.overlay.show .modal-body',
+      '.overlay.show',
+      '.calendar-view',
+      '.master-panel',
+      'main'
+    ];
+    for(const sel of candidates){
+      const el = document.querySelector(sel);
+      if(el && visible(el) && el.scrollHeight > el.clientHeight + 20) return el;
+    }
+    return document.scrollingElement || document.documentElement;
+  }
+
+  toggle?.addEventListener('click', function(){
+    setOpen(!dock.classList.contains('open'));
+  });
+
+  document.getElementById('oneHandTop')?.addEventListener('click', function(){
+    const sc = getActiveScroller();
+    try{ sc.scrollTo({top:0, behavior:'smooth'}); }
+    catch(e){ try{ sc.scrollTop=0; }catch(_e){} }
+  });
+
+  document.getElementById('oneHandRefresh')?.addEventListener('click', function(){
+    // 현재 화면에 전용 새로고침이 있으면 우선 사용
+    if(clickFirst([
+      '#mobileReportRefreshV131',
+      '#reportRefreshBtn',
+      '#globalStatsRefreshBtn',
+      '.refresh-btn',
+      '[data-action="refresh"]',
+      '[aria-label*="새로고침"]',
+      'button[title*="새로고침"]'
+    ])) return;
+
+    // 없으면 전체 페이지 새로고침
+    location.reload();
+  });
+
+  document.getElementById('oneHandClose')?.addEventListener('click', function(){
+    // 현재 보이는 팝업/상세창의 닫기 버튼을 우선 닫는다.
+    if(clickFirst([
+      '#contactReportCloseBtn',
+      '#globalStatsCloseBtn',
+      '#smDrillClose',
+      '.modal.show .close-btn',
+      '.modal.show [data-close]',
+      '.overlay.show .close-btn',
+      '.overlay.show [data-close]',
+      '.overlay.show button[aria-label="닫기"]',
+      '.modal.show button[aria-label="닫기"]',
+      'button[title="닫기"]'
+    ])){
+      setOpen(false);
+      return;
+    }
+
+    // 닫을 팝업이 없으면 바만 접는다.
+    setOpen(false);
+  });
+
+  document.getElementById('oneHandHome')?.addEventListener('click', function(){
+    // 먼저 열려 있는 상세/팝업을 닫고 현장 탭으로 이동 시도
+    clickFirst([
+      '#contactReportCloseBtn',
+      '#globalStatsCloseBtn',
+      '.modal.show .close-btn',
+      '.overlay.show .close-btn',
+      '.overlay.show button[aria-label="닫기"]'
+    ]);
+
+    // 모바일의 '현장' 탭 또는 현장목록 버튼을 우선
+    if(clickFirst([
+      '#mobileNavSiteBtn',
+      '[data-mobile-nav="site"]',
+      '[data-nav="site"]',
+      'button[data-tab="sites"]',
+      '.mobile-nav-site',
+      'button[aria-label="현장"]'
+    ])){
+      setTimeout(function(){
+        try{ window.scrollTo({top:0,behavior:'smooth'}); }catch(e){}
+      }, 80);
+    }else{
+      // 적절한 탭이 없으면 페이지 최상단으로 이동
+      try{ window.scrollTo({top:0,behavior:'smooth'}); }
+      catch(e){ window.scrollTo(0,0); }
+    }
+    setOpen(false);
+  });
+
+  window.addEventListener('resize', function(){
+    if(!isMobile()) setOpen(false);
+  });
+
+  // 기본은 접힘. 사용자가 직전에 열어둔 경우에만 복원.
+  let initial = false;
+  try{ initial = localStorage.getItem('oneHandDockOpen') === '1'; }catch(e){}
+  setOpen(initial);
+})();
+</script>
+
