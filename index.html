@@ -17698,7 +17698,8 @@ function buildSiteReportBrief(site){
    const refs=(item.refs||[]).filter(r=>r&&(r.id||r.date));
    const r0=refs[0]||{};
    const shortDate=r0.date?String(r0.date).replace(/^\d{4}-0?(\d{1,2})-0?(\d{1,2})$/,'$1/$2'):'';
-   const evidence=(r0.id||shortDate)?`<span class="bf-inline-ref">${esc([r0.id,shortDate].filter(Boolean).join(' · '))}${refs.length>1?` 외 ${refs.length-1}건`:''}</span>`:'';
+   const evidenceId=/^excel-report:/i.test(String(r0.id||''))?'':String(r0.id||'');
+   const evidence=(evidenceId||shortDate)?`<span class="bf-inline-ref">${esc([evidenceId,shortDate].filter(Boolean).join(' · '))}${refs.length>1?` 외 ${refs.length-1}건`:''}</span>`:'';
    const cleanText=String(item.text||'').split('excel-report:')[0].replace(/[.\s·|:-]+$/,'').trim();
    return `<article class="bf-entry"><div class="bf-entry-topline"><p><strong>${esc(item.topic||'핵심')}</strong>${speaker?` <span class="bf-speaker-v118">${esc(speaker)}</span>`:''} · <span class="bf-entry-copy">${esc(cleanText)}</span>${evidence}</p></div></article>`;
  };
@@ -17716,9 +17717,9 @@ function buildSiteReportBrief(site){
    ?`<div class="bf-source-group-v46" hidden>${sourceRefs.map(r=>`<div class="bf-source"><small>${esc([r.date,r.name,r.author].filter(Boolean).join(' · '))}</small><p>${esc(String(r.text||r._fallback||'').split('excel-report:')[0].replace(/[.\s·|:-]+$/,'').trim())}</p></div>`).join('')}</div>`:'';
 
  const topItems=items.slice(0,3),extraItems=items.slice(3);
- const sectionLabel={issue:'핵심 이슈',competitor:'경쟁사 활동',executive:'집행부 반응',next:'다음 접촉·후속 업무'}[key]||title;
+ const sectionLabel={issue:'핵심 이슈',competitor:'경쟁사 활동',executive:'관계자 반응',next:'다음 접촉·후속 업무'}[key]||title;
  const sectionIcon={issue:'●',competitor:'◇',executive:'○',next:'→'}[key]||'•';
- const mobileMore=`<button type="button" class="bf-mobile-more no-print" data-bf-mobile-more aria-expanded="false">더보기</button>`;
+ const mobileMore=''; // v151: 항목별 기존 더보기만 사용해 중복 버튼 제거
  return `<section class="bf-section bf-section-${key}"><h3><span class="bf-section-icon" aria-hidden="true">${sectionIcon}</span><span>${sectionLabel}</span>${checkButton}</h3>${manual?`<div class="bf-manual">${esc(override.sections[key]||'직접 작성된 내용이 없습니다.')}</div><p class="bf-meta">수정 ${esc(override.updatedAt?.slice(0,16).replace('T',' ')||'')} · ${esc(override.author||'관리자')}</p>`:(topItems.length?topItems.map(itemHtml).join('')+(extraItems.length?`<details class="bf-extra"><summary>추가 핵심 ${extraItems.length}개</summary>${extraItems.map(itemHtml).join('')}</details>`:''):(key==='competitor'?'<p class="bf-empty">해당 기간 확인된 경쟁사 활동이 없습니다.</p>':'<p class="bf-empty">이 기간 보고서에서 이 항목을 뒷받침하는 구체적인 내용을 찾지 못했습니다.</p>'))}${sourceGroup}${mobileMore}</section>`;
  }).join('')}</div></section>`;
 }
@@ -32189,10 +32190,6 @@ body.ux383 .bf-source-group-v46{margin-left:24px!important;}
   body.ux383 .bf-section>h3{padding:10px 1px 6px!important;font-size:12.5px!important;}
   body.ux383 .bf-entry{padding:2px 1px 6px 22px!important;}
   body.ux383 .bf-entry p{font-size:12.5px!important;line-height:1.58!important;margin:0!important;}
-  body.ux383 .bf-section:not(.bf-mobile-expanded) .bf-entry-copy{
-    display:-webkit-box!important;-webkit-box-orient:vertical!important;-webkit-line-clamp:3!important;overflow:hidden!important;
-  }
-  body.ux383 .bf-section:not(.bf-mobile-expanded) .bf-entry:nth-of-type(n+3){display:none!important;}
   body.ux383 .bf-mobile-more{
     display:inline-flex!important;align-items:center!important;justify-content:center!important;
     min-height:25px!important;height:25px!important;margin:0 0 8px 22px!important;padding:0 8px!important;
@@ -32201,6 +32198,11 @@ body.ux383 .bf-source-group-v46{margin-left:24px!important;}
   }
   body.ux383 .bf-inline-ref{font-size:9px!important;margin-left:5px!important;}
   body.ux383 .bf-empty{margin-left:22px!important;}
+  /* v151: 추가 항목은 한 번만 펼치고, 항목별 더보기와 시각적으로 충돌하지 않게 정리 */
+  body.ux383 .bf-extra{margin:1px 0 7px 22px!important;padding:0!important;}
+  body.ux383 .bf-extra>summary{padding:3px 0!important;color:var(--accent)!important;font-size:10.5px!important;font-weight:760!important;line-height:1.35!important;cursor:pointer!important;}
+  body.ux383 .bf-extra .bf-entry{padding-left:0!important;}
+  body.ux383 .bf-mobile-more{display:none!important;}
 }
 </style>
 </body>
