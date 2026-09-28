@@ -1326,6 +1326,7 @@ body.theme-dark input,body.theme-dark textarea,body.theme-dark select{background
 @media(max-width:760px){#app{padding:6px;border-radius:12px}.topbar,.tabs{border-radius:10px}.card,.panel,.detail-panel,.sidebar,.map-panel{border-radius:10px}}
 </style>
 
+
 <style id="v233-design-refresh">
 /* v233 — typography & visual polish */
 :root{
@@ -12974,7 +12975,7 @@ function renderDetailPanel(site){
 
     const galleryBtn = document.getElementById('galleryBookBtn');
     if(galleryBtn) galleryBtn.addEventListener('click', ()=>{
-      if(guestMode || document.body.classList.contains('guest-readonly')) return;
+      if(guestMode || guestViewerMode || document.body.classList.contains('guest-readonly') || document.body.classList.contains('guest-viewer-readonly')) return;
       const url = GALLERY_CALENDAR_URL + (GALLERY_CALENDAR_URL.includes('?') ? '&' : '?') + 'site=' + encodeURIComponent(site.name) + '&office=' + encodeURIComponent(site.office || currentOffice) + '&entry=' + encodeURIComponent(GALLERY_ENTRY_TOKEN) + '&mode=admin';
       window.open(url, '_blank');
     });
@@ -16804,10 +16805,10 @@ function renderDetailPanel(site){
     const managerFilterWrapEl=document.getElementById('managerFilterWrap');
     if(managerFilterWrapEl) managerFilterWrapEl.style.display='';
 
-    // Guest에서도 투어예약은 사용 가능: 관리자와 같은 투어 화면/예약 흐름을 그대로 사용
+    // 조회 전용 게스트에게는 투어 예약 진입점도 제공하지 않는다.
     ['tourBookingTopBtn','mobileNavTourBtn','desktopTourProxy','reportViewTabTours'].forEach(id=>{
       const el=document.getElementById(id);
-      if(el) el.style.display='';
+      if(el) el.style.display='none';
     });
 
     // 기존 관리자 로그아웃 버튼을 그대로 사용해 역할 선택으로 돌아갈 수 있게 한다.
@@ -18931,6 +18932,7 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
     }
   }
   function openTourBookingFromReport(selectedKey){
+    if(guestMode || guestViewerMode || document.body.classList.contains('guest-readonly') || document.body.classList.contains('guest-viewer-readonly')) return;
     const y = reportToursMonth.getFullYear();
     const m = reportToursMonth.getMonth() + 1;
     const day = selectedKey ? String(selectedKey).split('-')[1] : '';
@@ -18949,6 +18951,11 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
     if(!w) window.location.href = url;
   }
   function renderToursView(){
+    if(guestMode || guestViewerMode || document.body.classList.contains('guest-readonly') || document.body.classList.contains('guest-viewer-readonly')){
+      reportViewTab='summary';
+      renderContactReport();
+      return;
+    }
     const body = document.getElementById('contactReportBody');
     body.innerHTML = `<div style="padding:24px 0;color:var(--text-dim);font-size:12.5px;text-align:center;">불러오는 중...</div>`;
     loadGalleryBookingsIfNeeded().then(()=>{
@@ -19584,6 +19591,7 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
   }
 
   async function openContactReport(targetTab){
+    if(targetTab === 'tours' && (guestMode || guestViewerMode || document.body.classList.contains('guest-readonly') || document.body.classList.contains('guest-viewer-readonly'))) return;
     const uxPeriodToRestore=uxClone(uxPrefs.period||{});
     // 접촉현황은 조회 전용이라 관리자 잠금해제 없이도 게스트가 열람 가능해야 함
     reportMode = 'week';
@@ -35775,6 +35783,8 @@ body.guest-viewer-readonly #ownerRosterModal .roster-edit-area{
     '#manualSaveBtn','.file-label','#excelInput','#addBtn','#desktopAddProxy',
     '#sidebarEditListV21','#rfEditList','#labelEditBtn','#guestManageBtn','#undoBtn',
     '#changeAdminPwBtn','#changeEntryPwBtn','#galleryBookBtn',
+    '#tourBookingTopBtn','#mobileNavTourBtn','#desktopTourProxy','#reportViewTabTours',
+    '#toursBookBtn','#toursBookSelectedBtn',
     '#editInfoBtn','#siteMatchMenuBtn','#deleteSiteBtn','#tabEditToggle','#logOpenFormBtn',
     '.canva-report-input-btn','.quad-edit-btn','[data-quad-edit="1"]','[data-bf-edit]','[data-bf-role-edit]',
     '.log-edit','.log-del','.report-site-note-pencil','.mgr-owner-bulk-edit-btn',
@@ -35858,3 +35868,11 @@ body.guest-viewer-readonly #mobileNavTourBtn{
 }
 </style>
 
+<style id="guest-tour-booking-readonly-final-v146">
+/* 게스트 두 경로 모두 예약 화면과 예약 동작을 숨긴다. 관리자 화면에는 적용하지 않는다. */
+body.guest-viewer-readonly :is(#galleryBookBtn,#tourBookingTopBtn,#mobileNavTourBtn,#desktopTourProxy,#reportViewTabTours,#toursBookBtn,#toursBookSelectedBtn),
+body.guest-readonly :is(#galleryBookBtn,#tourBookingTopBtn,#mobileNavTourBtn,#desktopTourProxy,#reportViewTabTours,#toursBookBtn,#toursBookSelectedBtn),
+body.ux383.guest-viewer-readonly :is(#galleryBookBtn,#tourBookingTopBtn,#mobileNavTourBtn,#desktopTourProxy,#reportViewTabTours,#toursBookBtn,#toursBookSelectedBtn){
+  display:none!important;
+}
+</style>
