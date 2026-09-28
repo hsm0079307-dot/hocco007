@@ -16689,6 +16689,19 @@ function renderDetailPanel(site){
     modeOverlay.classList.remove('show');
     try{ localStorage.setItem('modeOverlayCollapsed','0'); }catch(e){}
     renderAll();
+    // This is the public "게스트로 보기" path (not the separate password guest).
+    // Match the administrator's mobile viewport after its UI is rendered.
+    if(window.innerWidth<=820){
+      const fitGuestViewer=()=>{
+        document.documentElement.scrollLeft=0;
+        document.body.scrollLeft=0;
+        window.scrollTo({left:0,top:window.scrollY||0,behavior:'instant'});
+        document.querySelectorAll('#app,.main,.sidebar,.master-list,.master-panel,.master-detail,.map-wrap').forEach(el=>{el.scrollLeft=0;});
+        if(window.map && typeof window.map.invalidateSize==='function')window.map.invalidateSize();
+      };
+      requestAnimationFrame(()=>requestAnimationFrame(fitGuestViewer));
+      setTimeout(fitGuestViewer,180);
+    }
   });
 
   const guestPwRow = document.getElementById('guestPwRow');
