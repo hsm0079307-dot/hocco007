@@ -16727,6 +16727,19 @@ function renderDetailPanel(site){
       sites = buildGuestShadowSites();
       applyGuestRestrictions();
       renderAll();
+      // Guest login happens after the initial mobile fit. Reset horizontal scroll
+      // after the narrower guest list/map have rendered; keep the vertical position.
+      if(window.innerWidth<=820){
+        const fitGuestViewport=()=>{
+          document.documentElement.scrollLeft=0;
+          document.body.scrollLeft=0;
+          document.querySelectorAll('#app,.main,.sidebar,.master-list,.master-panel,.master-detail,.map-wrap').forEach(el=>{el.scrollLeft=0;});
+          window.scrollTo(0,window.scrollY||0);
+          if(window.map && typeof map.invalidateSize==='function')map.invalidateSize();
+        };
+        requestAnimationFrame(()=>requestAnimationFrame(fitGuestViewport));
+        setTimeout(fitGuestViewport,180);
+      }
     }else{
       guestPwError.style.display = 'block';
       guestPwInput.value = '';
