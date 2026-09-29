@@ -15478,8 +15478,34 @@ function renderDetailPanel(site){
     const panel=document.getElementById('regionPanel');if(!panel)return;
     const city=regionSido||cityOfDistrict(selectedDistrict)||'서울';
     panel.innerHTML=`<label class="region-compact-label">지역 <select id="regionCitySelect" aria-label="시도 선택">${SIDO_LIST.map(v=>`<option value="${v}" ${v===city?'selected':''}>${SIDO_LABELS[v]}</option>`).join('')}</select></label><select id="regionDistrictSelect" aria-label="시군구 선택"><option value="">시·군·구 선택</option>${Object.keys(CITY_DISTRICTS[city]||{}).map(v=>`<option value="${escapeHtml(v)}" ${selectedDistrict===city+' '+v?'selected':''}>${escapeHtml(v)}</option>`).join('')}</select>`;
-    document.getElementById('regionCitySelect').onchange=e=>{regionSido=e.target.value;renderRegionPanel()};
-    document.getElementById('regionDistrictSelect').onchange=e=>{if(e.target.value)goToSigungu(city,e.target.value)};
+    document.getElementById('regionCitySelect').onchange=e=>{
+      // 시·도를 바꿀 때 이전 시·군·구 선택이 내부 필터에 남아 있으면
+      // 화면은 새 시·도를 표시하면서 목록/상단 집계는 옛 지역으로 제한되는 불일치가 생긴다.
+      regionSido=e.target.value;
+      selectedDistrict=null;
+      regionFocusMode=false;
+      currentView='list';
+      currentDetailId=null;
+      renderAll();
+      renderSeoulShapes();
+      renderRegionPanel();
+      resetMapToSeoul();
+    };
+    document.getElementById('regionDistrictSelect').onchange=e=>{
+      if(e.target.value){
+        goToSigungu(city,e.target.value);
+        return;
+      }
+      // '시·군·구 선택'으로 되돌린 경우에도 실제 지역 필터를 함께 해제한다.
+      selectedDistrict=null;
+      regionFocusMode=false;
+      currentView='list';
+      currentDetailId=null;
+      renderAll();
+      renderSeoulShapes();
+      renderRegionPanel();
+      resetMapToSeoul();
+    };
   }
 
   function goToSigungu(sido, gu){
