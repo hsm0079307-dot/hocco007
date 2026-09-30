@@ -9673,7 +9673,7 @@ async function mfRetrySync(){
   let sites = [];
   const OFFICES = ['강서사업소','강남사업소','강북사업소'];
   const ALL_OFFICE = '__ALL__';
-  let currentOffice = localStorage.getItem('currentOffice') || '강서사업소';
+  let currentOffice = ALL_OFFICE; // 첫 입장은 전체 사업소 지도에서 시작한다.
   // 갤러리(쇼룸) 투어 예약 캘린더 앱 주소. 실제 배포 주소로 바꿔주세요 (예: 'https://xxxx.github.io/gallery-calendar/').
   const GALLERY_CALENDAR_URL = 'https://hsm0079307-dot.github.io/hocco007/Calendar.html';
   // Calendar.html의 DASHBOARD_ENTRY_TOKEN과 반드시 같아야 함 - 여기서 넘어갈 때 비밀번호 화면을 건너뛰기 위한 값
@@ -11887,6 +11887,14 @@ async function mfRetrySync(){
   // ---------- sidebar dispatcher ----------
   // 메인화면 자체가 [왼쪽 현장명 목록 + 오른쪽 개요(상세)] 2단 구성. 별도의 "목록 화면"은 없고 항상 이 형태로 보여줌.
   function renderSidebar(){
+    const wideMap = selectedStage==='전체' && currentView!=='detail' && !compareMode;
+    const changed = document.body.classList.contains('overview-wide-map') !== wideMap;
+    document.body.classList.toggle('overview-wide-map', wideMap);
+    if(wideMap && window.innerWidth>820) ensureRecentNewsPanelV52();
+    if(changed) requestAnimationFrame(()=>{
+      if(map && typeof map.invalidateSize==='function') map.invalidateSize({pan:false,animate:false});
+      if(wideMap && !selectedDistrict && currentView!=='detail') resetMapToSeoul();
+    });
     const prevListEl = document.getElementById('masterList');
     if(prevListEl) savedListScroll = prevListEl.scrollTop;
     renderMainScreen();
@@ -15447,13 +15455,21 @@ function renderDetailPanel(site){
     el.querySelectorAll('.office-btn').forEach(btn=>{
       btn.addEventListener('click', async ()=>{
         const target = btn.dataset.office;
-        if(target===currentOffice) return;
         await switchOffice(target);
       });
     });
   }
   async function switchOffice(office){
-    if(office===currentOffice) return;
+    // 사업소 버튼은 같은 사업소를 다시 눌러도 전체 현장으로 초기화한다.
+    selectedManagers.clear();
+    selectedNameIds.clear();
+    searchText='';
+    quickFilter='all';
+    uxFavoriteOnly=false;
+    regionSido=null;
+    window.__sidebarLocalStateV19={region:'',businessStage:'',progressStatus:'',search:''};
+    const officeSearch=document.getElementById('searchInput');
+    if(officeSearch) officeSearch.value='';
     currentOffice = office;
     try{ localStorage.setItem('currentOffice', office); }catch(e){}
     sites = office===ALL_OFFICE ? OFFICES.flatMap(o=>allOfficesData[o]||[]) : (allOfficesData[office] || []);
@@ -20817,7 +20833,7 @@ ead><body>
 
         const brandEl = document.querySelector('.brand');
         if(brandEl){
-      brandEl.innerHTML = `<span class="brand-icon-v54" aria-hidden="true">🏗️</span><span class="brand-main-v54">${escapeHtml(currentOffice)}</span><span class="brand-sub-v54">스크린</span>`;
+      brandEl.innerHTML = `<span class="brand-icon-v54" aria-hidden="true">🏗️</span><span class="brand-main-v54">${escapeHtml(currentOffice===ALL_OFFICE?'전체':currentOffice)}</span><span class="brand-sub-v54">스크린</span>`;
     }
         syncState = uxLoadFailed ? 'bad' : 'ok';
         renderSyncStatus();
@@ -20828,11 +20844,24 @@ ead><body>
         currentGuest = null;
         applyGuestRestrictions();
 
+        // 첫 화면은 저장된 지역/담당자 조건 없이 전체 지도부터 표시한다.
+        selectedDistrict=null;
+        regionSido=null;
+        regionFocusMode=false;
+        selectedStage='전체';
+        selectedManagers.clear();
+        selectedNameIds.clear();
+        searchText='';
+        quickFilter='all';
+        uxFavoriteOnly=false;
         // 이미 입장한 경우에도 데이터가 준비되면 화면만 갱신된다.
         renderAll();
         try{ renderSeoulShapes(); }catch(e){ console.warn('서울 경계 렌더 실패',e); }
         try{ renderRegionPanel(); }catch(e){ console.warn('지역 패널 렌더 실패',e); }
-        try{ if(map && typeof map.invalidateSize==='function') setTimeout(()=>map.invalidateSize({pan:false,animate:false}),80); }catch(e){}
+        // 큰 지도 레이아웃이 적용된 다음 경계를 맞춰야 초기 중심/배율이 어긋나지 않는다.
+        requestAnimationFrame(()=>requestAnimationFrame(()=>{
+          if(map && currentView!=='detail' && !selectedDistrict) resetMapToSeoul();
+        }));
       }catch(bootErr){
         console.error('Dashboard 데이터 초기 로딩 실패', bootErr);
         syncState='bad';
@@ -21995,7 +22024,7 @@ function uxInit(){
  const originalAll=renderAll;renderAll=function(){originalAll();uxDecorate();uxSaveFilters()};
  const originalDetail=renderDetailPanel;renderDetailPanel=function(...args){const r=originalDetail(...args);uxDecorate();return r};
  const originalFilter=filteredSites;filteredSites=function(){return originalFilter()};
- const originalOffice=switchOffice;switchOffice=async function(...args){uxSaveFilters();uxRestoring=true;let r;try{r=await originalOffice(...args);uxRestoreFilters()}finally{uxRestoring=false}renderAll();return r};
+ const originalOffice=switchOffice;switchOffice=async function(...args){uxSaveFilters();uxRestoring=true;let r;try{r=await originalOffice(...args)}finally{uxRestoring=false}renderAll();return r};
  const originalLoad=loadSites;loadSites=async function(...args){const r=await originalLoad(...args);if(currentGuest)sites=buildGuestShadowSites();uxRestoreFilters();renderSyncStatus();return r};
  const oldReport=renderContactReport;renderContactReport=function(...args){const r=oldReport(...args);uxSaveFilters();uxCleanIcons();return r};
  const oldStats=renderGlobalStats;renderGlobalStats=function(...args){const r=oldStats(...args);uxSaveFilters();return r};
@@ -35948,6 +35977,51 @@ body.guest-readonly #tourBookingTopBtn{display:flex!important;}
   }
   body.ux383 #contactReportModalBox > .report-view-tabs{
     padding:0!important;margin:0 0 9px!important;
+  }
+}
+</style>
+
+<style id="overview-wide-map-layout">
+@media screen and (min-width:821px){
+  body.ux383.overview-wide-map #sidebar{
+    flex:0 0 260px!important;width:260px!important;min-width:260px!important;max-width:260px!important;
+  }
+  body.ux383.overview-wide-map .master-detail.master-detail-v21{
+    grid-template-columns:260px!important;
+  }
+  body.ux383.overview-wide-map #masterPanel{display:none!important;}
+  body.ux383.overview-wide-map .main > .map-wrap{
+    display:grid!important;flex:1 1 0!important;
+    grid-template-columns:minmax(0,1fr) clamp(280px,24vw,380px)!important;
+    grid-template-rows:44px minmax(420px,1fr) auto!important;
+    column-gap:16px!important;row-gap:10px!important;
+    width:auto!important;min-width:0!important;max-width:none!important;
+    overflow:hidden!important;align-items:stretch!important;
+  }
+  body.ux383.overview-wide-map .main > .map-wrap > #map{
+    grid-column:1!important;grid-row:2!important;
+    height:100%!important;min-height:420px!important;
+    max-height:none!important;width:100%!important;align-self:stretch!important;
+  }
+  body.ux383.overview-wide-map .map-wrap > #desktopTabActions{
+    grid-column:1 / -1!important;grid-row:1!important;
+    min-height:40px!important;margin:0!important;
+  }
+  body.ux383.overview-wide-map .map-bottom-controls{
+    grid-column:1!important;grid-row:3!important;min-width:0!important;flex-wrap:wrap!important;
+  }
+  body.ux383.overview-wide-map #siteRecentNewsV52{
+    grid-column:2!important;grid-row:2 / 4!important;
+    display:grid!important;grid-template-rows:minmax(0,1fr) minmax(0,1fr)!important;
+    gap:16px!important;width:100%!important;min-width:0!important;min-height:0!important;
+    height:100%!important;max-height:none!important;margin:0!important;overflow:hidden!important;
+  }
+  body.ux383.overview-wide-map #siteRecentNewsV52 .site-news-block-v59{
+    display:flex!important;flex-direction:column!important;min-height:0!important;
+    height:auto!important;max-height:none!important;margin:0!important;
+  }
+  body.ux383.overview-wide-map #siteRecentNewsV52 :is(.site-recent-news-list-v52,.site-posco-news-list-v59){
+    flex:1 1 0!important;min-height:0!important;height:auto!important;max-height:none!important;overflow-y:auto!important;
   }
 }
 </style>
