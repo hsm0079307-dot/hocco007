@@ -11890,6 +11890,11 @@ async function mfRetrySync(){
     const wideMap = selectedStage==='전체' && currentView!=='detail' && !compareMode;
     const changed = document.body.classList.contains('overview-wide-map') !== wideMap;
     document.body.classList.toggle('overview-wide-map', wideMap);
+    if(wideMap){
+      clearTimeout(window.__mapHeightSyncTimerV52);
+      const mapCanvas=document.getElementById('map');
+      if(mapCanvas) ['height','min-height','max-height','flex','margin-top'].forEach(key=>mapCanvas.style.removeProperty(key));
+    }
     if(wideMap && window.innerWidth>820) ensureRecentNewsPanelV52();
     if(changed) requestAnimationFrame(()=>{
       if(map && typeof map.invalidateSize==='function') map.invalidateSize({pan:false,animate:false});
@@ -12772,6 +12777,8 @@ async function fetchPoscoNewsV59(){
 }
 
 function syncMapHeightToOverviewV52(){
+  // 상세 화면에서 예약된 작업이 전체 지도 높이를 다시 줄이지 않도록 한다.
+  if(currentView!=='detail' || document.body.classList.contains('overview-wide-map')) return;
   if(window.innerWidth <= 820) return;
   if(detailTab !== '개요') return;
 
@@ -15713,13 +15720,23 @@ function renderDetailPanel(site){
       const smoothed = site.polygon;
       const siteColor = tooltipColor;
       poly = L.polygon(smoothed, {color:siteColor, weight:3, fillColor:siteColor, fillOpacity:.35, lineJoin:'round', lineCap:'round', smoothFactor:1.5}).addTo(focusLayer);
-      poly.bindTooltip(badgeHtml, {permanent:true, direction:'top', className:'', offset:[0,-6]});
+      pos = smoothed.reduce((a,p)=>[a[0]+p[0]/smoothed.length,a[1]+p[1]/smoothed.length],[0,0]);
     }else{
       pos = (site.lat && site.lng) ? [site.lat,site.lng] : DISTRICTS[site.district];
       if(pos){
         const dot = L.divIcon({className:'', html:`<div class="site-dot" style="background:${tooltipColor};width:18px;height:18px;"></div>`, iconSize:[18,18]});
         marker = L.marker(pos, {icon:dot}).addTo(focusLayer);
-        marker.bindTooltip(badgeHtml, {permanent:true, direction:'top', className:'', offset:[0,-10]});
+      }
+    }
+
+    // 상세 지도도 독립된 이름표를 사용해야 저장 위치 적용과 드래그가 가능하다.
+    if(pos){
+      const labelPos=site.labelPos || pos;
+      const labelMarker=L.marker(labelPos,{icon:L.divIcon({className:'',html:badgeHtml,iconSize:[0,0]})}).addTo(focusLayer);
+      if(!guestMode && !guestViewerMode){
+        labelMarker._el.title='끌어서 이름표 이동 · 더블클릭하면 위치 초기화';
+        labelMarker._el.style.cursor='grab';
+        enableLabelDrag(labelMarker,site,labelPos);
       }
     }
 
@@ -15807,7 +15824,8 @@ function renderDetailPanel(site){
       const startPt = proj.containerPointFromCoords(new kakao.maps.LatLng(startLatLng[0], startLatLng[1]));
       const newPt = new kakao.maps.Point(startPt.x + (e.clientX-startX), startPt.y + (e.clientY-startY));
       const newLatLng = proj.coordsFromContainerPoint(newPt);
-      onDragEnd([newLatLng.getLat(), newLatLng.getLng()]);
+      currentPos=[newLatLng.getLat(), newLatLng.getLng()];
+      onDragEnd(currentPos);
     }
 
     el.addEventListener('mousedown', (e)=>{
@@ -15831,11 +15849,14 @@ function renderDetailPanel(site){
   function enableLabelDrag(labelMarker, site, currentPos){
     enableDrag(labelMarker, currentPos, (newPos)=>{
       site.labelPos = newPos;
+      lastEditedSiteId=site.id;
       saveSites();
       renderMap();
     }, ()=>{
       delete site.labelPos;
+      lastEditedSiteId=site.id;
       saveSites();
+      if(currentView==='detail') focusMapOnSite(site);
       renderMap();
     });
   }
