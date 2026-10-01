@@ -8128,12 +8128,18 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
     const box=q('#fdDetail');if(!box||!viewDate)return;const d=parseKey(selectedKey,viewDate.getFullYear());const ev=rawEvents(selectedKey),hc=expected(selectedKey);let list='';
     if(ev.length){list='<div class="fd-detail-list">'+ev.map(x=>`<div class="fd-event ${x.kind}"><div class="fd-event-time">${esc(x.time)}</div><div class="fd-event-copy"><strong>${esc(x.site)} · ${esc(x.name)}</strong><span>${esc(x.meta|| (x.manager?'담당 '+x.manager:''))}</span></div><div class="fd-kind">${x.kind==='gallery'?'갤러리':x.kind==='tour'?'투어':'휴관'}</div></div>`).join('')+'</div>'}
     else list=`<div class="fd-empty"><strong>등록된 일정이 없습니다.</strong><span>필요하면 아래에서 바로 추가하세요.</span></div>`;
-    box.innerHTML=`<div class="fd-detail-top"><div><div class="fd-detail-date">${dateLabel(d)}</div><div class="fd-detail-meta"><span class="fd-meta-pill">일정 <strong>${ev.filter(x=>x.kind!=='closed').length}건</strong></span><span class="fd-meta-pill">예상 인원 <strong>${hc}명</strong></span>${GALLERY_CLOSED?.[selectedKey]?'<span class="fd-meta-pill">휴관 지정</span>':''}</div></div></div>${list}<div class="fd-detail-actions"><button type="button" id="fdAddGallery">+ 갤러리 일정</button><button type="button" id="fdAddTour">+ 투어 일정</button><button type="button" class="primary" id="fdChecklist">체크리스트 열기</button><button type="button" id="fdFullDetail">전체 상세보기</button><button type="button" class="danger" id="fdClosed">${GALLERY_CLOSED?.[selectedKey]?'휴관/불가 해제':'휴관/이용불가 지정'}</button></div>`;
+    box.innerHTML=`<div class="fd-detail-top"><div><div class="fd-detail-date">${dateLabel(d)}</div><div class="fd-detail-meta"><span class="fd-meta-pill">일정 <strong>${ev.filter(x=>x.kind!=='closed').length}건</strong></span><span class="fd-meta-pill">예상 인원 <strong>${hc}명</strong></span>${GALLERY_CLOSED?.[selectedKey]?'<span class="fd-meta-pill">휴관 지정</span>':''}</div></div></div>${list}<div class="fd-detail-actions"><button type="button" id="fdAddGallery">+ 갤러리 일정</button><button type="button" id="fdAddTour">+ 투어 일정</button><button type="button" id="fdFullDetail">전체 상세보기</button><button type="button" class="danger" id="fdClosed">${GALLERY_CLOSED?.[selectedKey]?'휴관/불가 해제':'휴관/이용불가 지정'}</button></div>`;
     q('#fdAddGallery').onclick=()=>{try{previewKey=selectedKey;addEntryFlow('gallery')}catch(e){}};
     q('#fdAddTour').onclick=()=>{try{previewKey=selectedKey;addEntryFlow('tour')}catch(e){}};
     q('#fdClosed').onclick=()=>{try{previewKey=selectedKey;toggleClosedDay()}catch(e){}};
-    q('#fdFullDetail').onclick=()=>{try{previewKey=selectedKey;openPreview(selectedKey)}catch(e){}};
-    q('#fdChecklist').onclick=()=>{try{selectDate(selectedKey,true);document.body.classList.add('fd-show-legacy');const sec=q('.checklist-section');if(sec){sec.style.setProperty('display','block','important');sec.scrollIntoView({behavior:'smooth',block:'start'})}}catch(e){}};
+    q('#fdFullDetail').onclick=()=>{
+      let dialog=document.getElementById('fdScheduleDetails');
+      if(!dialog){dialog=document.createElement('dialog');dialog.id='fdScheduleDetails';document.body.appendChild(dialog);}
+      dialog.innerHTML=`<div class="fd-popup-head"><strong>${esc(dateLabel(d))} 일정 상세</strong><button type="button">닫기</button></div><div class="fd-popup-content">${list}</div>`;
+      dialog.querySelector('button').onclick=()=>dialog.close();
+      dialog.showModal();
+    };
+
   }
   function renderSummary(){
     const box=q('#fdSummary');if(!box)return;const s=monthCount();q('#fdSummaryBadge').textContent=s.total+'건';const sites=Object.entries(s.sites).sort((a,b)=>b[1]-a[1]);const max=Math.max(1,...sites.map(x=>x[1]));
@@ -8540,3 +8546,165 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
 
 </body>
 </html>
+<style id="calendar-layout-repair-oct01">
+@media screen and (min-width:761px){
+ #freshDesktopApp .fd-topbar{position:relative!important;inset:auto!important;display:flex!important;flex-wrap:wrap!important;box-sizing:border-box!important;width:100%!important;min-height:76px!important;padding:16px 24px!important;background:#fff!important;border-radius:0!important;}
+ #freshDesktopApp .fd-topbar::before,#freshDesktopApp .fd-topbar::after{content:none!important;display:none!important;}
+ #freshDesktopApp .fd-brand{position:static!important;flex:1 1 220px!important;min-width:0!important;padding:0!important;}
+ #freshDesktopApp .fd-brand-copy,#freshDesktopApp .fd-brand-inline{position:static!important;display:flex!important;align-items:center!important;gap:12px!important;padding:0!important;}
+ #freshDesktopApp #fdMainTitle{position:static!important;display:block!important;font-size:22px!important;line-height:1.4!important;white-space:normal!important;overflow-wrap:anywhere;}
+ #freshDesktopApp .fd-search-wrap{flex:0 1 320px!important;min-width:160px!important;}
+ #freshDesktopApp .fd-content{padding:20px 24px!important;}
+ #freshDesktopApp .fd-controlbar{position:relative!important;display:flex!important;flex-wrap:wrap!important;min-height:44px!important;margin:0 0 16px!important;}
+ #freshDesktopApp .fd-grid{height:auto!important;min-height:0!important;align-items:start!important;}
+ #freshDesktopApp .fd-calendar-panel{height:760px!important;}
+ #freshDesktopApp .fd-right-stack{height:auto!important;grid-template-rows:auto auto!important;}
+ #freshDesktopApp .fd-right-top{height:auto!important;align-items:start!important;}
+ #freshDesktopApp .fd-right-top>.fd-panel{height:auto!important;}
+ #freshDesktopApp .fd-detail,#freshDesktopApp .fd-summary{height:auto!important;max-height:none!important;overflow:visible!important;}
+ #freshDesktopApp .fd-detail-list{max-height:260px!important;overflow:auto!important;}
+ #freshDesktopApp .fd-ops-panel,#freshDesktopApp #fdLegacyMount{height:auto!important;max-height:none!important;overflow:visible!important;}
+ #freshDesktopApp #fdLegacyMount .fd-legacy-layout{height:auto!important;grid-template-rows:auto auto auto!important;}
+ #freshDesktopApp #fdLegacyMount .fd-legacy-body{height:auto!important;align-items:start!important;}
+ #freshDesktopApp #fdLegacyMount .fd-legacy-card-body{height:auto!important;max-height:none!important;overflow:visible!important;}
+ #freshDesktopApp #fdLegacyMount #managerTable,#freshDesktopApp #fdLegacyMount #checklistBody{height:auto!important;max-height:320px!important;overflow:auto!important;}
+ #freshDesktopApp #fdLegacyMount :is(#managerTable,#checklistBody) .table-scroll{height:auto!important;max-height:none!important;overflow:visible!important;}
+ #freshDesktopApp #fdLegacyMount #statsChart{height:100px!important;}
+}
+@media screen and (min-width:761px) and (max-width:1250px){
+ #freshDesktopApp .fd-grid{grid-template-columns:minmax(0,1fr)!important;}
+ #freshDesktopApp .fd-calendar-panel{height:680px!important;}
+}
+</style>
+
+
+<script>
+// 펼침 영역은 기존 체크리스트 이동 버튼에서도 열리도록 한다.
+document.addEventListener('click',function(e){
+ const b=e.target.closest('button');
+ if(!b||!b.closest('#freshDesktopApp .fd-detail-actions'))return;
+ if(/체크리스트|전체 상세/.test(b.textContent)){
+  const panel=document.querySelector('#freshDesktopApp #checklistBody')?.closest('details');
+  if(panel){panel.open=true;requestAnimationFrame(()=>panel.scrollIntoView({behavior:'smooth',block:'start'}));}
+ }
+},true);
+</script>
+<style id="desktop-single-screen-final">
+@media screen and (min-width:1100px){
+ #freshDesktopApp{height:100dvh!important;min-height:0!important;display:flex!important;flex-direction:column!important;}
+ #freshDesktopApp .fd-topbar{flex:0 0 58px!important;min-height:58px!important;height:58px!important;padding:8px 20px!important;flex-wrap:nowrap!important;}
+ #freshDesktopApp .fd-content{flex:1 1 0!important;min-height:0!important;width:100%!important;max-width:none!important;box-sizing:border-box!important;display:flex!important;flex-direction:column!important;padding:10px 18px 14px!important;margin:0!important;}
+ #freshDesktopApp .fd-controlbar{flex:0 0 42px!important;min-height:42px!important;margin:0 0 10px!important;padding:0!important;border:0!important;background:transparent!important;}
+ #freshDesktopApp .fd-grid{flex:1 1 0!important;min-height:0!important;height:auto!important;display:grid!important;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr)!important;grid-template-rows:minmax(0,1fr)!important;gap:16px!important;}
+ #freshDesktopApp .fd-calendar-panel{height:100%!important;min-height:0!important;grid-column:1!important;grid-row:1!important;}
+ #freshDesktopApp .fd-right-stack{display:grid!important;grid-template-rows:minmax(0,.92fr) minmax(0,1fr)!important;min-height:0!important;height:100%!important;gap:12px!important;}
+ #freshDesktopApp .fd-right-top{display:grid!important;grid-template-columns:minmax(0,1.25fr) minmax(220px,.8fr)!important;gap:12px!important;height:100%!important;min-height:0!important;}
+ #freshDesktopApp .fd-right-top>.fd-panel{height:100%!important;min-height:0!important;display:flex!important;flex-direction:column!important;}
+ #freshDesktopApp .fd-mini-head{height:32px!important;min-height:32px!important;flex:0 0 32px!important;padding:0 12px!important;}
+ #freshDesktopApp .fd-detail{flex:1 1 0!important;min-height:0!important;height:auto!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;padding:8px 10px!important;}
+ #freshDesktopApp .fd-detail-top{margin:0 0 5px!important;padding:0 0 5px!important;}
+ #freshDesktopApp .fd-detail-date{font-size:15px!important;}
+ #freshDesktopApp .fd-detail-list{flex:1 1 0!important;max-height:none!important;min-height:0!important;overflow:auto!important;gap:4px!important;}
+ #freshDesktopApp .fd-event{flex-shrink:0!important;min-height:40px!important;padding:5px 7px!important;}
+ #freshDesktopApp .fd-event-copy strong{font-size:12px!important;}
+ #freshDesktopApp .fd-detail-actions{flex:0 0 auto!important;margin-top:5px!important;padding-top:5px!important;gap:4px!important;}
+ #freshDesktopApp .fd-detail-actions button{height:27px!important;min-height:27px!important;}
+ #freshDesktopApp .fd-summary{flex:1 1 0!important;min-height:0!important;height:auto!important;overflow:auto!important;padding:8px 10px!important;columns:auto!important;display:block!important;}
+ #freshDesktopApp .fd-kpis{display:grid!important;grid-template-columns:1fr 1fr!important;gap:6px!important;}
+ #freshDesktopApp .fd-kpi{height:48px!important;min-height:48px!important;padding:7px 9px!important;}
+ #freshDesktopApp .fd-section-label{margin:8px 0 5px!important;}
+ #freshDesktopApp .fd-ops-panel{height:100%!important;min-height:0!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;}
+ #freshDesktopApp #fdLegacyMount{flex:1 1 0!important;min-height:0!important;height:auto!important;padding:8px!important;overflow:hidden!important;}
+ #freshDesktopApp #fdLegacyMount .checklist-section{height:100%!important;min-height:0!important;}
+ #freshDesktopApp #fdLegacyMount .fd-legacy-layout{height:100%!important;min-height:0!important;display:grid!important;grid-template-rows:38px minmax(0,1fr) 56px!important;gap:7px!important;}
+ #freshDesktopApp #fdLegacyMount .summary-bar{display:flex!important;gap:8px!important;height:38px!important;}
+ #freshDesktopApp #fdLegacyMount .summary-card{display:flex!important;align-items:center!important;gap:8px!important;height:36px!important;min-height:36px!important;width:110px!important;padding:5px 10px!important;}
+ #freshDesktopApp #fdLegacyMount .summary-card .num{font-size:20px!important;}
+ #freshDesktopApp #fdLegacyMount .fd-legacy-body{display:grid!important;grid-template-columns:minmax(0,.88fr) minmax(0,1.12fr)!important;gap:8px!important;min-height:0!important;}
+ #freshDesktopApp #fdLegacyMount .fd-legacy-card{display:flex!important;flex-direction:column!important;min-height:0!important;}
+ #freshDesktopApp #fdLegacyMount .fd-legacy-card-head{flex:0 0 28px!important;height:28px!important;}
+ #freshDesktopApp #fdLegacyMount .fd-legacy-card-body{flex:1 1 0!important;min-height:0!important;height:auto!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;padding:5px!important;}
+ #freshDesktopApp #fdLegacyMount :is(#managerTable,#checklistBody){flex:1 1 0!important;min-height:0!important;max-height:none!important;height:auto!important;overflow:auto!important;}
+ #freshDesktopApp #fdLegacyMount :is(.filterbar,.managerFilterBar){flex:0 0 auto!important;margin:0 0 5px!important;gap:3px!important;}
+ #freshDesktopApp #fdLegacyMount :is(#managerTable,#checklistBody) :is(.table-scroll,.table-wrap){height:auto!important;max-height:none!important;overflow:visible!important;}
+ #freshDesktopApp #fdLegacyMount :is(td,th){padding:4px!important;height:25px!important;font-size:11px!important;}
+ #freshDesktopApp #fdLegacyMount .fd-legacy-chart{display:flex!important;align-items:center!important;gap:10px!important;min-height:0!important;height:56px!important;}
+ #freshDesktopApp #fdLegacyMount #statsChart{flex:1!important;min-width:0!important;height:50px!important;}
+}
+</style>
+<style id="desktop-right-four-panels">
+@media screen and (min-width:1100px){
+ #freshDesktopApp .fd-right-stack{grid-template-rows:minmax(0,.78fr) minmax(0,1.22fr)!important;align-items:stretch!important;}
+ #freshDesktopApp .fd-right-top{grid-template-columns:repeat(2,minmax(0,1fr))!important;align-items:stretch!important;gap:12px!important;}
+ #freshDesktopApp .fd-detail-top{display:flex!important;align-items:center!important;justify-content:space-between!important;flex-wrap:wrap!important;gap:4px!important;}
+ #freshDesktopApp .fd-detail-meta{margin:0!important;}
+ #freshDesktopApp .fd-event{min-height:36px!important;padding:4px 6px!important;}
+ #freshDesktopApp .fd-detail-actions button{height:25px!important;min-height:25px!important;}
+ #freshDesktopApp #fdLegacyMount{padding:6px 0 0!important;}
+ #freshDesktopApp .fd-ops-panel{border:0!important;background:transparent!important;box-shadow:none!important;}
+ #freshDesktopApp .fd-ops-title{padding:0!important;}
+ #freshDesktopApp #fdLegacyMount .fd-legacy-layout{align-items:stretch!important;grid-template-rows:36px minmax(0,1fr) 52px!important;gap:8px!important;}
+ #freshDesktopApp #fdLegacyMount .fd-legacy-body{grid-template-columns:repeat(2,minmax(0,1fr))!important;align-items:stretch!important;align-content:stretch!important;gap:12px!important;height:100%!important;}
+ #freshDesktopApp #fdLegacyMount .fd-legacy-card{height:100%!important;max-height:100%!important;box-sizing:border-box!important;align-self:stretch!important;background:#fff!important;}
+ #freshDesktopApp #fdLegacyMount .fd-legacy-card-body{box-sizing:border-box!important;min-height:0!important;flex:1 1 0!important;overflow:hidden!important;}
+ #freshDesktopApp #fdLegacyMount :is(#managerTable,#checklistBody){min-height:0!important;flex:1 1 0!important;overflow:auto!important;overscroll-behavior:contain;}
+ #freshDesktopApp #fdLegacyMount .filterbar select{flex:1 1 90px!important;}
+ #freshDesktopApp #fdLegacyMount .fd-legacy-chart{height:52px!important;}
+}
+</style>
+<style id="desktop-bottom-fit-repair">
+@media screen and (min-width:1100px){
+ #freshDesktopApp,#freshDesktopApp *{box-sizing:border-box;}
+ #freshDesktopApp .fd-right-stack{grid-template-rows:minmax(0,.72fr) minmax(0,1.28fr)!important;}
+ #freshDesktopApp .fd-ops-title{flex:0 0 26px!important;min-height:26px!important;height:26px!important;}
+ #freshDesktopApp #fdLegacyMount{flex:1 1 0!important;min-height:0!important;padding:0!important;}
+ #freshDesktopApp #fdLegacyMount .checklist-section{height:100%!important;max-height:100%!important;min-height:0!important;margin:0!important;padding:0!important;}
+ #freshDesktopApp #fdLegacyMount .fd-legacy-layout{height:100%!important;min-height:0!important;grid-template-rows:26px minmax(0,1fr) 82px!important;gap:6px!important;}
+ #freshDesktopApp #fdLegacyMount .fd-legacy-summary{height:26px!important;min-height:0!important;}
+ #freshDesktopApp #fdLegacyMount .summary-bar{display:flex!important;justify-content:flex-start!important;align-items:center!important;gap:6px!important;height:26px!important;min-height:0!important;}
+ #freshDesktopApp #fdLegacyMount .summary-card{flex:0 0 auto!important;width:auto!important;min-width:74px!important;height:24px!important;min-height:24px!important;padding:2px 9px!important;gap:6px!important;border:1px solid #dce8e8!important;border-radius:5px!important;}
+ #freshDesktopApp #fdLegacyMount .summary-card .num{font-size:15px!important;line-height:18px!important;margin:0!important;}
+ #freshDesktopApp #fdLegacyMount .summary-card .label{font-size:10px!important;margin:0!important;}
+ #freshDesktopApp #fdLegacyMount .fd-legacy-body{height:auto!important;min-height:0!important;overflow:hidden!important;}
+ #freshDesktopApp #fdLegacyMount .fd-legacy-card{height:100%!important;min-height:0!important;}
+ #freshDesktopApp #fdLegacyMount .fd-legacy-chart{height:82px!important;min-height:82px!important;padding:6px 8px!important;overflow:hidden!important;}
+ #freshDesktopApp #fdLegacyMount .fd-chart-side{flex:0 0 125px!important;}
+ #freshDesktopApp #fdLegacyMount #statsChart{height:70px!important;min-height:0!important;padding:0!important;}
+ #freshDesktopApp #fdLegacyMount #statsChart .chart-bars{display:grid!important;grid-template-columns:repeat(7,minmax(0,1fr))!important;width:100%!important;max-width:none!important;height:70px!important;min-height:0!important;padding:2px 12px!important;gap:8px!important;align-items:stretch!important;box-sizing:border-box!important;}
+ #freshDesktopApp #fdLegacyMount #statsChart .chart-col{display:grid!important;grid-template-rows:12px 38px 14px!important;justify-items:center!important;align-items:center!important;flex:1 1 0!important;min-width:0!important;height:64px!important;margin:0!important;padding:0!important;gap:0!important;}
+ #freshDesktopApp #fdLegacyMount #statsChart .chart-bar-wrap{height:38px!important;min-height:0!important;align-self:end!important;max-width:20px!important;margin:0!important;}
+ #freshDesktopApp #fdLegacyMount #statsChart .chart-count,#freshDesktopApp #fdLegacyMount #statsChart .chart-label{display:block!important;line-height:12px!important;height:12px!important;margin:0!important;padding:0!important;font-size:10px!important;white-space:nowrap!important;}
+ #freshDesktopApp #fdLegacyMount #checklistBody table{width:100%!important;min-width:0!important;max-width:100%!important;table-layout:fixed!important;}
+ #freshDesktopApp #fdLegacyMount #checklistBody :is(th,td){padding:4px 2px!important;font-size:10px!important;line-height:1.4!important;white-space:normal!important;overflow-wrap:anywhere!important;text-align:center!important;}
+ #freshDesktopApp #fdLegacyMount #checklistBody :is(th,td):nth-child(1){width:10%!important;}
+ #freshDesktopApp #fdLegacyMount #checklistBody :is(th,td):nth-child(2){width:15%!important;}
+ #freshDesktopApp #fdLegacyMount #checklistBody :is(th,td):nth-child(3){width:12%!important;}
+ #freshDesktopApp #fdLegacyMount #checklistBody :is(th,td):nth-child(4){width:16%!important;}
+ #freshDesktopApp #fdLegacyMount #checklistBody :is(th,td):nth-child(5){width:10%!important;}
+ #freshDesktopApp #fdLegacyMount #checklistBody :is(th,td):nth-child(6){width:14%!important;}
+ #freshDesktopApp #fdLegacyMount #checklistBody :is(th,td):nth-child(7){width:15%!important;}
+ #freshDesktopApp #fdLegacyMount #checklistBody :is(th,td):nth-child(8){width:8%!important;}
+}
+</style>
+<style id="desktop-selected-actions-column">
+@media screen and (min-width:1100px){
+ #freshDesktopApp .fd-detail{display:grid!important;grid-template-columns:minmax(0,1fr) 126px!important;grid-template-rows:auto minmax(0,1fr)!important;column-gap:10px!important;row-gap:6px!important;align-items:stretch!important;}
+ #freshDesktopApp .fd-detail-top{grid-column:1/-1!important;grid-row:1!important;margin:0!important;}
+ #freshDesktopApp .fd-detail-list,#freshDesktopApp .fd-detail>.fd-empty{grid-column:1!important;grid-row:2!important;min-width:0!important;min-height:0!important;max-height:none!important;overflow:auto!important;align-self:stretch!important;}
+ #freshDesktopApp .fd-detail-actions{grid-column:2!important;grid-row:2!important;display:grid!important;grid-template-columns:minmax(0,1fr)!important;grid-template-rows:repeat(4,28px)!important;align-content:start!important;gap:5px!important;margin:0!important;padding:0 0 0 9px!important;border-top:0!important;border-left:1px solid #e5eded!important;}
+ #freshDesktopApp .fd-detail-actions button,#freshDesktopApp .fd-detail-actions button.danger{grid-column:1!important;height:28px!important;min-height:28px!important;width:100%!important;font-size:10px!important;padding:2px 3px!important;white-space:normal!important;line-height:1.2!important;}
+ #freshDesktopApp .fd-event{grid-template-columns:30px minmax(0,1fr)!important;gap:5px!important;}
+ #freshDesktopApp .fd-event-copy strong,#freshDesktopApp .fd-event-copy span{white-space:normal!important;overflow-wrap:anywhere!important;}
+}
+</style>
+<style>
+#fdScheduleDetails{width:min(680px,90vw);max-height:80vh;padding:0;border:1px solid #dce8e8;border-radius:12px;color:#16394f;background:white;box-shadow:0 18px 65px #16394f30;}
+#fdScheduleDetails::backdrop{background:#102a4355;}
+#fdScheduleDetails .fd-popup-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #e5eded;}
+#fdScheduleDetails .fd-popup-head button{padding:6px 12px;background:white;border:1px solid #dce8e8;border-radius:6px;cursor:pointer;}
+#fdScheduleDetails .fd-popup-content{padding:16px 20px;overflow:auto;max-height:65vh;}
+#fdScheduleDetails .fd-detail-list{max-height:none!important;}
+#fdScheduleDetails .fd-event{padding:12px!important;min-height:58px!important;}
+#fdScheduleDetails .fd-event-copy strong{font-size:14px!important;white-space:normal!important;}
+#fdScheduleDetails .fd-event-copy span{font-size:12px!important;white-space:normal!important;}
+</style>

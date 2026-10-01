@@ -9470,6 +9470,7 @@ const L = (function(){
   // 최신 기록부터 80건씩 그려서 초기 렌더링 부담을 줄인다.
   const REPORT_LOG_PAGE_SIZE = 80;
   const reportLogVisibleLimitBySite = Object.create(null);
+  let pendingReportLogFilter = null;
   let mgrBreakdownSubTab = '달력'; // 보고서 탭 상단 집계 영역의 하위 탭: 달력 | 주별집계 | 월별집계 | 소유자별
   let mgrBreakdownManagerFilter = null; // 담당자 이름 클릭시 그 사람 것만 필터링
   let mgrOwnerSubView = '전체'; // 소유자별 탭 안의 보기 방식: 전체 | 주별 | 월별
@@ -14834,6 +14835,12 @@ function renderDetailPanel(site){
       }
       function applyLogFilter(matchFn, label, opts){
         opts = opts || {};
+        if(hasMoreReportLogs){
+          pendingReportLogFilter={siteId:site.id,matchFn,label,opts};
+          reportLogVisibleLimitBySite[site.id]=logs.length;
+          renderDetailBody(site);
+          return;
+        }
         const listArea = document.getElementById('logListArea');
         if(!listArea) return;
         clearLogFilter();
@@ -14876,6 +14883,20 @@ function renderDetailPanel(site){
         if(!openBtn)return;
         const d=openBtn.dataset.mobileOpenReports;
         applyLogFilter(item=>item.dataset.logDate===d&&(!mgrBreakdownManagerFilter||String(item.dataset.logAuthor||'').replace(/\s*(본부장|실장|팀장|부장|차장|과장|대리|사원|주임)$/,'').trim()===String(mgrBreakdownManagerFilter).replace(/\s*(본부장|실장|팀장|부장|차장|과장|대리|사원|주임)$/,'').trim()),d+' 엑셀·입력 보고서');
+      });
+      body.querySelectorAll('.mgr-period-journal-btn').forEach(btn=>{
+        btn.addEventListener('click',()=>{
+          const dates=new Set(JSON.parse(btn.dataset.dates));
+          const normalize=v=>String(v||'').replace(/\s*(본부장|실장|팀장|부장|차장|과장|대리|사원|주임)$/,'').trim();
+          const managers=new Set(JSON.parse(btn.dataset.managers).map(normalize));
+          applyLogFilter(item=>dates.has(item.dataset.logDate)&&(btn.dataset.allManagers==='1'||managers.has(normalize(item.dataset.logAuthor))),btn.dataset.label);
+        });
+      });
+      body.querySelectorAll('.mgr-contact-journal-btn').forEach(btn=>{
+        btn.addEventListener('click',()=>{
+          const name=btn.dataset.contact;
+          applyLogFilter(item=>splitMultiNames(item.dataset.contactName||'').some(part=>fullyStripRoles(part).name.trim()===name.trim()),name+' 상담일지');
+        });
       });
       const mgrOwnerSearchInput = document.getElementById('mgrOwnerSearchInput');
       if(mgrOwnerSearchInput) mgrOwnerSearchInput.addEventListener('input', ()=>{
@@ -15140,6 +15161,10 @@ function renderDetailPanel(site){
           await deleteLogById(btn.dataset.logid);
         });
       });
+      if(pendingReportLogFilter&&pendingReportLogFilter.siteId===site.id){
+        const pending=pendingReportLogFilter;pendingReportLogFilter=null;
+        applyLogFilter(pending.matchFn,pending.label,pending.opts);
+      }
       const reportLogMoreBtn = body.querySelector('#reportLogMoreBtn');
       if(reportLogMoreBtn) reportLogMoreBtn.addEventListener('click', ()=>{
         const scroller=document.getElementById('masterPanel');
@@ -17720,6 +17745,12 @@ function renderDetailPanel(site){
       return `<p class="cal-count-guide">조합원 기준 · 같은 날 같은 사람은 1명. 담당자 간 중복 접촉으로 담당별 합은 총인원과 다를 수 있습니다.</p><div class="mgr-cal-grid">${['월','화','수','목','금','토','일'].map(x=>`<div class="mgr-cal-dayhead">${x}</div>`).join('')}${cells}</div><div id="mobileCalDetailPanel" class="mobile-cal-detail-panel" role="region" aria-label="선택일 담당자별 접촉현황" aria-live="polite" tabindex="-1"><div class="mobile-cal-detail-empty">날짜를 누르면 담당자별 접촉현황이 여기에 표시됩니다.</div></div>`;
     }
 
+    function periodJournalButton(events, manager, label){
+      const count=uniquePeople(events);if(!count)return '-';
+      const dates=[...new Set(events.map(e=>String(e.date||'')))];
+      const aliases=[...new Set([manager,...aliasValues.filter(v=>mgrKey(v)===manager)])];
+      return `<button type="button" class="mgr-period-journal-btn" data-dates="${escapeHtml(JSON.stringify(dates))}" data-managers="${escapeHtml(JSON.stringify(aliases))}" data-all-managers="${manager==='(전체)'?'1':'0'}" data-label="${escapeHtml(manager+' · '+label+' 상담일지')}" style="border:0;background:transparent;color:var(--accent);font:inherit;padding:2px 5px;cursor:pointer;text-decoration:underline;text-underline-offset:3px;">${count}</button>`;
+    }
     function buildWeekTable(){
       const weeks=[1,2,3,4,5,6];
       const activeWeeks=weeks.filter(w=>monthEventsRaw.some(e=>weekNo(e.date)===w)||w<=Math.max(5,weekNo(monthEnd)));
@@ -17729,8 +17760,8 @@ function renderDetailPanel(site){
         <tbody>${rowManagers.map(m=>{
           const mev=monthEventsRaw.filter(e=>m==='(전체)'||mgrKey(e.manager)===m);
           return `<tr><td class="mgr-name">${escapeHtml(m)}</td>${activeWeeks.map(w=>{
-            const x=mev.filter(e=>weekNo(e.date)===w);return `<td>${uniquePeople(x)||'-'}</td>`;
-          }).join('')}<td><b>${uniquePeople(mev)||'-'}</b></td></tr>`;
+            const x=mev.filter(e=>weekNo(e.date)===w);return `<td>${periodJournalButton(x,m,year+'년 '+month+'월 '+w+'주차')}</td>`;
+          }).join('')}<td><b>${periodJournalButton(mev,m,year+'년 '+month+'월')}</b></td></tr>`;
         }).join('')}</tbody>
       </table></div>`;
     }
@@ -17743,8 +17774,8 @@ function renderDetailPanel(site){
         <tbody>${rowManagers.map(m=>{
           const yev=rawEvents.filter(e=>String(e.date||'').startsWith(year+'-')&&(m==='(전체)'||mgrKey(e.manager)===m));
           return `<tr><td class="mgr-name">${escapeHtml(m)}</td>${months.map(mon=>{
-            const prefix=`${year}-${String(mon).padStart(2,'0')}-`;const x=yev.filter(e=>String(e.date||'').startsWith(prefix));return `<td>${uniquePeople(x)||'-'}</td>`;
-          }).join('')}<td><b>${uniquePeople(yev)||'-'}</b></td></tr>`;
+            const prefix=`${year}-${String(mon).padStart(2,'0')}-`;const x=yev.filter(e=>String(e.date||'').startsWith(prefix));return `<td>${periodJournalButton(x,m,year+'년 '+mon+'월')}</td>`;
+          }).join('')}<td><b>${periodJournalButton(yev,m,year+'년 전체')}</b></td></tr>`;
         }).join('')}</tbody>
       </table></div><div class="report-log-source-note">＊ ${year}년 월별 고유 접촉인원 · Excel 월 날짜열 기준</div>`;
     }
@@ -17766,7 +17797,7 @@ function renderDetailPanel(site){
         <thead><tr><th style="text-align:left;">접촉자</th><th>담당</th><th>동호수</th><th>접촉일수</th><th>건수</th><th>최근접촉</th><th>방법</th></tr></thead>
         <tbody>${rows.map(r=>{
           const meth=['상담','단순','TM'].map(m=>r.methods[m]?`${m==='상담'?'상':m==='단순'?'단':'TM'}${r.methods[m]}`:'').filter(Boolean).join(' ');
-          return `<tr data-owner-row="${escapeHtml(r.name)}"><td style="text-align:left;font-weight:700;">${escapeHtml(r.name)}${r.role?` <span style="color:var(--text-dim);font-size:8px;">(${escapeHtml(r.role)})</span>`:''}</td><td>${escapeHtml(r.manager||'-')}</td><td>${escapeHtml(r.unit||'-')}</td><td>${r.dates.size}</td><td>${r.count}</td><td>${escapeHtml(r.last||'-')}</td><td>${escapeHtml(meth||'-')}</td></tr>`;
+          return `<tr data-owner-row="${escapeHtml(r.name)}"><td style="text-align:left;font-weight:700;"><button type="button" class="mgr-contact-journal-btn" data-contact="${escapeHtml(r.name)}" style="border:0;background:transparent;padding:0;color:var(--accent);font:inherit;text-decoration:underline;text-underline-offset:3px;cursor:pointer;">${escapeHtml(r.name)}</button>${r.role?` <span style="color:var(--text-dim);font-size:8px;">(${escapeHtml(r.role)})</span>`:''}</td><td>${escapeHtml(r.manager||'-')}</td><td>${escapeHtml(r.unit||'-')}</td><td>${r.dates.size}</td><td>${r.count}</td><td>${escapeHtml(r.last||'-')}</td><td>${escapeHtml(meth||'-')}</td></tr>`;
         }).join('')}</tbody>
       </table></div>`;
     }
@@ -36056,4 +36087,8 @@ body.ux383 #regionPanel #regionDistrictSelect{
   padding-right:6px!important;
 }
 body.ux383 #regionPanel #regionDistrictSelect::-ms-expand{display:none;}
+</style>
+<style id="report-drilldown-plain-links">
+body .mgr-breakdown-table button.mgr-contact-journal-btn,body .mgr-breakdown-table button.mgr-period-journal-btn{appearance:none!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important;min-width:0!important;min-height:0!important;height:auto!important;padding:0 2px!important;outline-offset:3px;}
+body .mgr-breakdown-table button.mgr-contact-journal-btn::before,body .mgr-breakdown-table button.mgr-contact-journal-btn::after,body .mgr-breakdown-table button.mgr-period-journal-btn::before,body .mgr-breakdown-table button.mgr-period-journal-btn::after{display:none!important;}
 </style>

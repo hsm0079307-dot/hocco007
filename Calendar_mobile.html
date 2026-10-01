@@ -7892,3 +7892,47 @@ tbody tr:hover td{background:#fbfdfd!important}
 
 </body>
 </html>
+<style id="mobile-calendar-layout-repair-oct01">
+@media screen{
+ #mobileMockApp .m13-title{position:static!important;white-space:normal!important;overflow-wrap:anywhere;line-height:1.4!important;max-width:100%!important;}
+ #mobileMockApp{min-width:0!important;max-width:100%!important;box-sizing:border-box!important;}
+ #appRoot .wrap{box-sizing:border-box!important;min-width:0!important;}
+ #appRoot #managerTable,#appRoot #checklistBody{height:auto!important;max-height:none!important;overflow:visible!important;}
+ #appRoot #managerTable .table-scroll,#appRoot #checklistBody .table-scroll{max-height:420px!important;overflow:auto!important;}
+ #appRoot .wrap>header::before,#appRoot .wrap>header::after{content:none!important;display:none!important;}
+ #appRoot #siteTitle{white-space:normal!important;line-height:1.4!important;overflow-wrap:anywhere;}
+}
+</style>
+<style id="mobile-reordered-layout">
+@media screen{
+ #appRoot .wrap>.checklist-section{display:block!important;margin:16px 0!important;padding:16px!important;border:1px solid #e0eaea!important;border-radius:16px!important;background:#fff!important;}
+ #mobileMockApp .m13-hero{min-height:0!important;padding:18px!important;}
+ #mobileMockApp .m13-hero-scene{display:none!important;}
+ #mobileMockApp #m13Manager{display:none!important;}
+ #calendarSelectedSection{padding:16px;margin:16px 0;background:#fff;border:1px solid #e0eaea;border-radius:16px;min-width:0;}
+ #calendarSelectedSection h2{font-size:17px;margin:0 0 12px;color:#173e47;}
+ #calendarSelectedSection .filterbar{display:flex;flex-wrap:wrap;gap:6px;}
+ #calendarSelectedSection .filterbar select{min-width:0;max-width:100%;flex:1 1 140px;}
+ #calendarSelectedSection #checklistBody{max-height:none!important;overflow:visible!important;}
+ #calendarSelectedSection .table-scroll{max-height:420px!important;overflow:auto!important;}
+ #appRoot .summary-bar{gap:8px!important;}
+}
+</style>
+<script id="mobile-reorder-sections">
+(function(){
+ function arrange(){
+  const shell=document.getElementById('mobileMockApp');
+  const body=document.getElementById('checklistBody');
+  if(!shell||!body||document.getElementById('calendarSelectedSection'))return;
+  const filters=body.previousElementSibling;
+  if(!filters||!filters.classList.contains('filterbar'))return;
+  const oldHeading=filters.previousElementSibling;
+  const section=document.createElement('section');section.id='calendarSelectedSection';
+  const title=document.createElement('h2');title.textContent='선택 일정 · 체크리스트';section.append(title);
+  section.append(filters,body);shell.after(section);
+  if(oldHeading&&oldHeading.tagName==='H2')oldHeading.remove();
+ }
+ const observer=new MutationObserver(()=>{arrange();if(document.getElementById('calendarSelectedSection'))observer.disconnect();});
+ observer.observe(document.body,{childList:true,subtree:true});arrange();
+})();
+</script>
