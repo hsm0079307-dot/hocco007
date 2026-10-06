@@ -7,12 +7,29 @@ function createPasswordDatabaseClient(nativeFetch,endpoint,databaseOrigin){
   let session=null,viewerSession=null;
   const waiters=new Set();
   const pendingReads=new Map();
+  let initialSnapshot=null;
+  async function expandStaff(input,active){
+    if(!input.staffPlan)return input;
+    const data={...input,offices:{}},plan=input.staffPlan;delete data.staffPlan;
+    const tasks=plan.offices.flatMap(office=>plan.siteIds.map(siteId=>({office,siteId}))),results=new Array(tasks.length);let position=0;
+    async function worker(){
+      while(position<tasks.length){const index=position++,task=tasks[index],url=new URL(endpoint);url.searchParams.set('action','site');url.searchParams.set('office',task.office);url.searchParams.set('siteId',task.siteId);
+        const response=await nativeFetch(url.href,{headers:{Authorization:'Bearer '+active.token},cache:'no-store'});
+        if(!response.ok)throw Error('담당 현장을 불러오지 못했습니다. 다시 입장해주세요.');results[index]=await response.json();
+      }
+    }
+    await Promise.all(Array.from({length:Math.min(6,tasks.length)},()=>worker()));
+    tasks.forEach((task,index)=>{if(results[index]?.length)(data.offices[task.office]||=[]).push(...results[index]);});
+    return data;
+  }
   function setSession(next){session=next;if(next){for(const resolve of waiters)resolve(next);waiters.clear();}}
   async function login(role,password,key){
-    const response=await nativeFetch(endpoint+'?action=login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role,password,key}),signal:AbortSignal.timeout(20000)});
+    const response=await nativeFetch(endpoint+'?action=login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role,password,key,includeData:true}),signal:AbortSignal.timeout(20000)});
     if(!response.ok)throw Error(response.status===429?'시도 횟수가 많습니다. 15분 후 다시 시도해주세요.':response.status>=500?'로그인 서버에 연결하지 못했습니다. 잠시 후 다시 눌러주세요.':'비밀번호가 틀렸습니다.');
     const next=await response.json();
     if(!next.token||next.role!==role)throw Error('로그인 응답을 확인하지 못했습니다.');
+    initialSnapshot=next.initialData?{token:next.token,data:next.initialData,etag:next.initialEtag||''}:null;
+    delete next.initialData;delete next.initialEtag;
     if(role==='viewer')viewerSession=next;setSession(next);return next;
   }
   async function fetchDatabase(input,init){
@@ -21,6 +38,10 @@ function createPasswordDatabaseClient(nativeFetch,endpoint,databaseOrigin){
     const template=new Request(input,init);
     const active=session||await new Promise(resolve=>waiters.add(resolve));
     if(template.signal.aborted)throw new DOMException('Aborted','AbortError');
+    if(template.method==='GET'&&url.pathname==='/data.json'&&initialSnapshot?.token===active.token){
+      const snapshot=initialSnapshot;queueMicrotask(()=>{if(initialSnapshot===snapshot)initialSnapshot=null;});
+      return new Response(JSON.stringify(await expandStaff(snapshot.data,active)),{headers:{'Content-Type':'application/json','ETag':snapshot.etag}});
+    }
     const target=new URL(endpoint);target.searchParams.set('action','data');target.searchParams.set('path',url.pathname);
     const headers=new Headers(template.headers);headers.set('Authorization','Bearer '+active.token);
     const options={method:template.method,headers,cache:'no-store',signal:template.signal};
@@ -39,12 +60,13 @@ function createPasswordDatabaseClient(nativeFetch,endpoint,databaseOrigin){
       response=(await pending).clone();
     }else response=await nativeFetch(target.href,options);
     if(response.status===401){document.getElementById('entryGate').style.display='flex';document.getElementById('entryGateError').textContent='입장 시간이 만료되었습니다. 새로고침 후 다시 입장해주세요.';document.getElementById('entryGateError').style.display='block';}
+    if(response.ok&&template.method==='GET'&&url.pathname==='/data.json'&&active.role==='staff')return new Response(JSON.stringify(await expandStaff(await response.json(),active)),{headers:response.headers});
     return response;
   }
   return {login,fetch:fetchDatabase,identity:()=>session,setSession,downgrade:()=>{if(!viewerSession)throw Error('입장 비밀번호로 다시 입장해주세요.');setSession(viewerSession);}};
 }
 (function(){
-  const client=createPasswordDatabaseClient(window.fetch.bind(window),'https://stately-sfogliatella-7ab674.netlify.app/.netlify/functions/password-access','https://add-project-74efc-default-rtdb.asia-southeast1.firebasedatabase.app');
+  const client=createPasswordDatabaseClient(window.fetch.bind(window),'https://stately-sfogliatella-7ab674.netlify.app/api/password-access','https://add-project-74efc-default-rtdb.asia-southeast1.firebasedatabase.app');
   window.fetch=client.fetch;window.dashboardPasswordAccess=client;
 })();
 
@@ -10385,7 +10407,8 @@ async function mfRetrySync(){
         localDataVersion = (data && data.dataVersion) || null;
         districtLabelOverrides=(data&&data.districtLabelOverrides&&typeof data.districtLabelOverrides==='object')?data.districtLabelOverrides:{};
 
-        const hasPendingOffline = false; // 서버의 인증된 계정 데이터로 시작합니다.
+        const pendingOfflinePresent=(()=>{try{return !!localStorage.getItem(PENDING_OFFLINE_KEY);}catch(e){return false;}})();
+        const hasPendingOffline=pendingOfflinePresent&&window.dashboardPasswordAccess.identity()?.role==='admin';
         if(hasPendingOffline){
           // 지난번에 오프라인이라 이 기기에만 저장되고 클라우드에는 못 올라간 변경사항이 있다.
           // 방금 받아온 클라우드 데이터(현장 목록)로 그냥 덮어쓰면 그 변경사항이 조용히 사라지므로,
@@ -10405,7 +10428,7 @@ async function mfRetrySync(){
             allOfficesData = {'강서사업소': data};
           }
           const hasAny = allOfficesData && Object.values(allOfficesData).some(arr=>Array.isArray(arr) && arr.length>0);
-          if(!hasAny){
+          if(!hasAny && !window.dashboardPasswordAccess){
             // 클라우드가 아직 비어있으면, 이 PC에 이미 저장돼있던 데이터가 있는지 먼저 확인해서
             // (기존에 쓰시던 내용을 잃지 않도록) 그걸 그대로 클라우드로 올려줌
             const raw = await mfCacheRead(STORAGE_KEY);
@@ -10416,7 +10439,7 @@ async function mfRetrySync(){
               }catch(e3){ allOfficesData = {}; }
             }
           }
-          void mfCacheWrite(STORAGE_KEY, JSON.stringify(allOfficesData));
+          if(!pendingOfflinePresent) void mfCacheWrite(STORAGE_KEY, JSON.stringify(allOfficesData));
         }
         void mfCacheWrite(GUEST_KEY, JSON.stringify(guestAccounts));
         void mfCacheWrite(CHANGELOG_KEY, JSON.stringify(changeLog));
