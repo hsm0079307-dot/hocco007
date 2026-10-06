@@ -8717,6 +8717,39 @@ body.ux383 .rival-group.rival-centered .rival-company-locations{height:64px;box-
 body.ux383 .rival-location-row{display:grid;grid-template-columns:42px minmax(0,1fr);gap:4px;align-items:start;min-width:0}
 body.ux383 .rival-location-value{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere;line-height:14px;max-height:28px}
 </style>
+<style id="rival-search-half-width">
+body.ux383 .rival-controls #rivalSearch{flex:0 1 calc(50% - 90px);width:calc(50% - 90px);min-width:180px;max-width:100%;box-sizing:border-box}
+</style>
+<style id="rival-overview-site-navigation">
+body.ux383 .rival-overview-expanded .rival-overview-workspace{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:22px;align-items:start}
+body.ux383 .rival-overview-left{min-width:0}
+body.ux383 .rival-overview-workspace .rival-overview-map-section{margin:0;padding:0;border:0;min-width:0}
+body.ux383 .rival-overview-workspace #rivalOverviewMap{width:100%;height:380px!important;min-height:380px!important;border-radius:8px;overflow:hidden}
+body.ux383 .rival-overview-workspace #rivalOverviewCards{grid-template-columns:minmax(0,1fr);gap:16px}
+body.ux383 .rival-overview-workspace #rivalOverviewDetails:not([hidden]){margin-top:16px}
+body.ux383 .rival-overview-site-buttons{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+body.ux383 .rival-overview-site-button{padding:8px 13px!important;min-height:34px;border:1px solid var(--line)!important;border-radius:6px;background:var(--bg-side-2)!important;color:var(--text-main)!important;font-size:11px;cursor:pointer}
+body.ux383 .rival-overview-site-button.selected{background:var(--accent)!important;color:#fff!important;border-color:var(--accent)!important}
+body.ux383 .rival-overview-workspace .rival-overview-controls{max-width:none!important}
+body.ux383 .rival-overview-workspace #rivalOverviewSearch{width:100%;flex:1;min-width:0}
+@media(max-width:760px){body.ux383 .rival-overview-expanded .rival-overview-workspace{grid-template-columns:minmax(0,1fr)}body.ux383 .rival-overview-workspace #rivalOverviewMap{height:300px!important;min-height:300px!important}}
+</style>
+<style id="rival-overview-office-scope">
+body.ux383 .rival-overview-workspace #rivalOverviewCards{max-width:320px;width:100%}
+body.ux383 .rival-overview-workspace .rival-overview-table{table-layout:fixed;width:100%}
+body.ux383 .rival-overview-workspace .rival-overview-table :is(th,td){font-size:10px!important;height:24px!important;padding:3px 4px!important}
+body.ux383 .rival-overview-workspace .rival-overview-roster-scroll{max-height:144px}
+body.ux383 .rival-overview-workspace .rival-overview-company{font-size:11px}
+body.ux383 .rival-overview-workspace #rivalOverviewSites{display:block}
+body.ux383 .rival-overview-office-buttons{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+body.ux383 .rival-overview-office-button{border:1px solid var(--line)!important;border-radius:6px;padding:6px 9px!important;background:var(--bg-side-2)!important;color:var(--text-main)!important;font-size:11px;cursor:pointer}
+body.ux383 .rival-overview-office-button.selected{background:var(--accent)!important;color:#fff!important;border-color:var(--accent)!important}
+body.ux383 .rival-overview-office-button small{font-size:10px;opacity:.8;margin-left:4px}
+body.ux383 .rival-overview-office-status{font-size:10px;color:var(--text-dim);margin:0 0 12px}
+body.ux383 .rival-overview-office-group{margin:0 0 12px}
+body.ux383 .rival-overview-office-group h4{font-size:11px;margin:0 0 6px;color:var(--text-dim)}
+body.ux383 .rival-overview-office-sites{display:flex;flex-wrap:wrap;gap:7px}
+</style>
 </head>
 <body data-report-source="excel-only">
 
@@ -13672,9 +13705,11 @@ window.addEventListener('resize', ()=>{
     // 890-16: https://jusoga.com/b/1147010100108900016001289/
     // 186-5: https://findby.co.kr/details/08218-115303005065-st-652b60c38c641f9e38a4332b
     // 323 (목동서로 387): https://imjangon.co.kr/subscription/800 — map lat/lng, matched to Loftheim address.
+    // 782-5: https://jusoga.com/b/1150010300107820005020533/
+    // 1022-5: https://jusoga.com/b/1147010100110220005007005/
     // Exact lot/road matching only; 신월로 323 and 신정동 323-7 are different properties.
     const normalized=String(address).trim().replace(/[–−]/g,'-').replace(/^서울(?:특별시)?\s*/,'').replace(/\s+/g,'');
-    const known={'양천구신정동296-93':{lat:37.5197511,lng:126.872803},'양천구신목로50':{lat:37.5197511,lng:126.872803},'양천구신정동890-16':{lat:37.527695725193,lng:126.86332026597},'양천구목동로25길5':{lat:37.527695725193,lng:126.86332026597},'구로구고척동186-5':{lat:37.5067192,lng:126.8607745},'구로구목동남로6':{lat:37.5067192,lng:126.8607745},'양천구신정동323':{lat:37.5160855169884,lng:126.861056022795},'양천구목동서로387':{lat:37.5160855169884,lng:126.861056022795}};
+    const known={'양천구신정동296-93':{lat:37.5197511,lng:126.872803},'양천구신목로50':{lat:37.5197511,lng:126.872803},'양천구신정동890-16':{lat:37.527695725193,lng:126.86332026597},'양천구목동로25길5':{lat:37.527695725193,lng:126.86332026597},'구로구고척동186-5':{lat:37.5067192,lng:126.8607745},'구로구목동남로6':{lat:37.5067192,lng:126.8607745},'양천구신정동323':{lat:37.5160855169884,lng:126.861056022795},'양천구목동서로387':{lat:37.5160855169884,lng:126.861056022795},'강서구화곡동782-5':{lat:37.53029991474,lng:126.8636000964},'강서구화곡동782-5부경빌딩':{lat:37.53029991474,lng:126.8636000964},'강서구등촌로3':{lat:37.53029991474,lng:126.8636000964},'강서구등촌로3부경빌딩':{lat:37.53029991474,lng:126.8636000964},'양천구신정동1022-5':{lat:37.519608567026,lng:126.85909992296},'양천구중앙로32길51':{lat:37.519608567026,lng:126.85909992296}};
     return known[normalized]||null;
   }
   function rivalOverviewModel(siteId='',companyFilter='',query=''){
@@ -13719,32 +13754,62 @@ window.addEventListener('resize', ()=>{
     }
     return {draw:drawMap,clear:()=>{generation++;cleanup();},close};
   }
+  function rivalSiteOffice(site){
+    const normalize=value=>/^(강서|강남|강북)(사업소)?$/.test(value||'')?value.replace(/사업소$/,'')+'사업소':value||'미분류';
+    for(const [office,rows] of Object.entries(allOfficesData||{}))if(Array.isArray(rows)&&rows.some(s=>String(s.id)===String(site.id)))return normalize(office);
+    return normalize(site.office);
+  }
+  async function rivalOpenSiteTab(siteId,modal){
+    const site=rivalSites().find(s=>String(s.id)===String(siteId));if(!site)return;
+    const office=rivalSiteOffice(site);modal.close();
+    if(typeof switchOffice==='function'&&office!=='미분류')await switchOffice(office);
+    currentDetailId=site.id;currentView='detail';detailTab='타사';editMode=false;
+    renderAll();
+    const fresh=rivalSites().find(s=>String(s.id)===String(siteId))||site;
+    currentDetailId=fresh.id;currentView='detail';detailTab='타사';renderDetailPanel(fresh);
+  }
   function openRivalOverview(){
     if(document.getElementById('rivalOverviewContent'))return;
     const content=document.createElement('div');content.id='rivalOverviewContent';
-    content.innerHTML='<h3 class="rival-brand-heading">타사별 명단</h3><div id="rivalOverviewCompanies"></div><div class="rival-overview-controls"><label>활동단지 <select id="rivalOverviewSite"><option value="">전체 현장 보기</option>'+rivalSites().sort((a,b)=>a.name.localeCompare(b.name,'ko')).map(s=>'<option value="'+escapeHtml(String(s.id))+'">'+escapeHtml(s.name)+'</option>').join('')+'</select></label><input type="hidden" id="rivalOverviewCompany"><input id="rivalOverviewSearch" aria-label="타사 현황 검색" placeholder="성함 · 연락처 · 단지 · 주소 검색"><span id="rivalOverviewCount"></span></div><div id="rivalOverviewDetails" hidden><div id="rivalOverviewCards"></div><section class="rival-overview-map-section"><div class="rival-overview-map-heading"><h3>사무실 · 라운지 위치</h3><span>■ 사무실　 ● 라운지</span></div><div id="rivalOverviewMap"></div><p id="rivalOverviewMapStatus" role="status"></p></section></div>';
-    const modal=uxModal('타사별 명단',content);modal.dialog.classList.add('rival-overview-modal');modal.dialog.querySelector('.ux-modal-head h2')?.classList.add('rival-overview-hidden-title');
-    const select=content.querySelector('#rivalOverviewSite'),companySelect=content.querySelector('#rivalOverviewCompany'),search=content.querySelector('#rivalOverviewSearch'),cards=content.querySelector('#rivalOverviewCards'),mapNode=content.querySelector('#rivalOverviewMap'),status=content.querySelector('#rivalOverviewMapStatus');
-    const locationMap=rivalCreateLocationMap(mapNode,status),drawMap=groups=>locationMap.draw(groups);
+    content.innerHTML='<h3 class="rival-brand-heading">▦ 타사현황</h3><div class="rival-overview-workspace"><div class="rival-overview-left"><div id="rivalOverviewCompanies"></div><div class="rival-overview-controls"><input type="hidden" id="rivalOverviewSite"><input type="hidden" id="rivalOverviewCompany"><input id="rivalOverviewSearch" aria-label="타사 현황 검색" placeholder="성함 · 연락처 · 단지 · 주소 검색"><span id="rivalOverviewCount"></span></div><div id="rivalOverviewDetails" hidden><div id="rivalOverviewSites" class="rival-overview-site-buttons" aria-label="현장 선택"></div><div id="rivalOverviewCards"></div></div></div><section class="rival-overview-map-section" hidden><div class="rival-overview-map-heading"><h3>사무실 · 라운지 위치</h3><span>■ 사무실　 ● 라운지</span></div><div id="rivalOverviewMap"></div><p id="rivalOverviewMapStatus" role="status"></p></section></div>';
+    const modal=uxModal('▦ 타사현황',content);modal.dialog.classList.add('rival-overview-modal');modal.dialog.querySelector('.ux-modal-head h2')?.classList.add('rival-overview-hidden-title');
+    const select=content.querySelector('#rivalOverviewSite'),companySelect=content.querySelector('#rivalOverviewCompany'),search=content.querySelector('#rivalOverviewSearch'),cards=content.querySelector('#rivalOverviewCards'),siteButtons=content.querySelector('#rivalOverviewSites'),mapNode=content.querySelector('#rivalOverviewMap'),status=content.querySelector('#rivalOverviewMapStatus');
+    const locationMap=rivalCreateLocationMap(mapNode,status);
+    let activated=false,officeFilter='';
     modal.setOnClose(()=>locationMap.close());
-    function edit(site,company){if(!site||rivalReadOnly())return;openRivalCompanySettings(site,company,select.value?'site':'all',draw);}
+    function edit(site,company){if(!site||rivalReadOnly())return;openRivalCompanySettings(site,company,'site',draw);}
     function draw(){
       const tiles=content.querySelector('#rivalOverviewCompanies');
       tiles.innerHTML='<button type="button" class="rival-brand-tile '+(!companySelect.value?'selected':'')+'" data-rival-filter=""><strong>전체 타사</strong></button>'+rivalOverviewCompanyOrder.map(company=>'<button type="button" class="rival-brand-tile '+(companySelect.value===company?'selected':'')+'" data-rival-filter="'+escapeHtml(company)+'" aria-label="'+escapeHtml(company)+'" title="'+escapeHtml(company)+'">'+rivalCompanyChoice(company)+'</button>').join('');
-      tiles.querySelectorAll('[data-rival-filter]').forEach(button=>{button.setAttribute('aria-pressed',String(button.dataset.rivalFilter===companySelect.value));button.onclick=()=>{companySelect.value=button.dataset.rivalFilter;draw();};});
-      const showDetails=!!(select.value||companySelect.value);
+      tiles.querySelectorAll('[data-rival-filter]').forEach(button=>{button.setAttribute('aria-pressed',String(button.dataset.rivalFilter===companySelect.value));button.onclick=()=>{activated=true;companySelect.value=button.dataset.rivalFilter;select.value='';draw();};});
+      const showDetails=activated||!!(select.value||companySelect.value);
       modal.dialog.classList.toggle('rival-overview-expanded',showDetails);
       content.querySelector('#rivalOverviewDetails').hidden=!showDetails;
-      content.querySelector('.rival-overview-map-section').hidden=!select.value;
-      if(!showDetails){locationMap.clear();cards.innerHTML='';content.querySelector('#rivalOverviewCount').textContent='';return;}
-      const groups=rivalOverviewModel(select.value,companySelect.value,search.value);
+      content.querySelector('.rival-overview-map-section').hidden=!showDetails;
       content.querySelector('#rivalOverviewCount').textContent='';
-      cards.innerHTML=groups.map(g=>{const context=g.locations.find(l=>String(l.site.id)===select.value)||g.locations[0]||{site:rivalSites().find(s=>String(s.id)===(select.value||g.people[0]?.ownerId)),info:{}};const people=g.people.sort((a,b)=>context.site?rivalPersonOrder(context.site,a,b):a.manager.localeCompare(b.manager,'ko'));return '<section class="rival-overview-card"><div class="rival-overview-company"><strong '+(rivalReadOnly()?'':'tabindex="0" role="button" data-overview-company="'+escapeHtml(g.company)+'" data-overview-site="'+escapeHtml(String(context.site?.id||''))+'" title="더블클릭하여 수정"')+'>'+escapeHtml(g.company)+'</strong><span> (기획사: '+escapeHtml(context.info.agency||'　')+')</span></div><div class="rival-overview-locations">'+(g.locations.length?g.locations.map(l=>'<div '+(rivalReadOnly()?'':'data-overview-company="'+escapeHtml(g.company)+'" data-overview-site="'+escapeHtml(String(l.site.id))+'" title="더블클릭하여 이 현장의 주소 수정"')+'>'+(select.value?'':'<small>'+escapeHtml(l.site.name)+'</small> ')+'사무실: '+escapeHtml(l.info.office||'　')+' / 라운지: '+escapeHtml(l.info.lounge||'　')+(l.info.agency&&l.info.agency!==context.info.agency?' (기획사: '+escapeHtml(l.info.agency)+')':'')+'</div>').join(''):'사무실:　 / 라운지:　')+'</div><div class="rival-overview-roster-scroll"><table class="rival-overview-table"><colgroup><col style="width:25px"><col style="width:30%"><col style="width:99px">'+(select.value?'':'<col>')+'</colgroup><thead><tr><th>No</th><th>성함</th><th>연락처</th>'+(select.value?'':'<th>활동단지</th>')+'</tr></thead><tbody>'+rivalOverviewRoster(people,select.value)+'</tbody></table></div></section>';}).join('')||'<p class="rival-empty">등록된 타사 명단이 없습니다.</p>';
+      if(!showDetails){locationMap.clear();siteButtons.innerHTML='';cards.innerHTML='';return;}
+      const availableGroups=rivalOverviewModel('',companySelect.value,search.value),activeIds=new Set();
+      availableGroups.forEach(g=>{g.people.forEach(p=>(p.siteIds||[]).forEach(id=>activeIds.add(String(id))));g.locations.forEach(l=>activeIds.add(String(l.site.id)));});
+      const registered=rivalSites().filter(site=>activeIds.has(String(site.id))).sort((a,b)=>a.name.localeCompare(b.name,'ko',{numeric:true}));
+      const offices=['강서사업소','강남사업소','강북사업소',...new Set(registered.map(rivalSiteOffice).filter(o=>!['강서사업소','강남사업소','강북사업소'].includes(o)))];
+      const choices=registered.filter(site=>!officeFilter||rivalSiteOffice(site)===officeFilter),visibleIds=new Set(choices.map(site=>String(site.id)));
+      if(select.value&&!visibleIds.has(select.value))select.value='';
+      siteButtons.innerHTML='<div class="rival-overview-office-buttons">'+['',...offices].map(office=>'<button type="button" class="rival-overview-office-button '+(office===officeFilter?'selected':'')+'" data-overview-office="'+escapeHtml(office)+'" aria-pressed="'+(office===officeFilter)+'">'+escapeHtml(office?office.replace('사업소',''):'전체 사업소')+' <small>'+String(office?registered.filter(site=>rivalSiteOffice(site)===office).length:registered.length)+'</small></button>').join('')+'</div><p class="rival-overview-office-status">'+escapeHtml(officeFilter||'전체 사업소')+' · 타사 정보 등록 현장 '+choices.length+'개</p>'+ (choices.length?offices.filter(office=>choices.some(site=>rivalSiteOffice(site)===office)).map(office=>'<section class="rival-overview-office-group"><h4>'+escapeHtml(office)+'</h4><div class="rival-overview-office-sites">'+choices.filter(site=>rivalSiteOffice(site)===office).map(site=>'<button type="button" class="rival-overview-site-button '+(select.value===String(site.id)?'selected':'')+'" data-overview-site-select="'+escapeHtml(String(site.id))+'" aria-pressed="'+(select.value===String(site.id))+'">'+escapeHtml(site.name)+'</button>').join('')+'</div></section>').join(''):'<p class="rival-empty">이 사업소에 등록된 타사 정보가 없습니다.</p>');
+      siteButtons.querySelectorAll('[data-overview-office]').forEach(button=>button.onclick=()=>{officeFilter=button.dataset.overviewOffice;select.value='';draw();});
+      siteButtons.querySelectorAll('[data-overview-site-select]').forEach(button=>button.onclick=()=>{if(!companySelect.value){rivalOpenSiteTab(button.dataset.overviewSiteSelect,modal).catch(()=>{status.textContent='현장을 열지 못했습니다. 다시 선택해 주세요.';});return;}select.value=button.dataset.overviewSiteSelect;draw();});
+      const filterMap=groups=>groups.map(g=>({...g,locations:g.locations.filter(l=>visibleIds.has(String(l.site.id)))}));
+      if(!select.value){cards.innerHTML='';locationMap.draw(filterMap(availableGroups));return;}
+      const groups=rivalOverviewModel(select.value,companySelect.value,search.value);
+      cards.innerHTML=groups.map(g=>{
+        const site=rivalSites().find(s=>String(s.id)===select.value),info=g.locations.find(l=>String(l.site.id)===select.value)?.info||{},people=g.people.sort((a,b)=>site?rivalPersonOrder(site,a,b):a.manager.localeCompare(b.manager,'ko'));
+        return '<section class="rival-overview-card"><div class="rival-overview-company"><strong '+(rivalReadOnly()?'':'tabindex="0" role="button" data-overview-company="'+escapeHtml(g.company)+'" data-overview-site="'+escapeHtml(select.value)+'" title="더블클릭하여 수정"')+'>'+escapeHtml(g.company)+'</strong><span> (기획사: '+escapeHtml(info.agency||'　')+')</span></div><div class="rival-overview-locations"><div>사무실: '+escapeHtml(info.office||'　')+'</div><div>라운지: '+escapeHtml(info.lounge||'　')+'</div></div><div class="rival-overview-roster-scroll"><table class="rival-overview-table"><colgroup><col style="width:28px"><col><col style="width:110px"></colgroup><thead><tr><th>No</th><th>성함</th><th>연락처</th></tr></thead><tbody>'+rivalOverviewRoster(people,select.value)+'</tbody></table></div></section>';
+      }).join('')||'<p class="rival-empty">등록된 타사 명단이 없습니다.</p>';
       cards.querySelectorAll('[data-overview-company]').forEach(node=>{const open=()=>edit(rivalSites().find(s=>String(s.id)===node.dataset.overviewSite),node.dataset.overviewCompany);node.ondblclick=open;node.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open();}};});
-      if(select.value)drawMap(rivalOverviewModel(select.value));else{locationMap.clear();}
+      locationMap.draw(filterMap(groups));
     }
-    select.onchange=()=>{companySelect.value='';draw();};companySelect.onchange=draw;search.oninput=draw;draw();
+    select.onchange=()=>{activated=true;draw();};companySelect.onchange=()=>{activated=true;select.value='';draw();};search.oninput=draw;draw();
   }
+
   document.addEventListener('click',e=>{if(e.target.closest('#openRivalOverview'))openRivalOverview();});
 
 
