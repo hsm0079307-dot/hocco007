@@ -1,6 +1,41 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
+<script id="password-database-access">
+// The original password screens stay in place. Database access is authenticated on the server.
+function createPasswordDatabaseClient(nativeFetch,endpoint,databaseOrigin){
+  let session=null,viewerSession=null;
+  const waiters=new Set();
+  function setSession(next){session=next;if(next){for(const resolve of waiters)resolve(next);waiters.clear();}}
+  async function login(role,password,key){
+    const response=await nativeFetch(endpoint+'?action=login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role,password,key}),signal:AbortSignal.timeout(20000)});
+    if(!response.ok)throw Error(response.status===429?'시도 횟수가 많습니다. 15분 후 다시 시도해주세요.':response.status>=500?'로그인 서버에 연결하지 못했습니다. 잠시 후 다시 눌러주세요.':'비밀번호가 틀렸습니다.');
+    const next=await response.json();
+    if(!next.token||next.role!==role)throw Error('로그인 응답을 확인하지 못했습니다.');
+    if(role==='viewer')viewerSession=next;setSession(next);return next;
+  }
+  async function fetchDatabase(input,init){
+    const url=new URL(typeof input==='string'||input instanceof URL?String(input):input.url,location.href);
+    if(url.origin!==databaseOrigin)return nativeFetch(input,init);
+    const template=new Request(input,init);
+    const active=session||await new Promise(resolve=>waiters.add(resolve));
+    if(template.signal.aborted)throw new DOMException('Aborted','AbortError');
+    const target=new URL(endpoint);target.searchParams.set('action','data');target.searchParams.set('path',url.pathname);
+    const headers=new Headers(template.headers);headers.set('Authorization','Bearer '+active.token);
+    const options={method:template.method,headers,cache:'no-store',signal:template.signal};
+    if(!['GET','HEAD'].includes(template.method))options.body=await template.text();
+    const response=await nativeFetch(target.href,options);
+    if(response.status===401){document.getElementById('entryGate').style.display='flex';document.getElementById('entryGateError').textContent='입장 시간이 만료되었습니다. 새로고침 후 다시 입장해주세요.';document.getElementById('entryGateError').style.display='block';}
+    return response;
+  }
+  return {login,fetch:fetchDatabase,identity:()=>session,setSession,downgrade:()=>{if(!viewerSession)throw Error('입장 비밀번호로 다시 입장해주세요.');setSession(viewerSession);}};
+}
+(function(){
+  const client=createPasswordDatabaseClient(window.fetch.bind(window),'https://stately-sfogliatella-7ab674.netlify.app/.netlify/functions/password-access','https://add-project-74efc-default-rtdb.asia-southeast1.firebasedatabase.app');
+  window.fetch=client.fetch;window.dashboardPasswordAccess=client;
+})();
+
+</script>
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -9781,10 +9816,10 @@ const L = (function(){
   }
 
   // ---------- 수정 잠금(간단한 클라이언트 측 잠금, 완전한 보안은 아님) ----------
-  const DEFAULT_ADMIN_PASSWORD_HASH = '4654d793972c3b6a1d48fb0ab58d9cb0de46c3d33d605f9222c283dfaa12d420';
+  const DEFAULT_ADMIN_PASSWORD_HASH = '';
   let adminPasswordHash = DEFAULT_ADMIN_PASSWORD_HASH; // 관리자가 직접 변경 가능, 클라우드에 저장됨
   // 사이트 전체 입장 비밀번호 (자료보호용, 기본값: hocco2026 / 관리자가 변경 가능)
-  const DEFAULT_ENTRY_PASSWORD_HASH = '6e0da14bfd1946a461979795a26325a177de1f0fb3e05bd438b57a016a8bcc8e';
+  const DEFAULT_ENTRY_PASSWORD_HASH = '';
   let entryPasswordHash = DEFAULT_ENTRY_PASSWORD_HASH;
   const ENTRY_UNLOCKED_KEY = 'realestate-entry-unlocked-v1';
   async function sha256Hex(str){
@@ -9938,12 +9973,14 @@ async function mfRetrySync(){
       return false;
     }
     try{
-      if(localStorage.getItem('editUnlocked')==='1') return true;
+      if(window.dashboardPasswordAccess.identity()?.role==='admin') return true;
     }catch(e){}
     const pw = prompt('수정 · 추가 · 삭제하려면 비밀번호를 입력하세요:');
     if(pw===null) return false;
-    const hash = await sha256Hex(pw);
-    if(hash===adminPasswordHash){
+    let authenticated=false;
+    try{await window.dashboardPasswordAccess.login('admin',pw);await loadSites();if(uxLoadFailed)throw Error('현장 데이터를 불러오지 못했습니다.');authenticated=true;}
+    catch(error){pwError.textContent=error.message;}
+    if(authenticated){
       try{ localStorage.setItem('editUnlocked','1'); }catch(e){}
       return true;
     }
@@ -10334,7 +10371,7 @@ async function mfRetrySync(){
         if(data && data.guestDataVersions && typeof data.guestDataVersions === 'object') guestDataVersions = data.guestDataVersions;
         localDataVersion = (data && data.dataVersion) || null;
 
-        const hasPendingOffline = (()=>{ try{ return !!localStorage.getItem(PENDING_OFFLINE_KEY); }catch(e){ return false; } })();
+        const hasPendingOffline = false; // 서버의 인증된 계정 데이터로 시작합니다.
         if(hasPendingOffline){
           // 지난번에 오프라인이라 이 기기에만 저장되고 클라우드에는 못 올라간 변경사항이 있다.
           // 방금 받아온 클라우드 데이터(현장 목록)로 그냥 덮어쓰면 그 변경사항이 조용히 사라지므로,
@@ -10374,6 +10411,7 @@ async function mfRetrySync(){
     }catch(e){
       uxLoadFailed=true; syncState='bad';mfSyncError=/status (\d+)/.test(e.message||'')?'서버 응답 '+(e.message.match(/status (\d+)/)||[])[1]:'서버 연결 확인 필요';
       console.error('클라우드 데이터 불러오기 실패, 로컬 캐시로 대체합니다', e);
+      if(window.dashboardPasswordAccess){uxLoadFailed=true;allOfficesData={};guestAccounts={};sites=[];return false;}
 
       try{
         const raw = await mfCacheRead(STORAGE_KEY);
@@ -18043,7 +18081,10 @@ function renderDetailPanel(site){
     pwInput.focus();
   });
 
-  document.getElementById('guestViewBtn').addEventListener('click', ()=>{
+  document.getElementById('guestViewBtn').addEventListener('click', async()=>{
+    window.dashboardPasswordAccess.downgrade();
+    await loadSites();
+    if(uxLoadFailed){alert('현장 데이터를 불러오지 못했습니다. 다시 눌러주세요.');return;}
     // Guest는 관리자와 같은 원본 데이터/같은 UI를 본다.
     // guestMode는 false로 유지해서 렌더링 자체는 관리자와 동일하게 하고,
     // guestViewerMode + 전용 클래스에서 입력/수정/삭제 기능만 막는다.
@@ -18104,9 +18145,12 @@ function renderDetailPanel(site){
     const key = guestSelect.value;
     const pw = guestPwInput.value;
     const g = guestAccounts[key];
-    if(g && pw && g.password && g.password===pw){
+    let authenticated=false;
+    try{await window.dashboardPasswordAccess.login('staff',pw,key);await loadSites();if(uxLoadFailed)throw Error('현장 데이터를 불러오지 못했습니다.');authenticated=true;}
+    catch(error){guestPwError.textContent=error.message;}
+    if(authenticated){
       try{ guestPwInput.blur(); }catch(e){}
-      currentGuest = Object.assign({key}, g);
+      currentGuest = Object.assign({key}, guestAccounts[key]);
       guestMode = true;
       localGuestDataVersion = guestDataVersions[key] || null;
       modeOverlay.classList.remove('show');
@@ -18263,8 +18307,10 @@ function renderDetailPanel(site){
 
   async function tryPasswordSubmit(){
     const pw = pwInput.value;
-    const hash = await sha256Hex(pw);
-    if(hash===adminPasswordHash){
+    let authenticated=false;
+    try{await window.dashboardPasswordAccess.login('admin',pw);await loadSites();if(uxLoadFailed)throw Error('현장 데이터를 불러오지 못했습니다.');authenticated=true;}
+    catch(error){pwError.textContent=error.message;}
+    if(authenticated){
       try{ pwInput.blur(); }catch(e){}
       try{ localStorage.setItem('editUnlocked','1'); }catch(e){}
       guestMode = false;
@@ -21799,6 +21845,7 @@ ead><body>
   });
 
   document.getElementById('adminLogoutBtn').addEventListener('click', ()=>{
+    if(window.dashboardPasswordAccess){localStorage.removeItem(STORAGE_KEY);localStorage.removeItem(GUEST_KEY);location.reload();return;}
     if(!confirm('로그아웃할까요?')) return;
     try{ localStorage.removeItem('editUnlocked'); }catch(e){}
     location.reload();
@@ -21813,8 +21860,13 @@ ead><body>
   try{ localStorage.removeItem(ENTRY_UNLOCKED_KEY); }catch(e){}
   async function tryEntryGateSubmit(){
     const val = entryGateInput.value;
-    const hash = await sha256Hex(val);
-    if(hash === entryPasswordHash){
+    if(entryGateBtn.disabled)return;
+    entryGateBtn.disabled=true;entryGateBtn.textContent='확인 중...';
+    let authenticated=false;
+    try{await window.dashboardPasswordAccess.login('viewer',val);await loadSites();if(uxLoadFailed)throw Error('현장 데이터를 불러오지 못했습니다. 다시 눌러주세요.');authenticated=true;renderAll();}
+    catch(error){entryGateError.textContent=error.message;}
+    finally{entryGateBtn.disabled=false;entryGateBtn.textContent='입장';}
+    if(authenticated){
       try{ entryGateInput.blur(); }catch(e){}
       document.body.classList.add('entry-unlocked-v82');
       entryGate.style.display = 'none';
@@ -22117,25 +22169,6 @@ ead><body>
   });
 
   // ---------- boot v3.73 : 로그인 게이트 먼저, 데이터는 뒤에서 ----------
-  async function loadEntryPasswordHashFast(){
-    // 전체 Dashboard JSON을 기다리지 않고 입장 비밀번호 해시만 먼저 읽는다.
-    // 모바일 네트워크가 느려도 2.5초 이상 로그인 버튼을 붙잡지 않는다.
-    let timer=null;
-    try{
-      const ctrl = typeof AbortController!=='undefined' ? new AbortController() : null;
-      if(ctrl) timer=setTimeout(()=>ctrl.abort(),2500);
-      const url = `${FIREBASE_DB_URL}/data/entryPasswordHash.json?_=${Date.now()}`;
-      const res = await fetch(url, {cache:'no-store', ...(ctrl?{signal:ctrl.signal}:{})});
-      if(res.ok){
-        const h=await res.json();
-        if(typeof h==='string' && h.trim()) entryPasswordHash=h.trim();
-      }
-    }catch(e){
-      console.warn('입장암호 빠른 확인 실패 - 현재/기본 해시로 계속',e);
-    }finally{
-      if(timer)clearTimeout(timer);
-    }
-  }
 
   function enableEntryGateNow(){
     try{
@@ -22147,7 +22180,7 @@ ead><body>
 
   (async function(){
     // 1) 로그인창은 데이터/지도 로딩과 분리한다.
-    try{ await loadEntryPasswordHashFast(); }catch(e){}
+    // 비밀번호 확인은 서버에서 수행하며 첫 화면 버튼은 즉시 활성화합니다.
     enableEntryGateNow();
 
     // 2) 나머지 무거운 작업은 뒤에서 처리한다. 실패해도 로그인 버튼은 이미 사용 가능하다.
@@ -22168,9 +22201,11 @@ ead><body>
         renderOfficeSwitcher();
 
         // 실제 관리자/담당자 로그인 전에는 조회전용 상태 유지.
-        guestMode = true;
-        currentGuest = null;
-        applyGuestRestrictions();
+        const access=window.dashboardPasswordAccess.identity();
+        if(access?.role==='admin'){guestMode=false;guestViewerMode=false;currentGuest=null;removeGuestRestrictions();}
+        else if(access?.role==='staff'){guestMode=true;guestViewerMode=false;currentGuest=Object.assign({key:access.key},guestAccounts[access.key]);sites=buildGuestShadowSites();applyGuestRestrictions();}
+        else if(guestViewerMode){applyGuestViewerRestrictions();}
+        else{guestMode=true;currentGuest=null;applyGuestRestrictions();}
 
 
         // 첫 화면은 저장된 지역/담당자 조건 없이 전체 지도부터 표시한다.
