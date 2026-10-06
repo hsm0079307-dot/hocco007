@@ -23,7 +23,13 @@ function createPasswordDatabaseClient(nativeFetch,endpoint,databaseOrigin){
     const target=new URL(endpoint);target.searchParams.set('action','data');target.searchParams.set('path',url.pathname);
     const headers=new Headers(template.headers);headers.set('Authorization','Bearer '+active.token);
     const options={method:template.method,headers,cache:'no-store',signal:template.signal};
-    if(!['GET','HEAD'].includes(template.method))options.body=await template.text();
+    if(!['GET','HEAD'].includes(template.method)){
+      options.body=await template.text();
+      if(new TextEncoder().encode(options.body).length>1000000&&typeof CompressionStream!=='undefined'){
+        options.body=await new Response(new Blob([options.body]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer();
+        headers.set('Content-Encoding','gzip');
+      }
+    }
     const response=await nativeFetch(target.href,options);
     if(response.status===401){document.getElementById('entryGate').style.display='flex';document.getElementById('entryGateError').textContent='입장 시간이 만료되었습니다. 새로고침 후 다시 입장해주세요.';document.getElementById('entryGateError').style.display='block';}
     return response;
