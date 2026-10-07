@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/pretendard.css">
 <title>단톡방 일일 보고</title>
 <style>
   :root{
@@ -53,14 +54,14 @@
   .brand-mark{width:54px;height:54px;border-radius:16px;display:grid;place-items:center;flex:none;background:linear-gradient(145deg,#2f7d6d,#459987);color:#fff;box-shadow:0 10px 20px rgba(47,125,109,.18);}
   .brand-mark svg{width:27px;height:27px;fill:none;stroke:currentColor;stroke-width:1.8;}
   .hero-copy{min-width:0;}
-  .eyebrow{font-size:10px;letter-spacing:.17em;font-weight:850;color:var(--accent);margin-bottom:4px;text-transform:uppercase;}
+  .eyebrow{font-size:10px;letter-spacing:.17em;font-weight:700;color:var(--accent);margin-bottom:4px;text-transform:uppercase;}
   .title-line{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;}
-  .title-input{font-size:24px;line-height:1.15;font-weight:900;border:0;background:transparent;min-width:220px;max-width:430px;color:var(--text-main);padding:0;letter-spacing:-.045em;}
+  .title-input{font-size:24px;line-height:1.15;font-weight:700;border:0;background:transparent;min-width:220px;max-width:430px;color:var(--text-main);padding:0;letter-spacing:-.045em;}
   .title-input:focus{outline:none;box-shadow:inset 0 -2px 0 var(--accent);}
   .title-date{font-size:12px;color:var(--text-dim);font-weight:700;white-space:nowrap;}
   .hero-sub{font-size:12px;color:var(--text-dim);margin-top:6px;}
   .hero-status{position:relative;z-index:1;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;}
-  .status-pill{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 10px;font-size:10.5px;font-weight:800;color:var(--text);white-space:nowrap;}
+  .status-pill{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 10px;font-size:10.5px;font-weight:700;color:var(--text);white-space:nowrap;}
   .status-dot{width:7px;height:7px;border-radius:50%;background:#a9b6b1;box-shadow:0 0 0 3px rgba(169,182,177,.13);}
   .status-pill[data-state="ai"] .status-dot{background:#369b77;box-shadow:0 0 0 3px rgba(54,155,119,.14);}
   .status-pill[data-state="local"] .status-dot{background:#d6984d;box-shadow:0 0 0 3px rgba(214,152,77,.14);}
@@ -70,7 +71,7 @@
   .toolbar-card{background:rgba(255,255,255,.93);border:1px solid var(--line);border-radius:18px;padding:12px 14px;margin-bottom:18px;box-shadow:var(--shadow-soft);}
   .toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
   .toolbar-spacer{flex:1 1 20px;}
-  .btn{border:1px solid transparent;border-radius:10px;padding:9px 13px;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;transition:transform .14s ease,box-shadow .14s ease,border-color .14s ease,background .14s ease;}
+  .btn{border:1px solid transparent;border-radius:10px;padding:9px 13px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;transition:transform .14s ease,box-shadow .14s ease,border-color .14s ease,background .14s ease;}
   .btn:hover{transform:translateY(-1px);box-shadow:0 5px 14px rgba(44,84,72,.08);}
   .btn:active{transform:translateY(0);}
   .btn-primary{background:var(--accent);color:#fff;border-color:var(--accent);}
@@ -91,22 +92,22 @@
 
   .report-source-strip{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 12px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.74);font-size:11px;color:var(--text-dim);}
   .report-source-strip b{color:var(--text);}
-  .source-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-size:10px;font-weight:850;white-space:nowrap;}
+  .source-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-size:10px;font-weight:700;white-space:nowrap;}
   .source-chip.local{background:#fff2df;color:#9b672f;}
 
   .stat-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px;}
   .stat-card{background:rgba(255,255,255,.96);border:1px solid var(--line);border-radius:15px;padding:15px 16px;box-shadow:var(--shadow-soft);min-width:0;}
-  .stat-label{font-size:10.5px;color:var(--text-dim);margin-bottom:6px;font-weight:750;}
-  .stat-value{font-size:24px;font-weight:900;letter-spacing:-.04em;color:var(--text-main);}
+  .stat-label{font-size:10.5px;color:var(--text-dim);margin-bottom:6px;font-weight:700;}
+  .stat-value{font-size:24px;font-weight:700;letter-spacing:-.04em;color:var(--text-main);}
   .stat-sub{font-size:10px;color:var(--text-dim);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 
   .section{background:rgba(255,255,255,.96);border:1px solid var(--line);border-radius:17px;padding:18px;margin-bottom:14px;box-shadow:var(--shadow-soft);}
-  .section h3{margin:0 0 14px;font-size:14px;font-weight:900;display:flex;align-items:center;justify-content:space-between;gap:10px;letter-spacing:-.025em;}
+  .section h3{margin:0 0 14px;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:space-between;gap:10px;letter-spacing:-.025em;}
   .section h3:before{content:'';display:inline-block;width:3px;height:14px;border-radius:4px;background:var(--accent);margin-right:8px;vertical-align:-2px;}
 
   .hourchart{display:flex;align-items:flex-end;gap:4px;height:132px;padding:8px 4px 0;border-bottom:1px solid var(--line);}
   .hourbar-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:0;}
-  .hourbar-count{font-size:8.5px;color:var(--accent);font-weight:800;margin-bottom:3px;height:11px;}
+  .hourbar-count{font-size:8.5px;color:var(--accent);font-weight:700;margin-bottom:3px;height:11px;}
   .hourbar{width:72%;max-width:18px;background:#cfe4dc;border-radius:5px 5px 1px 1px;min-height:2px;transition:.15s;}
   .hourbar.peak{background:linear-gradient(180deg,#4b9b89,#2f7d6d);box-shadow:0 0 0 3px rgba(47,125,109,.08);}
   .hourlabels{display:flex;gap:3px;margin-top:7px;}
@@ -115,24 +116,24 @@
   .rank-cols{display:grid;grid-template-columns:1fr 1fr;gap:0 24px;}
   .rank-row{display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid #edf2ef;}
   .rank-row:last-child{border-bottom:none;}
-  .rank-num{width:19px;font-size:10px;font-weight:900;color:#9aa9a4;flex:none;}
-  .rank-name{width:110px;flex:none;font-size:11.5px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);}
+  .rank-num{width:19px;font-size:10px;font-weight:700;color:#9aa9a4;flex:none;}
+  .rank-name{width:110px;flex:none;font-size:11.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);}
   .rank-bar-wrap{flex:1;background:#eef3f1;border-radius:6px;height:7px;overflow:hidden;}
   .rank-bar{height:100%;background:linear-gradient(90deg,#79b3a4,#2f7d6d);border-radius:6px;}
   .rank-count{width:44px;flex:none;text-align:right;font-size:10px;color:var(--text-dim);}
-  .rank-col-title{font-size:10px;color:var(--text-dim);font-weight:800;margin-bottom:5px;}
+  .rank-col-title{font-size:10px;color:var(--text-dim);font-weight:700;margin-bottom:5px;}
 
   .kp-card{border:1px solid #dce8e3;border-radius:13px;padding:13px 14px;margin-bottom:9px;background:linear-gradient(180deg,#fcfefd,#f8fbfa);}
   .kp-card:last-child{margin-bottom:0;}
-  .kp-title{font-size:13px;font-weight:900;margin-bottom:5px;color:var(--text-main);}
+  .kp-title{font-size:13px;font-weight:700;margin-bottom:5px;color:var(--text-main);}
   .kp-summary{font-size:12px;color:#526a63;line-height:1.65;word-break:keep-all;}
 
   .stance-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px;margin-bottom:14px;}
   .stance-col{background:rgba(255,255,255,.96);border:1px solid var(--line);border-radius:17px;padding:14px;box-shadow:var(--shadow-soft);min-width:0;}
-  .stance-head{font-size:12.5px;font-weight:900;margin-bottom:10px;padding-bottom:9px;border-bottom:1px solid #edf2ef;}
+  .stance-head{font-size:12.5px;font-weight:700;margin-bottom:10px;padding-bottom:9px;border-bottom:1px solid #edf2ef;}
   .stance-item{border-radius:10px;padding:9px 10px;margin-bottom:7px;border:1px solid rgba(0,0,0,.025);}
   .stance-item:last-child{margin-bottom:0;}
-  .stance-speaker{font-size:10.5px;font-weight:900;color:#40564f;margin-bottom:4px;}
+  .stance-speaker{font-size:10.5px;font-weight:700;color:#40564f;margin-bottom:4px;}
   .stance-quote{font-size:11.5px;color:#566b64;line-height:1.55;word-break:keep-all;}
 
   .link-item{display:block;font-size:11.5px;padding:8px 2px;border-bottom:1px solid #edf2ef;color:#316d8f;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -141,7 +142,7 @@
   .placeholder-text{color:var(--text-dim);font-size:11.5px;text-align:center;padding:18px;line-height:1.7;}
   mark{border-radius:3px;}
 
-  #toast{position:fixed;right:22px;bottom:22px;z-index:9999;max-width:min(420px,calc(100vw - 32px));padding:12px 14px;border-radius:12px;background:#163b33;color:#fff;box-shadow:0 14px 40px rgba(16,43,36,.2);font-size:12px;font-weight:750;line-height:1.5;opacity:0;transform:translateY(10px);pointer-events:none;transition:.22s ease;}
+  #toast{position:fixed;right:22px;bottom:22px;z-index:9999;max-width:min(420px,calc(100vw - 32px));padding:12px 14px;border-radius:12px;background:#163b33;color:#fff;box-shadow:0 14px 40px rgba(16,43,36,.2);font-size:12px;font-weight:700;line-height:1.5;opacity:0;transform:translateY(10px);pointer-events:none;transition:.22s ease;}
   #toast.show{opacity:1;transform:translateY(0);}
   #toast.warn{background:#6f532f;}
   #toast.bad{background:#713e3e;}
@@ -292,10 +293,10 @@
     margin:0 0 12px;padding:17px 18px 18px;border:1px solid var(--line);border-radius:18px;background:#fffdfa;
   }
   .sentiment-title-row{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:13px;padding-bottom:13px;border-bottom:1px solid #e5eae7;}
-  .sentiment-kicker{font-size:9px;font-weight:900;letter-spacing:.17em;color:var(--accent);margin-bottom:5px;}
+  .sentiment-kicker{font-size:9px;font-weight:700;letter-spacing:.17em;color:var(--accent);margin-bottom:5px;}
   .sentiment-title-row h3{margin:0 0 5px;font-size:15px;color:var(--text-main);}
   .sentiment-title-row p{margin:0;font-size:11px;line-height:1.6;color:var(--text-dim);}
-  .focus-chip{flex:none;padding:6px 9px;border:1px solid #c9d9d0;border-radius:999px;background:var(--accent-soft);color:#376e5e;font-size:9.5px;font-weight:850;}
+  .focus-chip{flex:none;padding:6px 9px;border:1px solid #c9d9d0;border-radius:999px;background:var(--accent-soft);color:#376e5e;font-size:9.5px;font-weight:700;}
 
   .stance-grid{gap:10px;margin:0;}
   .stance-col{padding:13px;border-radius:13px;box-shadow:none;background:#fbfcfa;border-color:#e0e6e2;}
@@ -327,6 +328,59 @@
   }
 </style>
 
+<style id="field-brief-layout-20261007">
+body{font-size:14px;line-height:1.6}.hero-sub,.toolbar-hint,.placeholder-text{font-size:13px}.btn{font-size:13px}.section h3{font-size:18px}.kp-title{font-size:15px}.kp-summary{font-size:14px;line-height:1.7}.report-period{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:14px 18px;margin-bottom:16px;background:white;border:1px solid var(--line);border-radius:14px}.report-period label{display:flex;align-items:center;gap:7px}.report-period input{padding:7px;border:1px solid var(--line);border-radius:8px;font:inherit}.brief-top-grid,.brief-site-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.brief-site-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.brief-site{border:1px solid var(--line);border-radius:14px;overflow:hidden}.brief-site h4{margin:0;padding:14px 16px;background:var(--accent-soft);font-size:16px;color:var(--accent)}.brief-section{padding:12px 16px;border-top:1px solid var(--line)}.brief-section h5{margin:0 0 8px;font-size:14px}.brief-none,.brief-note{font-size:13px;color:#73817c;margin:4px 0}.brief-quote{margin:7px 0;padding:9px 11px;background:#f5f8f7;border-radius:8px;font-size:14px}.brief-quote summary{cursor:pointer}.brief-quote small{display:block;margin-top:4px;font-size:12px;color:#718078}.brief-original{margin-top:9px;padding-top:9px;border-top:1px solid var(--line);white-space:pre-wrap;overflow-wrap:anywhere}.brief-task{padding:10px 0;border-bottom:1px solid var(--line)}.brief-count{font-size:12px;font-weight:400;color:#718078}.brief-statistics{border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:20px}.brief-statistics>summary{cursor:pointer;font-size:15px;font-weight:700}.report-source-strip{font-size:12px}.brief-lead{border-top:3px solid var(--accent)}@media(max-width:760px){.brief-top-grid,.brief-site-grid{grid-template-columns:1fr}.report-period{gap:8px}.report-period input{max-width:145px}}@media print{.brief-quote .brief-original{display:block!important}.brief-statistics>*{display:block!important}.brief-site{break-inside:avoid}.brief-site-grid,.brief-top-grid{display:block}}
+</style>
+
+<style id="report-design-polish-20261007">
+:root{--bg:#f5f7f9;--bg-2:#edf2f5;--card:#fff;--card-soft:#f8fafb;--line:#e4e9ee;--line-strong:#d5dee5;--text-main:#233c42;--text:#40575e;--text-dim:#73858d;--accent:#24776c;--accent-2:#40958b;--accent-soft:#edf7f4;--shadow:0 8px 30px rgba(30,52,65,.045);--shadow-soft:0 3px 16px rgba(30,52,65,.025)}
+html,body{font-family:Pretendard,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;letter-spacing:-.02em;color:var(--text-main);font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+body{background:var(--bg)}
+#app{max-width:1260px;padding:32px 28px 72px}
+button,input,select{font-family:inherit;letter-spacing:inherit}
+.hero{padding:26px 28px;min-height:128px;margin-bottom:20px;background:white;border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow-soft)}
+.hero:after{display:none}.hero-main{gap:18px}.brand-mark{width:52px;height:52px;border-radius:16px;background:var(--accent);box-shadow:none}
+.eyebrow{font-size:12px;line-height:1.5;letter-spacing:.035em;font-weight:600;margin-bottom:7px;color:var(--accent)}
+.title-line{gap:14px;align-items:center}.title-input{font-size:28px;font-weight:700;letter-spacing:-.04em;line-height:1.3;width:290px;min-width:0;max-width:100%}.title-date{font-size:13px;font-weight:500;color:var(--text-dim)}
+.hero-sub{font-size:14px;line-height:1.6;margin-top:8px;color:#6d8088}.hero-status{gap:7px}.status-pill{font-size:12px;font-weight:500;padding:7px 10px;background:#f8fafb;border-color:var(--line);box-shadow:none}.status-dot{width:6px;height:6px;box-shadow:none}
+.toolbar-card{padding:18px 20px 14px;margin-bottom:0;border-radius:16px 16px 0 0;box-shadow:none;background:#fff;border-bottom:0;position:static}.toolbar{gap:8px}.btn{min-height:40px;padding:9px 14px;border-radius:9px;font-size:13px;font-weight:600;line-height:20px;box-shadow:none}.btn:hover{transform:none;box-shadow:none}.btn-primary{background:var(--accent)}.btn-primary:disabled{background:#e7edef;border-color:#e7edef;color:#8a9ba2}.btn-ghost{border-color:var(--line);color:var(--text)}.btn-soft{background:var(--accent);border-color:var(--accent);color:#fff}.btn-soft:hover{background:#206b61}.btn-danger-soft{background:#fff;color:#a96d67;border-color:var(--line)}.toolbar-hint{font-size:12px;font-weight:400;margin-top:8px;padding:0;line-height:1.6}.toolbar-hint>span:first-child{display:none}
+.report-period{padding:14px 20px 18px;margin-bottom:24px;border-top:1px solid #f0f3f5;border-radius:0 0 16px 16px;gap:10px;font-size:13px;background:#fff}.report-period>b{font-size:13px;font-weight:600;margin-right:6px}.report-period label{color:var(--text-dim);font-size:12px}.report-period input{font-size:13px;padding:8px 10px;background:#f8fafb;border-radius:8px;min-height:38px;color:var(--text-main)}.report-period .btn{font-size:12px;min-height:38px}
+.report-source-strip{border:0;background:none;padding:0 2px;margin:0 0 16px;font-size:12px;align-items:flex-start;line-height:1.6}.report-source-strip>b{font-weight:600}.source-chip{font-size:11px;font-weight:500;padding:4px 9px}.source-chip.local{background:#eef3f5;color:#6b818b}
+.section{padding:24px;margin-bottom:20px;border-radius:16px;border-color:var(--line);box-shadow:var(--shadow-soft);background:#fff}.section h3{font-size:18px;font-weight:650;line-height:1.4;margin:0 0 18px;display:flex;justify-content:flex-start;align-items:center;gap:9px;letter-spacing:-.025em}.section h3:before{display:none}.brief-count{margin-left:auto;font-size:12px;font-weight:500;background:#f1f5f6;padding:3px 9px;border-radius:6px;color:#71858c;white-space:nowrap}.brief-lead{border-top:1px solid var(--line)}
+.brief-top-grid{gap:12px}.brief-top-grid .kp-card{height:100%;margin:0;padding:18px;border-radius:12px;border:1px solid #e4efeb;background:#f7fbf9;box-shadow:none}.kp-title{font-size:15px;line-height:1.5;font-weight:600;margin-bottom:9px;color:#2e6159}.kp-summary{font-size:14px;line-height:1.8;color:#526870;word-break:keep-all;overflow-wrap:anywhere}
+.brief-task{display:grid;grid-template-columns:140px minmax(0,1fr);gap:14px;align-items:start;padding:14px 0;border-color:#edf1f4}.brief-task:last-child{border-bottom:0;padding-bottom:0}.brief-task>b{font-size:13px;font-weight:600;color:var(--accent);padding-top:4px}.brief-task .brief-quote{margin:0;border:0;background:#f8fafb;border-radius:9px;padding:11px 14px}
+.brief-note{font-size:12px;color:#85949b;line-height:1.65;margin:-6px 0 20px}.brief-site-grid{gap:16px;align-items:start}.brief-site{border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden;box-shadow:none}.brief-site h4{font-size:16px;font-weight:650;line-height:1.5;margin:0;padding:16px 18px;background:#f4f8f7;color:#2f635b;border-bottom:1px solid #e4eeeb}.brief-section{padding:16px 18px;border-top:0;border-bottom:1px solid #f0f3f5}.brief-section:last-child{border-bottom:0}.brief-section h5{font-size:12px;font-weight:600;letter-spacing:0;margin:0 0 8px;color:#75878e}.brief-none{font-size:13px;margin:0;color:#a0adb3}
+.brief-quote{font-size:14px;line-height:1.8;margin:10px 0 0;padding:0;background:none;border-radius:0}.brief-quote>summary{list-style:none;cursor:pointer;display:block;padding-right:16px;position:relative;word-break:keep-all;overflow-wrap:anywhere}.brief-quote>summary::-webkit-details-marker{display:none}.brief-quote>summary:after{content:'+';position:absolute;right:0;top:0;color:#8ba099;font-size:17px;line-height:24px;font-weight:400}.brief-quote[open]>summary:after{content:'−'}.brief-quote>summary:hover span{color:var(--accent)}.brief-quote small{font-size:11px;line-height:1.5;font-weight:400;margin-top:6px;color:#8b9aa1}.brief-original{font-size:14px;line-height:1.85;background:#f7faf9;padding:12px 14px;margin:12px 0 4px;border:1px solid #e6eeeb;border-radius:9px;color:#425e58}
+.sentiment-shell{padding:24px;border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow-soft);background:#fff;margin-bottom:20px}.sentiment-title-row{align-items:flex-start;gap:12px}.sentiment-kicker{display:none}.sentiment-title-row h3{font-size:18px;font-weight:650;line-height:1.4;margin:0 0 8px}.sentiment-title-row p{font-size:13px;line-height:1.7;margin-bottom:18px;color:var(--text-dim)}.focus-chip{font-size:11px;font-weight:500;background:#f2f6f7;padding:5px 9px;border-radius:7px;border:0}.stance-grid{gap:12px;margin:0}.stance-col{padding:16px;background:#fff;box-shadow:none;border-radius:12px}.stance-head{font-size:14px;font-weight:600;line-height:1.5;padding-bottom:12px}.stance-speaker{font-size:12px;font-weight:600}.stance-quote{font-size:14px;line-height:1.8}.stance-item{padding:12px;border:0;box-shadow:none}.placeholder-text{font-size:13px;line-height:1.75;padding:18px;color:#8b9aa1}
+.brief-statistics{background:#fff;border-color:var(--line);padding:20px 24px;border-radius:16px;box-shadow:var(--shadow-soft)}.brief-statistics>summary{font-size:15px;line-height:1.6;font-weight:600;color:var(--text)}.brief-statistics[open]>summary{margin-bottom:20px}.brief-statistics .section{box-shadow:none;border-radius:12px;padding:18px}.stat-label,.stat-sub{font-size:12px}.stat-value{font-size:26px;font-weight:650}.rank-name{font-size:14px;font-weight:500}.rank-count,.rank-num,.rank-col-title,.link-meta{font-size:12px}.link-item{font-size:14px}.hourbar-count,.hourlabels span{font-size:11px}
+#content [style*="font-size"]{font-size:13px!important}#content [style*="font-weight:700"]{font-weight:600!important}#content input{font-size:14px!important;min-height:40px;border-radius:9px!important}#content button{font-size:12px!important;line-height:1.6}
+.empty-state{padding:64px 24px;border:1px solid var(--line);border-radius:16px;box-shadow:none;background:white}.empty-icon{width:52px;height:52px;border-radius:16px;margin-bottom:18px}.empty-state b{font-size:17px;font-weight:600}.empty-state .empty-sub{font-size:14px;line-height:1.8;margin-top:10px}
+button:focus-visible,summary:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #80b6ad;outline-offset:3px}
+@media(max-width:1000px){.hero{align-items:flex-start}.hero-status{max-width:190px}.brief-top-grid{grid-template-columns:1fr}.brief-top-grid .kp-card{padding:16px 18px}.toolbar-spacer{flex-basis:100%;height:0}}
+@media(max-width:760px){#app{padding:16px 14px 48px}.hero{display:block;padding:22px 20px;border-radius:16px}.hero-main{gap:12px;align-items:flex-start}.brand-mark{width:44px;height:44px;border-radius:13px}.eyebrow{font-size:11px}.title-input{font-size:23px;width:100%;min-width:0}.title-date{font-size:12px}.hero-sub{font-size:13px}.hero-status{max-width:none;margin-top:16px;justify-content:flex-start}.status-pill{font-size:11px}.toolbar-card{padding:16px 14px 12px;position:static}.toolbar .btn-primary{order:0;flex:0 1 auto}.file-label{flex:0 1 auto}.toolbar .btn{font-size:12px;padding:8px 10px;min-height:38px}.toolbar-hint{font-size:11px}.toolbar-spacer{display:none}.report-period{padding:12px 14px 16px;gap:8px}.report-period>b{width:100%}.report-period label{font-size:11px}.report-period input{font-size:12px;max-width:138px}.section,.sentiment-shell{padding:18px;border-radius:14px;margin-bottom:16px}.section h3,.sentiment-title-row h3{font-size:17px;margin-bottom:15px}.brief-site-grid{grid-template-columns:1fr;gap:14px}.brief-top-grid{grid-template-columns:1fr}.brief-task{grid-template-columns:1fr;gap:7px}.brief-task>b{padding:0}.brief-site h4{font-size:15px}.brief-quote,.kp-summary,.stance-quote{font-size:14px}.report-source-strip{display:block;font-size:11px}.source-chip{display:none}.sentiment-title-row{display:block}.focus-chip{display:none}.brief-statistics{padding:18px}.empty-state{padding:44px 18px}.empty-state .empty-sub{font-size:13px}}
+@media print{body{background:white}#app{max-width:none;padding:0}.hero,.section,.sentiment-shell,.brief-statistics{box-shadow:none}.brief-original{background:white}.brief-site-grid,.brief-top-grid{display:block}.brief-site,.kp-card{margin-bottom:12px}}
+</style>
+
+<style id="report-paste-input-20261007">
+.report-paste-card{padding:20px 24px;margin-bottom:22px;background:#fff;border:1px solid var(--line);border-radius:16px}.report-paste-heading{display:flex;align-items:baseline;flex-wrap:wrap;gap:10px;margin-bottom:12px}.report-paste-heading label{font-size:16px;font-weight:600}.report-paste-heading span{font-size:12px;color:var(--text-dim)}#kakaoPasteInput{display:block;width:100%;min-height:170px;resize:vertical;padding:14px 16px;border:1px solid var(--line-strong);border-radius:10px;background:#f8fafb;color:var(--text-main);font:inherit;font-size:14px;line-height:1.75}#kakaoPasteInput::placeholder{color:#91a0a7}.report-paste-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px}.report-paste-actions span{font-size:12px;color:var(--text-dim)}@media(max-width:760px){.report-paste-card{padding:18px}.report-paste-heading span{width:100%}#kakaoPasteInput{font-size:16px}.report-paste-actions span{font-size:11px}}
+</style>
+
+<style id="chat-report-scope-correction-20261007">
+#reportPastePanel{padding-top:16px;margin-top:14px;border-top:1px solid var(--line)}#reportPastePanel[hidden]{display:none!important}#reportPastePanel .report-paste-actions{justify-content:flex-end}.kp-card{background:#f8fafb;padding:16px 18px;border:1px solid var(--line);margin:0 0 10px;box-shadow:none}.kp-title{color:var(--text-main);font-size:14px;font-weight:600}.kp-summary{font-size:14px;line-height:1.8}
+</style>
+<style id="professional-daily-report-20261007">
+:root{--bg:#f3f5f8;--text-main:#233446;--text:#45556a;--text-dim:#8590a2;--line:#e3e8ef;--accent:#256b67;--accent-soft:#edf5f4}
+body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:28px 24px 60px}.hero{padding:22px 24px;min-height:106px;border-radius:14px;margin-bottom:16px;box-shadow:none;border-color:var(--line)}.hero:before{display:none}.brand-mark{background:#254b59;width:44px;height:44px;border-radius:12px}.hero-main{gap:14px}.eyebrow{font-size:10px;letter-spacing:.1em;color:#7f8d9c;margin-bottom:5px}.title-input{font-size:25px;width:245px}.hero-sub{font-size:13px;color:#7a8797;margin-top:5px}.status-pill{background:#f8fafc;border:0;font-size:11px;padding:6px 9px}.toolbar-card{border-radius:12px 12px 0 0;padding:14px 16px}.report-period{border-radius:0 0 12px 12px;padding:12px 16px;margin-bottom:22px}.btn{min-height:36px;padding:7px 12px;font-size:12px;border-radius:7px}.report-period input{min-height:34px;padding:6px 8px}.title-date{font-size:12px}.toolbar{gap:7px}.hero-status{max-width:none}
+.r-report-section{background:#fff;border:1px solid var(--line);border-radius:12px;padding:22px;margin-bottom:18px;min-width:0;box-shadow:0 2px 5px rgba(26,43,65,.015)}.r-section-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 20px;padding-bottom:14px;border-bottom:1px solid #eef1f5}.r-section-header>div{display:flex;align-items:center;gap:9px}.r-section-header h3{font-size:16px;font-weight:650;line-height:1.5;margin:0;color:#263e51}.r-step{font-size:11px;font-weight:600;color:#8395a5;letter-spacing:.06em}.r-mode{font-size:11px;color:#8291a1;white-space:nowrap}.r-issues{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 24px}.r-issue{display:grid;grid-template-columns:44px minmax(0,1fr);gap:8px;padding:13px 0;border-bottom:1px solid #eff2f6;align-items:start}.r-issue h4{font-size:13px;font-weight:600;color:#516778;margin:0 0 6px}.r-issue p{font-size:14px;line-height:1.85;margin:0;color:#3b4d60}.r-no{font-size:11px;font-weight:500;color:#8c99aa;white-space:nowrap;line-height:22px}.r-issue .r-statement{border:0;margin:0}.r-issue .r-statement summary{padding:0;display:block}.r-issue .r-statement summary>.r-no,.r-issue .r-statement-copy>b{display:none}.r-issue .r-expand{display:none}.r-issue .r-excerpt{line-clamp:2;-webkit-line-clamp:2;font-size:14px;line-height:1.8}.r-issue .r-statement summary:after{content:'원문 보기';display:block;font-size:11px;color:#8c99aa;margin-top:5px}.r-issue .r-statement[open] summary:after{content:'접기'}
+.r-stance-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.r-stance-column{border:1px solid var(--line);border-radius:9px;overflow:hidden;min-width:0}.r-stance-header{height:43px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;background:#f9fafc;border-bottom:1px solid var(--line)}.r-stance-header h4{font-size:13px;font-weight:600;margin:0}.r-stance-header>span{font-size:11px;color:#8a95a4}.r-stance-column.favorable .r-stance-header{box-shadow:inset 0 2px #6aab97}.r-stance-column.critical .r-stance-header{box-shadow:inset 0 2px #c78d87}.r-stance-column.other .r-stance-header{box-shadow:inset 0 2px #8d9db3}.r-stance-body{height:310px;overflow:auto;scrollbar-gutter:stable;padding:0 12px;scrollbar-width:thin}.r-statement{border-bottom:1px solid #eef1f5}.r-statement:last-child{border-bottom:0}.r-statement summary{display:grid;grid-template-columns:35px minmax(0,1fr) 10px;gap:8px;align-items:start;list-style:none;cursor:pointer;padding:13px 0;min-height:103px}.r-statement summary::-webkit-details-marker{display:none}.r-statement-copy{display:flex;flex-direction:column;gap:5px;min-width:0}.r-statement-copy b{font-size:12px;font-weight:600;line-height:1.5;color:#506276;overflow-wrap:anywhere}.r-excerpt{font-size:13px;line-height:1.75;color:#536274;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;word-break:keep-all;overflow-wrap:anywhere}.r-expand{color:#a1adba;font-size:13px;line-height:22px}.r-statement[open] .r-expand{transform:rotate(180deg)}.r-original{margin:0 0 12px;padding:12px;border-radius:7px;background:#f7f9fc;border:1px solid #e8edf4}.r-source+.r-source{border-top:1px solid var(--line);padding-top:10px;margin-top:10px}.r-source-meta{font-size:11px;color:#758498;margin-bottom:6px;line-height:1.6}.r-source-text{font-size:13px;color:#42576b;white-space:pre-wrap;line-height:1.85;overflow-wrap:anywhere}.r-empty{padding:24px 12px;color:#9aa5b4;font-size:13px;text-align:center}
+.r-hourchart{display:flex;gap:6px;height:120px;align-items:flex-end;padding:8px 0 0;border-bottom:1px solid var(--line)}.r-hour-col{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end}.r-hour-count{font-size:10px;color:#758d9b;line-height:16px}.r-hour-bar{width:70%;max-width:20px;padding:0!important;border:0;background:#78aaa3;border-radius:3px 3px 0 0;cursor:pointer;min-height:0!important}.r-hour-bar:hover{background:#366f73}.r-hour-bar:disabled{background:#e8edf2}.r-hour-col small{height:22px;line-height:22px;font-size:10px;color:#8a98a8;white-space:nowrap}.r-hour-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0 20px;margin-top:16px}.r-hour-list button{display:flex;gap:10px;align-items:center;padding:9px 0;border:0;border-bottom:1px solid #eef2f5;background:none;color:#6a7c8e;cursor:pointer;min-width:0}.r-hour-list b{font-size:11px;font-weight:500;color:#71859a}.r-hour-list span{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;text-align:left}.r-hour-list strong{font-size:11px;font-weight:600;white-space:nowrap}.r-detail-heading{font-size:12px;font-weight:600;padding:12px 0 5px;color:#60768a}#hourDetailBox,#dateDetailBox{margin-top:12px;border-top:1px solid var(--line)}#dateDetailBox .r-statement summary,#hourDetailBox .r-statement summary{min-height:0;padding:10px 0}#dateDetailBox .r-excerpt,#hourDetailBox .r-excerpt{-webkit-line-clamp:2}#dateDetailBox .r-original{background:#f8fafc}#dateDetailBox[hidden],#hourDetailBox[hidden]{display:none!important}
+.r-history-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}.r-history-grid .r-report-section{margin:0}.r-trend{display:flex;align-items:flex-end;gap:16px;overflow-x:auto;padding:14px 0 5px;scrollbar-width:thin;min-height:100px}.r-trend-day{flex:0 0 46px;display:flex;flex-direction:column;align-items:center;gap:8px}.r-trend-bars{height:76px;display:flex;align-items:flex-end;gap:3px}.r-trend-bar{width:11px;min-height:0!important;padding:0!important;border:0;border-radius:2px 2px 0 0;position:relative;cursor:pointer}.r-trend-bar span{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);font-size:10px;color:#7d8ea0}.r-trend-bar.favorable{background:#72a893}.r-trend-bar.critical{background:#c99991}.r-trend-bar.other{background:#8b9db6}.r-trend-day>span{font-size:10px;color:#8b99aa}.r-legend{display:flex;gap:15px;margin-top:14px;font-size:11px;color:#8595a6}.r-legend span:before{content:'';display:inline-block;width:6px;height:6px;border-radius:2px;margin-right:5px}.r-legend .favorable:before{background:#72a893}.r-legend .critical:before{background:#c99991}.r-legend .other:before{background:#8b9db6}.r-cum-filter{display:flex;align-items:center;gap:10px;font-size:12px;color:#8494a5}.r-cum-filter select{flex:1;min-width:0;border:1px solid var(--line);border-radius:7px;padding:8px 10px;color:#53677b;background:white;font-size:12px}.r-cum-counts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:16px}.r-cum-counts>div{padding:13px;background:#f7f9fb;border-radius:8px}.r-cum-counts span{display:block;font-size:11px;color:#8a98a9}.r-cum-counts strong{display:block;font-size:22px;font-weight:550;color:#3a536b}.r-cum-counts small{font-size:10px;font-weight:400;margin-left:4px;color:#a0aaba}.r-cum-list{margin-top:16px}.r-cum-list>b{font-size:12px;color:#6b8195}.r-cum-list .r-statement summary{min-height:0}
+@media(max-width:800px){#app{padding:16px 12px 40px}.hero{padding:18px}.hero-status{margin-top:12px}.r-report-section{padding:17px;margin-bottom:14px}.r-issues{grid-template-columns:1fr}.r-stance-grid{grid-template-columns:1fr;gap:12px}.r-stance-body{height:240px}.r-hour-list{grid-template-columns:repeat(2,1fr)}.r-history-grid{grid-template-columns:1fr;gap:14px}.r-section-header h3{font-size:15px}.r-mode{font-size:10px}.r-hourchart{gap:3px}.title-input{font-size:22px;width:100%}.r-issue{grid-template-columns:38px 1fr}}
+@media print{.r-report-section{break-inside:avoid;box-shadow:none}.r-stance-body{height:auto;overflow:visible}.r-excerpt{-webkit-line-clamp:unset;display:block}.r-history-grid{display:block}.r-history-grid .r-report-section{margin-bottom:16px}}
+</style>
+<style id="hour-date-filter-20261007">
+.r-hour-date-filter{display:flex;align-items:center;gap:10px;margin-bottom:16px;font-size:12px;color:#8494a5}.r-hour-date-filter label{flex:none}.r-hour-date-filter select{width:250px;max-width:65%;min-width:0;border:1px solid var(--line);border-radius:7px;padding:8px 10px;color:#53677b;background:#fff;font:inherit;font-size:12px}.r-hour-date-filter>span{margin-left:auto;white-space:nowrap;font-size:11px}@media(max-width:600px){.r-hour-date-filter{flex-wrap:wrap}.r-hour-date-filter>span{width:100%;margin-left:0}}
+</style>
 </head>
 <body>
 <div id="app">
@@ -341,7 +395,6 @@
           <input id="titleInput" class="title-input" value="단톡방 일일 보고" aria-label="보고서 제목">
           <span id="titleDate" class="title-date"></span>
         </div>
-        <div class="hero-sub">카카오톡 대화를 업로드하면 활동량·핵심 이슈·발언 흐름을 한 화면에 정리합니다.</div>
       </div>
     </div>
     <div class="hero-status">
@@ -355,21 +408,26 @@
       <label class="file-label btn btn-soft">＋ 카톡 TXT 불러오기<input id="fileInput" type="file" accept=".txt"></label>
       <select id="savedDateSelect" class="btn btn-ghost" style="display:none;" title="저장된 날짜 바로 보기"></select>
       <select id="dateFilter" class="btn btn-ghost" style="display:none;" title="업로드 파일 날짜 선택"></select>
-      <button class="btn btn-primary" id="aiBtn" disabled>AI 정밀 분석</button>
+      <button type="button" class="btn btn-ghost" id="togglePasteBtn" aria-expanded="false" aria-controls="reportPastePanel">대화 붙여넣기</button>
+      <button class="btn btn-primary" id="aiBtn" disabled>AI 요약</button>
       <div class="toolbar-spacer"></div>
       <button class="btn btn-ghost" id="copyBtn">요약 복사</button>
       <button class="btn btn-ghost" id="downloadBtn">TXT 저장</button>
       <button class="btn btn-ghost" id="printBtn" onclick="window.print()">인쇄 / PDF</button>
       <button class="btn btn-danger-soft" id="clearBtn" title="현재 화면을 비우고 새 파일 시작">초기화</button>
     </div>
-    <div class="toolbar-hint"><span>●</span><span>TXT를 올리면 로컬 빠른 분석은 즉시 표시되고, AI 정밀 분석은 서버 연결 시 한 번 더 다듬습니다.</span></div>
+    <div id="reportPastePanel" hidden>
+      <textarea id="kakaoPasteInput" aria-label="카카오톡 대화 내용" rows="6" placeholder="카카오톡 대화 내용을 여기에 붙여넣으세요."></textarea>
+      <div class="report-paste-actions"><button type="button" class="btn btn-primary" id="analyzePasteBtn">불러오기</button></div>
+    </div>
   </section>
 
+  <div class="report-period no-print"><b>보고 기간</b><label>시작 <input type="date" id="reportFrom"></label><span>~</span><label>종료 <input type="date" id="reportTo"></label><button class="btn btn-ghost" id="reportRangeClear">전체 기간</button></div>
   <main id="content">
     <div class="empty-state">
       <div class="empty-icon">↥</div>
-      <b>카카오톡 대화 TXT를 불러와 주세요.</b>
-      <div class="empty-sub">카카오톡 채팅방 → 대화 내보내기 → 텍스트 파일 저장 후 위의 <b>카톡 TXT 불러오기</b>를 누르면 됩니다.<br>업로드만 해도 통계와 빠른 분석이 즉시 표시됩니다.</div>
+      <b>카톡 대화를 붙여넣거나 TXT 파일을 불러와 주세요.</b>
+      <div class="empty-sub">상단의 <b>대화 붙여넣기</b> 또는 <b>카톡 TXT 불러오기</b>를 이용하세요.<br>파일을 불러오면 핵심 내용과 현장별 정리가 바로 표시됩니다.</div>
     </div>
   </main>
 </div>
@@ -457,14 +515,26 @@
 
   function sanitizePoscoPairList(list, limit){
     return (Array.isArray(list)?list:[])
-      .map(it=>({speaker:String((it&&it.speaker)||'').trim(), quote:String((it&&it.quote)||'').trim()}))
+      .map(it=>({speaker:String((it&&it.speaker)||'').trim(), quote:String((it&&it.quote)||'').trim(),date:String((it&&it.date)||''),hour:it&&it.hour,min:it&&it.min,sourceText:String((it&&it.sourceText)||'')}))
       .filter(x=>x.quote && isPoscoRelatedText(x.quote))
-      .slice(0, limit);
+      ;
+  }
+
+
+  function reportDateIso(date){
+    const m=String(date||'').match(/(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일/);
+    return m?`${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`:'';
+  }
+  function filteredReportMessages(){
+    const selected=document.getElementById('dateFilter').value;
+    const from=document.getElementById('reportFrom').value,to=document.getElementById('reportTo').value;
+    return (parsed||[]).filter(m=>(!selected||selected==='__all__'||m.date===selected)&&(!from||reportDateIso(m.date)>=from)&&(!to||reportDateIso(m.date)<=to));
   }
 
   function normalizeDailyShape(data){
     data = data && typeof data==='object' ? data : {};
     return {
+      sourceMessages:Array.isArray(data.sourceMessages)?data.sourceMessages:[],
       keyPoints:Array.isArray(data.keyPoints) ? data.keyPoints.map(it=>({title:String((it&&it.title)||'').trim(),summary:String((it&&it.summary)||'').trim()})).filter(x=>x.title||x.summary).slice(0,6) : [],
       // 우호/부정/기타는 '포스코 관련 발언'만 남긴다.
       favorable:sanitizePoscoPairList(data.favorable,16),
@@ -523,20 +593,20 @@
     const poscoRows = rows.filter(m=>isPoscoRelatedText(m.text));
     for(const m of poscoRows){
       const t=String(m.text||'').replace(/\s+/g,' ').trim();
-      const sig=(m.name+'|'+t).slice(0,180); if(seen.has(sig)) continue; seen.add(sig);
+      const sig=[m.date,m.hour,m.min,m.name,t].join('|'); if(seen.has(sig)) continue; seen.add(sig);
       const pos=positive.reduce((n,k)=>n+(t.includes(k)?1:0),0);
       const neg=negative.reduce((n,k)=>n+(t.includes(k)?1:0),0);
-      const item={speaker:m.name,quote:t.slice(0,220)+(t.length>220?'…':'')};
-      if(pos>neg && pos>0 && favorable.length<12) favorable.push(item);
-      else if(neg>pos && neg>0 && critical.length<12) critical.push(item);
-      else if(other.length<12) other.push(item);
+      const item={speaker:m.name,quote:t,date:m.date,hour:m.hour,min:m.min,sourceText:m.text};
+      if(pos>neg && pos>0 ) favorable.push(item);
+      else if(neg>pos && neg>0 ) critical.push(item);
+      else other.push(item);
     }
     return normalizeDailyShape({keyPoints:keyPoints.slice(0,5), favorable, critical, other});
   }
 
   function persistDateAnalysis(dateKey, messages, daily){
     if(!dateKey || dateKey==='__all__') return;
-    DAILY_ANALYSIS[dateKey] = normalizeDailyShape(daily);
+    DAILY_ANALYSIS[dateKey] = normalizeDailyShape({...daily,sourceMessages:messages});
     const stats = analyze(messages||[]);
     DAILY_STATS[dateKey] = {
       total:stats.total, participantCount:stats.participantCount, hourCounts:stats.hourCounts,
@@ -562,9 +632,9 @@
       const day = DAILY_ANALYSIS[d];
       const shortDate = (d.match(/(\d{1,2})월\s*(\d{1,2})일/)||[])[0] || d;
       day.keyPoints.forEach(kp=> merged.keyPoints.push({title:`[${shortDate}] ${kp.title}`, summary:kp.summary}));
-      day.favorable.forEach(it=> merged.favorable.push({speaker:`${it.speaker} (${shortDate})`, quote:it.quote}));
-      day.critical.forEach(it=> merged.critical.push({speaker:`${it.speaker} (${shortDate})`, quote:it.quote}));
-      day.other.forEach(it=> merged.other.push({speaker:`${it.speaker} (${shortDate})`, quote:it.quote}));
+      day.favorable.forEach(it=> merged.favorable.push({...it,date:it.date||d}));
+      day.critical.forEach(it=> merged.critical.push({...it,date:it.date||d}));
+      day.other.forEach(it=> merged.other.push({...it,date:it.date||d}));
     });
     return merged;
   }
@@ -715,15 +785,26 @@
       </div>`;
   }
 
-  function renderStanceList(items, emptyText, bg){
-    if(!items || items.length===0) return `<div class="placeholder-text">${emptyText}</div>`;
-    return items.map(it=>`
-      <div class="stance-item" style="background:${bg}">
-        <div class="stance-speaker">${escapeHtml(it.speaker||'')}</div>
-        <div class="stance-quote">${escapeHtml(it.quote||'')}</div>
-      </div>`).join('');
-  }
 
+  function reportSourceRows(){
+    if(parsed)return filteredReportMessages();
+    return window.__reportSourceRows||[];
+  }
+  function statementSources(it,fallbackDate){
+    const pools=[...reportSourceRows(),...Object.values(DAILY_ANALYSIS).flatMap(d=>d.sourceMessages||[])];
+    const q=String(it.quote||'').replace(/…$/,'').trim();
+    const matches=pools.filter(m=>m.name===it.speaker&&(String(m.text||'').includes(q)||q.includes(String(m.text||'')))&&(!(it.date||fallbackDate)||m.date===(it.date||fallbackDate)));
+    const seen=new Set();return matches.filter(m=>{const k=[m.date,m.hour,m.min,m.name,m.text].join('|');if(seen.has(k))return false;seen.add(k);return true;});
+  }
+  function statementHtml(it,index,fallbackDate){
+    const matches=statementSources(it,fallbackDate);
+    const sources=matches.length?matches:[{name:it.speaker,date:it.date||fallbackDate||'',hour:it.hour,min:it.min,text:it.sourceText||it.quote}];
+    const original=sources.map(m=>{const time=Number.isInteger(m.hour)?String(m.hour).padStart(2,'0')+':'+String(m.min||0).padStart(2,'0'):'시간 정보 없음';return `<div class="r-source"><div class="r-source-meta">${escapeHtml(m.date||'날짜 정보 없음')} · ${time} · ${escapeHtml(m.name||'')}</div><div class="r-source-text">${escapeHtml(m.text||'')}</div></div>`;}).join('');
+    return `<details class="r-statement"><summary><span class="r-no">No ${index+1}</span><span class="r-statement-copy"><b>${escapeHtml(it.speaker||'발언자 미상')}</b><span class="r-excerpt">${escapeHtml(it.quote||'')}</span></span><span class="r-expand">⌄</span></summary><div class="r-original">${original}</div></details>`;
+  }
+  function renderStanceList(items,emptyText,bg,fallbackDate){
+    return items&&items.length?items.map((it,i)=>statementHtml(it,i,fallbackDate)).join(''):'<div class="r-empty">발언 없음</div>';
+  }
   // 지금까지 분석해둔 모든 날짜의 우호/비방 발언 수를 날짜순으로 비교해서 보여줌
   // 지금까지 분석해둔 모든 날짜를 합친 누적 통계 + 반복 발언자
   // 이름(부분 일치)으로 그 사람의 모든 우호/비방/그외 발언을 날짜와 함께 모아옴
@@ -881,104 +962,14 @@
   let currentCumPeriod = 'all';
   let selectedCumDates = new Set(); // 클릭으로 여러 날짜를 골라서 그 날짜들만 모아보는 용도
 
+
+  let reportCumDate='__all__';
   function renderCumulativeSummary(){
-    const s = computeCumulativeStats(currentCumPeriod);
-    const trendComment = computeTrendComment();
-    const repeatHtml = s.repeatSpeakers.length
-      ? s.repeatSpeakers.map(r=>{
-          const parts = [];
-          if(r.fav) parts.push(`<span style="color:#16a34a;">우호 ${r.fav}회</span>`);
-          if(r.crit) parts.push(`<span style="color:#dc2626;">비방 ${r.crit}회</span>`);
-          const nameEsc = r.name.replace(/'/g,"\\'");
-          return `<div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--line); font-size:12.5px; cursor:pointer;" onclick="selectRepeatSpeaker('${nameEsc}')" title="클릭하면 이 발언자의 내용을 아래에서 볼 수 있어요">
-            <span style="font-weight:700; text-decoration:underline; text-underline-offset:3px;">${escapeHtml(r.name)}</span>
-            <span>${parts.join(' · ')}</span>
-          </div>`;
-        }).join('')
-      : '<div class="placeholder-text">2회 이상 반복 언급된 발언자가 아직 없어요.</div>';
-
-    const periodBtn = (val,label)=> `<button onclick="setCumPeriod('${val}')" style="border:1px solid var(--line); background:${currentCumPeriod===val?'var(--accent)':'#fff'}; color:${currentCumPeriod===val?'#fff':'inherit'}; border-radius:999px; padding:4px 12px; font-size:11.5px; font-weight:700; cursor:pointer; margin-right:6px;">${label}</button>`;
-
-    const dateChips = getKnownDates().slice().reverse().map(d=>{
-      const dm = d.match(/(\d{1,2})월\s*(\d{1,2})일/);
-      const label = dm ? dm[0] : d;
-      const active = selectedCumDates.has(d);
-      const esc = d.replace(/'/g,"\\'");
-      return `<button onclick="toggleCumDateChip('${esc}')" style="border:1px solid var(--line); background:${active?'var(--accent)':'#fff'}; color:${active?'#fff':'inherit'}; border-radius:999px; padding:3px 10px; font-size:11px; font-weight:700; cursor:pointer;">${escapeHtml(label)}</button>`;
-    }).join('');
-
-    let cumDateDetailHtml = '';
-    if(selectedCumDates.size){
-      const sortedSelected = sortDateKeys(Array.from(selectedCumDates));
-      const bgMap = {favorable:'#f0fdf4', critical:'#fef2f2', other:'#f9fafb'};
-      const labelMap = {favorable:'우호', critical:'부정·비판', other:'중립·기타'};
-      let rows = '';
-      let total = 0;
-      const shortLabels = [];
-      sortedSelected.forEach(d=>{
-        const dm = d.match(/(\d{1,2})월\s*(\d{1,2})일/);
-        const shortDate = dm ? dm[0] : d;
-        shortLabels.push(shortDate);
-        const day = DAILY_ANALYSIS[d];
-        if(!day){
-          rows += `<div class="placeholder-text">${escapeHtml(shortDate)}은 아직 분석해둔 내용이 없어요.</div>`;
-          return;
-        }
-        ['favorable','critical','other'].forEach(type=>{
-          (day[type]||[]).forEach(it=>{
-            total++;
-            rows += `<div class="stance-item" style="background:${bgMap[type]}">
-              <div class="stance-speaker">${escapeHtml(it.speaker||'')} <span style="color:#8a92a3;font-weight:500;">· ${labelMap[type]} · ${escapeHtml(shortDate)}</span></div>
-              <div class="stance-quote">${escapeHtml(it.quote||'')}</div>
-            </div>`;
-          });
-        });
-      });
-      cumDateDetailHtml = `
-        <div style="margin-bottom:14px;">
-          <div style="font-size:13px; font-weight:800; margin-bottom:8px;">선택한 날짜 발언자 (${shortLabels.join(', ')}) · ${total}건</div>
-          ${rows || '<div class="placeholder-text">선택한 날짜에 분류된 발언이 없어요.</div>'}
-        </div>`;
-    }
-
-    return `
-      <div style="margin-bottom:10px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-        ${periodBtn('all','전체 기간')}${periodBtn(7,'최근 7일')}${periodBtn(3,'최근 3일')}
-      </div>
-      <div style="margin-bottom:10px;">
-        <div style="font-size:12px; color:var(--text-dim); margin-bottom:6px;">날짜별 발언자 보기 (여러 날짜 클릭 가능)</div>
-        <div style="display:flex; flex-wrap:wrap; gap:6px;">
-          ${dateChips}
-          ${selectedCumDates.size ? `<button onclick="clearCumDateChips()" style="border:1px dashed var(--line); background:#fff; color:var(--text-dim); border-radius:999px; padding:3px 10px; font-size:11px; font-weight:700; cursor:pointer;">선택 해제</button>` : ''}
-        </div>
-      </div>
-      ${cumDateDetailHtml}
-      ${trendComment ? `<div style="background:var(--bg-side-2); border-radius:8px; padding:10px 12px; margin-bottom:12px; font-size:12.5px; font-weight:600;">${escapeHtml(trendComment)}</div>` : ''}
-      <div class="stat-row">
-        <div class="stat-card"><div class="stat-label">분석된 날짜</div><div class="stat-value">${s.dayCount}일</div></div>
-        <div class="stat-card" style="cursor:pointer;" onclick="toggleCumDetail('favorable')"><div class="stat-label">포스코 우호 (클릭)</div><div class="stat-value" style="color:#16a34a;">${s.favTotal}건</div></div>
-        <div class="stat-card" style="cursor:pointer;" onclick="toggleCumDetail('critical')"><div class="stat-label">포스코 부정 (클릭)</div><div class="stat-value" style="color:#dc2626;">${s.critTotal}건</div></div>
-        <div class="stat-card" style="cursor:pointer;" onclick="toggleCumDetail('other')"><div class="stat-label">포스코 기타 (클릭)</div><div class="stat-value">${s.otherTotal}건</div></div>
-      </div>
-      <div id="cumDetailBox" style="display:none; margin-bottom:14px;"></div>
-      <div style="margin-top:4px;">
-        <div style="font-size:12px; font-weight:700; color:var(--text-dim); margin-bottom:6px;">반복 발언자 (2회 이상, 선택된 기간 기준)</div>
-        ${repeatHtml}
-      </div>
-      <div style="margin-top:16px;">
-        <div style="font-size:12px; font-weight:700; color:var(--text-dim); margin-bottom:6px;">발언자 검색 (이름 입력)</div>
-        <input id="speakerSearchInput" placeholder="예: 손한준" oninput="renderSpeakerSearchResult(this.value)"
-          style="width:100%; padding:8px 10px; font-size:12.5px; border-radius:8px; border:1px solid var(--line); background:#fff; box-sizing:border-box; margin-bottom:8px;">
-        <div id="speakerSearchResult"></div>
-      </div>
-      <div style="margin-top:16px;">
-        <div style="font-size:12px; font-weight:700; color:var(--text-dim); margin-bottom:6px;">키워드 검색 (단어 입력, 지금 업로드된 파일 기준)</div>
-        <input id="keywordSearchInput" placeholder="예: 임대, 분담금, 이주비" oninput="renderKeywordSearchResult(this.value)"
-          style="width:100%; padding:8px 10px; font-size:12.5px; border-radius:8px; border:1px solid var(--line); background:#fff; box-sizing:border-box; margin-bottom:8px;">
-        <div id="keywordSearchResult"></div>
-      </div>`;
+    const keys=reportHistoryKeys(),chosen=reportCumDate==='__all__'?keys:keys.filter(d=>d===reportCumDate);
+    const counts=['favorable','critical','other'].map(k=>chosen.reduce((n,d)=>n+(DAILY_ANALYSIS[d]&&DAILY_ANALYSIS[d][k]||[]).length,0));
+    return `<div class="r-cum-filter"><label for="rCumDate">날짜</label><select id="rCumDate" onchange="selectReportCumDate(this.value)"><option value="__all__">전체 기간</option>${keys.slice().reverse().map(d=>`<option value="${escapeHtml(d)}"${d===reportCumDate?' selected':''}>${escapeHtml(d)}</option>`).join('')}</select><span>${chosen.length}일</span></div><div class="r-cum-counts">${['우호','부정','중립'].map((label,i)=>`<div><span>${label}</span><strong>${counts[i]}<small>건</small></strong></div>`).join('')}</div>${reportCumDate!=='__all__'?['favorable','critical','other'].map((k,i)=>`<div class="r-cum-list"><b>${['우호','부정','중립'][i]}</b>${renderStanceList(DAILY_ANALYSIS[reportCumDate]&&DAILY_ANALYSIS[reportCumDate][k]||[],'','',reportCumDate)}</div>`).join(''):''}`;
   }
-
+  window.selectReportCumDate=function(date){reportCumDate=date;document.getElementById('cumulativeSummaryWrap').innerHTML=renderCumulativeSummary();};
   function setCumPeriod(period){
     currentCumPeriod = (period==='all') ? 'all' : Number(period);
     const wrap = document.getElementById('cumulativeSummaryWrap');
@@ -1010,7 +1001,7 @@
         </div>`;
       });
     });
-    box.innerHTML = `<div style="font-size:13px; font-weight:800; margin-bottom:8px;">${titleMap[type]}</div>${rows || '<div class="placeholder-text">해당 발언이 없어요.</div>'}`;
+    box.innerHTML = `<div style="font-size:13px; font-weight:700; margin-bottom:8px;">${titleMap[type]}</div>${rows || '<div class="placeholder-text">해당 발언이 없어요.</div>'}`;
     box.style.display = 'block';
     box.dataset.type = type;
   }
@@ -1044,73 +1035,26 @@
   }
   window.clearCumDateChips = clearCumDateChips;
 
+
+  function reportHistoryKeys(){
+    const from=document.getElementById('reportFrom').value,to=document.getElementById('reportTo').value;
+    const uploaded=parsed?new Set(parsed.map(m=>m.date)):null;
+    return getKnownDates().filter(d=>(!uploaded||uploaded.has(d))&&(!from||reportDateIso(d)>=from)&&(!to||reportDateIso(d)<=to));
+  }
   function renderTrendChart(){
-    const dateKeys = Object.keys(DAILY_ANALYSIS);
-    if(dateKeys.length===0) return '<div class="placeholder-text">아직 분석해둔 날짜가 없어요.</div>';
-
-    // "2026년 7월 17일 금요일" 같은 문자열에서 정렬/표시용 값 추출
-    const parsed = dateKeys.map(d=>{
-      const m = d.match(/(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일/);
-      return {
-        key:d,
-        sortKey: m ? `${m[1]}${m[2].padStart(2,'0')}${m[3].padStart(2,'0')}` : d,
-        label: m ? `${m[2]}/${m[3]}` : d,
-        favorable: (DAILY_ANALYSIS[d].favorable||[]).length,
-        critical: (DAILY_ANALYSIS[d].critical||[]).length
-      };
-    }).sort((a,b)=> a.sortKey.localeCompare(b.sortKey));
-
-    const maxVal = Math.max(1, ...parsed.map(p=>Math.max(p.favorable,p.critical)));
-
-    const bars = parsed.map(p=>`
-      <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; min-width:36px;">
-        <div style="display:flex; align-items:flex-end; gap:2px; height:100%;">
-          <div style="display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; cursor:pointer;" onclick="showDateDetail('${p.key.replace(/'/g,"\\'")}','favorable')">
-            <span style="font-size:9px; color:#16a34a; font-weight:700;">${p.favorable>0?p.favorable:''}</span>
-            <div title="우호적 ${p.favorable}건 (클릭)" style="width:12px; border-radius:2px 2px 0 0; background:#16a34a; height:${Math.max(2,(p.favorable/maxVal)*100)}%;"></div>
-          </div>
-          <div style="display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; cursor:pointer;" onclick="showDateDetail('${p.key.replace(/'/g,"\\'")}','critical')">
-            <span style="font-size:9px; color:#dc2626; font-weight:700;">${p.critical>0?p.critical:''}</span>
-            <div title="비방 ${p.critical}건 (클릭)" style="width:12px; border-radius:2px 2px 0 0; background:#dc2626; height:${Math.max(2,(p.critical/maxVal)*100)}%;"></div>
-          </div>
-        </div>
-        <div style="font-size:10px; color:#8a92a3; margin-top:4px; white-space:nowrap;">${p.label}</div>
-      </div>`).join('');
-
-    return `
-      <div style="display:flex; align-items:flex-end; gap:8px; height:110px; overflow-x:auto; padding-bottom:4px;">${bars}</div>
-      <div style="display:flex; gap:14px; margin-top:8px; font-size:11px; color:#8a92a3;">
-        <span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#16a34a;margin-right:4px;"></span>우호적</span>
-        <span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#dc2626;margin-right:4px;"></span>비방</span>
-      </div>
-      <div id="dateDetailBox" style="display:none; margin-top:10px;"></div>`;
+    const keys=reportHistoryKeys().filter(d=>['favorable','critical','other'].some(k=>(DAILY_ANALYSIS[d]&&DAILY_ANALYSIS[d][k]||[]).length));
+    if(!keys.length)return '<div class="r-empty">분류된 발언이 없습니다.</div>';
+    const max=Math.max(1,...keys.flatMap(d=>['favorable','critical','other'].map(k=>(DAILY_ANALYSIS[d][k]||[]).length)));
+    return `<div class="r-trend">${keys.map((d,i)=>{const label=d.match(/(\d+)월\s*(\d+)일/);return `<div class="r-trend-day"><div class="r-trend-bars">${['favorable','critical','other'].map(k=>{const n=(DAILY_ANALYSIS[d][k]||[]).length;return n?`<button type="button" class="r-trend-bar ${k}" style="height:${Math.max(12,n/max*70)}px" onclick="showDateDetail(${i},'${k}')" aria-label="${escapeHtml(d)} ${k==='favorable'?'우호':k==='critical'?'부정':'중립'} ${n}건"><span>${n}</span></button>`:'';}).join('')}</div><span>${label?label[1]+'/'+label[2]:escapeHtml(d)}</span></div>`;}).join('')}</div><div class="r-legend"><span class="favorable">우호</span><span class="critical">부정</span><span class="other">중립</span></div><div id="dateDetailBox" hidden></div>`;
   }
-
-  // 특정 날짜의 우호적/비방 발언만 펼쳐서 보여줌
-  function showDateDetail(dateKey, type){
-    const box = document.getElementById('dateDetailBox');
-    if(!box) return;
-    const tag = dateKey + '|' + type;
-    if(box.dataset.tag===tag && box.style.display!=='none'){
-      box.style.display = 'none';
-      box.dataset.tag = '';
-      return;
-    }
-    const day = DAILY_ANALYSIS[dateKey];
-    const items = day ? (day[type]||[]) : [];
-    const bgMap = {favorable:'#f0fdf4', critical:'#fef2f2'};
-    const titleMap = {favorable:'✅ 우호적 발언', critical:'🚫 비방 발언'};
-    const dm = dateKey.match(/(\d{1,2})월\s*(\d{1,2})일/);
-    const shortDate = dm ? dm[0] : dateKey;
-    box.innerHTML = `<div style="font-size:12.5px; font-weight:800; margin-bottom:8px;">${shortDate} - ${titleMap[type]} (${items.length}건)</div>` +
-      (items.length
-        ? items.map(it=>`<div class="stance-item" style="background:${bgMap[type]}"><div class="stance-speaker">${escapeHtml(it.speaker||'')}</div><div class="stance-quote">${escapeHtml(it.quote||'')}</div></div>`).join('')
-        : '<div class="placeholder-text">해당 발언이 없어요.</div>');
-    box.style.display = 'block';
-    box.dataset.tag = tag;
+  function showDateDetail(index,type){
+    const keys=reportHistoryKeys().filter(d=>['favorable','critical','other'].some(k=>(DAILY_ANALYSIS[d]&&DAILY_ANALYSIS[d][k]||[]).length));
+    const date=keys[index],box=document.getElementById('dateDetailBox');if(!date||!box)return;
+    const tag=date+'|'+type;if(box.dataset.tag===tag&&!box.hidden){box.hidden=true;return;}
+    const items=DAILY_ANALYSIS[date][type]||[];
+    box.innerHTML=`<div class="r-detail-heading">${escapeHtml(date)} · ${type==='favorable'?'우호':type==='critical'?'부정':'중립'} ${items.length}건</div>${renderStanceList(items,'','',date)}`;box.hidden=false;box.dataset.tag=tag;
   }
-  window.showDateDetail = showDateDetail;
-
+  window.showDateDetail=showDateDetail;
   function renderHourlySpeakers(hourTopSpeakers){
     const rows = hourTopSpeakers
       .map((info,h)=> info ? {h,...info} : null)
@@ -1128,140 +1072,59 @@
   }
 
   // 특정 시간대에 실제로 오간 메시지들을 펼쳐서 보여줌
+
   function showHourMessages(hour){
-    const box = document.getElementById('hourDetailBox');
-    if(!box) return;
-    if(box.dataset.hour==String(hour) && box.style.display!=='none'){
-      box.style.display = 'none';
-      box.dataset.hour = '';
-      return;
-    }
-    const msgs = (parsed||[]).filter(m=>m.hour===hour && !isSystemLine(m.text) && !isSystemNotice(m.text));
-    box.innerHTML = `<div style="font-size:12.5px; font-weight:800; margin-bottom:8px;">${hour}시에 오간 메시지 (${msgs.length}건)</div>` +
-      (msgs.length
-        ? msgs.map(m=>`<div class="stance-item" style="background:#f9fafb;"><div class="stance-speaker">${escapeHtml(m.name)}</div><div class="stance-quote">${escapeHtml(m.text)}</div></div>`).join('')
-        : '<div class="placeholder-text">메시지가 없어요.</div>');
-    box.style.display = 'block';
-    box.dataset.hour = String(hour);
+    const box=document.getElementById('hourDetailBox');if(!box)return;
+    if(box.dataset.hour===String(hour)&&!box.hidden){box.hidden=true;return;}
+    const rows=(window.__reportHourlyRows||[]).filter(m=>m.hour===hour&&!isSystemNotice(m.text));
+    box.innerHTML=`<div class="r-detail-heading">${hour}시 주요 발언 · ${rows.length}건</div>${rows.map((m,i)=>statementHtml({speaker:m.name,quote:m.text,date:m.date,hour:m.hour,min:m.min,sourceText:m.text},i,m.date)).join('')}`;box.hidden=false;box.dataset.hour=String(hour);
   }
-  window.showHourMessages = showHourMessages;
-
-  // a(통계, analyze()와 같은 모양) + daily(정성 분석)를 받아서 보고서 HTML을 만듦.
-  // a가 null이면 "아직 통계 없음" 안내만 보여주고, 정성 분석(daily)은 있으면 그대로 보여줌.
-  function buildReportHtml(a, daily){
-    let statsBlock, rankLinkBlock;
-
-    if(a){
-      const maxHour = Math.max(...a.hourCounts,1);
-      const hourBars = a.hourCounts.map((c,h)=>`
-        <div class="hourbar-col" title="${h}시: ${c}건">
-          <div class="hourbar-count" style="color:${c>0?'var(--accent)':'transparent'}">${c>0?c:''}</div>
-          <div class="hourbar ${h===a.peakHour?'peak':''}" style="height:${Math.max(2,(c/maxHour)*100)}%"></div>
-        </div>`).join('');
-      const hourLabels = a.hourCounts.map((c,h)=> h%3===0 ? `<span>${h}시</span>` : `<span></span>`).join('');
-      const linkRows = a.links.slice(0,30).map(l=>`<a class="link-item" href="${escapeHtml(l.url)}" target="_blank" rel="noopener"><span class="link-meta">${escapeHtml(l.name)}</span>${escapeHtml(l.url)}</a>`).join('') || '<div class="placeholder-text">공유된 링크가 없어요.</div>';
-
-      statsBlock = `
-        <div class="stat-row">
-          <div class="stat-card"><div class="stat-label">총 메시지</div><div class="stat-value">${a.total.toLocaleString()}</div><div class="stat-sub">${(a.dates||[]).join(', ')||'-'}</div></div>
-          <div class="stat-card"><div class="stat-label">참여자</div><div class="stat-value">${a.participantCount}</div><div class="stat-sub">명</div></div>
-          <div class="stat-card"><div class="stat-label">가장 활발한 시간</div><div class="stat-value">${a.peakHour}시</div><div class="stat-sub">${a.hourCounts[a.peakHour]}건</div></div>
-          <div class="stat-card"><div class="stat-label">공유 링크 · 사진</div><div class="stat-value">${a.links.length} · ${a.mediaCount}</div><div class="stat-sub">삭제된 메시지 ${a.deletedCount}건</div></div>
-        </div>
-
-        <div class="section">
-          <h3>시간대별 대화량</h3>
-          <div class="hourchart">${hourBars}</div>
-          <div class="hourlabels">${hourLabels}</div>
-        </div>
-
-        <div class="section">
-          <h3>시간대별 주요 발언자</h3>
-          ${renderHourlySpeakers(a.hourTopSpeakers)}
-        </div>`;
-
-      rankLinkBlock = `
-        <div class="section">
-          <h3>발언 순위 Top ${Math.min(a.ranking.length,20)}</h3>
-          ${renderRankingCols(a.ranking.slice(0,20))}
-        </div>
-
-        <div class="section">
-          <h3>공유 링크</h3>
-          <div>${linkRows}</div>
-        </div>`;
-    }else{
-      statsBlock = `
-        <div class="section">
-          <div class="placeholder-text">이 날짜는 대화량 통계(총 메시지 수·시간대별 대화량·발언 순위 등)가 아직 준비되지 않았어요.<br>카톡 txt를 업로드하시면 바로 계산해서 보여드리고, 다롱님께 보내주시면 다음부터는 업로드 없이도 볼 수 있게 만들어드려요.</div>
-        </div>`;
-      rankLinkBlock = '';
-    }
-
-    const sourceLabel = currentAnalysisSource==='ai' ? 'AI 정밀 분석' : '로컬 빠른 분석';
-    const sourceClass = currentAnalysisSource==='ai' ? '' : ' local';
-    const sourceNote = currentAnalysisSource==='ai'
-      ? '업로드된 원문을 AI가 요약·분류한 결과입니다.'
-      : '서버 연결 없이 원문 키워드와 문장만으로 빠르게 정리한 결과입니다. 사실 확인은 원문을 우선해 주세요.';
-    return `
-      <div class="report-source-strip"><span><b>${sourceLabel}</b> · ${sourceNote}</span><span class="source-chip${sourceClass}">${sourceLabel}</span></div>
-      ${statsBlock}
-
-      <div class="section">
-        <h3>핵심 대화 요약</h3>
-        ${ daily
-          ? daily.keyPoints.map(kp=>`<div class="kp-card"><div class="kp-title">${escapeHtml(kp.title)}</div><div class="kp-summary">${escapeHtml(kp.summary)}</div></div>`).join('')
-          : '<div class="placeholder-text">이 파일(날짜)은 아직 분석해둔 내용이 없어요.<br>대화 내용을 채팅으로 공유해주시면, 직접 읽고 중점 내용을 정리해드릴게요.</div>'
-        }
-      </div>
-
-      <section class="sentiment-shell">
-        <div class="sentiment-title-row">
-          <div>
-            <div class="sentiment-kicker">POSCO E&C SENTIMENT</div>
-            <h3>포스코 관련 발언 모니터링</h3>
-            <p>포스코·포스코이앤씨·더샵을 직접 언급한 메시지만 우호 / 부정·비판 / 중립·기타로 분류합니다.</p>
-          </div>
-          <span class="focus-chip">포스코 직접 언급만</span>
-        </div>
-        <div class="stance-grid">
-          <div class="stance-col tone-good">
-            <div class="stance-head">우호적 발언 <span>${daily ? daily.favorable.length : 0}</span></div>
-            ${daily ? renderStanceList(daily.favorable, '포스코 관련 우호적 발언이 없어요.', '#f5fbf7') : '<div class="placeholder-text">카톡 TXT를 불러오면 포스코 관련 발언만 분류합니다.</div>'}
-          </div>
-          <div class="stance-col tone-bad">
-            <div class="stance-head">부정·비판 발언 <span>${daily ? daily.critical.length : 0}</span></div>
-            ${daily ? renderStanceList(daily.critical, '포스코 관련 부정·비판 발언이 없어요.', '#fff7f7') : '<div class="placeholder-text">카톡 TXT를 불러오면 포스코 관련 발언만 분류합니다.</div>'}
-          </div>
-          <div class="stance-col tone-neutral">
-            <div class="stance-head">중립·기타 발언 <span>${daily ? daily.other.length : 0}</span></div>
-            ${daily ? renderStanceList(daily.other, '포스코 관련 중립·기타 발언이 없어요.', '#f8faf9') : '<div class="placeholder-text">카톡 TXT를 불러오면 포스코 관련 발언만 분류합니다.</div>'}
-          </div>
-        </div>
-      </section>
-
-      <div class="section">
-        <h3>날짜별 발언 흐름</h3>
-        ${renderTrendChart()}
-      </div>
-
-      <div class="section">
-        <h3>누적 발언 요약</h3>
-        <div id="cumulativeSummaryWrap">${renderCumulativeSummary()}</div>
-      </div>
-
-      ${rankLinkBlock}
-    `;
+  window.showHourMessages=showHourMessages;
+  function reportIssueCards(daily){
+    if(currentAnalysisSource==='ai'&&daily&&daily.keyPoints.length){window.__reportIssueExport=daily.keyPoints.slice(0,5);return daily.keyPoints.slice(0,5).map((k,i)=>`<article class="r-issue"><span class="r-no">No ${i+1}</span><div><h4>${escapeHtml(k.title)}</h4><p>${escapeHtml(k.summary)}</p></div></article>`).join('');}
+    const rows=reportSourceRows(),topics=[['사업 일정',/총회|입찰|공고|선정|회의|계약/],['설계 · 공사',/설계|공사|인허가|이주|착공/],['비용 · 분담금',/분담금|공사비|사업비|대출|금리/],['관계자 의견',/우려|불만|찬성|반대|요구|문의/]];
+    const seen=new Set(),cards=[];
+    topics.forEach(([title,re])=>{let best=null;rows.forEach(m=>{String(m.text||'').split(/\n+|(?<=[.!?。])\s+/).forEach(t=>{t=t.trim();if(t.length<20||!re.test(t)||seen.has(t))return;const score=Math.min(t.length,180);if(!best||score>best.score)best={m,t,score};});});if(best){seen.add(best.t);cards.push({title,best});}});
+    window.__reportIssueExport=cards.map(c=>({title:c.title,summary:c.best.t}));
+    return cards.map((c,i)=>`<article class="r-issue"><span class="r-no">No ${i+1}</span><div><h4>${c.title}</h4>${statementHtml({speaker:c.best.m.name,quote:c.best.t,...c.best.m,sourceText:c.best.m.text},i,c.best.m.date)}</div></article>`).join('')||'<div class="r-empty">주요 이슈로 추출할 내용이 없습니다.</div>';
   }
 
+  function reportMonitoringForDates(dates,fallback){
+    const result={favorable:[],critical:[],other:[]};
+    (dates||[]).forEach(date=>{const day=DAILY_ANALYSIS[date];if(!day)return;['favorable','critical','other'].forEach(k=>(day[k]||[]).forEach(it=>result[k].push({...it,date:it.date||date})));});
+    if(!(dates||[]).length&&fallback)['favorable','critical','other'].forEach(k=>result[k]=fallback[k]||[]);
+    return result;
+  }
+  let reportHourDate='';
+  function renderReportHourly(){
+    const allRows=reportSourceRows(),dates=sortDateKeys(Array.from(new Set(allRows.length?allRows.map(m=>m.date).filter(Boolean):(window.__reportViewDates||[]))));
+    if(!dates.includes(reportHourDate))reportHourDate=dates.slice(-1)[0]||'';
+    const rows=allRows.filter(m=>m.date===reportHourDate);window.__reportHourlyRows=rows;
+    const stats=rows.length?analyze(rows):(DAILY_STATS[reportHourDate]||null);
+    const counts=stats&&stats.hourCounts||Array(24).fill(0),max=Math.max(1,...counts);
+    return `<div class="r-hour-date-filter"><label for="reportHourDate">날짜</label><select id="reportHourDate" onchange="selectReportHourDate(this.value)">${dates.slice().reverse().map(d=>`<option value="${escapeHtml(d)}"${d===reportHourDate?' selected':''}>${escapeHtml(d)}</option>`).join('')}</select><span>${stats?(stats.total||0).toLocaleString():0}건 · ${stats?stats.participantCount||0:0}명</span></div><div class="r-hourchart">${counts.map((n,h)=>`<div class="r-hour-col"><span class="r-hour-count">${n||''}</span><button type="button" class="r-hour-bar"${n?'':' disabled'} style="height:${n?Math.max(4,n/max*86):2}px" onclick="showHourMessages(${h})" aria-label="${h}시 대화 ${n}건"></button><small>${h%3===0?h+'시':''}</small></div>`).join('')}</div><div class="r-hour-list">${counts.map((n,h)=>n?`<button type="button" onclick="showHourMessages(${h})"><b>${String(h).padStart(2,'0')}:00</b><span>${stats&&stats.hourTopSpeakers&&stats.hourTopSpeakers[h]?escapeHtml(stats.hourTopSpeakers[h].names.join(', ')):''}</span><strong>${n}건</strong></button>`:'').join('')}</div><div id="hourDetailBox" hidden></div>`;
+  }
+  window.selectReportHourDate=function(date){reportHourDate=date;document.getElementById('reportHourlyContent').innerHTML=renderReportHourly();};
+  function buildReportHtml(a,daily){
+    const dates=a&&a.dates||[],fallback=dates.length===1?dates[0]:'';window.__reportViewDates=dates;
+    const groups=['favorable','critical','other'],labels=['우호','부정','중립'];
+    const monitoring=reportMonitoringForDates(dates,daily);window.__currentMonitoring=monitoring;
+    const monitoringScope=dates.length===1?dates[0]:`선택 기간 · ${dates.length}일`;
+    const issues=reportIssueCards(daily);
+    return `<section class="r-report-section"><header class="r-section-header"><div><span class="r-step">01</span><h3>주요 대화 · 이슈</h3></div><span class="r-mode">${currentAnalysisSource==='ai'?'AI 요약':'핵심 문장'}</span></header><div class="r-issues">${issues}</div></section>
+      <section class="r-report-section"><header class="r-section-header"><div><span class="r-step">02</span><h3>포스코 관련 발언 모니터링</h3></div><span class="r-mode">${escapeHtml(monitoringScope)}</span></header><div class="r-stance-grid">${groups.map((k,i)=>`<div class="r-stance-column ${k}"><div class="r-stance-header"><h4>${labels[i]}</h4><span>${monitoring[k].length}건</span></div><div class="r-stance-body">${renderStanceList(monitoring[k],'','',fallback)}</div></div>`).join('')}</div></section>
+      <section class="r-report-section"><header class="r-section-header"><div><span class="r-step">03</span><h3>시간대별 대화량 · 주요 발언</h3></div></header><div id="reportHourlyContent">${renderReportHourly()}</div></section>
+      <div class="r-history-grid"><section class="r-report-section"><header class="r-section-header"><h3>날짜별 발언 흐름</h3></header>${renderTrendChart()}</section><section class="r-report-section"><header class="r-section-header"><h3>누적 발언 요약</h3></header><div id="cumulativeSummaryWrap">${renderCumulativeSummary()}</div></section></div>`;
+  }
   function render(){
     if(!parsed) return;
     const dateFilter = document.getElementById('dateFilter');
     const selected = dateFilter.value;
-    const filtered = (selected && selected!=='__all__') ? parsed.filter(m=>m.date===selected) : parsed;
+    const filtered = filteredReportMessages();
     const a = analyze(filtered);
-    const daily = aiAnalysisCache[selected] || findDailyAnalysis(a.dates);
-    currentAnalysisSource = analysisSourceCache[selected] || (daily ? 'local' : 'local');
+    const hasRange=document.getElementById('reportFrom').value||document.getElementById('reportTo').value;
+    const daily = hasRange?localAnalyzeMessages(filtered):(aiAnalysisCache[selected] || findDailyAnalysis(a.dates));
+    currentAnalysisSource = hasRange?'local':(analysisSourceCache[selected] || 'local');
     window.__currentDaily = daily;
     window.__currentTitle = document.getElementById('titleInput').value;
     window.__currentTitleDate = document.getElementById('titleDate').textContent;
@@ -1305,6 +1168,7 @@
     dateFilterEl.style.display = 'none';
     dateFilterEl.innerHTML = '';
 
+    window.__reportSourceRows=(DAILY_ANALYSIS[dateKey]&&DAILY_ANALYSIS[dateKey].sourceMessages)||[];
     const stats = DAILY_STATS[dateKey] || null;
     const daily = DAILY_ANALYSIS[dateKey] || null;
     currentAnalysisSource = 'local';
@@ -1339,7 +1203,7 @@
     savedDateSelect.innerHTML = known.slice().reverse().map(d=>{
       const dm = d.match(/(\d{1,2})월\s*(\d{1,2})일/);
       const label = dm ? dm[0] : d;
-      return `<option value="${escapeHtml(d)}">${escapeHtml(label)}${DAILY_STATS[d] ? ' 📊' : ''}</option>`;
+      return `<option value="${escapeHtml(d)}">${escapeHtml(label)}</option>`;
     }).join('');
     savedDateSelect.style.display = 'inline-block';
   }
@@ -1348,6 +1212,8 @@
   document.getElementById('clearBtn').addEventListener('click', ()=>{
     if(!confirm('지금 화면 내용을 지우고 새로 시작할까요? (업로드한 파일은 저장되는 게 아니라서, 다시 보려면 파일을 또 올려야 해요)')) return;
     parsed = null;
+    document.getElementById('kakaoPasteInput').value='';
+    document.getElementById('reportFrom').value='';document.getElementById('reportTo').value='';
     fileInput.value = '';
     aiBtn.disabled = true;
     aiAnalysisCache = {};
@@ -1361,7 +1227,7 @@
     dateFilterEl.style.display = 'none';
     dateFilterEl.innerHTML = '';
     document.getElementById('titleDate').textContent = '';
-    content.innerHTML = `<div class="empty-state"><div class="empty-icon">↥</div><b>카카오톡 대화 TXT를 불러와 주세요.</b><div class="empty-sub">파일을 불러오면 통계와 로컬 빠른 분석이 즉시 표시됩니다.</div></div>`;
+    content.innerHTML = `<div class="empty-state"><div class="empty-icon">↥</div><b>카톡 대화를 붙여넣거나 TXT 파일을 불러와 주세요.</b><div class="empty-sub">파일을 불러오면 핵심 내용과 현장별 정리가 바로 표시됩니다.</div></div>`;
   });
 
   function refreshDateFilterOptions(){
@@ -1371,7 +1237,7 @@
     const prevSelection = dateFilter.value;
     if(uniqueDates.length > 1){
       dateFilter.innerHTML = `<option value="__all__">전체 기간 (${uniqueDates.length}일)</option>` +
-        uniqueDates.map(d=>`<option value="${escapeHtml(d)}">${escapeHtml(d)}${(DAILY_ANALYSIS[d]||aiAnalysisCache[d])?' (분석완료)':''}</option>`).join('');
+        uniqueDates.map(d=>`<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
       dateFilter.style.display = 'inline-block';
       if(prevSelection && dateFilter.querySelector(`option[value="${CSS.escape(prevSelection)}"]`)) dateFilter.value = prevSelection;
     }else{
@@ -1380,23 +1246,20 @@
     }
   }
 
-  fileInput.addEventListener('change', (e)=>{
-    const file = e.target.files[0];
-    if(!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev)=>{
-      parsed = parseKakaoTxt(ev.target.result);
+  function loadReportText(raw){
+    if(!String(raw||'').trim()){toast('카톡 대화 내용을 먼저 붙여넣어 주세요.','warn');return false;}
+    const nextMessages=parseKakaoTxt(String(raw));
+    if(!nextMessages.length){toast('대화를 읽지 못했습니다. 날짜·이름·시간을 포함한 카톡 대화 내용을 붙여넣어 주세요.','bad');return false;}
+      document.getElementById('reportFrom').value='';document.getElementById('reportTo').value='';
+      parsed = nextMessages;reportHourDate='';
       aiAnalysisCache = {};
       analysisSourceCache = {};
       aiBtn.disabled = false;
-      if(!parsed.length){
-        toast('메시지를 읽지 못했어요. 카카오톡 TXT 형식을 확인해 주세요.','bad');
-        return;
-      }
+
 
       const dateFilter = document.getElementById('dateFilter');
       refreshDateFilterOptions();
-      dateFilter.value = '__all__';
+      dateFilter.value = sortDateKeys(Array.from(new Set(parsed.map(m=>m.date).filter(Boolean)))).slice(-1)[0]||'__all__';
 
       // 업로드 즉시 로컬 빠른 분석을 보여줘서 AI 서버가 꺼져 있어도 보고서를 사용할 수 있게 함.
       aiAnalysisCache['__all__'] = localAnalyzeMessages(parsed);
@@ -1410,34 +1273,49 @@
         persistDateAnalysis(d, rows, daily);
       });
       currentAnalysisSource = 'local';
-      setAiStatus('local','로컬 빠른 분석 완료');
+      setAiStatus('local','대화 불러옴');
       toast(`${parsed.length.toLocaleString()}개 메시지를 읽었어요. AI 정밀 분석은 선택해서 실행할 수 있어요.`);
+      if(document.getElementById('dateFilter').options&&document.getElementById('dateFilter').options.length)document.getElementById('dateFilter').value=sortDateKeys(Array.from(new Set(parsed.map(m=>m.date).filter(Boolean)))).slice(-1)[0];
+      document.getElementById('savedDateSelect').style.display='none';
       render();
-    };
-    reader.readAsText(file, 'utf-8');
+
+    document.getElementById('reportPastePanel').hidden=true;document.getElementById('togglePasteBtn').setAttribute('aria-expanded','false');
+    return true;
+  }
+  fileInput.addEventListener('change',(e)=>{
+    const file=e.target.files[0];if(!file)return;
+    const reader=new FileReader();
+    reader.onload=ev=>loadReportText(ev.target.result);
+    reader.onerror=()=>toast('파일을 읽지 못했습니다. 다시 선택해 주세요.','bad');
+    reader.readAsText(file,'utf-8');
   });
+  document.getElementById('togglePasteBtn').addEventListener('click',()=>{const panel=document.getElementById('reportPastePanel');panel.hidden=!panel.hidden;document.getElementById('togglePasteBtn').setAttribute('aria-expanded',String(!panel.hidden));if(!panel.hidden)document.getElementById('kakaoPasteInput').focus();});
+  document.getElementById('analyzePasteBtn').addEventListener('click',()=>loadReportText(document.getElementById('kakaoPasteInput').value));
 
   document.getElementById('dateFilter').addEventListener('change', render);
+  ['reportFrom','reportTo'].forEach(id=>document.getElementById(id).addEventListener('change',()=>{const from=document.getElementById('reportFrom'),to=document.getElementById('reportTo');if(from.value&&to.value&&from.value>to.value){toast('종료일은 시작일 이후로 선택해 주세요.','warn');return;}document.getElementById('dateFilter').value='__all__';render();}));
+  document.getElementById('reportRangeClear').addEventListener('click',()=>{document.getElementById('reportFrom').value='';document.getElementById('reportTo').value='';document.getElementById('dateFilter').value='__all__';render();});
 
   function buildSummaryText(){
-    const daily = window.__currentDaily;
-    if(!daily) return null;
+    const analysis=window.__currentDaily;
+    if(!analysis)return null;
+    const daily={...analysis,...(window.__currentMonitoring||{})};
     const lines = [];
     lines.push(`■ ${window.__currentTitle || '단톡방 일일 보고'}`);
     lines.push('');
-    lines.push('[중점 내용]');
-    daily.keyPoints.forEach((kp,i)=> lines.push(`${i+1}. ${kp.title} - ${kp.summary}`));
+    lines.push(currentAnalysisSource==='ai'?'[핵심 대화 요약]':'[주요 대화 · 원문 발췌]');
+    (window.__reportIssueExport||daily.keyPoints).forEach((kp,i)=> lines.push(`${i+1}. ${kp.title} - ${kp.summary}`));
     lines.push('');
-    lines.push('[포스코 우호적 발언]');
-    if(daily.favorable.length) daily.favorable.forEach(it=> lines.push(`- ${it.speaker}: ${it.quote}`));
+    lines.push('[포스코 우호 발언]');
+    if(daily.favorable.length) daily.favorable.forEach(it=> lines.push(`- ${it.speaker}${it.date?' · '+it.date:''}${Number.isInteger(it.hour)?' '+String(it.hour).padStart(2,'0')+':'+String(it.min||0).padStart(2,'0'):''}: ${it.quote}`));
     else lines.push('- 없음');
     lines.push('');
-    lines.push('[포스코 부정·비판 발언]');
-    if(daily.critical.length) daily.critical.forEach(it=> lines.push(`- ${it.speaker}: ${it.quote}`));
+    lines.push('[포스코 부정 발언]');
+    if(daily.critical.length) daily.critical.forEach(it=> lines.push(`- ${it.speaker}${it.date?' · '+it.date:''}${Number.isInteger(it.hour)?' '+String(it.hour).padStart(2,'0')+':'+String(it.min||0).padStart(2,'0'):''}: ${it.quote}`));
     else lines.push('- 없음');
     lines.push('');
-    lines.push('[포스코 중립·기타 발언]');
-    if(daily.other.length) daily.other.forEach(it=> lines.push(`- ${it.speaker}: ${it.quote}`));
+    lines.push('[포스코 중립 발언]');
+    if(daily.other.length) daily.other.forEach(it=> lines.push(`- ${it.speaker}${it.date?' · '+it.date:''}${Number.isInteger(it.hour)?' '+String(it.hour).padStart(2,'0')+':'+String(it.min||0).padStart(2,'0'):''}: ${it.quote}`));
     else lines.push('- 없음');
     return lines.join('\n');
   }
@@ -1517,7 +1395,7 @@
     if(!parsed){ toast('먼저 카카오톡 TXT 파일을 불러와 주세요.','warn'); return; }
     const dateFilter = document.getElementById('dateFilter');
     const selected = dateFilter.value || '__all__';
-    const filtered = (selected && selected!=='__all__') ? parsed.filter(m=>m.date===selected) : parsed;
+    const filtered = filteredReportMessages();
     if(!filtered.length){ toast('분석할 메시지가 없어요.','warn'); return; }
 
     const originalLabel = aiBtn.textContent;
@@ -1529,7 +1407,7 @@
       aiAnalysisCache[selected] = daily;
       analysisSourceCache[selected] = 'ai';
       currentAnalysisSource = 'ai';
-      if(selected!=='__all__') persistDateAnalysis(selected, filtered, daily);
+      if(selected!=='__all__'&&!document.getElementById('reportFrom').value&&!document.getElementById('reportTo').value) persistDateAnalysis(selected, filtered, daily);
       refreshDateFilterOptions();
       const a = analyze(filtered);
       window.__currentDaily = daily;
@@ -1545,16 +1423,16 @@
       aiAnalysisCache[selected] = daily;
       analysisSourceCache[selected] = 'local';
       currentAnalysisSource = 'local';
-      if(selected!=='__all__') persistDateAnalysis(selected, filtered, daily);
+      if(selected!=='__all__'&&!document.getElementById('reportFrom').value&&!document.getElementById('reportTo').value) persistDateAnalysis(selected, filtered, daily);
       const a = analyze(filtered);
       window.__currentDaily = daily;
       content.innerHTML = buildReportHtml(a, daily);
       const msg = String(e&&e.message||e||'');
       const proxyMismatch = /query|파라미터|404|not found|지원/i.test(msg);
-      setAiStatus('local', proxyMismatch ? 'AI 함수 미배포 · 로컬 분석' : 'AI 연결 실패 · 로컬 분석');
+      setAiStatus('local', proxyMismatch ? 'AI 요약 연결 실패' : 'AI 요약 연결 실패');
       toast(proxyMismatch
-        ? '현재 Netlify 프록시에 AI 분석 함수가 없어서 로컬 분석으로 표시했어요. 함께 넣은 analyze-chat.js를 배포하면 AI가 바로 연결됩니다.'
-        : 'AI 서버 연결에 실패해 로컬 분석으로 표시했어요.', 'warn');
+        ? 'AI 요약 서버에 연결하지 못했습니다. 원문 발췌와 대화 통계만 표시합니다.'
+        : 'AI 요약 서버에 연결하지 못했습니다. 원문 발췌와 대화 통계만 표시합니다.', 'warn');
     }finally{
       aiBtn.disabled = false;
       aiBtn.textContent = originalLabel;
