@@ -13435,7 +13435,13 @@ window.addEventListener('resize', ()=>{
     return [...result.values()];
   }
   function rivalCompanies(site){
-    const companies=String(site.activeRivalCompanies||'').split(/[,，·\n]/).map(x=>rivalCompanyParts(x).company).filter(Boolean);
+    // An activity-company list is not a legacy company + manager record.
+    const aliasPattern=rivalCompanyAliases.map(([alias])=>alias.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|');
+    const separator=new RegExp('[,，·\\n;/|]+|\\s+(?=(?:'+aliasPattern+')(?:\\s|[,，·;/|]|$))','i');
+    const companies=String(site.activeRivalCompanies||'').split(separator).map(value=>{
+      const text=value.trim(),match=rivalCompanyAliases.find(([alias])=>alias.toUpperCase()===text.toUpperCase());
+      return match?match[1]:text;
+    }).filter(Boolean);
     rivalPeople().filter(p=>(p.siteIds||[]).map(String).includes(String(site.id))).forEach(p=>companies.push(p.company));
     return [...new Set(companies.filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ko'));
   }
@@ -13865,7 +13871,7 @@ window.addEventListener('resize', ()=>{
     return [...records.values()];
   }
   function managementDisplayText(value){
-    return String(value??'').replace(/\r\n?/g,'\n').replace(/\\n/g,'\n').replace(/[▣■□]\s*/g,'• ');
+    return contactReportNoteDisplay(value).replace(/\r\n?/g,'\n').replace(/\\n/g,'\n').replace(/[▣■□]\s*/g,'• ');
   }
   function managementDisplayName(name){return String(name||'').replace(/목동\s*(\d+)\s*단지/g,'목동 $1단지').replace(/신림\s*(\d+)\s*구역/g,'신림 $1구역');}
   function managementNameKey(name){
@@ -14082,9 +14088,9 @@ window.addEventListener('resize', ()=>{
 };
   // END NOTE EDITORIAL
   function managementNoteText(value){
-    const original=String(value||'');
+    const original=contactReportNoteDisplay(value);
     if(Object.prototype.hasOwnProperty.call(managementNoteEditorial,original))return managementNoteEditorial[original];
-    return String(value||'')
+    return original
       .replace(/통합심의 준비와 특화설계가 주요 이슈이며\s*/g,'통합심의 준비·특화설계 주요 현안. ')
       .replace(/(\d{1,2})월까지 통합심의 접수를 추진할 것으로 예상했으나,\s*/g,'$1월 내 통합심의 접수 추진 예상. ')
       .replace(/(?:실제\s*)?접수 완료 여부는 보고에서 확인되지 않는다/g,'접수 완료 여부 미확인')
@@ -14119,7 +14125,7 @@ window.addEventListener('resize', ()=>{
       }
       return out.slice(0,5);
     };
-    const items=period=>Array.isArray(site.managementNoteEdits?.[period])?site.managementNoteEdits[period].map(x=>({...x,month:period,dates:x.dates||[]})):compress(groups.get(period)||[],period);
+    const items=period=>Array.isArray(site.managementNoteEdits?.[period])?site.managementNoteEdits[period].map(x=>({...x,text:contactReportNoteDisplay(x.text),month:period,dates:x.dates||[]})):compress(groups.get(period)||[],period);
     if(month)return items(month);
     return [...groups].sort((a,b)=>b[0].localeCompare(a[0])).flatMap(([key])=>items(key));
   }
@@ -18775,7 +18781,7 @@ function renderDetailPanel(site){
     return [...new Set(String(value||'').split(/[\s,，;/|·]+/).map(name=>name.trim()).filter(name=>name&&!roles.has(name)))];
   }
   function contactReportNoteDisplay(value){
-    return String(value||'').replace(/[ \t]*\[R[0-9a-f]+\s*,\s*\d{4}-\d{2}-\d{2}(?:\s*[;,]\s*R[0-9a-f]+\s*,\s*\d{4}-\d{2}-\d{2})*\]/gi,'');
+    return String(value||'').replace(/[ \t]*\[R[0-9a-f]{4,}\b[^\]\r\n]*\]/gi,'');
   }
   function buildContactReportData(baseDateOverride, modeOverride){
     const mode = modeOverride || reportMode;
@@ -37926,5 +37932,13 @@ body.ux383.entry-unlocked-v82 #modeOverlay.show #modeChoiceRow #guestModeBtn,
 body.ux383.entry-unlocked-v82 #modeOverlay.show #modeChoiceRow #guestViewBtn,
 body.ux383.entry-unlocked-v82 #modeOverlay.show #pwRow #pwCancelBtn{
   background:var(--bg-side-2)!important;color:var(--text-main)!important;border:1px solid var(--line)!important;
+}
+</style>
+
+<style id="desktop-rival-colon-alignment-20261007">
+@media(min-width:821px){
+  body.ux383 .overview-core-grid .detail-quad-box:first-child .spec-line-v48.rival-overview-line{grid-template-columns:64px 6px minmax(0,1fr)!important;column-gap:4px!important;align-items:baseline!important}
+  body.ux383 .overview-core-grid .detail-quad-box:first-child .spec-line-v48.rival-overview-line .spec-label{width:64px!important;min-width:64px!important;max-width:64px!important;flex-basis:64px!important;padding:0!important;margin:0!important;font-size:11px!important;letter-spacing:-.4px!important;line-height:1.6!important}
+  body.ux383 .overview-core-grid .detail-quad-box:first-child .spec-line-v48.rival-overview-line .rival-company-values{font-size:13px!important;line-height:1.6!important}
 }
 </style>
