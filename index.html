@@ -14357,8 +14357,8 @@ function renderDetailPanel(site){
               <button class="btn btn-ghost" id="siteManageMenuBtn" type="button">⚙ 현장 관리 ▾</button>
               <div class="canva-quick-panel canva-site-manage-panel" id="siteManagePanel" style="display:none;">
                 <button class="menu-item-btn" id="editInfoBtn" type="button">✏️ 정보수정</button>
-                <button class="menu-item-btn" id="printBtn" type="button">🖨 일반 인쇄</button>
-                <button class="menu-item-btn" id="printProfileBtn" type="button">📄 프로필 인쇄</button>
+                
+                
                 ${guestMode ? '' : `<button class="menu-item-btn" id="siteMatchMenuBtn" type="button">🔎 매칭 확인</button>`}
                 ${guestMode ? '' : `<button class="menu-item-btn canva-danger-item" id="deleteSiteBtn" type="button">🗑 현장 삭제</button>`}
               </div>
@@ -14476,127 +14476,6 @@ function renderDetailPanel(site){
       deleteSite(site.id);
     });
     bindPrintCleanupOnce();
-    document.getElementById('printBtn').addEventListener('click', ()=>{
-      cleanupPrintMode(); // 혹시 이전 인쇄가 제대로 안 끝났으면 먼저 원상복구
-      document.body.classList.add('print-mode');
-      requestAnimationFrame(()=>{
-        requestAnimationFrame(()=>{
-          // 인쇄 직전엔 지도 위치를 강제로 재조정하지 않는다.
-          // (다롱님이 인쇄 전에 지도를 원하는 위치로 미리 옮겨둔 걸 그대로 인쇄하기 위함)
-          map.invalidateSize();
-          setTimeout(()=>{
-            drawPrintOverlay(site);
-            window.print();
-            // afterprint 이벤트가 브라우저/기기에 따라 안 터지는 경우가 있어서,
-            // 일정 시간 뒤에는 무조건 지도를 원래(움직일 수 있는) 상태로 되돌림
-            setTimeout(cleanupPrintMode, 3000);
-          }, 600);
-        });
-      });
-    });
-    document.getElementById('printProfileBtn').addEventListener('click', ()=>{
-      const recentLogs = miReportLogs(site).filter(l=>!isTourBookingLog(l)).slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,6);
-      const todayKey0 = new Date(); const todayKeyStr = todayKey0.getFullYear()+'-'+String(todayKey0.getMonth()+1).padStart(2,'0')+'-'+String(todayKey0.getDate()).padStart(2,'0');
-      const upcomingEvents = eventsOf(site).filter(e=>e.date && e.label && e.date>=todayKeyStr).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,6);
-      const specRows = [
-        ['사업단계', site.progressStage], ['구역면적', site.area], ['연면적', site.totalFloorArea], ['규모', site.scale],
-        ['조합원', site.unionMembers], ['신축세대', site.households],
-        ['정비업체', site.managementCompany], ['설계업체', site.designCompany], ['신탁사', site.trustCompany],
-      ].filter(([,v])=>v);
-      const stageDetailText = (site.stageDetail||'').trim();
-      const memoText = (site.salesNote||'').trim();
-      const printWin = window.open('', '_blank', 'width=1200,height=900');
-      if(!printWin){ alert('팝업이 차단되어 인쇄 창을 열 수 없습니다. 팝업 차단을 해제해주세요.'); return; }
-      printWin.document.write(`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>${escapeHtml(site.name)} 현장 프로필</title>
-        <style>
-          @page{ size: A4 portrait; margin: 12mm; }
-          *{ box-sizing:border-box; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-          html,body{ margin:0; padding:0; }
-          body{ font-family:'Pretendard','Apple SD Gothic Neo',sans-serif; color:#2b2a27; background:#fff; width:186mm; height:273mm; overflow:hidden; }
-          #printRoot{ transform-origin: top left; }
-          .pp-header{ background:#1c2b45; color:#fff; border-radius:10px; padding:12px 16px; margin-bottom:10px; }
-          .pp-title{ font-size:20px; font-weight:800; }
-          .pp-sub{ font-size:11px; color:#ccd8ec; margin-top:3px; }
-          .pp-badges{ margin-top:6px; display:flex; gap:6px; flex-wrap:wrap; }
-          .pp-badge{ background:rgba(255,255,255,.16); border-radius:6px; padding:3px 9px; font-size:10px; font-weight:700; }
-          .pp-section{ margin-bottom:12px; break-inside:avoid; }
-          .pp-section-title{ font-size:12.5px; font-weight:800; color:#1c2b45; border-left:4px solid #f5c344; padding-left:7px; margin-bottom:6px; }
-          .pp-spec-grid{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px 14px; background:#faf9f5; border:1px solid #ece9e0; border-radius:8px; padding:9px 12px; }
-          .pp-spec-item .l{ font-size:9px; color:#8a8574; }
-          .pp-spec-item .v{ font-size:11.5px; font-weight:700; color:#2b2a27; }
-          .pp-text-box{ background:#faf9f5; border:1px solid #ece9e0; border-radius:8px; padding:9px 12px; font-size:10.5px; line-height:1.6; white-space:pre-wrap; color:#3a362c; }
-          .pp-log-row{ display:flex; gap:8px; padding:4px 0; border-bottom:1px dotted #ece9e0; font-size:10px; }
-          .pp-log-row:last-child{ border-bottom:none; }
-          .pp-log-date{ flex:0 0 60px; font-weight:800; color:#1c2b45; }
-          .pp-log-author{ flex:0 0 44px; color:#8a8574; }
-          .pp-log-text{ flex:1; color:#3a362c; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-          .pp-event-row{ display:flex; gap:8px; padding:3px 0; border-bottom:1px dotted #dde3ee; font-size:10px; background:#f2f4f9; }
-          .pp-events-box{ background:#f2f4f9; border:1px solid #dde3ee; border-radius:8px; padding:9px 12px; }
-          .pp-event-date{ flex:0 0 40px; font-weight:800; color:#1c2b45; }
-          .pp-empty{ font-size:10px; color:#a39d8c; }
-          .pp-footer{ margin-top:8px; font-size:8px; color:#b3ad9c; text-align:right; }
-        </style>
-      </head><body>
-        <div id="printRoot">
-          <div class="pp-header">
-            <div class="pp-title">${escapeHtml(site.name)}</div>
-            <div class="pp-sub">${escapeHtml(site.district||'')} · 담당: ${escapeHtml(site.manager||'-')}</div>
-            <div class="pp-badges">
-              ${site.status?`<span class="pp-badge">${escapeHtml(site.status)}</span>`:''}
-              ${site.stage?`<span class="pp-badge">${escapeHtml(site.stage)}</span>`:''}
-              ${site.progressStage?`<span class="pp-badge">${escapeHtml(site.progressStage)}</span>`:''}
-            </div>
-          </div>
-          ${specRows.length ? `<div class="pp-section">
-            <div class="pp-section-title">사업 개요</div>
-            <div class="pp-spec-grid">
-              ${specRows.map(([l,v])=>`<div class="pp-spec-item"><div class="l">${escapeHtml(l)}</div><div class="v">${escapeHtml(v)}</div></div>`).join('')}
-            </div>
-          </div>` : ''}
-          ${stageDetailText ? `<div class="pp-section">
-            <div class="pp-section-title">진행단계</div>
-            <div class="pp-text-box">${escapeHtml(stageDetailText)}</div>
-          </div>` : ''}
-          <div class="pp-section">
-            <div class="pp-section-title">최근 보고서</div>
-            ${recentLogs.length ? recentLogs.map(l=>`<div class="pp-log-row">
-                <span class="pp-log-date">${escapeHtml(formatDateKr(l.date))}</span>
-                <span class="pp-log-author">${escapeHtml(l.author||'')}</span>
-                <span class="pp-log-text">${escapeHtml(l.text||'')}</span>
-              </div>`).join('') : '<div class="pp-empty">기록 없음</div>'}
-          </div>
-          <div class="pp-section">
-            <div class="pp-section-title">다가오는 일정</div>
-            <div class="pp-events-box">
-              ${upcomingEvents.length ? upcomingEvents.map(e=>`<div class="pp-event-row"><span class="pp-event-date">${escapeHtml(e.date.slice(5).replace('-','/'))}</span><span>${escapeHtml(e.label)}</span></div>`).join('') : '<div class="pp-empty">예정된 일정 없음</div>'}
-            </div>
-          </div>
-          ${memoText ? `<div class="pp-section">
-            <div class="pp-section-title">비고</div>
-            <div class="pp-text-box">${escapeHtml(memoText)}</div>
-          </div>` : ''}
-          <div class="pp-footer">생성일시 ${new Date().toLocaleString('ko-KR')}</div>
-        </div>
-        <script>
-          window.onload = function(){
-            try{
-              var root = document.getElementById('printRoot');
-              var availH = document.body.clientHeight;
-              var neededH = root.scrollHeight;
-              if(neededH > availH){
-                var scale = Math.max(0.5, availH / neededH);
-                root.style.transform = 'scale(' + scale + ')';
-                root.style.width = (100/scale) + '%';
-              }
-            }catch(e){}
-            setTimeout(function(){ window.print(); }, 200);
-          };
-        <\/script>
-      <!-- v235: quick filters, expanded search, sorting, list/map UX -->
-</body></html>`);
-      printWin.document.close();
-      printWin.focus();
-    });
     panel.querySelectorAll('.step').forEach(st=>{
       st.addEventListener('click', async ()=>{
         if(!(await ensureUnlocked())) return;
@@ -23737,10 +23616,10 @@ async function miOpen(){
  let prefs={};try{prefs=JSON.parse(localStorage.getItem(miPrefsKey)||'{}')}catch(e){}
  const pairs=miPairs(),today=smDateKey(new Date());let candidates=[],busy=false;
  const body=document.createElement('div');body.className='mi-import';
- body.innerHTML=`<p class="mi-lead">엑셀 파일을 여러 개 선택하면 시트별 명부를 찾아 기존 현장에 연결합니다.</p>
+ body.innerHTML=`
  <div class="mi-controls"><label class="mi-file">엑셀 파일 선택 <input id="miFiles" type="file" accept=".xlsx,.xls" multiple></label><label>이력 연도 <input id="miYear" type="number" min="2000" max="2100" value="${new Date().getFullYear()}"></label><label>금일 집계 기준일 <input id="miDate" type="date" value="${today}"></label></div>
- <p class="mi-help">① 파일 선택 → ② 현장·집계 대상 확인 → ③ 선택한 집계 반영<br>같은 현장에 다시 올리면 이전 엑셀 명부·누계·기간 이력을 교체합니다. 원본 엑셀의 날짜 없는 과거 실적은 복원할 수 없습니다.</p>
- <div id="miStatus" role="status" aria-live="polite">파일을 선택해 주세요.</div><div id="miCards"></div>
+ 
+ <div id="miStatus" role="status" aria-live="polite"></div><div id="miCards"></div>
  <div class="mi-actions"><button type="button" id="miApply" class="btn btn-primary" disabled>선택한 집계 반영</button></div>`;
  const modal=uxModal('조합원 엑셀 업로드',body);modal.dialog.classList.add('mi-modal');
  const el=id=>body.querySelector('#'+id),status=el('miStatus');
@@ -37816,3 +37695,5 @@ body.ux383 .rival-overview-person-list .rival-roster-double :is(th,td):nth-child
   }
 }
 </style>
+
+<style id="excel-upload-empty-status-20261007">#miStatus:empty{display:none!important;}</style>
