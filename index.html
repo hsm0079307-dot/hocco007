@@ -13709,21 +13709,22 @@ window.addEventListener('resize', ()=>{
     const activityKey=p=>(p.siteIds||[]).map(id=>names.get(String(id))||p.siteNames?.[id]||'').filter(Boolean).sort((x,y)=>x.localeCompare(y,'ko',{numeric:true})).join(' · ')||p.activity||'';
     return activityKey(a).localeCompare(activityKey(b),'ko',{numeric:true}) || Number(!/부장/.test(a.manager||''))-Number(!/부장/.test(b.manager||''));
   }
-  function rivalOverviewTables(people){
+  function rivalOverviewTables(people,compact=false){
     const mobile=typeof window!=='undefined'&&window.matchMedia&&window.matchMedia('(max-width:760px)').matches;
-    const headings='<th>No</th><th>성함</th><th>연락처</th><th>활동지역</th>';
-    const cols='<col style="width:22px"><col style="width:'+(mobile?'25%':'11%')+'"><col style="width:94px"><col>';
-    const cells=(p,i)=>p?'<td>'+(i+1)+'.</td><td title="'+escapeHtml(p.manager)+'">'+escapeHtml(p.manager)+'</td><td class="rival-contact-phone">'+escapeHtml(p.phone||'')+'</td><td class="rival-overview-activity" title="'+escapeHtml(p.activity||'—')+'">'+escapeHtml(p.activity||'—')+'</td>':'<td colspan="4"></td>';
-    const rows=[];
+    if(compact)return '<div class="rival-overview-roster-scroll rival-person-chip-scroll"><div class="rival-person-chip-grid">'+people.slice().sort((a,b)=>String(a.manager||'').localeCompare(String(b.manager||''),'ko',{numeric:true})).map(p=>'<div class="rival-person-chip"><strong>'+escapeHtml(p.manager)+'</strong><span class="rival-person-chip-region">'+escapeHtml(p.activity||'—')+'</span></div>').join('')+'</div></div>';
+    const headings=compact?'<th>성함</th><th>활동지역</th>':'<th>No</th><th>성함</th><th>연락처</th><th>활동지역</th>';
+    const cols=compact?'<col style="width:20%"><col>':'<col style="width:22px"><col style="width:'+(mobile?'25%':'11%')+'"><col style="width:94px"><col>';
+    const cells=(p,i)=>compact?(p?'<td title="'+escapeHtml(p.manager)+'">'+escapeHtml(p.manager)+'</td><td class="rival-overview-activity" title="'+escapeHtml(p.activity||'—')+'">'+escapeHtml(p.activity||'—')+'</td>':'<td colspan="2"></td>'):p?'<td>'+(i+1)+'.</td><td title="'+escapeHtml(p.manager)+'">'+escapeHtml(p.manager)+'</td><td class="rival-contact-phone">'+escapeHtml(p.phone||'')+'</td><td class="rival-overview-activity" title="'+escapeHtml(p.activity||'—')+'">'+escapeHtml(p.activity||'—')+'</td>':'<td colspan="4"></td>';
+    const rows=[],columnRows=compact?10:5;
     if(mobile){people.forEach((p,i)=>rows.push('<tr>'+cells(p,i)+'</tr>'));}
     else{
-      for(let start=0;start<people.length;start+=10){
-        for(let offset=0;offset<5 && start+offset<people.length;offset++){
-          rows.push('<tr>'+cells(people[start+offset],start+offset)+cells(people[start+5+offset],start+5+offset)+'</tr>');
+      for(let start=0;start<people.length;start+=columnRows*2){
+        for(let offset=0;offset<columnRows && start+offset<people.length;offset++){
+          rows.push('<tr>'+cells(people[start+offset],start+offset)+cells(people[start+columnRows+offset],start+columnRows+offset)+'</tr>');
         }
       }
     }
-    return '<div class="rival-overview-roster-scroll '+(mobile?'rival-roster-single':'rival-roster-double')+'"><table class="rival-overview-table"><colgroup>'+cols+(mobile?'':cols)+'</colgroup><thead><tr>'+headings+(mobile?'':headings)+'</tr></thead><tbody>'+rows.join('')+'</tbody></table></div>';
+    return '<div class="rival-overview-roster-scroll '+(mobile?'rival-roster-single':'rival-roster-double')+(compact?' rival-roster-compact':'')+'"><table class="rival-overview-table"><colgroup>'+cols+(mobile?'':cols)+'</colgroup><thead><tr>'+headings+(mobile?'':headings)+'</tr></thead><tbody>'+rows.join('')+'</tbody></table></div>';
   }
   function rivalOverviewRoster(people,siteId){
     return people.map((p,i)=>'<tr><td>'+(i+1)+'.</td><td>'+escapeHtml(p.manager)+'</td><td class="rival-contact-phone">'+escapeHtml(p.phone||'')+'</td>'+(siteId?'':'<td class="rival-overview-activity">'+escapeHtml(p.activity||'—')+'</td>')+'</tr>').join('');
@@ -13839,7 +13840,7 @@ window.addEventListener('resize', ()=>{
         const combined=field=>[...new Set(locations.map(l=>l.info[field]).filter(Boolean))].join(' · ');
         const info=site?(locations.find(l=>String(l.site.id)===select.value)?.info||{}):{agency:combined('agency'),office:combined('office'),lounge:combined('lounge')};
         const people=g.people.slice().sort(rivalOverviewPersonOrder);
-        return '<section class="rival-overview-card rival-overview-person-list"><div class="rival-overview-company"><strong '+(rivalReadOnly()||!site?'':'tabindex="0" role="button" data-overview-company="'+escapeHtml(g.company)+'" data-overview-site="'+escapeHtml(select.value)+'" title="더블클릭하여 수정"')+'>'+escapeHtml(g.company)+'</strong><span> (기획사: '+escapeHtml(info.agency||'　')+')</span></div><div class="rival-overview-locations"><div>사무실: '+escapeHtml(info.office||'　')+'</div><div>라운지: '+escapeHtml(info.lounge||'　')+'</div></div>'+rivalOverviewTables(people)+'</section>';
+        return '<section class="rival-overview-card rival-overview-person-list">'+(site?'<div class="rival-overview-company"><strong '+(rivalReadOnly()||!site?'':'tabindex="0" role="button" data-overview-company="'+escapeHtml(g.company)+'" data-overview-site="'+escapeHtml(select.value)+'" title="더블클릭하여 수정"')+'>'+escapeHtml(g.company)+'</strong><span> (기획사: '+escapeHtml(info.agency||'　')+')</span></div><div class="rival-overview-locations"><div>사무실: '+escapeHtml(info.office||'　')+'</div><div>라운지: '+escapeHtml(info.lounge||'　')+'</div></div>':'')+rivalOverviewTables(people,!site)+'</section>';
       }).join('')||'<p class="rival-empty">등록된 타사 명단이 없습니다.</p>';
       cards.querySelectorAll('[data-overview-company]').forEach(node=>{const open=()=>edit(rivalSites().find(s=>String(s.id)===node.dataset.overviewSite),node.dataset.overviewCompany);node.ondblclick=open;node.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open();}};});
       locationMap.draw(filterMap(groups));
@@ -14571,7 +14572,7 @@ function renderDetailPanel(site){
             <div class="spec-line spec-line-v48"><span class="spec-label spec-label-spread-v45"><span>정</span><span>비</span><span>업</span><span>체</span></span><span class="spec-sep-v48">:</span><span class="spec-value-v48">${escapeHtml(site.managementCompany||'-')}</span></div>
             <div class="spec-line spec-line-v48"><span class="spec-label spec-label-spread-v45"><span>설</span><span>계</span><span>업</span><span>체</span></span><span class="spec-sep-v48">:</span><span class="spec-value-v48">${escapeHtml(site.designCompany||'-')}</span></div>
             <div class="spec-line spec-line-v48"><span class="spec-label spec-label-spread-v45"><span>신</span><span>탁</span><span>사</span></span><span class="spec-sep-v48">:</span><span class="spec-value-v48">${escapeHtml(site.trustCompany||'-')}</span></div>
-            <div class="spec-line spec-line-v48 rival-overview-line"><span class="spec-label">타사(활동사)</span><span class="spec-sep-v48">:</span><span class="spec-value-v48">${escapeHtml(rivalCompanies(site).join(' · ')||'-')}</span></div>
+            <div class="spec-line spec-line-v48 rival-overview-line"><span class="spec-label">타사(활동사)</span><span class="spec-sep-v48">:</span><span class="spec-value-v48 rival-company-values">${rivalCompanies(site).length?rivalCompanies(site).map(company=>`<span class="rival-company-value">${escapeHtml(company)}</span>`).join(''):'-'}</span></div>
           </div>
         </div>
       `;
@@ -18760,6 +18761,13 @@ function renderDetailPanel(site){
   function isTourBookingLog(l){
     return !!(l && (l.contactMethod==='갤러리 투어' || l.contactMethod==='현장 투어'));
   }
+  function contactReportManagerNames(value){
+    const roles=new Set(['부장','차장','과장','대리','사원','팀장','실장','소장','본부장','지점장','센터장','이사','상무','전무','대표','대표이사']);
+    return [...new Set(String(value||'').split(/[\s,，;/|·]+/).map(name=>name.trim()).filter(name=>name&&!roles.has(name)))];
+  }
+  function contactReportNoteDisplay(value){
+    return String(value||'').replace(/[ \t]*\[R[0-9a-f]+\s*,\s*\d{4}-\d{2}-\d{2}(?:\s*[;,]\s*R[0-9a-f]+\s*,\s*\d{4}-\d{2}-\d{2})*\]/gi,'');
+  }
   function buildContactReportData(baseDateOverride, modeOverride){
     const mode = modeOverride || reportMode;
     const range = mode==='week' ? getWeekRange(baseDateOverride || reportBaseDate) : getMonthRange(baseDateOverride || reportBaseDate);
@@ -18783,7 +18791,7 @@ function renderDetailPanel(site){
         const authorsUnion = new Set();
         logsInRange.forEach(l=>{
           const author = (l.author && l.author.trim()) || s.manager || '';
-          const names = String(author).split(/[,，;/|]+/).filter(x=>x && !['부장','차장','과장','대리','사원','팀장','실장','소장','본부장','지점장','센터장','이사','상무','전무','대표','대표이사'].includes(x)).filter(Boolean);
+          const names = contactReportManagerNames(author);
           names.forEach(n=>authorsUnion.add(n));
           dateAuthorsMap[l.date] = dateAuthorsMap[l.date] || new Set();
           names.forEach(n=>dateAuthorsMap[l.date].add(n));
@@ -18799,7 +18807,7 @@ function renderDetailPanel(site){
         });
         rows.push({
           id: s.id, site: s.name, office: s.office, reportSpecialNotesByPeriod: s.reportSpecialNotesByPeriod || {},
-          manager: authorsUnion.size ? Array.from(authorsUnion).join(' ') : (s.manager || '-'),
+          manager: authorsUnion.size ? Array.from(authorsUnion).join(' ') : (contactReportManagerNames(s.manager).join(' ') || '-'),
           district: s.district || '',
           count: visitDayCount,
           logs: logsInRange,
@@ -20504,7 +20512,7 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
     const managerRows = Object.keys(managerTotals).sort((a,b)=>managerTotals[b]-managerTotals[a]);
     // 담당자 칩 클릭시 그 담당자 현장만 걸러서 보여줌 (다시 누르면 해제)
     const filteredRows = reportManagerFilter
-      ? rows.map(r=>{const logs=(r.logs||[]).filter(l=>String(l.author||'').split(/[,，;/|]+/).map(v=>v.trim()).includes(reportManagerFilter));return {...r,logs,count:new Set(logs.map(l=>l.date)).size,manager:reportManagerFilter}}).filter(r=>r.logs.length)
+      ? rows.map(r=>{const logs=(r.logs||[]).filter(l=>contactReportManagerNames(l.author).includes(reportManagerFilter));return {...r,logs,count:new Set(logs.map(l=>l.date)).size,manager:reportManagerFilter}}).filter(r=>r.logs.length)
       : rows;
     // 주간: 월~일 요일별 / 월간: 1주차~N주차 별로 방문 현장을 묶어서 표로 보여준다 (양천구/영등포구/그외로 나눔)
     function districtGroupOf(obj){
@@ -20513,7 +20521,7 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
       if(d.includes('영등포')) return '영등포구';
       return '그외';
     }
-    function siteManagerNames(s){ return String(s.manager||'').split(/[,，;/|]+/).filter(Boolean); }
+    function siteManagerNames(s){ return contactReportManagerNames(s.manager); }
     const districtNames = ['양천구','영등포구','그외'];
     const districtGroups = {'양천구':[], '영등포구':[], '그외':[]};
     filteredRows.forEach(r=>{ districtGroups[districtGroupOf(r)].push(r); });
@@ -20598,7 +20606,7 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
       const colgroupHtml = `<col class="rm-col-name"><col class="rm-col-mgr">${'<col class="rm-daylabel-cell">'.repeat(dayColCount)}<col class="rm-col-total">`;
       return `<div class="report-matrix-wrap">
         ${isFilteredToOne ? `<div class="report-notes-filter-banner no-print">📌 선택한 현장만 보는 중 <button type="button" class="report-notes-show-all-btn no-print">전체보기</button></div>` : ''}
-        <table class="rm-table">
+        <table class="rm-table${reportMode==='month'?' rm-month-table':''}">
           <colgroup>${colgroupHtml}</colgroup>
           <thead>
             <tr class="rm-headrow">
@@ -20647,7 +20655,7 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
               ${guestMode?'':`<button type="button" class="report-site-note-ai-btn no-print" data-ai-target="${sid}" data-ai-office="${escapeHtml(r.office||'')}" title="선택 기간의 실제 보고 내용에서 업무 관련 핵심만 추출">핵심 정리</button>`}
             </div>
             <div style="font-size:11px;color:var(--text-dim);margin:4px 0">${reportMode==='month'?escapeHtml(MonthlyReportExport.progress((allOfficesData[r.office]||[]).find(s=>String(s.id)===String(r.id))||{},periodKey.slice(2),miReportLogs)):''}</div>
-            <div class="report-site-note-view" data-view-for="${sid}">${displayValue ? escapeHtml(displayValue) : '<span style="color:var(--text-dim);">특이사항 없음</span>'}</div>
+            <div class="report-site-note-view" data-view-for="${sid}">${displayValue ? escapeHtml(contactReportNoteDisplay(displayValue)) : '<span style="color:var(--text-dim);">특이사항 없음</span>'}</div>
             ${guestMode ? '' : `<textarea class="report-site-note-textarea" style="display:none;" data-site-id="${sid}" data-office="${escapeHtml(r.office||'')}" data-saved="${escapeHtml(saved||'')}" rows="2" placeholder="이 현장 특이사항을 입력하세요">${escapeHtml(displayValue||'')}</textarea><div class="visit-note-controls no-print" style="display:none"><button type="button" class="btn visit-note-save">저장</button><button type="button" class="btn visit-note-cancel">취소</button><small role="status"></small></div>`}
           </div>`;
         }).join('')}
@@ -20943,13 +20951,13 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
     });
     body.querySelectorAll('.report-site-note-textarea').forEach(ta=>{
       const card=ta.closest('.report-site-note-edit'),controls=card.querySelector('.visit-note-controls'),view=card.querySelector('.report-site-note-view');
-      let savedView=view.textContent;
+      let savedView=ta.value;
       ta.addEventListener('input',()=>{ta.style.height='auto';ta.style.height=ta.scrollHeight+'px'});
       controls.querySelector('.visit-note-save').onclick=async e=>{
         const button=e.currentTarget,status=controls.querySelector('[role="status"]');button.disabled=true;status.textContent='저장 중…';
         try{
           await saveSiteReportNote(ta.dataset.siteId,ta.dataset.office,ta.value,currentReportPeriodKey());
-          ta.dataset.saved=ta.value;savedView=ta.value;view.textContent=ta.value||'특이사항 없음';view.style.display='block';ta.style.display='none';controls.style.display='none';
+          ta.dataset.saved=ta.value;savedView=ta.value;view.textContent=contactReportNoteDisplay(ta.value)||'특이사항 없음';view.style.display='block';ta.style.display='none';controls.style.display='none';
           const row=rows.find(r=>r.id===ta.dataset.siteId);if(row){row.reportSpecialNotesByPeriod={...(row.reportSpecialNotesByPeriod||{}),[currentReportPeriodKey()]:ta.value}}
         }catch(error){status.textContent='저장 실패: '+error.message+' (입력 내용 유지)'}finally{button.disabled=false}
       };
@@ -33941,6 +33949,28 @@ body.ux383 .bf-source-group-v46{margin-left:24px!important;}
   body.ux383.guest-viewer-readonly .map-wrap > #map{width:100%!important;max-width:100%!important;min-width:0!important;}
 }
 </style>
+
+<style id="contact-summary-readability-20261007">
+body.ux383 #contactReportBody .rm-month-table .rm-daylabel-cell{width:68px!important;min-width:68px!important;padding:5px 6px!important;}
+body.ux383 #contactReportBody .rm-month-table .rm-daylabel-date{display:block;white-space:nowrap!important;word-break:keep-all!important;line-height:1.5;margin-top:2px;}
+body.ux383 #contactReportBody .rm-month-table .report-matrix2-cell{max-width:56px!important;}
+</style>
+
+<style id="rival-overview-compact-all-20261007">
+body.ux383 #rivalOverviewContent .rival-roster-compact{max-height:264px!important;}
+body.ux383 #rivalOverviewContent .rival-roster-compact th,body.ux383 #rivalOverviewContent .rival-roster-compact td{height:24px!important;padding:2px 6px!important;font-size:10px!important;line-height:20px!important;}
+body.ux383 #rivalOverviewContent .rival-roster-compact tr>*:nth-child(3){border-left:1px solid var(--line);}
+body.ux383 #rivalOverviewContent .rival-roster-compact .rival-overview-activity{white-space:normal!important;word-break:keep-all!important;}
+</style>
+
+<style id="rival-overview-person-chips-20261007">
+body.ux383 #rivalOverviewContent .rival-person-chip-scroll{max-height:325px!important;overflow:auto!important;padding:2px 5px 2px 0!important;}
+body.ux383 #rivalOverviewContent .rival-person-chip-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px 7px;}
+body.ux383 #rivalOverviewContent .rival-person-chip{display:flex;align-items:center;gap:7px;min-height:28px;padding:5px 9px;border:1px solid var(--line);border-radius:8px;background:var(--bg-side-2);color:var(--text-main);font-size:10px;line-height:16px;}
+body.ux383 #rivalOverviewContent .rival-person-chip strong{flex:0 0 auto;font-size:inherit;font-weight:600;white-space:nowrap;}
+body.ux383 #rivalOverviewContent .rival-person-chip-region{min-width:0;color:var(--text-dim);word-break:keep-all;overflow-wrap:anywhere;}
+@media(max-width:480px){body.ux383 #rivalOverviewContent .rival-person-chip-grid{grid-template-columns:minmax(0,1fr);}}
+</style>
 </body>
 </html>
 
@@ -37697,3 +37727,31 @@ body.ux383 .rival-overview-person-list .rival-roster-double :is(th,td):nth-child
 </style>
 
 <style id="excel-upload-empty-status-20261007">#miStatus:empty{display:none!important;}</style>
+
+<style id="overview-rival-value-alignment-20261007">
+body.ux383 .overview-core-grid .detail-quad-box:first-child .rival-overview-line .rival-company-values{
+  display:flex!important;flex-wrap:wrap!important;align-items:baseline!important;
+  justify-content:flex-start!important;gap:0 5px!important;min-width:0!important;
+  overflow:visible!important;overflow-wrap:normal!important;word-break:keep-all!important;
+}
+body.ux383 .overview-core-grid .rival-company-value{display:inline-block;white-space:nowrap!important;}
+body.ux383 .overview-core-grid .rival-company-value + .rival-company-value::before{content:'·';margin-right:5px;}
+@media(min-width:821px){
+  body.ux383 .overview-core-grid .detail-quad-box:first-child .rival-overview-line{
+    grid-template-columns:82px 9px minmax(0,1fr)!important;column-gap:6px!important;
+    height:auto!important;min-height:30px!important;align-items:center!important;
+  }
+  body.ux383 .overview-core-grid .detail-quad-box:first-child .rival-overview-line .spec-label{
+    font-size:inherit!important;letter-spacing:normal!important;line-height:1.35!important;
+  }
+  body.ux383 .overview-core-grid .detail-quad-box:first-child .rival-overview-line .rival-company-values{
+    font-size:inherit!important;font-weight:600!important;line-height:1.35!important;text-align:left!important;
+  }
+}
+</style>
+
+<style id="rival-overview-three-columns-20261007">
+body.ux383 #rivalOverviewContent .rival-person-chip-grid{grid-template-columns:repeat(3,minmax(0,1fr));}
+@media(max-width:760px){body.ux383 #rivalOverviewContent .rival-person-chip-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
+@media(max-width:480px){body.ux383 #rivalOverviewContent .rival-person-chip-grid{grid-template-columns:minmax(0,1fr);}}
+</style>
