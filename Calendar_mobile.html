@@ -2395,7 +2395,7 @@ body.dark-mode .modal input,body.dark-mode .modal textarea,body.dark-mode .modal
         <button class="colFilterBtn" id="managerFilterBtn2" onclick="toggleColFilter('manager')">담당자 ▾</button>
         <div class="colFilterDropdown" id="managerDropdown2"></div>
       </div>
-      <button class="resetBtn" onclick="clearManagerColFilters()">필터 초기화</button>
+
     </div>
     <div id="managerTable"></div>
 
@@ -2412,7 +2412,8 @@ body.dark-mode .modal input,body.dark-mode .modal textarea,body.dark-mode .modal
       <select id="dateFilter"></select>
       <button onclick="prevDate()">◀ 이전</button>
       <button onclick="nextDate()">다음 ▶</button>
-      <select id="managerFilter"><option value="">담당자 전체</option></select>
+      <div class="colFilter checklist-col-filter"><button type="button" class="colFilterBtn" id="checklistDanjiButton" onclick="toggleChecklistColumnFilter('danji')">단지명 ▾</button><div class="colFilterDropdown" id="checklistDanjiDropdown"></div></div><select hidden id="checklistDanjiFilter" aria-label="체크리스트 단지명"><option value="">단지명 전체</option></select>
+      <div class="colFilter checklist-col-filter"><button type="button" class="colFilterBtn" id="checklistManagerButton" onclick="toggleChecklistColumnFilter('manager')">담당자 ▾</button><div class="colFilterDropdown" id="checklistManagerDropdown"></div></div><select hidden id="managerFilter" aria-label="체크리스트 담당자"><option value="">담당자 전체</option></select>
     </div>
     <div id="checklistBody"></div>
   </div>
@@ -3060,11 +3061,20 @@ function toggleDanjiFilter(name){
 }
 
 let managerFilterValue = "";
+let checklistDanjiFilterValue = "";
+const checklistSelectedDanji=new Set(),checklistSelectedManagers=new Set();
 
 function populateManagerFilter(){
   const managers = new Set();
   Object.values(GALLERY_ROWS).forEach(rows=>rows.forEach(r=>managers.add(r[4])));
   Object.values(TOUR_ROWS).forEach(rows=>rows.forEach(r=>managers.add(r[5])));
+  const danjiSelect=document.getElementById('checklistDanjiFilter');
+  const danjiNames=[...new Set([GALLERY_DANJI,...Object.values(TOUR_ROWS).flatMap(rows=>rows.map(r=>r[1]))].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ko',{numeric:true}));
+  if(danjiSelect){
+    danjiSelect.replaceChildren(new Option('단지명 전체',''),...danjiNames.map(name=>new Option(name,name)));
+    danjiSelect.value=checklistDanjiFilterValue;
+    danjiSelect.onchange=()=>{checklistDanjiFilterValue=danjiSelect.value;selectDate(currentDateKey,false);};
+  }
   const sel = document.getElementById("managerFilter");
   [...managers].sort().forEach(name=>{
     const opt = document.createElement("option");
@@ -3086,12 +3096,12 @@ function renderTable(kind, key, rows, colorClass, tagLabel){
   rows.forEach((raw, idx)=>{
     const managerOk = !managerFilterValue || raw[managerIdx]===managerFilterValue;
     const danjiOk = activeDanjiFilter.size===0 || activeDanjiFilter.has(danjiOf(raw));
-    if(managerOk && danjiOk) visibleIdx.push(idx);
+    if((checklistSelectedManagers.size===0 || checklistSelectedManagers.has(raw[managerIdx])) && (checklistSelectedDanji.size===0 || checklistSelectedDanji.has(danjiOf(raw))) && managerOk && danjiOk && (!checklistDanjiFilterValue || danjiOf(raw)===checklistDanjiFilterValue)) visibleIdx.push(idx);
   });
   if(visibleIdx.length===0) return "";
   let html = "<div class='sub-title'><span class='tag "+colorClass+"'>"+tagLabel+"</span></div>";
   html += "<div class='table-scroll'>";
-  const headers = ["시간","단지명","동호수","성함","동반","담당","픽업<br>자가","확인"];
+  const headers = ["시간","단지명","동호수","성함","동반","담당","픽업자가","확인"];
   html += "<table><thead><tr>" + headers.map(h=>"<th>"+h+"</th>").join("") + "</tr></thead><tbody>";
   visibleIdx.forEach(idx=>{
     const raw = rows[idx];
@@ -3104,6 +3114,8 @@ function renderTable(kind, key, rows, colorClass, tagLabel){
     r.forEach((v,ci)=>{
       if(ci===3){
         html += "<td class='name'><span class='memo-name"+(hasMemo?" has-memo":"")+"' onclick=\"openMemoForm('"+rowKey+"','"+v.replace(/'/g,"&#39;")+"')\">"+v+(hasMemo?" <span class='memo-dot'>●</span>":"")+"</span></td>";
+      } else if(ci===4||ci===5){
+        html += "<td class='calendar-manager-cell'>"+(ci===4?calendarCompanionLines(v):calendarManagerLines(v))+"</td>";
       } else {
         html += "<td class='name'>"+v+"</td>";
       }
@@ -3165,7 +3177,7 @@ function renderStatusTable(kind, key, status, managerFilter){
   const tagLabel = kind==="gallery" ? CAT_LABEL.gallery : CAT_LABEL.tour;
   let html = "<div class='sub-title'><span class='tag "+tagClass+"'>"+tagLabel+"</span></div>";
   html += "<div class='table-scroll'><table><thead><tr>"+
-    ["시간","단지명","동호수","성함","동반","담당","픽업<br>자가","확인"].map(h=>"<th>"+h+"</th>").join("")+
+    ["시간","단지명","동호수","성함","동반","담당","픽업자가","확인","삭제"].map(h=>"<th>"+h+"</th>").join("")+
     "</tr></thead><tbody>";
   idxList.forEach(idx=>{
     const raw = rows[idx];
@@ -3177,12 +3189,15 @@ function renderStatusTable(kind, key, status, managerFilter){
     r.forEach((v,ci)=>{
       if(ci===3){
         html += "<td class='name'><span class='memo-name"+(hasMemo?" has-memo":"")+"' onclick=\"openMemoFormFromStatus('"+rowKey+"','"+v.replace(/'/g,"&#39;")+"','"+status+"','"+(managerFilter?managerFilter.replace(/'/g,"&#39;"):"")+"')\">"+v+(hasMemo?" <span class='memo-dot'>●</span>":"")+"</span></td>";
+      } else if(ci===4||ci===5){
+        html += "<td class='calendar-manager-cell'>"+(ci===4?calendarCompanionLines(v):calendarManagerLines(v))+"</td>";
       } else {
         html += "<td class='name'>"+v+"</td>";
       }
     });
     html += "<td><input type='checkbox' "+(isChecked?"checked":"")+
       " onchange=\"toggleCheckFromStatus('"+kind+"','"+key+"',"+idx+",this,'"+status+"','"+(managerFilter?managerFilter.replace(/'/g,"&#39;"):"")+"')\"></td>";
+    html += "<td><button type='button' class='schedule-delete-button' onclick=\"deleteEntry('"+kind+"','"+key+"',"+idx+",this,'"+status+"','"+(managerFilter?managerFilter.replace(/'/g,"&#39;"):"")+"')\">삭제</button></td>";
     html += "</tr>";
   });
   html += "</tbody></table></div>";
@@ -3339,6 +3354,12 @@ function danjiSortKey(danjiLabel){
 }
 
 // "김진숙·오지현" 같은 공동담당은 마지막 이름 기준으로 정렬 (해당 개인 담당자 바로 아래에 위치)
+function calendarCompanionLines(value){
+  return calendarManagerLines(String(value||'').replace(/\s*(\+\s*\d+)\s*$/,'·$1'));
+}
+function calendarManagerLines(value){
+  return String(value||'').split(/[·.,，;/|]+/).map(name=>name.trim()).filter(Boolean).map(name=>'<span class="calendar-manager-line">'+escText(name)+'</span>').join('');
+}
 function managerSortName(name){
   const parts = name.split(/[·,]/).map(s=>s.trim()).filter(Boolean);
   return parts.length ? parts[parts.length-1] : name;
@@ -3369,7 +3390,7 @@ function updateManagerTable(){
     rowNum++;
     const total = t.attended + t.noshow + t.scheduled;
     const nameEsc = name.replace(/'/g,"&#39;");
-    html += "<tr><td>"+rowNum+"</td><td class='mdanji'>"+danjiLabel+"</td><td class='mname'>"+name+"</td>"+
+    html += "<tr><td>"+rowNum+"</td><td class='mdanji'>"+danjiLabel+"</td><td class='mname'>"+calendarManagerLines(name)+"</td>"+
       "<td class='m-attended clickable-count' onclick=\"openStatusPreview('attended','"+nameEsc+"')\">"+t.attended+"</td>"+
       "<td class='m-scheduled clickable-count' onclick=\"openStatusPreview('scheduled','"+nameEsc+"')\">"+t.scheduled+"</td>"+
       "<td class='m-noshow clickable-count' onclick=\"openStatusPreview('noshow','"+nameEsc+"')\">"+t.noshow+"</td>"+
@@ -3629,7 +3650,7 @@ function showHomeScreenGuide(){
 }
 
 // ---- 항목 삭제 (두 번 클릭으로 확인) ----
-function deleteEntry(kind, key, idx, btn){
+function deleteEntry(kind, key, idx, btn, returnView, managerFilter){
   if(btn && btn.dataset.confirm !== "1"){
     btn.dataset.confirm = "1";
     btn.textContent = "정말 삭제?";
@@ -3637,11 +3658,25 @@ function deleteEntry(kind, key, idx, btn){
     return;
   }
   const store = kind==="gallery" ? GALLERY_ROWS : TOUR_ROWS;
-  if(!store[key]) return;
+  if(!store[key] || !Number.isInteger(idx) || idx<0 || idx>=store[key].length) return;
+  const prefix=kind+"_"+key+"_";
+  for(const state of [checkState,personMemos]){
+    const next={};
+    Object.entries(state).forEach(([id,value])=>{
+      if(!id.startsWith(prefix)){next[id]=value;return;}
+      const rowIndex=Number(id.slice(prefix.length));
+      if(!Number.isInteger(rowIndex)){next[id]=value;return;}
+      if(rowIndex<idx)next[id]=value;
+      else if(rowIndex>idx)next[prefix+(rowIndex-1)]=value;
+    });
+    Object.keys(state).forEach(id=>delete state[id]);Object.assign(state,next);
+  }
   store[key].splice(idx,1);
   if(store[key].length===0) delete store[key];
-  onScheduleDataChanged();
-  openPreview(key);
+  persistCheck();persistMemos();onScheduleDataChanged();
+  if(returnView==='detail'){document.getElementById('fdScheduleDetails')?.close();}
+  else if(returnView)openStatusPreview(returnView,managerFilter||null);
+  else openPreview(key);
 }
 
 // ---- 항목 추가 ----
@@ -3728,7 +3763,10 @@ function selectDate(key, scroll){
   if(!galleryHtml && !tourHtml && !(GALLERY_CLOSED[key] && activeCategories.gallery)){
     html += "<div class='empty-day'>표시할 일정이 없습니다.</div>";
   } else {
-    html += galleryHtml + tourHtml;
+    const tableParts=[galleryHtml,tourHtml].filter(Boolean);
+    const header=tableParts[0]?.match(/<thead>[\s\S]*?<\/thead>/)?.[0]||'';
+    const combinedRows=tableParts.map(part=>part.match(/<tbody>([\s\S]*?)<\/tbody>/)?.[1]||'').join('');
+    html += "<div class='table-scroll'><table>"+header+"<tbody>"+combinedRows+"</tbody></table></div>";
   }
 
   body.innerHTML = html;
@@ -5443,12 +5481,14 @@ function computeDateHeadcount(key){
 
     const desktop=isDesktop();
 
-    for(let i=0;i<35;i++){
+    const calendarCells=Math.ceil((first.getDay()+new Date(y,m+1,0).getDate())/7)*7;
+    for(let i=0;i<calendarCells;i++){
       const d=new Date(start); d.setDate(start.getDate()+i);
       const k=key(d), other=d.getMonth()!==m, ev=eventFor(k);
       const b=document.createElement('button');
       b.type='button';
       b.className='m13-day '+(other?'other ':'')+(d.getDay()===0?'sun ':'')+(d.getDay()===6?'sat ':'')+((selectedKey===k && !other)?'selected':'');
+      if(other){b.disabled=true;b.className='m13-day calendar-month-blank';b.setAttribute('aria-hidden','true');days.appendChild(b);continue;}
 
       let inner=`<span class="m13-daynum">${d.getDate()}</span>`;
 
@@ -7890,6 +7930,18 @@ tbody tr:hover td{background:#fbfdfd!important}
 }
 </style>
 
+
+<style id="calendar-status-layout-delete-20261007">
+#statusOverlay .modal{width:min(880px,94vw)!important;max-width:94vw!important;padding:20px!important;}
+#statusBody{max-height:70vh!important;overflow:auto!important;}
+#statusBody .table-scroll{overflow-x:auto!important;max-width:100%!important;}
+#statusBody table{width:100%!important;min-width:680px!important;table-layout:auto!important;}
+#statusBody th,#statusBody td{white-space:nowrap!important;word-break:keep-all!important;overflow-wrap:normal!important;padding:9px 10px!important;line-height:1.5!important;height:auto!important;font-size:12px!important;}
+#statusBody .print-date-title{margin-top:12px!important;padding:8px 0!important;}
+.schedule-delete-button{border:1px solid #edcdcd;border-radius:6px;background:#fff6f6;color:#b64b4b;font:inherit;font-size:11px;padding:4px 8px;white-space:nowrap;cursor:pointer;}
+.fd-event-controls{display:flex;gap:8px;align-items:center;justify-content:flex-end;}
+@media(max-width:760px){#statusOverlay .modal{width:96vw!important;padding:16px 12px!important;}#statusBody th,#statusBody td{padding:8px!important;}}
+</style>
 </body>
 </html>
 <style id="mobile-calendar-layout-repair-oct01">
@@ -7936,3 +7988,80 @@ tbody tr:hover td{background:#fbfdfd!important}
  observer.observe(document.body,{childList:true,subtree:true});arrange();
 })();
 </script>
+
+<style id="calendar-current-month-only-20261007">
+.calendar-month-blank{pointer-events:none!important;visibility:visible!important;opacity:1!important;cursor:default!important;}
+</style>
+
+<style id="calendar-month-popup-readable-checklist-20261007">
+.fd-summary-dialog{width:min(880px,94vw)!important;}
+.fd-month-detail-row{grid-template-columns:64px 60px minmax(0,1fr) 65px!important;min-height:60px!important;padding:9px 8px!important;gap:10px!important;}
+.fd-month-detail-main strong{font-size:14px!important;line-height:1.5!important;white-space:normal!important;}
+.fd-month-detail-main span{font-size:12px!important;line-height:1.5!important;white-space:normal!important;}
+.fd-month-detail-row time,.fd-month-detail-row .kind,.fd-month-detail-row em{font-size:12px!important;line-height:1.5!important;}
+#freshDesktopApp #fdLegacyMount .filterbar{display:flex!important;flex-wrap:wrap!important;gap:4px!important;}
+#freshDesktopApp #fdLegacyMount #checklistDanjiFilter,#freshDesktopApp #fdLegacyMount #managerFilter{flex:1 1 100px!important;min-width:80px!important;max-width:none!important;}
+</style>
+
+<script id="checklist-column-filter-buttons-20261007">
+function toggleChecklistColumnFilter(kind){
+  const isDanji=kind==='danji',dropdown=document.getElementById(isDanji?'checklistDanjiDropdown':'checklistManagerDropdown');
+  const open=dropdown.classList.contains('open');
+  document.querySelectorAll('.colFilterDropdown').forEach(el=>el.classList.remove('open'));
+  if(open)return;
+  const selected=isDanji?checklistSelectedDanji:checklistSelectedManagers;
+  const names=[...new Set(isDanji?[GALLERY_DANJI,...Object.values(TOUR_ROWS).flatMap(rows=>rows.map(r=>r[1]))]:[...Object.values(GALLERY_ROWS).flatMap(rows=>rows.map(r=>r[4])),...Object.values(TOUR_ROWS).flatMap(rows=>rows.map(r=>r[5]))])].filter(Boolean).sort((a,b)=>a.localeCompare(b,'ko',{numeric:true}));
+  dropdown.replaceChildren();
+  const update=()=>{document.getElementById(isDanji?'checklistDanjiButton':'checklistManagerButton').classList.toggle('active',selected.size>0);selectDate(currentDateKey,false);};
+  names.forEach(name=>{const label=document.createElement('label'),input=document.createElement('input');input.type='checkbox';input.checked=selected.has(name);input.onchange=()=>{if(input.checked)selected.add(name);else selected.delete(name);update();};label.append(input,document.createTextNode(name));dropdown.append(label);});
+  const actions=document.createElement('div');actions.className='df-actions';
+  for(const [text,all] of [['전체',true],['해제',false]]){const btn=document.createElement('button');btn.type='button';btn.textContent=text;btn.onclick=()=>{selected.clear();if(all)names.forEach(name=>selected.add(name));dropdown.querySelectorAll('input').forEach(input=>input.checked=all);update();};actions.append(btn);}
+  dropdown.append(actions);dropdown.classList.add('open');
+}
+</script>
+<style id="calendar-consistent-type-checklist-buttons-20261007">
+@media(min-width:761px){
+#freshDesktopApp{font-size:12px!important;line-height:1.5!important;}
+#freshDesktopApp :is(button,input,select){font-size:12px!important;}
+#freshDesktopApp :is(th,td),#freshDesktopApp #fdLegacyMount :is(th,td),#freshDesktopApp #fdLegacyMount #checklistBody :is(th,td){font-size:12px!important;line-height:1.5!important;padding:6px 4px!important;}
+#freshDesktopApp .fd-mini-head :is(h2,h3),#freshDesktopApp .fd-ops-title,#freshDesktopApp .fd-chart-label{font-size:13px!important;font-weight:600!important;}
+#freshDesktopApp .fd-event-copy strong,#freshDesktopApp .fd-event-time,#freshDesktopApp .fd-site-top,#freshDesktopApp .fd-site-num{font-size:12px!important;}
+#freshDesktopApp .fd-event-copy span,#freshDesktopApp .fd-detail-meta,#freshDesktopApp .fd-meta-pill,#freshDesktopApp .fd-day-note,#freshDesktopApp .fd-count,#freshDesktopApp .fd-holiday,#freshDesktopApp .fd-kpi span,#freshDesktopApp .fd-kpi small,#freshDesktopApp #fdMonthHint{font-size:11px!important;line-height:1.5!important;}
+#freshDesktopApp .fd-daynum,#freshDesktopApp .fd-weekday{font-size:13px!important;}
+#freshDesktopApp .fd-detail-date{font-size:14px!important;}
+#freshDesktopApp .fd-kpi strong{font-size:18px!important;}
+#freshDesktopApp #fdLegacyMount .colFilterBtn,#freshDesktopApp #fdLegacyMount .filterbar button,#freshDesktopApp #fdLegacyMount .filterbar select{font-size:12px!important;line-height:1.5!important;min-height:30px!important;height:30px!important;}
+#freshDesktopApp #fdLegacyMount .filterbar{justify-content:flex-start!important;align-items:center!important;overflow:visible!important;}
+#freshDesktopApp #fdLegacyMount .checklist-col-filter{flex:0 0 auto!important;position:relative!important;}
+#freshDesktopApp #fdLegacyMount .checklist-col-filter .colFilterBtn{padding:0 8px!important;border-radius:7px!important;}
+#freshDesktopApp #fdLegacyMount .colFilterDropdown{min-width:160px!important;font-size:12px!important;z-index:100!important;}
+}
+#checklistDanjiFilter,#managerFilter{display:none!important;}
+</style>
+
+<style id="calendar-type-finish-20261007">
+@media(min-width:761px){
+#freshDesktopApp #fdLegacyMount .fd-legacy-card-head,#freshDesktopApp #fdLegacyMount .fd-chart-label{font-size:13px!important;font-weight:600!important;}
+#freshDesktopApp #fdLegacyMount #chartWeekLabel{font-size:12px!important;}
+#freshDesktopApp #fdLegacyMount #statsChart .chart-label,#freshDesktopApp #fdLegacyMount #statsChart .chart-count{font-size:11px!important;}
+#freshDesktopApp .fd-site-top span,#freshDesktopApp .fd-busy time,#freshDesktopApp .fd-busy span,#freshDesktopApp .fd-busy strong{font-size:12px!important;}
+#freshDesktopApp .fd-mini-head>span{font-size:11px!important;}
+}
+</style>
+
+<style id="calendar-tables-matched-manager-lines-20261007">
+.calendar-manager-line{display:block!important;white-space:nowrap!important;word-break:keep-all!important;overflow-wrap:normal!important;}
+@media(min-width:761px){
+#freshDesktopApp #fdLegacyMount #managerTable th,#freshDesktopApp #fdLegacyMount #managerTable td,#freshDesktopApp #fdLegacyMount #checklistBody th,#freshDesktopApp #fdLegacyMount #checklistBody td{font-size:12px!important;line-height:1.5!important;font-weight:400!important;padding:6px 4px!important;vertical-align:middle!important;height:auto!important;}
+#freshDesktopApp #fdLegacyMount #managerTable td *,#freshDesktopApp #fdLegacyMount #checklistBody td *{font-size:inherit!important;line-height:inherit!important;}
+#freshDesktopApp #fdLegacyMount #managerTable th,#freshDesktopApp #fdLegacyMount #checklistBody th{font-weight:500!important;}
+#freshDesktopApp #fdLegacyMount #managerTable .mname,#freshDesktopApp #fdLegacyMount #checklistBody .calendar-manager-cell{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;}
+}
+</style>
+
+<style id="calendar-table-header-pickup-alignment-20261007">
+@media(min-width:761px){
+#freshDesktopApp #fdLegacyMount #managerTable thead th,#freshDesktopApp #fdLegacyMount #checklistBody thead th{height:36px!important;min-height:36px!important;padding:8px 3px!important;line-height:18px!important;white-space:nowrap!important;overflow-wrap:normal!important;word-break:keep-all!important;vertical-align:middle!important;}
+#freshDesktopApp #fdLegacyMount #checklistBody td.calendar-manager-cell{white-space:normal!important;}
+}
+</style>

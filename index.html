@@ -20200,7 +20200,7 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
     const useful=logs.filter(l=>String(l.text||'').trim());
     if(!useful.length)return'';
     const l=useful[0],text=String(l.text||'').replace(/\s+/g,' ').trim();
-    return `${l.contactName||l.owner||''}${l.author?' · '+smManagerKey(l.author):''}${text?' — '+text:''}`.slice(0,170);
+    return `${l.contactName||l.owner||''}${l.author?' · '+smManagerKey(l.author):''}${text?' — '+text:''}`;
   }
   function cisRoleContact(site,x,events,periodMode){
     const total=Number(x&&x.roleOwners||0);
@@ -20297,7 +20297,7 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
             <div class="cis-mini" data-cis-detail="1"><div class="l">방문일수</div><div class="n">${Number(x.visits||0)}일</div></div>
             <div class="cis-mini" data-cis-detail="1"><div class="l">집행부 접촉</div><div class="n">${escapeHtml(roleText)}</div></div>
           </div>
-          <div class="cis-card-issue"><b>${escapeHtml(issueHead)}</b>${escapeHtml(issueText)}</div>
+          ${issueText.length>140?`<details class="cis-card-issue cis-issue-expand"><summary><b>${escapeHtml(issueHead)}</b><span class="cis-issue-preview">${escapeHtml(issueText.slice(0,140))}…</span><span class="cis-issue-toggle"><span class="cis-issue-more">전문 보기</span><span class="cis-issue-less">접기</span></span></summary><div class="cis-issue-full">${escapeHtml(issueText)}</div></details>`:`<div class="cis-card-issue"><b>${escapeHtml(issueHead)}</b>${escapeHtml(issueText)}</div>`}
         </div>
       </div>`;
     }
@@ -22912,14 +22912,14 @@ ead><body>
     const roster=smPersonRows(site),events=smAllEventsFor(site);
     const mgr=d.manager||'',role=d.role||'',dong=d.dong||'',method=d.method||'';
     const periodSuccessEvents=smEvents(site,smRange()).filter(e=>smIsSuccessMethod(e&&e.method));
-    const rolePeriodIds=new Set(periodSuccessEvents.map(miPersonKey));const success=r=>type.startsWith('role_')&&siteMgmtPeriod!=='all'?rolePeriodIds.has(miPersonKey(r)):r.contacted;
+    const rolePeriodIds=new Set(periodSuccessEvents.map(miPersonKey));const success=r=>siteMgmtPeriod!=='all'?rolePeriodIds.has(miPersonKey(r)):r.contacted;
     const mgrMatch=r=>!mgr||smManagerKey(r.manager)===smManagerKey(mgr);
     const roleMatch=r=>!role||String(r.role||'')===(site.roleView?.items?.find(i=>i.name===role)?.source||role);
     const dongMatch=r=>!dong||String(r.dong||'')===dong;
 
     let title='',sub='',rows=[],rawCount=0,eventMode=false;
     if(type==='site_total'){title='전체 소유주/조합원';rows=roster;}
-    else if(type==='site_contacted'||type==='site_rate'){title='누계 접촉자';rows=roster.filter(success);}
+    else if(type==='site_contacted'||type==='site_rate'){title=siteMgmtPeriod==='all'?'누계 접촉자':'선택기간 접촉자';rows=siteMgmtPeriod==='all'?roster.filter(success):smGroupEventRows(site,periodSuccessEvents);}
     else if(type==='site_uncontacted'){title='미접촉자';rows=roster.filter(r=>!success(r));}
     else if(type==='manager_total'){title=`${mgr} · 담당 인원`;rows=roster.filter(mgrMatch);}
     else if(type==='manager_contacted'||type==='manager_rate'){
@@ -23053,7 +23053,7 @@ ead><body>
   function smIssuesSection(site,range){
     const logs=smIssueLogs(site,range);
     const body=logs.length?logs.slice(0,8).map(l=>`<div class="pdf-issue"><span class="pdf-issue-date">${escapeHtml(l.date||'')}</span><b>${escapeHtml(l.contactName||l.owner||'')}</b>${l.author?' · '+escapeHtml(smManagerKey(l.author)):''}<br>${escapeHtml(l.text||'')}</div>`).join(''):'<div class="pdf-empty">특이사항 없음</div>';
-    return`<div class="pdf-section pdf-issues-card"><div class="pdf-section-title"><span class="section-heading-text">⑥ 특이사항</span></div><div class="pdf-issues">${body}</div></div>`;
+    return`<div class="pdf-section pdf-issues-card"><div class="pdf-section-title"><span class="section-heading-text">⑤ 특이사항</span></div><div class="pdf-issues">${body}</div></div>`;
   }
 
   function smCharts(site,x,events,periodMode,managerRows){
@@ -23090,7 +23090,7 @@ ead><body>
       <div class="mobile-field-wide"><dt>접촉</dt><dd>${escapeHtml(e.method||'-')} · 누계 ${counts[miPersonKey(e)]||1}회</dd></div>
       </dl>${text?`<details class="recent-person-notes"><summary>상담내용 보기</summary><p>${escapeHtml(text)}</p></details>`:'<p class="recent-no-notes">상담내용 없음</p>'}</article>`;
     }).join('');
-    return`<div class="pdf-section pdf-today-wrap"><div class="pdf-section-title"><span class="section-heading-text">⑤ ${siteMgmtPeriod==='day'?'선택일':'금일/최근'} 접촉 상세 </span><span class="sub">${escapeHtml(targetDate||'')} · ${ev.length}명</span></div><div class="pdf-today-body"><div class="recent-person-cards">${cards||'<div class="pdf-empty">접촉 기록 없음</div>'}</div><table class="pdf-table pdf-today pdf-today-table"><thead><tr><th style="width:32px">No</th><th style="width:62px">담당</th><th style="width:100px">성명</th><th style="width:78px">동호수</th><th style="width:62px">직책</th><th style="width:60px">접촉횟수</th><th style="width:48px">접촉</th><th>접촉 내용</th></tr></thead><tbody>${rows||'<tr><td colspan="8" class="pdf-empty">접촉 기록 없음</td></tr>'}</tbody></table></div></div>`;
+    return`<div class="pdf-section pdf-today-wrap"><div class="pdf-section-title"><span class="section-heading-text">⑥ ${siteMgmtPeriod==='day'?'선택일':'금일/최근'} 접촉 상세 </span><span class="sub">${escapeHtml(targetDate||'')} · ${ev.length}명</span></div><div class="pdf-today-body"><div class="recent-person-cards">${cards||'<div class="pdf-empty">접촉 기록 없음</div>'}</div><table class="pdf-table pdf-today pdf-today-table"><thead><tr><th style="width:32px">No</th><th style="width:62px">담당</th><th style="width:100px">성명</th><th style="width:78px">동호수</th><th style="width:62px">직책</th><th style="width:60px">접촉횟수</th><th style="width:48px">접촉</th><th>접촉 내용</th></tr></thead><tbody>${rows||'<tr><td colspan="8" class="pdf-empty">접촉 기록 없음</td></tr>'}</tbody></table></div></div>`;
   }
 
   function renderGlobalStats(){
@@ -23116,7 +23116,7 @@ ead><body>
         </colgroup>
         <thead><tr><th>No</th><th>담당</th><th>인원</th><th>누계접촉</th><th>접촉률</th><th>금일접촉</th><th>상담</th><th>단순</th><th>TM</th><th>미접촉</th><th>거부</th><th>부재</th><th>불명</th></tr></thead>
         <tbody>${managerRows||'<tr><td colspan="13" class="pdf-empty">담당별 집계 없음</td></tr>'}${mr.rows.length?`<tr class="pdf-total"><td colspan="2">합계</td><td>${managerTotal.total}</td><td>${managerTotal.contacted}</td><td>${managerTotal.total?(managerTotal.contacted/managerTotal.total*100).toFixed(1):'0.0'}%</td><td>${managerTotal.today||'-'}</td><td>${managerTotal.상담||'-'}</td><td>${managerTotal.단순||'-'}</td><td>${managerTotal.TM||'-'}</td><td>${Math.max(0,managerTotal.total-managerTotal.contacted)||'-'}</td><td>${managerTotal.거부||'-'}</td><td>${managerTotal.부재||'-'}</td><td>${managerTotal.불명||'-'}</td></tr>`:''}</tbody>
-      </table>${guestMode?'':`${mr.unassigned?`<div class="pdf-note-line">＊ 담당 미지정 접촉 ${mr.unassigned}명 · 담당별 합계는 담당 입력된 인원만 표시</div>`:''}`}</div>`;
+      </table></div>`;
 
     const roleRows=roles.map((r,i)=>`<tr><td>${i+1}</td><td class="sm-drill sm-drill-link" data-drill="role_contacted" data-role="${escapeHtml(r.name)}">${escapeHtml(r.name)}</td><td ${smDrillAttr('role_total',{role:r.name})}>${r.total}</td><td ${r.contacted?smDrillAttr('role_contacted',{role:r.name}):''}>${r.contacted||'-'}</td><td ${r.uncontacted?smDrillAttr('role_uncontacted',{role:r.name}):''}>${r.uncontacted||'-'}</td><td ${r.total?smDrillAttr('role_rate',{role:r.name}):''}>${r.rate.toFixed(1)}%</td></tr>`).join('');
     const mobileRoleCards=roles.map(r=>`<article class="mobile-role-card">
@@ -23129,19 +23129,14 @@ ead><body>
       </div></details></article>`).join('');
     const roleTable=`<div class="pdf-section pdf-role-card"><div class="pdf-section-title"><span class="section-heading-text">② 집행부·직책별 접촉현황</span>${guestMode?'':'<button class="btn no-print" data-bf-role-edit>항목 편집</button>'}</div><div class="mobile-role-cards">${mobileRoleCards||'<div class="pdf-empty">직책 집계 없음</div>'}</div><table class="pdf-table pdf-role"><thead><tr><th style="width:28px">No</th><th class="left">직책</th><th>인원</th><th>접촉</th><th>미접촉</th><th>접촉률</th></tr></thead><tbody>${roleRows||'<tr><td colspan="6" class="pdf-empty">직책 집계 없음</td></tr>'}</tbody></table></div>`;
 
-    const source=x.source==='excel-master'
-      ? `Excel 원장 기준 · ${escapeHtml(String(x.syncedAt||'').replace('T',' ').slice(0,16))}${x.importInfo ? '<br>'+escapeHtml(x.importInfo.fileName+' › '+x.importInfo.sheetName+' · '+(x.importInfo.scope==='members'?'조합원 표시 1':'명부 전체')+' · 금일 기준 '+x.importInfo.asOfDate+' · 확인 필요 '+(x.importInfo.unresolved||[]).length+'건') : ''}`
-      : '대시보드 명단/보고서 기준';
     body.innerHTML=`<div class="pdfsheet">
       <div class="pdf-titlebar"><span>▣ ${escapeHtml(site.name)} 접촉현황</span><small>${escapeHtml(titleDate)}</small></div>
-      <div class="pdf-source">${source}${periodMode?' · 선택기간 집계':''}</div>
       <div class="pdf-summary">
         <div class="pdf-summary-cell sm-drill" data-drill="site_total"><div class="h">소유주</div><div class="n">${metrics.total}명</div></div>
         <div class="pdf-summary-cell sm-drill" data-drill="site_contacted"><div class="h">접촉</div><div class="n">${metrics.contacted}명</div></div>
         <div class="pdf-summary-cell sm-drill" data-drill="site_uncontacted"><div class="h">미접촉</div><div class="n">${metrics.uncontacted}명</div></div>
         <div class="pdf-summary-cell sm-drill" data-drill="site_rate"><div class="h">접촉률</div><div class="n">${metrics.rate.toFixed(1)}%</div></div>
       </div>
-      ${siteMgmtPeriod==='day'?smTodaySection(site,events,true):''}
       <div class="pdf-manager-row">${managerTable}</div>${rfNonMemberBlock(site,periodMode?range:null)}
       <div class="pdf-middle-grid">
         ${roleTable}
@@ -23152,7 +23147,7 @@ ead><body>
         ${smIssuesSection(site,range)}
       </div>
       ${siteMgmtPeriod==='day'?'':smCharts(site,x,events,periodMode,mr.rows)}
-      ${siteMgmtPeriod==='day'?'':smTodaySection(site,periodMode?events:smEvents(site,smMonthRangeForCurrent()),periodMode)}
+      ${smTodaySection(site,periodMode?events:smEvents(site,smMonthRangeForCurrent()),periodMode)}
     </div>`;
   }
 
@@ -23774,13 +23769,14 @@ function rfEditList(){
 function rfNonMemberBlock(site,range,manager){
  const ex=smExcel(site);if(!ex)return '';
  const n=ex.nonMembers;
- if(!n)return '<section class="rf-nonmember rf-nonmember-v69"><h3>비조합원 접촉현황</h3></section>';
+ if(!n)return '';
 
  const people=(n.people||[]).filter(p=>!manager||p.manager===manager);
  const events=(n.contactEvents||[]).filter(e=>
    (!range||(e.date>=range.start&&e.date<=range.end)) &&
    (!manager||e.manager===manager)
  );
+ if(!people.length || (range ? !events.some(e=>people.some(p=>String(p.personId||'')===String(e.personId||''))) : !people.some(p=>p.contacted)))return '';
  const seen=new Set(events.map(e=>String(e.personId||'')));
  const eventCountByPerson={};
  events.forEach(e=>{
@@ -32122,15 +32118,14 @@ body.ux383.theme-dark .rf-nonmember-note-body-v69{
       if(!ex) return '';
 
       const n=ex.nonMembers;
-      if(!n){
-        return '<section class="rf-nonmember rf-nonmember-v69"><h3>비조합원 접촉현황</h3></section>';
-      }
+      if(!n)return '';
 
       const people=(n.people||[]).filter(p=>!manager||p.manager===manager);
       const events=(n.contactEvents||[]).filter(e=>
         (!range||(e.date>=range.start&&e.date<=range.end)) &&
         (!manager||e.manager===manager)
       );
+      if(!people.length || (range ? !events.some(e=>people.some(p=>String(p.personId||'')===String(e.personId||''))) : !people.some(p=>p.contacted)))return '';
       const seen=new Set(events.map(e=>e.personId));
       const eventCountByPerson={};
       events.forEach(e=>{
@@ -37754,4 +37749,45 @@ body.ux383 .overview-core-grid .rival-company-value + .rival-company-value::befo
 body.ux383 #rivalOverviewContent .rival-person-chip-grid{grid-template-columns:repeat(3,minmax(0,1fr));}
 @media(max-width:760px){body.ux383 #rivalOverviewContent .rival-person-chip-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
 @media(max-width:480px){body.ux383 #rivalOverviewContent .rival-person-chip-grid{grid-template-columns:minmax(0,1fr);}}
+</style>
+
+<style id="contact-drill-theme-readable-20261007">
+body.ux383 #smDrillOverlay .sm-drill-title,body.ux383 #smDrillOverlay .sm-drill-table td,body.ux383 #smDrillOverlay .sm-drill-table th,body.ux383 #smDrillOverlay .sm-drill-table td.name,body.ux383 #smDrillOverlay .rf-note>div{color:var(--text-main)!important;}
+body.ux383 #smDrillOverlay .sm-drill-sub{color:var(--text-dim)!important;}
+body.ux383 #smDrillOverlay .rf-note summary{color:var(--accent)!important;}
+body.ux383 #smDrillOverlay .sm-drill-table .rf-note>div{white-space:pre-wrap!important;line-height:1.6!important;}
+</style>
+
+<style id="site-contact-sections-uniform-20261007">
+body.ux383 #globalStatsBody .pdf-section-title{display:flex!important;align-items:center!important;justify-content:space-between!important;min-height:44px!important;padding:8px 12px 8px 22px!important;line-height:1.5!important;}
+body.ux383 #globalStatsBody .pdf-section-title .section-heading-text{margin:0!important;line-height:1.5!important;align-self:center!important;}
+body.ux383 #globalStatsBody .pdf-section-title:before{top:50%!important;transform:translateY(-50%)!important;}
+body.ux383 #globalStatsBody .pdf-manager{width:100%!important;min-width:940px!important;max-width:none!important;table-layout:fixed!important;}
+body.ux383 #globalStatsBody .pdf-manager col:nth-child(1){width:4%!important;}
+body.ux383 #globalStatsBody .pdf-manager col:nth-child(2){width:10%!important;}
+body.ux383 #globalStatsBody .pdf-manager col:nth-child(n+3){width:calc(86% / 11)!important;}
+body.ux383 #globalStatsBody .pdf-dong-one th:nth-child(6),body.ux383 #globalStatsBody .pdf-dong-one td:nth-child(6){border-left:1px solid var(--line)!important;}
+</style>
+
+<style id="contact-titles-recent-border-finish-20261007">
+@media(min-width:821px){
+body.ux383 #globalStatsBody .pdf-section>.pdf-section-title{flex:0 0 44px!important;height:44px!important;min-height:44px!important;max-height:44px!important;padding:6px 12px 6px 22px!important;align-items:center!important;box-sizing:border-box!important;}
+body.ux383 #globalStatsBody .pdf-section>.pdf-section-title>.btn{height:28px!important;min-height:28px!important;padding:3px 8px!important;line-height:20px!important;}
+body.ux383 #globalStatsBody .pdf-role-card>.pdf-section-title .section-heading-text{transform:none!important;margin:0!important;padding:0!important;line-height:21px!important;}
+body.ux383 #globalStatsBody .pdf-today-wrap{overflow:hidden!important;border:1px solid var(--line)!important;border-radius:12px!important;background:var(--card)!important;}
+body.ux383 #globalStatsBody .pdf-today-body{scrollbar-gutter:auto!important;padding-bottom:0!important;box-sizing:border-box!important;}
+body.ux383 #globalStatsBody .pdf-today-table{width:100%!important;max-width:100%!important;margin:0!important;border-collapse:collapse!important;}
+body.ux383 #globalStatsBody .pdf-today-table th:last-child,body.ux383 #globalStatsBody .pdf-today-table td:last-child{border-right:0!important;}
+}
+</style>
+
+<style id="integrated-summary-full-issue-20261007">
+.cis-issue-expand>summary{cursor:pointer;list-style:none;}
+.cis-issue-expand>summary::-webkit-details-marker{display:none;}
+.cis-issue-toggle{display:block;margin-top:4px;color:var(--accent);font-weight:700;}
+.cis-issue-less{display:none;}
+.cis-issue-expand[open] .cis-issue-preview,.cis-issue-expand[open] .cis-issue-more{display:none;}
+.cis-issue-expand[open] .cis-issue-less{display:inline;}
+.cis-issue-full{margin-top:5px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6;}
+.cis-issue-expand>summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px;}
 </style>
