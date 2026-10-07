@@ -25,7 +25,9 @@ function createPasswordDatabaseClient(nativeFetch,endpoint,databaseOrigin){
   function setSession(next){session=next;if(next){for(const resolve of waiters)resolve(next);waiters.clear();}}
   async function login(role,password,key,options={}){
     const deferData=role==='viewer'&&options.deferData===true;
-    const response=await nativeFetch(endpoint+'?action=login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role,password,key,includeData:!deferData}),signal:AbortSignal.timeout(20000)});
+    let response;
+    try{response=await nativeFetch(endpoint+'?action=login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role,password,key,includeData:role!=='admin'&&!deferData}),signal:AbortSignal.timeout(45000)});}
+    catch(error){throw Error(error.name==='TimeoutError'||error.name==='AbortError'?'로그인 서버 응답이 늦습니다. 잠시 후 다시 확인해주세요.':'로그인 서버에 연결하지 못했습니다. 인터넷 연결을 확인해주세요.');}
     if(!response.ok)throw Error(response.status===429?'시도 횟수가 많습니다. 15분 후 다시 시도해주세요.':response.status>=500?'로그인 서버에 연결하지 못했습니다. 잠시 후 다시 눌러주세요.':'비밀번호가 틀렸습니다.');
     const next=await response.json();
     if(!next.token||next.role!==role)throw Error('로그인 응답을 확인하지 못했습니다.');
@@ -47,7 +49,7 @@ function createPasswordDatabaseClient(nativeFetch,endpoint,databaseOrigin){
     }
     const target=new URL(endpoint);target.searchParams.set('action','data');target.searchParams.set('path',url.pathname);
     const headers=new Headers(template.headers);headers.set('Authorization','Bearer '+active.token);
-    const options={method:template.method,headers,cache:'no-store',signal:template.signal};
+    const options={method:template.method,headers,cache:'no-store',signal:init?.signal||AbortSignal.timeout(60000)};
     if(!['GET','HEAD'].includes(template.method)){
       options.body=await template.text();
       if(new TextEncoder().encode(options.body).length>1000000&&typeof CompressionStream!=='undefined'){
@@ -11458,6 +11460,7 @@ async function mfRetrySync(){
 
       <div class="sooni-sch-list">
         <div class="sooni-sch-list-head">이번 달 일정 목록 · ${rows.length}건</div>
+        <div class="sooni-sch-desktop-list">${rows.length?rows.map(x=>`<button type="button" class="sooni-sch-list-item sooni-sch-row" data-id="${x.site.id}" data-date="${x.date}" data-label="${escapeHtml(x.label)}"><span class="sooni-sch-item-date">${escapeHtml(x.date)}</span><span class="sooni-sch-item-heading"><b class="sooni-sch-item-site">${escapeHtml(x.site.name)}</b><span class="sooni-sch-badge ${x.type}">${sooniTypeLabel(x.type)}</span></span><span class="sooni-sch-item-content">${escapeHtml(x.label)}</span><span class="sooni-sch-item-meta">담당 ${escapeHtml(x.site.manager||'-')} · ${escapeHtml(x.site.stage||x.site.progressStage||'-')}</span></button>`).join(''):'<div class="sooni-sch-list-empty">조건에 맞는 일정이 없습니다.</div>'}</div>
         <div class="sooni-sch-tablewrap"><table class="sooni-sch-table">
           <thead><tr><th>일자</th><th>현장명</th><th>구분</th><th>일정 내용</th><th>담당자</th><th>사업단계</th></tr></thead>
           <tbody>${rows.length?rows.map(x=>`<tr class="sooni-sch-row" data-id="${x.site.id}" data-date="${x.date}" data-label="${escapeHtml(x.label)}"><td>${escapeHtml(x.date)}</td><td><b>${escapeHtml(x.site.name)}</b></td><td><span class="sooni-sch-badge ${x.type}">${sooniTypeLabel(x.type)}</span></td><td>${escapeHtml(x.label)}</td><td>${escapeHtml(x.site.manager||'-')}</td><td>${escapeHtml(x.site.stage||x.site.progressStage||'-')}</td></tr>`).join(''):`<tr><td colspan="6" style="text-align:center;color:#8799a5;padding:20px">조건에 맞는 일정이 없습니다.</td></tr>`}</tbody>
@@ -18353,10 +18356,16 @@ function renderDetailPanel(site){
   }
 
   async function tryPasswordSubmit(){
+    if(tryPasswordSubmit.busy)return;
     const pw = pwInput.value;
+    if(!pw){pwError.textContent='비밀번호를 입력해주세요.';pwError.style.display='block';pwInput.focus();return;}
+    tryPasswordSubmit.busy=true;
+    const confirmButton=document.getElementById('pwConfirmBtn');
+    confirmButton.disabled=true;confirmButton.textContent='입장 중…';pwError.style.display='none';
     let authenticated=false;
     try{await window.dashboardPasswordAccess.login('admin',pw);await loadSites();if(uxLoadFailed)throw Error('현장 데이터를 불러오지 못했습니다.');authenticated=true;}
-    catch(error){pwError.textContent=error.message;}
+    catch(error){pwError.textContent=error.name==='TimeoutError'||error.name==='AbortError'?'서버 응답이 늦습니다. 잠시 후 다시 확인해주세요.':error.message;}
+    finally{tryPasswordSubmit.busy=false;confirmButton.disabled=false;confirmButton.textContent='확인';}
     if(authenticated){
       try{ pwInput.blur(); }catch(e){}
       try{ localStorage.setItem('editUnlocked','1'); }catch(e){}
@@ -24033,7 +24042,6 @@ function miExcelReportCard(l){
    </div>
    <details class="mobile-detail-note"><summary>▶ 상담내용 펼치기</summary><div class="mobile-detail-note-body">${escapeHtml(l.text||'상담내용 미기재')}</div></details>
  </div>
- ${info?`<details class="mi-report-source"><summary>원본 위치</summary>${escapeHtml(info)}</details>`:''}
  </div>`;
 }
 
@@ -37790,4 +37798,122 @@ body.ux383 #globalStatsBody .pdf-today-table th:last-child,body.ux383 #globalSta
 .cis-issue-expand[open] .cis-issue-less{display:inline;}
 .cis-issue-full{margin-top:5px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6;}
 .cis-issue-expand>summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px;}
+</style>
+
+<style id="desktop-dashboard-calendar-readability-20261007">
+@media screen and (min-width:821px){
+  body.ux383 .calendar-view .sooni-sch-title{color:var(--text-main)!important;opacity:1!important;text-shadow:none!important;font-size:16px!important;line-height:1.35!important;font-weight:700!important}
+  body.ux383 .calendar-view .sooni-sch-sub{color:var(--text-dim)!important;opacity:1!important;font-size:11px!important;line-height:1.5!important}
+  body.ux383 .calendar-view .sooni-sch-calhead h2{color:#173247!important;opacity:1!important;font-size:16px!important;line-height:1.4!important}
+  body.ux383 .calendar-view .sooni-sch-detail,
+  body.ux383 .calendar-view .sooni-sch-detail-body{color:#173f48!important}
+  body.ux383 .calendar-view .sooni-sch-detail h3{color:#173f48!important;opacity:1!important;text-shadow:none!important;font-size:16px!important;line-height:1.5!important;font-weight:700!important}
+  body.ux383 .calendar-view .sooni-sch-info{color:#49677a!important}
+  body.ux383 .calendar-view .sooni-sch-info b{color:#28485d!important}
+  body.ux383 .calendar-view .sooni-sch-stats{grid-template-columns:1.18fr repeat(5,minmax(0,1fr))!important;gap:8px!important;margin-bottom:10px!important;align-items:start!important}
+  body.ux383 .calendar-view .sooni-sch-stat{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;grid-template-rows:22px 14px!important;column-gap:8px!important;row-gap:2px!important;align-items:center!important;min-width:0!important;height:56px!important;min-height:56px!important;padding:8px 11px!important;border-radius:11px!important;box-sizing:border-box!important}
+  body.ux383 .calendar-view .sooni-sch-stat-lbl{margin:0!important;font-size:11px!important;line-height:1.3!important;color:#5e7889!important;white-space:nowrap!important}
+  body.ux383 .calendar-view .sooni-sch-stat-num{margin:0!important;font-size:17px!important;line-height:1.2!important;color:#173247!important;font-weight:700!important}
+  body.ux383 .calendar-view .sooni-sch-stat-sub{grid-column:1 / -1!important;margin:0!important;font-size:10px!important;line-height:1.3!important;color:#8ba0ae!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+  body.ux383 .calendar-view .sooni-sch-stat.main .sooni-sch-stat-lbl{color:#d8f5ef!important}
+  body.ux383 .calendar-view .sooni-sch-stat.main .sooni-sch-stat-num{color:#fff!important}
+  body.ux383 .calendar-view .sooni-sch-stat.main .sooni-sch-stat-sub{color:#c9eee8!important}
+  body.ux383 .calendar-view .sooni-sch-event{font-size:9px!important;font-weight:600!important;line-height:1.4!important;padding:3px 5px!important;margin-top:3px!important;min-height:0!important;max-height:none!important;white-space:nowrap!important}
+  body.ux383 .calendar-view .sooni-sch-event *{font-size:inherit!important;line-height:inherit!important}
+}
+</style>
+
+<style id="desktop-calendar-compact-layout-20261007">
+.sooni-sch-desktop-list{display:none}
+@media(min-width:821px){
+  body.ux383 .calendar-view .sooni-sch-filter{width:88px!important;min-width:88px!important;height:36px!important;padding:0 8px!important;box-sizing:border-box!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;flex:0 0 88px!important}
+  body.ux383 .calendar-view .sooni-sch-stats{display:grid!important;grid-template-columns:repeat(6,minmax(0,1fr))!important;width:1060px!important;max-width:100%!important;gap:8px!important;overflow:visible!important}
+  body.ux383 .calendar-view .sooni-sch-stat,
+  body.ux383 .calendar-view .sooni-sch-stat.main{width:auto!important;min-width:0!important;height:50px!important;min-height:50px!important;padding:6px 10px!important;grid-template-columns:minmax(0,1fr) auto!important;grid-template-rows:20px 14px!important;column-gap:6px!important;row-gap:2px!important}
+  body.ux383 .calendar-view .sooni-sch-event{font-size:10px!important}
+  body.ux383 .calendar-view .sooni-sch-list>.sooni-sch-tablewrap{display:none!important}
+  body.ux383 .calendar-view .sooni-sch-desktop-list{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:0 18px!important;padding:0 12px!important;max-height:230px!important;overflow:auto!important}
+  body.ux383 .calendar-view .sooni-sch-list-item{display:grid!important;grid-template-columns:82px minmax(0,1fr) auto!important;gap:5px 10px!important;align-items:center!important;min-width:0!important;margin:0!important;padding:10px 2px!important;border:0!important;border-bottom:1px solid #edf2f4!important;border-radius:0!important;background:#fff!important;text-align:left!important;color:#173f48!important;font:inherit!important;font-size:11px!important;cursor:pointer!important;box-shadow:none!important}
+  body.ux383 .calendar-view .sooni-sch-list-item:hover{background:#f5faf9!important}
+  body.ux383 .calendar-view .sooni-sch-item-date{font-size:10px!important;color:#708795!important}
+  body.ux383 .calendar-view .sooni-sch-item-site{min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;color:#173f48!important}
+  body.ux383 .calendar-view .sooni-sch-item-content{grid-column:2 / -1!important;line-height:1.45!important;overflow-wrap:anywhere!important}
+  body.ux383 .calendar-view .sooni-sch-item-meta{grid-column:2 / -1!important;font-size:10px!important;color:#708795!important;line-height:1.4!important}
+  body.ux383 .calendar-view .sooni-sch-list-item .sooni-sch-badge{font-size:10px!important;padding:3px 7px!important;white-space:nowrap!important}
+  body.ux383 .calendar-view .sooni-sch-list-empty{grid-column:1 / -1!important;text-align:center!important;padding:18px!important;color:#8799a5!important}
+}
+</style>
+
+<style id="desktop-calendar-four-columns-and-total-contrast-20261007">
+@media(min-width:821px){
+  body.ux383 .calendar-view .sooni-sch-stat.main{background:#107f75!important;border-color:#107f75!important;color:#fff!important}
+  body.ux383 .calendar-view .sooni-sch-stat.main .sooni-sch-stat-lbl,
+  body.ux383 .calendar-view .sooni-sch-stat.main .sooni-sch-stat-num{color:#fff!important;opacity:1!important}
+  body.ux383 .calendar-view .sooni-sch-stat.main .sooni-sch-stat-sub{color:#e1f4ef!important;opacity:1!important}
+  body.ux383 .calendar-view .sooni-sch-desktop-list{grid-template-columns:repeat(4,minmax(0,1fr))!important;column-gap:16px!important}
+  body.ux383 .calendar-view .sooni-sch-list-item{grid-template-columns:minmax(0,1fr) auto!important;gap:5px 8px!important;padding:10px 4px!important;align-content:start!important}
+  body.ux383 .calendar-view .sooni-sch-item-date{grid-column:1!important;grid-row:1!important}
+  body.ux383 .calendar-view .sooni-sch-list-item .sooni-sch-badge{grid-column:2!important;grid-row:1!important}
+  body.ux383 .calendar-view .sooni-sch-item-site{grid-column:1 / -1!important;grid-row:2!important;white-space:normal!important;overflow-wrap:anywhere!important}
+  body.ux383 .calendar-view .sooni-sch-item-content,
+  body.ux383 .calendar-view .sooni-sch-item-meta{grid-column:1 / -1!important}
+}
+</style>
+
+<style id="desktop-calendar-schedule-cards-20261007">
+@media(min-width:821px){
+  body.ux383 .calendar-view .sooni-sch-desktop-list{grid-template-columns:repeat(auto-fit,minmax(230px,1fr))!important;gap:10px!important;padding:12px!important;max-height:300px!important;align-items:stretch!important}
+  body.ux383 .calendar-view .sooni-sch-list-item{display:flex!important;flex-direction:column!important;align-items:stretch!important;justify-content:flex-start!important;gap:7px!important;padding:12px!important;border:1px solid #d3e2e8!important;border-radius:10px!important;background:#fff!important;box-shadow:0 2px 5px rgba(23,63,72,.035)!important;transition:border-color .15s,background .15s!important}
+  body.ux383 .calendar-view .sooni-sch-list-item:hover{border-color:#78b7ad!important;background:#f5faf9!important}
+  body.ux383 .calendar-view .sooni-sch-list-item:focus-visible{outline:2px solid #107f75!important;outline-offset:2px!important}
+  body.ux383 .calendar-view .sooni-sch-item-date{display:block!important;font-size:10px!important;color:#6c8491!important;line-height:1.2!important}
+  body.ux383 .calendar-view .sooni-sch-item-heading{display:flex!important;align-items:center!important;justify-content:flex-start!important;flex-wrap:wrap!important;gap:5px 6px!important;min-width:0!important}
+  body.ux383 .calendar-view .sooni-sch-item-site{font-size:12px!important;font-weight:750!important;line-height:1.4!important;color:#173f48!important}
+  body.ux383 .calendar-view .sooni-sch-list-item .sooni-sch-badge{flex:none!important;font-size:9px!important;padding:3px 6px!important;border-radius:5px!important;line-height:1.2!important}
+  body.ux383 .calendar-view .sooni-sch-item-content{display:block!important;font-size:11px!important;line-height:1.5!important;color:#355569!important}
+  body.ux383 .calendar-view .sooni-sch-item-meta{display:block!important;margin-top:auto!important;padding-top:6px!important;border-top:1px solid #edf2f4!important;font-size:10px!important;line-height:1.45!important;color:#788e9b!important;overflow-wrap:anywhere!important}
+}
+</style>
+
+<style id="desktop-matching-entry-dialogs-20261007">
+@media(min-width:821px){
+  body.ux383 #entryGate>div.entry-gate-compact-v28,
+  body.ux383.entry-unlocked-v82 #modeOverlay.show .mode-login-simple-v31{
+    width:280px!important;min-width:0!important;max-width:calc(100vw - 40px)!important;
+    min-height:210px!important;height:auto!important;padding:14px!important;
+    box-sizing:border-box!important;border-radius:14px!important;
+  }
+  body.ux383 #entryGate>div.entry-gate-compact-v28{display:flex!important;flex-direction:column!important;justify-content:center!important}
+  body.ux383 #entryGate .entry-gate-compact-v28 #entryGatePwInput,
+  body.ux383 #entryGate .entry-gate-compact-v28 #entryGateConfirmBtn{height:42px!important;min-height:42px!important;max-height:42px!important;flex-shrink:0!important}
+}
+</style>
+
+<style id="desktop-small-matching-login-dialogs-20261007">
+@media(min-width:821px){
+  body.ux383 #entryGate>div.entry-gate-compact-v28,
+  body.ux383.entry-unlocked-v82 #modeOverlay.show .mode-login-simple-v31{
+    width:190px!important;min-width:0!important;max-width:calc(100vw - 40px)!important;
+    min-height:140px!important;height:auto!important;padding:14px!important;
+    box-sizing:border-box!important;border-radius:14px!important;
+  }
+  body.ux383 #entryGate .entry-gate-compact-v28 #entryGatePwInput,
+  body.ux383 #entryGate .entry-gate-compact-v28 #entryGateConfirmBtn{height:38px!important;min-height:38px!important;max-height:38px!important}
+  body.ux383.entry-unlocked-v82 #modeOverlay.show #modeChoiceRow{gap:5px!important}
+  body.ux383.entry-unlocked-v82 #modeOverlay.show #modeChoiceRow::before{font-size:12px!important;line-height:16px!important;margin:0 0 2px!important}
+  body.ux383.entry-unlocked-v82 #modeOverlay.show #modeChoiceRow .btn{height:27px!important;min-height:27px!important;padding:0 8px!important;font-size:11px!important;border-radius:7px!important}
+}
+</style>
+
+<style id="desktop-compact-admin-password-dialog-20261007">
+@media(min-width:821px){
+  body.ux383.entry-unlocked-v82 #modeOverlay.show .mode-login-simple-v31:has(#pwRow[style*="display: block"]),
+  body.ux383.entry-unlocked-v82 #modeOverlay.show .mode-login-simple-v31:has(#pwRow[style*="display:block"]){width:190px!important;min-height:140px!important;height:auto!important;padding:14px!important;display:flex!important;flex-direction:column!important;justify-content:center!important}
+  body.ux383.entry-unlocked-v82 #modeOverlay.show #pwRow #pwInput,
+  body.ux383.entry-unlocked-v82 #modeOverlay.show #pwRow #pwConfirmBtn,
+  body.ux383.entry-unlocked-v82 #modeOverlay.show #pwRow #pwCancelBtn{box-sizing:border-box!important;width:100%!important;height:32px!important;min-height:32px!important;max-height:32px!important;padding:0 8px!important;font-size:11px!important;border-radius:7px!important}
+  body.ux383.entry-unlocked-v82 #modeOverlay.show #pwRow #pwInput,
+  body.ux383.entry-unlocked-v82 #modeOverlay.show #pwRow #pwConfirmBtn{margin:0 0 5px!important}
+  body.ux383.entry-unlocked-v82 #modeOverlay.show #pwRow #pwCancelBtn{margin:0!important}
+}
 </style>
