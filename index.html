@@ -23,14 +23,17 @@ function createPasswordDatabaseClient(nativeFetch,endpoint,databaseOrigin){
     return data;
   }
   function setSession(next){session=next;if(next){for(const resolve of waiters)resolve(next);waiters.clear();}}
-  async function login(role,password,key){
-    const response=await nativeFetch(endpoint+'?action=login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role,password,key,includeData:true}),signal:AbortSignal.timeout(20000)});
+  async function login(role,password,key,options={}){
+    const deferData=role==='viewer'&&options.deferData===true;
+    const response=await nativeFetch(endpoint+'?action=login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role,password,key,includeData:!deferData}),signal:AbortSignal.timeout(20000)});
     if(!response.ok)throw Error(response.status===429?'시도 횟수가 많습니다. 15분 후 다시 시도해주세요.':response.status>=500?'로그인 서버에 연결하지 못했습니다. 잠시 후 다시 눌러주세요.':'비밀번호가 틀렸습니다.');
     const next=await response.json();
     if(!next.token||next.role!==role)throw Error('로그인 응답을 확인하지 못했습니다.');
     initialSnapshot=next.initialData?{token:next.token,data:next.initialData,etag:next.initialEtag||''}:null;
     delete next.initialData;delete next.initialEtag;
-    if(role==='viewer')viewerSession=next;setSession(next);return next;
+    if(role==='viewer')viewerSession=next;
+    if(deferData){setSession(null);return next;}
+    setSession(next);return next;
   }
   async function fetchDatabase(input,init){
     const url=new URL(typeof input==='string'||input instanceof URL?String(input):input.url,location.href);
@@ -39,7 +42,7 @@ function createPasswordDatabaseClient(nativeFetch,endpoint,databaseOrigin){
     const active=session||await new Promise(resolve=>waiters.add(resolve));
     if(template.signal.aborted)throw new DOMException('Aborted','AbortError');
     if(template.method==='GET'&&url.pathname==='/data.json'&&initialSnapshot?.token===active.token){
-      const snapshot=initialSnapshot;queueMicrotask(()=>{if(initialSnapshot===snapshot)initialSnapshot=null;});
+      const snapshot=initialSnapshot;setTimeout(()=>{if(initialSnapshot===snapshot)initialSnapshot=null;},0);
       return new Response(JSON.stringify(await expandStaff(snapshot.data,active)),{headers:{'Content-Type':'application/json','ETag':snapshot.etag}});
     }
     const target=new URL(endpoint);target.searchParams.set('action','data');target.searchParams.set('path',url.pathname);
@@ -13525,6 +13528,12 @@ window.addEventListener('resize', ()=>{
     const host=document.getElementById('detailBody');
     host.innerHTML=`<section class="rival-directory"><div class="rival-heading"><div><h3>타사 인원</h3></div>${rivalReadOnly()?'':'<button type="button" class="rival-primary" id="rivalAdd">+ 인원 등록</button><button type="button" class="rival-primary" id="rivalBulk">일괄 등록</button>'}</div><div class="rival-controls"><div class="rival-view"><button type="button" data-rival-scope="site" class="selected">현재 현장</button></div><select id="rivalCompanyFilter" aria-label="시공사 필터"><option value="">모든 시공사</option></select><input id="rivalSearch" placeholder="담당 · 연락처 · 차량번호 · 활동 지역 검색" aria-label="타사 인원 검색"></div><div id="rivalDirectoryRows"></div><section class="rival-overview-map-section rival-directory-map-section"><div class="rival-overview-map-heading"><h3>사무실 · 라운지 위치</h3><span>■ 사무실　 ● 라운지</span></div><div id="rivalDirectoryMap"></div><p id="rivalDirectoryMapStatus" role="status"></p></section></section>`;
     let scope='site';
+    if(typeof window!=='undefined' && window.matchMedia && window.matchMedia('(max-width:820px)').matches){
+      host.querySelector('#rivalSearch').placeholder='담당 · 연락처 검색';
+      const addButton=host.querySelector('#rivalAdd'),bulkButton=host.querySelector('#rivalBulk');
+      if(addButton)addButton.textContent='인원등록';
+      if(bulkButton)bulkButton.textContent='일괄등록';
+    }
     const mapNode=host.querySelector('#rivalDirectoryMap'),locationMap=rivalCreateLocationMap(mapNode,host.querySelector('#rivalDirectoryMapStatus'),()=>mapNode.isConnected);
     host.querySelector('#rivalBulk')?.addEventListener('click',()=>openRivalBulk(site));
     const companyFilter=host.querySelector('#rivalCompanyFilter');
@@ -13537,7 +13546,7 @@ window.addEventListener('resize', ()=>{
       const people=rivalPeople().filter(p=>(scope==='all'||(p.siteIds||[]).map(String).includes(String(site.id)))&&(!companyFilter.value||p.company===companyFilter.value)).filter(p=>[p.company,p.manager,p.phone,p.vehicle,p.note,...(p.siteIds||[]).map(id=>names.get(String(id))||p.siteNames?.[id]||'')].join(' ').toLowerCase().includes(q)).sort((a,b)=>a.company.localeCompare(b.company,'ko')||rivalPersonOrder(site,a,b));
       const groups=new Map();people.forEach(p=>{if(!groups.has(p.company))groups.set(p.company,[]);groups.get(p.company).push(p);});
       const target=host.querySelector('#rivalDirectoryRows');
-      target.innerHTML=people.length?[...groups].sort((a,b)=>b[1].length-a[1].length||a[0].localeCompare(b[0],'ko')).map(([company,rows])=>{const info=rivalCompanyInfo(site,company);return `<div class="rival-group rival-designed rival-centered"><div class="rival-company-title"><strong ${rivalReadOnly()?'':`data-rival-company-settings="${escapeHtml(company)}" tabindex="0" role="button" title="더블클릭하여 회사 정보와 명단 수정"`}>${rivalOfficialLogos[company]?rivalCompanyChoice(company):escapeHtml(company)}</strong><span class="rival-company-meta">(홍보: ${escapeHtml(info.promoterCount??'—')}명 기획사: ${escapeHtml(info.agency||'　')})</span></div><div class="rival-company-locations"><div class="rival-location-row"><span>사무실:</span><span class="rival-location-value" title="${escapeHtml(info.office||'')}">${escapeHtml(info.office||'　')}</span></div><div class="rival-location-row"><span>라운지:</span><span class="rival-location-value" title="${escapeHtml(info.lounge||'')}">${escapeHtml(info.lounge||'　')}</span></div></div><div class="rival-centered-scroll"><table class="rival-centered-table"><colgroup><col style="width:26px"><col style="width:31%"><col><col style="width:59px"></colgroup><thead><tr><th>No</th><th>성함</th><th>연락처</th><th>차량번호</th></tr></thead><tbody>${rows.map((p,i)=>`<tr><td class="rival-sequence-number">${i+1}.</td><td class="rival-roster-name">${escapeHtml(p.manager)}</td><td class="rival-contact-phone">${escapeHtml(p.phone||'')}</td><td class="rival-roster-vehicle"><span ${p.vehicle?`data-rival-vehicle="${escapeHtml(p.vehicle)}" tabindex="0" role="button" title="더블클릭하여 차량번호 보기"`:''}>${escapeHtml(p.vehicle||'')}</span></td></tr>`).join('')}</tbody></table></div></div>`;}).join(''):`<div class="rival-empty">${q||companyFilter.value?'검색 결과가 없습니다.':'등록된 타사 인원이 없습니다.'}</div>`;
+      target.innerHTML=people.length?[...groups].sort((a,b)=>b[1].length-a[1].length||a[0].localeCompare(b[0],'ko')).map(([company,rows])=>{const info=rivalCompanyInfo(site,company);return `<div class="rival-group rival-designed rival-centered"><div class="rival-company-title"><strong ${rivalReadOnly()?'':`data-rival-company-settings="${escapeHtml(company)}" tabindex="0" role="button" title="더블클릭하여 회사 정보와 명단 수정"`}>${rivalOfficialLogos[company]?rivalCompanyChoice(company):escapeHtml(company)}</strong><span class="rival-company-meta"><span class="rival-promoter-count">홍보: ${escapeHtml(info.promoterCount??'—')}명</span> ${info.agency?`<span class="rival-agency-info">기획사: ${escapeHtml(info.agency)}</span>`:''}</span></div><div class="rival-company-locations"><div class="rival-location-row"><span>사무실:</span><span class="rival-location-value" title="${escapeHtml(info.office||'')}">${escapeHtml(info.office||'　')}</span></div><div class="rival-location-row"><span>라운지:</span><span class="rival-location-value" title="${escapeHtml(info.lounge||'')}">${escapeHtml(info.lounge||'　')}</span></div></div><div class="rival-centered-scroll"><table class="rival-centered-table"><colgroup><col style="width:26px"><col style="width:31%"><col><col style="width:59px"></colgroup><thead><tr><th>No</th><th>성함</th><th>연락처</th><th>차량번호</th></tr></thead><tbody>${rows.map((p,i)=>`<tr><td class="rival-sequence-number">${i+1}.</td><td class="rival-roster-name">${escapeHtml(p.manager)}</td><td class="rival-contact-phone">${escapeHtml(p.phone||'')}</td><td class="rival-roster-vehicle"><span ${p.vehicle?`data-rival-vehicle="${escapeHtml(p.vehicle)}" tabindex="0" role="button" title="더블클릭하여 차량번호 보기"`:''}>${escapeHtml(p.vehicle||'')}</span></td></tr>`).join('')}</tbody></table></div></div>`;}).join(''):`<div class="rival-empty">${q||companyFilter.value?'검색 결과가 없습니다.':'등록된 타사 인원이 없습니다.'}</div>`;
       target.querySelectorAll('[data-rival-vehicle]').forEach(el=>{
         const show=()=>{const detail=document.createElement('div');detail.className='rival-vehicle-detail';detail.textContent=el.dataset.rivalVehicle;uxModal('차량번호',detail);};
         el.ondblclick=show;el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();show();}};
@@ -14705,7 +14714,9 @@ function renderDetailPanel(site){
       }
 
     }else if(detailTab==='일지'){
-      const logs = miReportLogs(site).filter(l=>!isTourBookingLog(l)).slice().sort((a,b)=>b.date.localeCompare(a.date));
+      const managerBreakdownHtml = buildManagerBreakdownTable(site);
+      const chronologicalReportDates = !mgrBreakdownManagerFilter || !!(window.matchMedia && window.matchMedia('(max-width:820px)').matches);
+      const logs = orderReportCards(miReportLogs(site).filter(l=>!isTourBookingLog(l)), chronologicalReportDates, mgrBreakdownManagerFilter);
       const visibleLimit = Math.max(REPORT_LOG_PAGE_SIZE, Number(reportLogVisibleLimitBySite[site.id]) || REPORT_LOG_PAGE_SIZE);
       const displayLogs = logs.slice(0, Math.min(logs.length, visibleLimit));
       const hasMoreReportLogs = displayLogs.length < logs.length;
@@ -14751,7 +14762,7 @@ function renderDetailPanel(site){
           ${guestMode ? '' : '<button class="btn btn-primary btn-sm no-print canva-report-input-btn" id="logOpenFormBtn">✏️ 보고서 입력</button>'}
           `}
         </div>
-        ${buildManagerBreakdownTable(site)}
+        ${managerBreakdownHtml}
         <div class="log-list" id="logListArea">
           ${(()=>{
             if(!logs.length) return '<div class="empty">아직 기록된 보고서가 없습니다.</div>';
@@ -14772,20 +14783,20 @@ function renderDetailPanel(site){
                 arr.forEach(l=>{ jointGroupKeyByLogId[l.id] = groupName; });
               }
             });
-            // 담당자별로 묶어서 보여준다 (날짜순은 그대로 유지한 채, 그룹 안에서 최신순) — 공동방문 건은 위에서 만든 묶음으로
+            // 담당자 선택 전에는 PC와 모바일 모두 날짜별로 묶어 최신순으로 표시한다.
             const groups = {};
             const authorOrder = [];
             displayLogs.forEach(l=>{
-              const key = jointGroupKeyByLogId[l.id] || (l.author || '담당자 미상');
+              const key = chronologicalReportDates ? (l.date || '날짜 미상') : (jointGroupKeyByLogId[l.id] || (l.author || '담당자 미상'));
               if(!groups[key]){ groups[key] = []; authorOrder.push(key); }
               groups[key].push(l);
             });
             const shownCompetitorRpt = new Set(), shownSpecialRpt = new Set();
             return authorOrder.map(author=>{
-              const isJoint = author.includes(', ');
+              const isJoint = !chronologicalReportDates && author.includes(', ');
               return `
               <div class="log-author-group">
-                <div class="log-author-heading">${isJoint?'🤝':'👤'} ${escapeHtml(author)}${isJoint?' <span class="log-joint-tag">공동방문</span>':''} <span style="font-weight:400;color:var(--text-dim);">${groups[author].length}건</span></div>
+                <div class="log-author-heading">${chronologicalReportDates?'📅':(isJoint?'🤝':'👤')} ${escapeHtml(chronologicalReportDates && author!=='날짜 미상' ? formatDateKr(author) : author)}${isJoint?' <span class="log-joint-tag">공동방문</span>':''} <span style="font-weight:400;color:var(--text-dim);">${groups[author].length}건</span></div>
                 ${groups[author].map(l=>{
                   if(l._excelReceipt)return miExcelReportCard(l);
                   const t = (l.text||'').trim();
@@ -19192,7 +19203,7 @@ function renderDetailPanel(site){
           <div class="mobile-cal-detail-source"><div class="mobile-cal-detail-card"><div class="mobile-cal-detail-head"><div class="mobile-cal-detail-date">${month}월 ${d}일 접촉현황</div><div class="mobile-cal-detail-total">총 ${people}명${nonMemberCount?` · 비조합 ${nonMemberCount}명`:''}</div></div><div class="mobile-cal-detail-managers">${mobileManagerHtml}</div>${parts?`<div class="mobile-cal-detail-methods">${escapeHtml(parts)}</div>`:''}<button type="button" class="mobile-cal-open-reports" data-mobile-open-reports="${key}">이 날짜 접촉내역 보기 ›</button></div></div>`:`<button type="button" class="mi-date-reports-btn mobile-empty-day" data-mi-report-date="${key}" aria-controls="mobileCalDetailPanel" aria-pressed="false" aria-label="${month}월 ${d}일, 접촉 기록 없음"><span>—</span></button><div class="mobile-cal-detail-source"><div class="mobile-cal-detail-card"><div class="mobile-cal-detail-date">${month}월 ${d}일 접촉현황</div><p>접촉 기록이 없습니다.</p></div></div>`}
         </div>`;
       }
-      return `<p class="cal-count-guide">조합원 기준 · 같은 날 같은 사람은 1명. 담당자 간 중복 접촉으로 담당별 합은 총인원과 다를 수 있습니다.</p><div class="mgr-cal-grid">${['월','화','수','목','금','토','일'].map(x=>`<div class="mgr-cal-dayhead">${x}</div>`).join('')}${cells}</div><div id="mobileCalDetailPanel" class="mobile-cal-detail-panel" role="region" aria-label="선택일 담당자별 접촉현황" aria-live="polite" tabindex="-1"><div class="mobile-cal-detail-empty">날짜를 누르면 담당자별 접촉현황이 여기에 표시됩니다.</div></div>`;
+      return `<p class="cal-count-guide">조합원 기준 · 같은 날 같은 사람은 1명. 담당자 간 중복 접촉으로 담당별 합은 총인원과 다를 수 있습니다.</p><div class="mgr-cal-grid">${['월','화','수','목','금','토','일'].map(x=>`<div class="mgr-cal-dayhead">${x}</div>`).join('')}${cells}</div><div id="mobileCalDetailPanel" class="mobile-cal-detail-panel" role="region" aria-label="선택일 담당자별 접촉현황" aria-live="polite" tabindex="-1"></div>`;
     }
 
     function periodJournalButton(events, manager, label){
@@ -19482,6 +19493,12 @@ document.addEventListener('click',e=>{
  if(e.target.closest('[data-bf-apply]')&&site){const start=document.getElementById('bfStart').value,end=document.getElementById('bfEnd').value;if(!start||!end||start>end){alert('시작일과 종료일을 확인해 주세요.');return}bfView.start=start;bfView.end=end;renderDetailBody(site)}
 });
 document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDetailId);if(!site)return;if(e.target.id==='bfMode'){bfView.mode=e.target.value;renderDetailBody(site)}if(e.target.id==='bfDate'&&e.target.value){bfView.date=e.target.value;renderDetailBody(site)}});
+
+  function orderReportCards(records, chronological, manager){
+    const normalize = value=>String(value||'').replace(/\s*(본부장|실장|팀장|부장|차장|과장|대리|사원|주임)$/,'').trim();
+    return records.filter(log=>!chronological || !manager || String(log.author||'').split(/[,，;/|]+/).some(name=>normalize(name)===normalize(manager)))
+      .slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+  }
 
   function buildManagerBreakdownTable(site){
     const logicalSiteKey=String(site&&site.id||'')+'|'+smSiteLogicalKey(site&&site.name);
@@ -21991,7 +22008,7 @@ ead><body>
     if(entryGateBtn.disabled)return;
     entryGateBtn.disabled=true;entryGateBtn.textContent='확인 중...';
     let authenticated=false;
-    try{await window.dashboardPasswordAccess.login('viewer',val);await loadSites();if(uxLoadFailed)throw Error('현장 데이터를 불러오지 못했습니다. 다시 눌러주세요.');authenticated=true;renderAll();}
+    try{await window.dashboardPasswordAccess.login('viewer',val,undefined,{deferData:true});authenticated=true;}
     catch(error){entryGateError.textContent=error.message;}
     finally{entryGateBtn.disabled=false;entryGateBtn.textContent='입장';}
     if(authenticated){
@@ -23855,7 +23872,7 @@ function rfNonMemberBlock(site,range,manager){
    const k=String(e.personId||'');
    if(k)eventCountByPerson[k]=(eventCountByPerson[k]||0)+1;
  });
- const groups=[...new Set(people.map(p=>p.manager||'미지정'))];
+ const groups=[...new Set(people.map(p=>p.manager||'미지정'))].sort((a,b)=>Number(a==='미지정')-Number(b==='미지정'));
 
  const summaryCells=ps=>{
    const ids=new Set(ps.map(p=>String(p.personId||'')));
@@ -23885,7 +23902,7 @@ function rfNonMemberBlock(site,range,manager){
    </tr>`).join('');
 
  return `<section class="rf-nonmember rf-nonmember-v69 rf-nm-direct-v122" data-rf-nm-range="${range?'1':'0'}">
-   <h3 class="rf-nm-open-zone-v122">비조합원 접촉현황 <span class="rf-nm-open-hint-v122">명단 보기 ›</span></h3>
+   <h3 class="rf-nm-open-zone-v122 pdf-section-title"><span class="section-heading-text">1-1 비조합원 접촉현황</span><span class="rf-nm-open-hint-v122">명단 보기 ›</span></h3>
    <div class="ux-scroll rf-nm-open-zone-v122">
      <table class="rf-nonmember-summary-table-v69">
        <thead><tr><th>담당자</th><th>대상</th><th>접촉</th><th>미접촉</th><th>접촉률</th><th>${range?'기간':'이력'} 접촉건수</th></tr></thead>
@@ -32205,7 +32222,7 @@ body.ux383.theme-dark .rf-nonmember-note-body-v69{
         const k=String(e.personId||'');
         if(k) eventCountByPerson[k]=(eventCountByPerson[k]||0)+1;
       });
-      const groups=[...new Set(people.map(p=>p.manager||'미지정'))];
+      const groups=[...new Set(people.map(p=>p.manager||'미지정'))].sort((a,b)=>Number(a==='미지정')-Number(b==='미지정'));
 
       const summaryCells = (ps,mgrLabel)=>{
         const ids=new Set(ps.map(p=>p.personId));
@@ -32250,7 +32267,7 @@ body.ux383.theme-dark .rf-nonmember-note-body-v69{
 
       return `
         <section class="rf-nonmember rf-nonmember-v69 rf-nm-direct-v122" data-rf-nm-range="${range?'1':'0'}">
-          <h3 class="rf-nm-open-zone-v122"><button type="button" class="rf-nm-title-btn-v121" data-nm-mode="total">비조합원 접촉현황 <span>명단 보기 ›</span></button></h3>
+          <h3 class="rf-nm-open-zone-v122 pdf-section-title"><button type="button" class="rf-nm-title-btn-v121" data-nm-mode="total"><span class="section-heading-text">1-1 비조합원 접촉현황</span><span class="rf-nm-open-hint-v122">명단 보기 ›</span></button></h3>
 
           <div class="ux-scroll rf-nonmember-summary-scroll-v69 rf-nm-open-zone-v122">
             <table class="rf-nonmember-summary-table-v69">
@@ -37579,4 +37596,131 @@ body.ux383 .overview-core-grid .rival-overview-line .spec-label{white-space:nowr
 <style>
 body.ux383 .overview-core-grid .detail-quad-box:first-child .rival-overview-line{grid-template-columns:82px 6px minmax(0,1fr)!important;}
 body.ux383 .overview-core-grid .detail-quad-box:first-child .rival-overview-line .spec-label{width:82px!important;min-width:82px!important;max-width:82px!important;flex-basis:82px!important;}
+</style>
+
+<style id="mobile-rival-card-layout-20261007">
+@media screen and (max-width:820px){
+  body.ux383 .rival-group.rival-centered .rival-company-title{
+    display:grid!important;grid-template-columns:auto auto!important;justify-content:center!important;
+    height:auto!important;min-height:0!important;overflow:visible!important;
+    padding:12px 8px 6px!important;gap:5px 10px!important;line-height:1.5!important;
+  }
+  body.ux383 .rival-company-title>strong{white-space:nowrap!important;line-height:1.5!important;}
+  body.ux383 .rival-company-title .rival-company-meta{display:contents!important;}
+  body.ux383 .rival-company-title .rival-promoter-count{align-self:center;font-size:12px!important;line-height:1.5!important;white-space:nowrap;}
+  body.ux383 .rival-company-title .rival-agency-info{
+    grid-column:1 / -1;min-width:0;max-width:100%;font-size:12px!important;
+    line-height:1.5!important;text-align:center;white-space:normal!important;overflow-wrap:anywhere;
+  }
+  body.ux383 .rival-group.rival-centered .rival-company-locations{
+    display:grid!important;grid-template-rows:auto auto!important;height:auto!important;min-height:0!important;
+    gap:4px!important;padding:4px 8px 10px!important;line-height:1.5!important;
+  }
+  body.ux383 .rival-group.rival-centered .rival-location-row{
+    display:grid!important;grid-template-columns:52px minmax(0,1fr)!important;gap:6px!important;
+    align-items:start!important;padding:0!important;margin:0!important;font-size:13px!important;line-height:1.5!important;
+  }
+  body.ux383 .rival-group.rival-centered .rival-location-row>span:first-child{white-space:nowrap!important;line-height:1.5!important;}
+  body.ux383 .rival-group.rival-centered .rival-location-value{
+    display:block!important;-webkit-line-clamp:unset!important;height:auto!important;max-height:none!important;
+    overflow:visible!important;white-space:normal!important;overflow-wrap:anywhere!important;line-height:1.5!important;
+  }
+  body.ux383 .rival-controls #rivalSearch{flex:1 1 100%!important;width:100%!important;min-width:0!important;}
+}
+</style>
+
+<style id="mobile-rival-toolbar-20261007">
+@media screen and (max-width:820px){
+  body.ux383 #detailBody .rival-directory{
+    display:grid!important;grid-template-columns:86px minmax(0,1fr) 65px 60px!important;
+    align-items:center!important;gap:8px 4px!important;
+  }
+  body.ux383 #detailBody .rival-heading,
+  body.ux383 #detailBody .rival-controls{display:contents!important;}
+  body.ux383 #detailBody .rival-heading>div{grid-column:1 / -1;grid-row:1;}
+  body.ux383 #detailBody .rival-heading h3{margin:0 0 4px!important;}
+  body.ux383 #detailBody .rival-view{display:none!important;}
+  body.ux383 #detailBody #rivalCompanyFilter{grid-column:1;grid-row:2;}
+  body.ux383 #detailBody #rivalSearch{grid-column:2;grid-row:2;}
+  body.ux383 #detailBody #rivalAdd{grid-column:3;grid-row:2;}
+  body.ux383 #detailBody #rivalBulk{grid-column:4;grid-row:2;}
+  body.ux383 #detailBody :is(#rivalCompanyFilter,#rivalSearch,#rivalAdd,#rivalBulk){
+    width:100%!important;min-width:0!important;max-width:100%!important;height:34px!important;min-height:34px!important;
+    padding:4px!important;margin:0!important;box-sizing:border-box!important;font-size:11px!important;
+    line-height:1.3!important;white-space:nowrap!important;border-radius:6px!important;
+  }
+  body.ux383 #detailBody #rivalDirectoryRows,
+  body.ux383 #detailBody .rival-directory-map-section{grid-column:1 / -1;min-width:0;}
+  body.ux383 #detailBody .rival-group.rival-centered .rival-company-title{
+    display:flex!important;flex-direction:column!important;align-items:center!important;
+    padding:12px 8px 6px!important;gap:5px!important;
+  }
+  body.ux383 #detailBody .rival-company-title .rival-company-meta{
+    display:flex!important;flex-wrap:wrap!important;align-items:baseline!important;justify-content:center!important;
+    gap:4px 8px!important;width:100%!important;min-width:0!important;text-align:center!important;
+  }
+  body.ux383 #detailBody .rival-company-title .rival-promoter-count{
+    font-size:11px!important;line-height:1.5!important;color:var(--text-dim)!important;
+  }
+  body.ux383 #detailBody .rival-company-title .rival-agency-info{
+    grid-column:auto!important;font-size:11px!important;line-height:1.5!important;color:var(--text-dim)!important;
+  }
+}
+</style>
+
+<style id="calendar-empty-hint-removed">body.ux383 #mobileCalDetailPanel:empty{display:none!important;margin:0!important;padding:0!important;}</style>
+
+<style id="mobile-report-nav-nonmember-heading-20261007">
+body.ux383 #globalStatsBody .rf-nonmember h3.pdf-section-title{
+  background:var(--bg-side)!important;color:var(--text-main,var(--text))!important;
+  margin:0 0 8px!important;border-bottom:1px solid var(--line)!important;
+  font-size:14px!important;font-weight:600!important;
+}
+body.ux383 #globalStatsBody .rf-nonmember h3.pdf-section-title:has(.rf-nm-title-btn-v121){display:block!important;}
+body.ux383 #globalStatsBody .rf-nonmember .rf-nm-title-btn-v121{
+  display:flex!important;justify-content:space-between!important;align-items:center!important;
+  width:100%!important;gap:8px!important;font-size:14px!important;font-weight:600!important;
+}
+body.ux383 #globalStatsBody .rf-nonmember h3.pdf-section-title .section-heading-text{
+  margin:0!important;color:var(--text-main,var(--text))!important;
+  font-size:14px!important;font-weight:600!important;white-space:normal!important;text-align:left!important;
+}
+@media screen and (max-width:820px){
+  body.ux383 #contactReportModalBox > .v20-report-head{
+    display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;
+    align-items:center!important;gap:8px!important;white-space:normal!important;
+  }
+  body.ux383 #contactReportModalBox > .v20-report-head > #contactReportTitle{
+    grid-column:1!important;grid-row:1!important;width:auto!important;min-width:0!important;font-size:15px!important;
+  }
+  body.ux383 #contactReportModalBox > .v20-report-head > span{display:none!important;}
+  body.ux383 #contactReportModalBox .v20-report-actions{
+    grid-column:2!important;grid-row:1!important;width:auto!important;margin:0!important;
+  }
+  body.ux383 #contactReportModalBox #reportPeriodToggleWrap{
+    grid-column:1 / -1!important;grid-row:2!important;display:flex!important;
+    justify-content:center!important;gap:6px!important;margin:0!important;
+  }
+  body.ux383 #contactReportModalBox #reportDateNavWrap{
+    grid-column:1 / -1!important;grid-row:3!important;display:grid!important;
+    grid-template-columns:34px minmax(0,1fr) 34px!important;align-items:center!important;
+    width:100%!important;min-width:0!important;margin:0!important;gap:6px!important;
+  }
+  body.ux383 #contactReportModalBox :is(#reportPrevBtn,#reportNextBtn){
+    position:static!important;float:none!important;width:34px!important;min-width:34px!important;
+    height:34px!important;min-height:34px!important;padding:0!important;margin:0!important;
+    font-size:14px!important;line-height:1!important;display:flex!important;align-items:center!important;justify-content:center!important;
+  }
+  body.ux383 #contactReportModalBox #reportPrevBtn{grid-column:1!important;grid-row:1!important;}
+  body.ux383 #contactReportModalBox #reportRangeLabel{
+    grid-column:2!important;grid-row:1!important;width:auto!important;min-width:0!important;
+    font-size:12px!important;line-height:1.4!important;text-align:center!important;white-space:nowrap!important;
+  }
+  body.ux383 #contactReportModalBox #reportNextBtn{grid-column:3!important;grid-row:1!important;}
+}
+</style>
+
+<style>
+body.ux383 #contactReportModalBox :is(#reportPeriodToggleWrap,#reportDateNavWrap)[style*="display: none"],
+body.ux383 #contactReportOverlay.tour-standalone-v119 :is(#reportPeriodToggleWrap,#reportDateNavWrap){display:none!important;}
 </style>
