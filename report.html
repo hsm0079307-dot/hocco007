@@ -384,6 +384,15 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
 <style id="report-ai-login-style">
 .report-ai-login{border:1px solid var(--line);border-radius:14px;padding:25px;width:min(400px,calc(100vw - 32px));color:var(--text-main);box-shadow:0 15px 50px #1e354526}.report-ai-login::backdrop{background:#1d304566}.report-ai-login h3{margin:0 0 9px;font-size:18px}.report-ai-login p{font-size:13px;color:var(--text-dim)}.report-ai-login label{font-size:12px}.report-ai-login input{display:block;width:100%;margin:8px 0;padding:10px;border:1px solid var(--line);border-radius:8px;font:inherit}.report-ai-login-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}#reportAiLoginError{font-size:12px;color:#a65b4d;min-height:18px}.r-ai-sources{margin-top:8px}.r-ai-sources>summary{font-size:11px;color:var(--text-dim);cursor:pointer}.r-ai-sources>.r-source{padding:12px;background:#f7f9fc;margin-top:7px;border-radius:7px}
 </style>
+<style id="report-hour-period-modes-20261007">
+.r-hour-modes{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 12px;padding:4px;width:fit-content;border:1px solid var(--line);border-radius:9px;background:#f7f9fb}.r-hour-modes button{padding:6px 13px;border:0;border-radius:6px;background:transparent;color:#718298;font:inherit;font-size:12px;font-weight:500;cursor:pointer}.r-hour-modes button.active{background:#fff;color:#315b69;box-shadow:0 1px 4px #263e5112}.r-hour-date-filter input[type="date"]{padding:7px 9px;border:1px solid var(--line);border-radius:7px;font:inherit;color:#53677b;background:white;font-size:12px}.r-hour-date-filter>.r-hour-all-label{margin-left:0}.r-hour-date-filter{flex-wrap:wrap}@media(max-width:600px){.r-hour-modes button{padding:6px 10px}.r-hour-date-filter input[type="date"]{max-width:138px}}
+</style>
+<style id="report-hour-range-spacing-20261007">
+.r-hour-date-filter>span{margin-left:0}
+.r-hour-date-filter>span:last-child{margin-left:auto}
+.r-hour-date-filter{column-gap:9px;row-gap:8px}
+@media(max-width:600px){.r-hour-date-filter>span{width:auto}.r-hour-date-filter>span:last-child{width:100%;margin-left:0}}
+</style>
 </head>
 <body>
 <div id="app">
@@ -1099,16 +1108,52 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
     if(!(dates||[]).length&&fallback)['favorable','critical','other'].forEach(k=>result[k]=fallback[k]||[]);
     return result;
   }
-  let reportHourDate='';
-  function renderReportHourly(){
-    const allRows=reportSourceRows(),dates=sortDateKeys(Array.from(new Set(allRows.length?allRows.map(m=>m.date).filter(Boolean):(window.__reportViewDates||[]))));
-    if(!dates.includes(reportHourDate))reportHourDate=dates.slice(-1)[0]||'';
-    const rows=allRows.filter(m=>m.date===reportHourDate);window.__reportHourlyRows=rows;
-    const stats=rows.length?analyze(rows):(DAILY_STATS[reportHourDate]||null);
-    const counts=stats&&stats.hourCounts||Array(24).fill(0),max=Math.max(1,...counts);
-    return `<div class="r-hour-date-filter"><label for="reportHourDate">날짜</label><select id="reportHourDate" onchange="selectReportHourDate(this.value)">${dates.slice().reverse().map(d=>`<option value="${escapeHtml(d)}"${d===reportHourDate?' selected':''}>${escapeHtml(d)}</option>`).join('')}</select><span>${stats?(stats.total||0).toLocaleString():0}건 · ${stats?stats.participantCount||0:0}명</span></div><div class="r-hourchart">${counts.map((n,h)=>`<div class="r-hour-col"><span class="r-hour-count">${n||''}</span><button type="button" class="r-hour-bar"${n?'':' disabled'} style="height:${n?Math.max(4,n/max*86):2}px" onclick="showHourMessages(${h})" aria-label="${h}시 대화 ${n}건"></button><small>${h%3===0?h+'시':''}</small></div>`).join('')}</div><div class="r-hour-list">${counts.map((n,h)=>n?`<button type="button" onclick="showHourMessages(${h})"><b>${String(h).padStart(2,'0')}:00</b><span>${stats&&stats.hourTopSpeakers&&stats.hourTopSpeakers[h]?escapeHtml(stats.hourTopSpeakers[h].names.join(', ')):''}</span><strong>${n}건</strong></button>`:'').join('')}</div><div id="hourDetailBox" hidden></div>`;
+
+  let reportHourDate='',reportHourMode='day',reportHourMonth='',reportHourWeek='',reportHourFrom='',reportHourTo='';
+  function reportWeekStart(iso){
+    if(!iso)return'';const date=new Date(iso+'T00:00:00Z');date.setUTCDate(date.getUTCDate()-((date.getUTCDay()+6)%7));return date.toISOString().slice(0,10);
   }
-  window.selectReportHourDate=function(date){reportHourDate=date;document.getElementById('reportHourlyContent').innerHTML=renderReportHourly();};
+  function reportWeekLabel(iso){
+    const end=new Date(iso+'T00:00:00Z');end.setUTCDate(end.getUTCDate()+6);return iso.replaceAll('-','.')+' ~ '+end.toISOString().slice(0,10).replaceAll('-','.');
+  }
+  function reportHourlyPool(){
+    const keys=reportHistoryKeys(),allowed=new Set(keys);
+    const rows=parsed?parsed.filter(m=>allowed.has(m.date)):keys.flatMap(d=>DAILY_ANALYSIS[d]&&DAILY_ANALYSIS[d].sourceMessages||[]);
+    return {rows,dates:sortDateKeys(keys)};
+  }
+  function reportSavedHourlyStats(dates){
+    const counts=Array(24).fill(0),people=new Set();let total=0;
+    dates.forEach(d=>{const st=DAILY_STATS[d];if(!st)return;total+=Number(st.total||0);(st.hourCounts||[]).forEach((n,h)=>counts[h]+=Number(n||0));(st.ranking||[]).forEach(r=>people.add(r.name));});
+    return {total,participantCount:people.size,hourCounts:counts,hourTopSpeakers:Array(24).fill(null)};
+  }
+  function renderReportHourly(){
+    const pool=reportHourlyPool(),allRows=pool.rows,dates=pool.dates,latest=dates.slice(-1)[0]||'',latestIso=reportDateIso(latest);
+    if(!dates.includes(reportHourDate))reportHourDate=latest;
+    const months=Array.from(new Set(dates.map(d=>reportDateIso(d).slice(0,7)).filter(Boolean))).sort().reverse();
+    const weeks=Array.from(new Set(dates.map(d=>reportWeekStart(reportDateIso(d))).filter(Boolean))).sort().reverse();
+    if(!months.includes(reportHourMonth))reportHourMonth=months[0]||'';
+    if(!weeks.includes(reportHourWeek))reportHourWeek=weeks[0]||'';
+    if(!reportHourFrom)reportHourFrom=reportDateIso(dates[0]);if(!reportHourTo)reportHourTo=latestIso;
+    const chosen=dates.filter(d=>{const iso=reportDateIso(d);return reportHourMode==='all'||(reportHourMode==='month'&&iso.slice(0,7)===reportHourMonth)||(reportHourMode==='week'&&reportWeekStart(iso)===reportHourWeek)||(reportHourMode==='day'&&d===reportHourDate)||(reportHourMode==='range'&&(!reportHourFrom||iso>=reportHourFrom)&&(!reportHourTo||iso<=reportHourTo));});
+    const chosenSet=new Set(chosen),rows=allRows.filter(m=>chosenSet.has(m.date));window.__reportHourlyRows=rows;window.__reportHourlyDates=chosen;
+    const stats=rows.length?analyze(rows):reportSavedHourlyStats(chosen);
+    const counts=stats&&stats.hourCounts||Array(24).fill(0),max=Math.max(1,...counts);
+    let selector='';
+    if(reportHourMode==='month')selector=`<label for="reportHourMonth">월</label><select id="reportHourMonth" onchange="selectReportHourFilter('month',this.value)">${months.map(m=>`<option value="${m}"${m===reportHourMonth?' selected':''}>${m.slice(0,4)}년 ${Number(m.slice(5))}월</option>`).join('')}</select>`;
+    if(reportHourMode==='week')selector=`<label for="reportHourWeek">주</label><select id="reportHourWeek" onchange="selectReportHourFilter('week',this.value)">${weeks.map(w=>`<option value="${w}"${w===reportHourWeek?' selected':''}>${reportWeekLabel(w)}</option>`).join('')}</select>`;
+    if(reportHourMode==='day')selector=`<label for="reportHourDate">날짜</label><select id="reportHourDate" onchange="selectReportHourDate(this.value)">${dates.slice().reverse().map(d=>`<option value="${escapeHtml(d)}"${d===reportHourDate?' selected':''}>${escapeHtml(d)}</option>`).join('')}</select>`;
+    if(reportHourMode==='range')selector=`<label for="reportHourFrom">시작</label><input type="date" id="reportHourFrom" value="${reportHourFrom}" onchange="selectReportHourFilter('from',this.value)"><span>~</span><label for="reportHourTo">종료</label><input type="date" id="reportHourTo" value="${reportHourTo}" onchange="selectReportHourFilter('to',this.value)">`;
+    if(reportHourMode==='all')selector=`<span class="r-hour-all-label">전체 기간 · ${dates.length}일</span>`;
+    return `<div class="r-hour-modes" role="group" aria-label="시간대별 집계 기간">${[['all','전체'],['month','월별'],['week','주별'],['day','일별'],['range','날짜별']].map(([mode,label])=>`<button type="button" class="${reportHourMode===mode?'active':''}" aria-pressed="${reportHourMode===mode}" onclick="selectReportHourMode('${mode}')">${label}</button>`).join('')}</div><div class="r-hour-date-filter">${selector}<span>${chosen.length}일 · ${stats.total.toLocaleString()}건 · ${stats.participantCount}명</span></div><div class="r-hourchart">${counts.map((n,h)=>`<div class="r-hour-col"><span class="r-hour-count">${n||''}</span><button type="button" class="r-hour-bar"${n?'':' disabled'} style="height:${n?Math.max(4,n/max*86):2}px" onclick="showHourMessages(${h})" aria-label="${h}시 대화 ${n}건"></button><small>${h%3===0?h+'시':''}</small></div>`).join('')}</div><div class="r-hour-list">${counts.map((n,h)=>n?`<button type="button" onclick="showHourMessages(${h})"><b>${String(h).padStart(2,'0')}:00</b><span>${stats&&stats.hourTopSpeakers&&stats.hourTopSpeakers[h]?escapeHtml(stats.hourTopSpeakers[h].names.join(', ')):''}</span><strong>${n}건</strong></button>`:'').join('')}</div><div id="hourDetailBox" hidden></div>`;
+  }
+  function refreshReportHourly(){document.getElementById('reportHourlyContent').innerHTML=renderReportHourly();}
+  window.selectReportHourMode=function(mode){if(!['all','month','week','day','range'].includes(mode))return;reportHourMode=mode;refreshReportHourly();};
+  window.selectReportHourDate=function(date){reportHourDate=date;reportHourMode='day';refreshReportHourly();};
+  window.selectReportHourFilter=function(kind,value){
+    const from=kind==='from'?value:reportHourFrom,to=kind==='to'?value:reportHourTo;
+    if((kind==='from'||kind==='to')&&from&&to&&from>to){toast('종료일은 시작일 이후로 선택해 주세요.','warn');refreshReportHourly();return;}
+    if(kind==='month')reportHourMonth=value;if(kind==='week')reportHourWeek=value;if(kind==='from')reportHourFrom=value;if(kind==='to')reportHourTo=value;refreshReportHourly();
+  };
   function buildReportHtml(a,daily){
     const dates=a&&a.dates||[],fallback=dates.length===1?dates[0]:'';window.__reportViewDates=dates;
     const groups=['favorable','critical','other'],labels=['우호','부정','중립'];
@@ -1255,7 +1300,7 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
     const nextMessages=parseKakaoTxt(String(raw));
     if(!nextMessages.length){toast('대화를 읽지 못했습니다. 날짜·이름·시간을 포함한 카톡 대화 내용을 붙여넣어 주세요.','bad');return false;}
       document.getElementById('reportFrom').value='';document.getElementById('reportTo').value='';
-      parsed = nextMessages;reportHourDate='';
+      parsed = nextMessages;reportHourDate='';reportHourMode='day';reportHourMonth='';reportHourWeek='';reportHourFrom='';reportHourTo='';
       aiAnalysisCache = {};
       analysisSourceCache = {};
       aiBtn.disabled = false;
