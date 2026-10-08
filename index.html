@@ -14367,6 +14367,7 @@ function overviewSectionIcon(kind){
   const paths={business:'<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h2m2 0h2M9 11h2m2 0h2M9 15h2m2 0h2M10 21v-3h4v3"/>',stage:'<circle cx="5" cy="5" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="5" cy="19" r="2"/><path d="M7 5h6a3.5 3.5 0 0 1 0 7h4M7 19h6a3.5 3.5 0 0 0 0-7H7"/>',brief:'<rect x="5" y="4" width="14" height="17" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M9 10h6m-6 4h6m-6 4h4"/>'};
   return `<span class="overview-section-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" focusable="false">${paths[kind]||paths.brief}</svg></span>`;
 }
+function mobileStatsPeriodLabel(label){return typeof window!=='undefined'&&window.innerWidth<=820?String(label).replace(/\b20(\d{2})년/g,'$1년'):label;}
 function projectProgressKey(value){return String(value||'').replace(/\((?:신탁|조합)\)|\[(?:신탁|조합)\]|\s+/g,'');}
 function projectProgressFor(site){
   const key=projectProgressKey(site?.name);
@@ -14420,6 +14421,7 @@ function openProjectProgress(site){
 }
 
 function projectProcedureAdmin(){return typeof window!=='undefined'&&window.dashboardPasswordAccess?.identity()?.role==='admin'&&!(typeof guestMode!=='undefined'&&guestMode)&&!(typeof guestViewerMode!=='undefined'&&guestViewerMode);}
+function projectProgressNeedsSeparateRow(available,menu,steps,gap){return menu+steps+gap>available;}
 function alignProjectProgressWithManagement(panel){
   window.__projectProgressHeaderObserver?.disconnect();
   const info=panel.querySelector('.detail-head-info'),flow=panel.querySelector('.project-progress-header-flow'),tabs=panel.querySelector('.detail-tabs');
@@ -14429,12 +14431,25 @@ function alignProjectProgressWithManagement(panel){
     const target=window.innerWidth>820?tabs:info;
     flow.style.removeProperty('margin-left');
     if(flow.parentElement!==target)target.appendChild(flow);
+    if(window.innerWidth<=820){tabs.classList.remove('project-progress-menu-stack');return;}
+    const style=window.getComputedStyle(tabs),gap=parseFloat(style.columnGap)||0;
+    const menu=[...tabs.children].filter(child=>child!==flow&&child.getBoundingClientRect().width>0);
+    const menuWidth=menu.reduce((sum,child)=>{const s=window.getComputedStyle(child);return sum+child.getBoundingClientRect().width+(parseFloat(s.marginLeft)||0)+(parseFloat(s.marginRight)||0);},0)+gap*Math.max(0,menu.length-1);
+    const steps=[...flow.children],stepGap=parseFloat(window.getComputedStyle(flow).columnGap)||0;
+    const stepWidth=steps.reduce((sum,child)=>sum+child.getBoundingClientRect().width,0)+stepGap*Math.max(0,steps.length-1);
+    const available=tabs.clientWidth-(parseFloat(style.paddingLeft)||0)-(parseFloat(style.paddingRight)||0);
+    tabs.classList.toggle('project-progress-menu-stack',projectProgressNeedsSeparateRow(available,menuWidth,stepWidth,gap));
   };
   place();
+  let resizeObserver,mutationObserver;
   if(typeof ResizeObserver!=='undefined'){
-    const observer=new ResizeObserver(place);window.__projectProgressHeaderObserver=observer;
-    observer.observe(panel);
+    resizeObserver=new ResizeObserver(place);
+    resizeObserver.observe(panel);resizeObserver.observe(tabs);resizeObserver.observe(flow);
   }
+  if(typeof MutationObserver!=='undefined'){
+    mutationObserver=new MutationObserver(place);mutationObserver.observe(tabs,{childList:true});
+  }
+  window.__projectProgressHeaderObserver={disconnect(){resizeObserver?.disconnect();mutationObserver?.disconnect();}};
 }
 function projectProcedureSources(row){return row.sources||(row.sourceIds||[]).map(id=>PROJECT_PROGRESS_REVIEW.sources[id]).filter(Boolean).filter(s=>/^https?:\/\//.test(s.url||''));}
 function projectProcedureHistory(row){return projectProcedureAdmin()&&row.history?.length?`<details class="project-procedure-history"><summary>변경 이력 (${row.history.length})</summary><ol>${row.history.slice().reverse().map(item=>`<li><small>${escapeHtml((item.at||'').slice(0,10)+' · '+(item.by||''))}</small><br>${escapeHtml(item.from||'')} → ${escapeHtml(item.to||'')}</li>`).join('')}</ol></details>`:'';}
@@ -23328,7 +23343,7 @@ ead><body>
     const metrics=smSummaryMetrics(x,events,periodMode),mr=smManagerRows(x,events,periodMode),roles=bfRoleRows(site,smRoleRows(site,x,events,periodMode)),dongs=smDongRows(site,x,events,periodMode);
     const now=siteMgmtDate,dayNames=['일','월','화','수','목','금','토'];
     const titleDate=siteMgmtPeriod==='day'?`${now.getFullYear()}년 ${now.getMonth()+1}월 ${now.getDate()}일 ${dayNames[now.getDay()]}요일`:range.label;
-    const lbl=document.getElementById('siteMgmtPeriodLabel');if(lbl)lbl.textContent=range.label;
+    const lbl=document.getElementById('siteMgmtPeriodLabel');if(lbl){lbl.textContent=mobileStatsPeriodLabel(range.label);lbl.title=range.label;}
     [['all','All'],['month','Month'],['week','Week'],['day','Day']].forEach(([m,n])=>{const e=document.getElementById('siteMgmt'+n+'Btn');if(e)e.classList.toggle('active',siteMgmtPeriod===m);});
     const prev=document.getElementById('siteMgmtPrevBtn'),next=document.getElementById('siteMgmtNextBtn');if(prev)prev.style.visibility=siteMgmtPeriod==='all'?'hidden':'visible';if(next)next.style.visibility=siteMgmtPeriod==='all'?'hidden':'visible';
 
@@ -38277,8 +38292,10 @@ body.ux383 .sidebar-column-v21 #masterList{position:relative!important;z-index:1
   body.ux383 .master-panel .detail-tabs > .project-progress-header-flow{display:flex!important;flex:0 0 auto!important;flex-wrap:nowrap!important;width:max-content!important;max-width:none!important;min-width:0!important;gap:18px!important;margin:0 0 0 auto!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important;justify-content:flex-end!important;align-items:center!important;font-size:12px!important}
   body.ux383 .master-panel .detail-tabs > .project-progress-header-flow::before,body.ux383 .master-panel .detail-tabs > .project-progress-header-flow::after{display:none!important}
   body.ux383 .master-panel .detail-tabs > :is(.dtab,.stepper-tabs-v55){order:0!important}
-  body.ux383 .master-panel .detail-tabs > .canva-detail-actions{order:1!important;flex:0 0 auto!important;margin-left:0!important;margin-right:0!important}
+  body.ux383 .master-panel .detail-tabs > .canva-detail-actions{order:1!important;flex:0 0 auto!important;margin-left:0!important;margin-right:0!important;flex-wrap:nowrap!important;width:max-content!important;max-width:none!important;white-space:nowrap!important}
   body.ux383 .master-panel .detail-tabs > .project-progress-header-flow{order:2!important}
+  body.ux383 .master-panel .detail-head-top > .detail-tabs.project-progress-menu-stack{flex-wrap:wrap!important;row-gap:5px!important}
+  body.ux383 .master-panel .detail-tabs.project-progress-menu-stack > .project-progress-header-flow{flex:0 0 100%!important;width:100%!important;max-width:100%!important;margin-left:0!important;justify-content:flex-end!important;overflow-x:auto!important}
 }
 /* Match the overview briefing to the two overview cards. */
 body.ux383 #detailBody .overview-brief-slot .report-brief.bf-brief{
@@ -38296,5 +38313,33 @@ body.ux383 #detailBody .overview-section-icon{display:inline-flex;align-items:ce
 body.ux383 #detailBody .overview-section-icon svg{display:block;width:17px;height:17px}
 body.ux383 #detailBody .overview-core-grid .spec-heading{gap:7px!important}
 body.ux383 #detailBody .overview-brief-slot .bf-headline{gap:7px!important;align-items:center!important}
+@media screen and (max-width:820px){
+  /* One compact row for period modes and previous/date/next. */
+  body.ux383 #globalStatsModalBox .sm-head{position:relative!important;display:grid!important;grid-template-columns:repeat(4,32px) 22px minmax(0,1fr) 22px!important;grid-template-rows:34px 30px!important;gap:5px 3px!important;padding:8px!important}
+  body.ux383 #globalStatsModalBox .sm-head #siteMgmtSiteSelect{grid-column:1/-1!important;grid-row:1!important;width:calc(100% - 70px)!important;min-width:0!important;height:34px!important;min-height:34px!important}
+  body.ux383 #globalStatsModalBox .sm-head #globalStatsRefreshBtn{position:absolute!important;top:8px!important;right:39px!important;width:30px!important;min-width:30px!important;height:34px!important;min-height:34px!important;padding:0!important;margin:0!important;font-size:0!important}
+  body.ux383 #globalStatsModalBox .sm-head #globalStatsRefreshBtn::after{content:'↻';font-size:21px;line-height:1}
+  body.ux383 #globalStatsModalBox .sm-head #globalStatsCloseBtn{position:absolute!important;top:8px!important;right:8px!important;width:26px!important;min-width:26px!important;height:34px!important;min-height:34px!important;padding:0!important;margin:0!important;font-size:18px!important}
+  body.ux383 #globalStatsModalBox .sm-head :is(#siteMgmtAllBtn,#siteMgmtMonthBtn,#siteMgmtWeekBtn,#siteMgmtDayBtn,#siteMgmtPrevBtn,#siteMgmtNextBtn){grid-row:2!important;width:100%!important;min-width:0!important;height:30px!important;min-height:30px!important;margin:0!important;padding:0 2px!important;font-size:11px!important;line-height:1!important;border-radius:6px!important}
+  body.ux383 #globalStatsModalBox #siteMgmtAllBtn{grid-column:1!important}
+  body.ux383 #globalStatsModalBox #siteMgmtMonthBtn{grid-column:2!important}
+  body.ux383 #globalStatsModalBox #siteMgmtWeekBtn{grid-column:3!important}
+  body.ux383 #globalStatsModalBox #siteMgmtDayBtn{grid-column:4!important}
+  body.ux383 #globalStatsModalBox #siteMgmtPrevBtn{grid-column:5!important}
+  body.ux383 #globalStatsModalBox #siteMgmtPeriodLabel{grid-row:2!important;grid-column:6!important;width:100%!important;min-width:0!important;padding:0!important;margin:0!important;align-self:center!important;text-align:center!important;font-size:11px!important;line-height:1.2!important;white-space:nowrap!important}
+  body.ux383 #globalStatsModalBox #siteMgmtNextBtn{grid-column:7!important}
+  /* Every business-status row uses the same label, separator and value columns. */
+  body.ux383 #detailBody .overview-core-grid .detail-quad-box:first-child .spec-line-v48{display:grid!important;grid-template-columns:76px 8px minmax(0,1fr)!important;column-gap:5px!important;align-items:baseline!important}
+  body.ux383 #detailBody .overview-core-grid .detail-quad-box:first-child .spec-line-v48 .spec-label{width:76px!important;min-width:76px!important;max-width:76px!important;flex-basis:76px!important;margin:0!important;padding:0!important;font-size:inherit!important;letter-spacing:normal!important;line-height:1.5!important}
+  body.ux383 #detailBody .overview-core-grid .detail-quad-box:first-child .spec-line-v48 .spec-sep-v48{width:8px!important;min-width:8px!important;margin:0!important;padding:0!important;text-align:center!important}
+  body.ux383 #detailBody .overview-core-grid .rival-company-values{font-size:inherit!important;line-height:1.5!important;min-width:0!important}
+  /* Fill the available mobile width rather than leaving 290px cards on the left. */
+  body.ux383 #detailBody .rival-directory{width:100%!important;max-width:100%!important;box-sizing:border-box!important}
+  body.ux383 #detailBody #rivalDirectoryRows{width:100%!important;grid-template-columns:minmax(0,1fr)!important;justify-content:stretch!important;justify-items:stretch!important;gap:12px!important}
+  body.ux383 #detailBody #rivalDirectoryRows > .rival-group{width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important;margin-left:auto!important;margin-right:auto!important}
+  body.ux383 #detailBody .rival-centered-scroll{width:100%!important;max-width:100%!important;min-width:0!important}
+  body.ux383 #detailBody .rival-centered-table{width:100%!important;min-width:0!important;max-width:100%!important;table-layout:fixed!important}
+  body.ux383 #detailBody .rival-company-title{width:100%!important;box-sizing:border-box!important;text-align:center!important}
+}
 
 </style>
