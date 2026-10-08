@@ -14565,7 +14565,7 @@ function renderDetailPanel(site){
         <div class="detail-head-top">
           <div class="detail-head-info">
             <h2 class="detail-name">${escapeHtml(site.name)}</h2>
-            <div class="detail-manager">담당: ${escapeHtml(site.manager||'-')}</div>
+            <div class="detail-manager">담당: ${escapeHtml(site.manager||'-')}${guestMode ? '' : '<button type="button" class="mobile-site-info-edit no-print" id="mobileSiteInfoEditBtn" aria-label="현장 정보수정">정보수정</button>'}</div>
             <div class="detail-sub">${escapeHtml(site.district)}</div>
             ${projectProgressBadge(site)}
           </div>
@@ -14657,6 +14657,11 @@ function renderDetailPanel(site){
     });
     document.getElementById('editInfoBtn').addEventListener('click', async ()=>{
       if(!(await ensureUnlocked())) return;
+      openModal(site);
+    });
+    const mobileSiteInfoEditBtn = document.getElementById('mobileSiteInfoEditBtn');
+    if(mobileSiteInfoEditBtn) mobileSiteInfoEditBtn.addEventListener('click', async ()=>{
+      if(guestMode || !(await ensureUnlocked())) return;
       openModal(site);
     });
     const siteManageWrap = document.getElementById('siteManageWrap');
@@ -38485,5 +38490,17 @@ body.ux383 .ux-search-modal .ux-search-results .menu-item-btn{width:100%!importa
  body.ux383 #managementSheetContent .management-mobile-card .management-note-popover[hidden]{display:none!important}
  body.ux383 #managementSheetContent .management-mobile-card .management-note-popover button{font-size:11px!important;min-height:27px!important;padding:3px 6px!important;color:var(--text-main)!important}
  body.ux383 #managementSheetContent .management-mobile-links button{color:var(--text-main)!important}
+}
+</style>
+
+<style id="mobile-site-info-edit-20261009">
+.mobile-site-info-edit{display:none!important}
+@media screen and (max-width:820px){
+  body.ux383:not(.guest-readonly):not(.guest-viewer-readonly) .master-panel .detail-manager .mobile-site-info-edit{
+    display:inline-flex!important;align-items:center;justify-content:center;vertical-align:middle;
+    margin-left:9px;padding:4px 8px;min-height:28px;border:1px solid var(--line);border-radius:6px;
+    background:var(--card);color:var(--text-main);font-family:inherit;
+    font-size:12px;font-weight:600;line-height:1.4;box-shadow:none;cursor:pointer;
+  }
 }
 </style>
