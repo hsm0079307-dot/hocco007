@@ -23422,7 +23422,7 @@ ead><body>
     siteMgmtOffice=(currentOffice&&currentOffice!==ALL_OFFICE)?currentOffice:'__ALL__';
     const o=document.getElementById('globalStatsOfficeFilter');if(o)o.value=siteMgmtOffice;
     if(currentDetailId)siteMgmtSiteId=String(currentDetailId);
-    smFillSiteSelect();uxRestorePeriods();renderGlobalStats();
+    smFillSiteSelect();uxRestorePeriods();siteMgmtDate=new Date();renderGlobalStats();
     document.getElementById('globalStatsOverlay').classList.add('show');
     const p=smSelected();if(p&&p.site)refreshLogsForSiteIfNeeded(p.site,true);
     setTimeout(()=>{try{renderGlobalStats();}catch(e){}},700);
@@ -23430,7 +23430,7 @@ ead><body>
   window.openGlobalStats=openGlobalStats;
   const smOffice=document.getElementById('globalStatsOfficeFilter');if(smOffice)smOffice.addEventListener('change',()=>{siteMgmtOffice=smOffice.value;siteMgmtSiteId='';smFillSiteSelect();renderGlobalStats();const p=smSelected();if(p&&p.site)refreshLogsForSiteIfNeeded(p.site,true);setTimeout(renderGlobalStats,700);});
   const smSite=document.getElementById('siteMgmtSiteSelect');if(smSite)smSite.addEventListener('change',()=>{siteMgmtSiteId=smSite.value;renderGlobalStats();const p=smSelected();if(p&&p.site)refreshLogsForSiteIfNeeded(p.site,true);setTimeout(renderGlobalStats,700);});
-  [['all','All'],['month','Month'],['week','Week'],['day','Day']].forEach(([m,n])=>{const e=document.getElementById('siteMgmt'+n+'Btn');if(e)e.addEventListener('click',()=>{siteMgmtPeriod=m;renderGlobalStats();});});
+  [['all','All'],['month','Month'],['week','Week'],['day','Day']].forEach(([m,n])=>{const e=document.getElementById('siteMgmt'+n+'Btn');if(e)e.addEventListener('click',()=>{siteMgmtPeriod=m;if(m==='day')siteMgmtDate=new Date();renderGlobalStats();});});
   const smPrev=document.getElementById('siteMgmtPrevBtn');if(smPrev)smPrev.addEventListener('click',()=>{if(siteMgmtPeriod==='day')siteMgmtDate=new Date(siteMgmtDate.getFullYear(),siteMgmtDate.getMonth(),siteMgmtDate.getDate()-1);else if(siteMgmtPeriod==='week')siteMgmtDate=new Date(siteMgmtDate.getFullYear(),siteMgmtDate.getMonth(),siteMgmtDate.getDate()-7);else if(siteMgmtPeriod==='month')siteMgmtDate=new Date(siteMgmtDate.getFullYear(),siteMgmtDate.getMonth()-1,1);renderGlobalStats();});
   const smNext=document.getElementById('siteMgmtNextBtn');if(smNext)smNext.addEventListener('click',()=>{if(siteMgmtPeriod==='day')siteMgmtDate=new Date(siteMgmtDate.getFullYear(),siteMgmtDate.getMonth(),siteMgmtDate.getDate()+1);else if(siteMgmtPeriod==='week')siteMgmtDate=new Date(siteMgmtDate.getFullYear(),siteMgmtDate.getMonth(),siteMgmtDate.getDate()+7);else if(siteMgmtPeriod==='month')siteMgmtDate=new Date(siteMgmtDate.getFullYear(),siteMgmtDate.getMonth()+1,1);renderGlobalStats();});
   const smRefresh=document.getElementById('globalStatsRefreshBtn');if(smRefresh)smRefresh.addEventListener('click',()=>{const p=smSelected();if(p&&p.site)refreshLogsForSiteIfNeeded(p.site,true);setTimeout(renderGlobalStats,700);});
@@ -38264,6 +38264,21 @@ body.ux383 .master-panel .detail-head-info .project-progress-mobile[class*="proj
 
 /* Filter controls sit above the list; hidden rows must override legacy !important layouts. */
 body.ux383 #masterList .name-item[hidden]{display:none!important}
+@media screen and (min-width:821px){
+  body.ux383 #sidebar,
+  body.ux383 .sidebar-column-v21,
+  body.ux383 .sidebar-column-v21 .sidebar-ref-head,
+  body.ux383 .sidebar-column-v21 .sidebar-local-filters-v19,
+  body.ux383 .sidebar-column-v21 .sidebar-local-search-v19,
+  body.ux383 .sidebar-column-v21 #sidebarSearchV19{box-sizing:border-box!important;min-width:0!important;}
+  body.ux383 .sidebar-column-v21{width:100%!important;max-width:100%!important;}
+  body.ux383 .sidebar-column-v21 .sidebar-ref-head,
+  body.ux383 .sidebar-column-v21 .sidebar-local-filters-v19,
+  body.ux383 .sidebar-column-v21 .sidebar-local-search-v19,
+  body.ux383 .sidebar-column-v21 #sidebarSearchV19{width:100%!important;max-width:100%!important;}
+  body.ux383 .sidebar-column-v21 #sidebarSearchV19{flex:1 1 0!important;}
+  body.ux383 .sidebar-column-v21 #masterList{box-sizing:border-box!important;width:calc(100% - 12px)!important;min-width:0!important;max-width:calc(100% - 12px)!important;margin:0 6px 6px!important;padding-right:4px!important;overflow-y:auto!important;overflow-x:hidden!important;scrollbar-gutter:stable;}
+}
 body.ux383 .sidebar-column-v21 .sidebar-local-filters-v19{position:relative!important;z-index:20!important}
 body.ux383 .sidebar-column-v21 #masterList{position:relative!important;z-index:1!important}
 #legalProjectProgressDialog .project-procedure-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:16px}
