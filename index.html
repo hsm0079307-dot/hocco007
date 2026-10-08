@@ -14455,6 +14455,7 @@ function alignProjectProgressWithManagement(panel){
 function projectProcedureSources(row){return row.sources||(row.sourceIds||[]).map(id=>PROJECT_PROGRESS_REVIEW.sources[id]).filter(Boolean).filter(s=>/^https?:\/\//.test(s.url||''));}
 function projectProcedureHistory(row){return projectProcedureAdmin()&&row.history?.length?`<details class="project-procedure-history"><summary>변경 이력 (${row.history.length})</summary><ol>${row.history.slice().reverse().map(item=>`<li><small>${escapeHtml((item.at||'').slice(0,10)+' · '+(item.by||''))}</small><br>${escapeHtml(item.from||'')} → ${escapeHtml(item.to||'')}</li>`).join('')}</ol></details>`:'';}
 function projectProcedureTemplates(){const templates={};for(const row of PROJECT_PROGRESS_REVIEW.rows)if(row.path&&row.flow?.length&&!templates[row.path])templates[row.path]={type:row.type,flow:row.flow};return templates;}
+function projectProcedureStageChoices(flow,current){return [...new Set(['확인 필요',...(current?[current]:[]),...(flow||[])])];}
 function projectProcedureRefreshLocal(site,value){
   site.projectProcedure=value;
   if(typeof renderSidebar==='function')renderSidebar();
@@ -14488,7 +14489,8 @@ async function openProjectProcedureEditor(site,dialog){
   const body=dialog.querySelector('.project-progress-dialog-body');
   body.innerHTML=`<form class="project-procedure-form"><label>사업방식<select name="path">${Object.entries(templates).map(([key,t])=>`<option value="${escapeHtml(key)}"${key===row.path?' selected':''}>${escapeHtml(t.type)}</option>`).join('')}</select></label><label>현재 단계<input name="current" required maxlength="100" list="projectProcedureStages" value="${escapeHtml(row.current)}"><datalist id="projectProcedureStages"></datalist></label><label>변경일<input type="date" name="changedOn" value="${escapeHtml(row.changedOn||new Date().toLocaleDateString('sv-SE'))}"></label><label>자료 링크 <small>한 줄에 제목 | 주소</small><textarea name="sources" rows="3">${escapeHtml(projectProcedureSources(row).map(s=>(s.title||'자료')+' | '+s.url).join('\n'))}</textarea></label><small>변경 이력은 저장됩니다.</small><div class="project-procedure-tools"><button class="btn btn-primary" type="submit">저장</button><button class="btn btn-ghost" type="button" data-procedure-cancel>취소</button></div><div data-procedure-message role="status"></div></form>`;
   const form=body.querySelector('form'),path=form.elements.path;
-  const fillStages=()=>{body.querySelector('datalist').innerHTML=templates[path.value].flow.map(s=>`<option value="${escapeHtml(s)}"></option>`).join('');};
+  const stageInput=form.elements.current,stageSelect=document.createElement('select');stageSelect.name='current';stageSelect.required=true;stageInput.replaceWith(stageSelect);body.querySelector('datalist').remove();
+  const fillStages=()=>{const current=stageSelect.value||row.current,flow=path.value===row.path&&row.flow?.length?row.flow:templates[path.value].flow;stageSelect.innerHTML=projectProcedureStageChoices(flow,current).map(s=>`<option value="${escapeHtml(s)}"${s===current?' selected':''}>${escapeHtml(projectProgressStepLabel(s))}</option>`).join('');};
   if(!templates[row.path])path.selectedIndex=0;fillStages();path.addEventListener('change',fillStages);
   body.querySelector('[data-procedure-cancel]').addEventListener('click',()=>{dialog.close();openProjectProgress(site);});
   form.addEventListener('submit',async event=>{
@@ -14497,7 +14499,7 @@ async function openProjectProcedureEditor(site,dialog){
       const sources=form.elements.sources.value.split('\n').map(s=>s.trim()).filter(Boolean).map(line=>{const split=line.lastIndexOf('|'),title=split<0?'자료':line.slice(0,split).trim(),url=(split<0?line:line.slice(split+1)).trim();if(!/^https?:\/\//.test(url))throw Error('자료 주소는 http 또는 https로 입력해 주세요.');new URL(url);return {title:title||'자료',url};});
       const template=templates[path.value],now=new Date().toISOString(),current=form.elements.current.value.trim();if(!current)throw Error('현재 단계를 입력해 주세요.');
       const history=[...(row.history||[]),{at:now,by:'관리자',from:row.current,to:current,sources}].slice(-100);
-      const value={current,path:path.value,type:path.value===row.path?row.type:template.type,flow:path.value===row.path?row.flow:template.flow,paused:current===row.current?!!row.paused:false,changedOn:form.elements.changedOn.value,updatedAt:now,verification:'manual',sources,searchStatus:'manual',checkedAt:row.checkedAt||null,history};
+      const value={current,path:path.value,type:path.value===row.path?row.type:template.type,flow:path.value===row.path&&row.flow?.length?row.flow:template.flow,paused:current===row.current?!!row.paused:false,changedOn:form.elements.changedOn.value,updatedAt:now,verification:'manual',sources,searchStatus:'manual',checkedAt:row.checkedAt||null,history};
       const fresh=await saveProjectProcedure(site,value,baseline);dialog.close();openProjectProgress(fresh);
     }catch(error){status.textContent=error.message;}finally{button.disabled=false;}
   });
