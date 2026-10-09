@@ -16420,6 +16420,7 @@ function renderDetailPanel(site){
       function clearLogFilter(){
         const banner = document.getElementById('logFilterBanner');
         if(banner) banner.remove();
+        const interests=body.querySelector('#relationshipJournalInterests');if(interests)interests.remove();
         body.querySelectorAll('.log-item').forEach(el=>{ el.style.display=''; });
         body.querySelectorAll('.log-author-group').forEach(el=>{ el.style.display=''; });
       }
@@ -16434,6 +16435,9 @@ function renderDetailPanel(site){
         const listArea = document.getElementById('logListArea');
         if(!listArea) return;
         clearLogFilter();
+        if(opts.relationshipEvidence){
+          const holder=document.createElement('div');holder.id='relationshipJournalInterests';holder.innerHTML=relationshipInterestMarkup(opts.relationshipEvidence);listArea.before(holder);
+        }
         const banner = document.createElement('div');
         banner.id = 'logFilterBanner';
         banner.className = 'log-contact-filter-banner';
@@ -16485,7 +16489,9 @@ function renderDetailPanel(site){
       body.querySelectorAll('.mgr-contact-journal-btn').forEach(btn=>{
         btn.addEventListener('click',()=>{
           const name=btn.dataset.contact;
-          applyLogFilter(item=>splitMultiNames(item.dataset.contactName||'').some(part=>fullyStripRoles(part).name.trim()===name.trim()),name+' 상담일지');
+          const evidence=miReportLogs(site).filter(l=>String(l.personId||'')===btn.dataset.person);
+          const ids=new Set(evidence.map(l=>String(l.id||'')));
+          applyLogFilter(item=>ids.has(item.dataset.logId),name+' 상담일지',{relationshipEvidence:evidence});
         });
       });
       const mgrOwnerSearchInput = document.getElementById('mgrOwnerSearchInput');
@@ -19411,14 +19417,15 @@ function renderDetailPanel(site){
         const r=map[k];r.count++;if(e.date)r.dates.add(e.date);if(String(e.date||'')>r.last)r.last=String(e.date||'');if(r.methods[e.method]!==undefined)r.methods[e.method]++;
         if(!r.manager||r.manager==='(미지정)')r.manager=mgrKey(e.manager);if(!r.unit)r.unit=clean(e.unit);if(!r.role)r.role=clean(e.role);
       });
-      const rows=Object.values(map).sort((a,b)=>String(b.last).localeCompare(String(a.last))||a.name.localeCompare(b.name,'ko'));
+      const interestLogs=miReportLogs(site);
+      const rows=Object.entries(map).map(([key,r])=>({...r,personKey:key,interestLogs:interestLogs.filter(l=>String(l.personId||'')===key)})).sort((a,b)=>String(b.last).localeCompare(String(a.last))||a.name.localeCompare(b.name,'ko'));
       if(!rows.length)return `<div class="mgr-empty">${periodPayloadReady?`${year}년 ${month}월 Excel 접촉기록이 없습니다.`:'Excel 기간이력 동기화가 아직 완료되지 않았습니다.'}</div>`;
       return `<div class="mgr-owner-search-row no-print"><input type="text" id="mgrOwnerSearchInput" placeholder="🔍 이름 · 담당 · 동호수 검색"></div>
       <div style="overflow-x:auto;"><table class="mgr-breakdown-table mgr-owner-table" id="mgrOwnerTable" style="min-width:660px;">
         <thead><tr><th style="text-align:left;">접촉자</th><th>담당</th><th>동호수</th><th>접촉일수</th><th>건수</th><th>최근접촉</th><th>방법</th></tr></thead>
         <tbody>${rows.map(r=>{
           const meth=['상담','단순','TM'].map(m=>r.methods[m]?`${m==='상담'?'상':m==='단순'?'단':'TM'}${r.methods[m]}`:'').filter(Boolean).join(' ');
-          return `<tr data-owner-row="${escapeHtml(r.name)}"><td style="text-align:left;font-weight:700;"><button type="button" class="mgr-contact-journal-btn" data-contact="${escapeHtml(r.name)}" style="border:0;background:transparent;padding:0;color:var(--accent);font:inherit;text-decoration:underline;text-underline-offset:3px;cursor:pointer;">${escapeHtml(r.name)}</button>${r.role?` <span style="color:var(--text-dim);font-size:8px;">(${escapeHtml(r.role)})</span>`:''}</td><td>${escapeHtml(r.manager||'-')}</td><td>${escapeHtml(r.unit||'-')}</td><td>${r.dates.size}</td><td>${r.count}</td><td>${escapeHtml(r.last||'-')}</td><td>${escapeHtml(meth||'-')}</td></tr>`;
+          return `<tr data-owner-row="${escapeHtml(r.name)}"><td style="text-align:left;font-weight:700;"><button type="button" class="mgr-contact-journal-btn" data-person="${escapeHtml(r.personKey)}" data-contact="${escapeHtml(r.name)}" style="border:0;background:transparent;padding:0;color:var(--accent);font:inherit;text-decoration:underline;text-underline-offset:3px;cursor:pointer;">${escapeHtml(r.name)}</button>${r.role?` <span style="color:var(--text-dim);font-size:8px;">(${escapeHtml(r.role)})</span>`:''}${relationshipInterestTags(r.interestLogs)}</td><td>${escapeHtml(r.manager||'-')}</td><td>${escapeHtml(r.unit||'-')}</td><td>${r.dates.size}</td><td>${r.count}</td><td>${escapeHtml(r.last||'-')}</td><td>${escapeHtml(meth||'-')}</td></tr>`;
         }).join('')}</tbody>
       </table></div>`;
     }
@@ -20146,93 +20153,78 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
     return flat;
   }
 
-  // ---------- 접촉자 CRM 뷰: 사람 기준으로 접촉 이력을 모아서 보여줌 ----------
-  let expandedContactSites = new Set(); // 접촉자 탭에서 펼쳐진 현장들 (여러 개 동시에 펼칠 수 있음)
+  // 관계자 관심사: 상담 원문을 주제별로 모으되 개인 선호나 발언자를 추정하지 않는다.
+  const relationshipInterestTopics = [
+    {name:'이주비·금리', re:/이주비|추가.?이주비|대출|이자율|금리/},
+    {name:'분담금·환급금', re:/분담금|환급금|청산금/},
+    {name:'공사비·사업조건', re:/공사비|사업비|입찰보증금|물가상승|책임준공|공사중단/},
+    {name:'브랜드·시공사', re:/브랜드|시공사|래미안|아크로|오티에르|오띠에르|르엘|힐스테이트|더샵/},
+    {name:'설계·커뮤니티', re:/설계|스카이브릿지|스카이.?브릿지|커뮤니티|평형|평면|주차|조경|고층|천장고/},
+    {name:'품질·안전·AS', re:/하자|안전|화재|부실공사|품질|보수|AS기간|AS 기간|A\/?S|사후관리/},
+    {name:'일정·이주', re:/착공|입주|이주.?시기|이주.?일정|통합심의|시공사.?선정|사업.?일정/},
+    {name:'권리·상가', re:/상가|제척|독립정산|상속|증여|지위.?승계|분양권|세입자.?보상|주거이전비/}
+  ];
+  function relationshipInterests(logs){
+    const seen=new Set();
+    const records=(logs||[]).filter(l=>{
+      const text=String(l.text||'').trim();
+      if(!text||/^(?:\(보고 내용 미기재\)|보고 내용 미기재)$/.test(text))return false;
+      const key=[l.id||'',l.date||'',l.author||'',text].join('|');
+      if(seen.has(key))return false;seen.add(key);return true;
+    }).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+    return relationshipInterestTopics.map(t=>({name:t.name,logs:records.filter(l=>t.re.test(String(l.text||'')))})).filter(t=>t.logs.length);
+  }
+  function relationshipInterestTags(logs){
+    const items=relationshipInterests(logs);
+    return items.length?`<div class="relationship-interest-tags">${items.map(t=>`<span>${escapeHtml(t.name)}</span>`).join('')}</div>`:'';
+  }
+  function relationshipInterestMarkup(logs){
+    const items=relationshipInterests(logs);
+    return `<section class="relationship-interests"><b>관계자 관심사</b><p class="relationship-interest-caption">상담 원문에서 주제를 자동 분류했습니다. 설명·전언·타인의 의견이 포함될 수 있으며, 본인의 선호를 확정하지 않습니다.</p>${items.length?items.map(t=>`<details class="relationship-interest-evidence"><summary>${escapeHtml(t.name)} <span>${t.logs.length}건 · 최근 ${escapeHtml(t.logs[0].date||'날짜 미기재')}</span></summary>${t.logs.map(l=>`<article><div class="relationship-interest-source">${escapeHtml(l.date||'날짜 미기재')} · 접촉자 ${escapeHtml(l.contactName||'-')} · 담당 ${escapeHtml(l.author||'미기재')}${l.unit?' · '+escapeHtml(l.unit):''}${l.id?' · 보고 '+escapeHtml(l.id):''}</div><div class="relationship-interest-original">${escapeHtml(l.text)}</div></article>`).join('')}</details>`).join(''):'<p class="relationship-interest-caption">분류할 상담 내용이 없습니다. 관심사가 없다는 뜻은 아닙니다.</p>'}</section>`;
+  }
+  let expandedContactSites = new Set();
+  let relationshipInterestFilter = '';
   function renderContactsView(){
-    const body = document.getElementById('contactReportBody');
-    const flat = getAllLogsFlat();
-    // 현장별로 접촉자를 묶는다 (한 사람이 여러 현장에 걸쳐 있으면 각 현장 아래에 따로 나옴)
-    // "최영희 (선관위원)"처럼 이름에 직책이 붙어있으면 분리해서, 같은 이름은 하나로 합치고 직책은 따로 표시한다
-    const siteMap = {}; // { 현장명: { 접촉자명: {name,role,count,logs} } }
-    flat.forEach(l=>{
-      const {name, role} = parseContactName(l.contactName);
-      if(!name) return;
-      const site = l.__site || '기타';
-      if(!siteMap[site]) siteMap[site] = {};
-      if(!siteMap[site][name]) siteMap[site][name] = {name, role:'', count:0, logs:[]};
-      if(role && !siteMap[site][name].role) siteMap[site][name].role = role;
-      siteMap[site][name].count++;
-      siteMap[site][name].logs.push(l);
-    });
-    const siteNames = Object.keys(siteMap).sort((a,b)=> Object.keys(siteMap[b]).length - Object.keys(siteMap[a]).length);
-    const totalContacts = new Set(flat.map(l=>parseContactName(l.contactName).name).filter(Boolean)).size;
-
-    body.innerHTML = `
-      <div style="margin-bottom:12px;color:var(--text-dim);font-size:12px;">전체 기간 기준 · 접촉자 ${totalContacts}명 · ${siteNames.length}개 현장</div>
-      ${siteNames.length ? siteNames.map(site=>{
-        const contacts = Object.values(siteMap[site]).sort((a,b)=>b.count-a.count);
-        const expanded = expandedContactSites.has(site);
-        return `
-        <div class="report-site-toggle-row" data-toggle-site="${escapeHtml(site)}">
-          <span>📍 ${escapeHtml(site)}</span>
-          <span style="color:var(--text-dim);font-weight:400;">${contacts.length}명</span>
-          <span class="report-site-toggle-arrow">${expanded?'▲':'▼'}</span>
-        </div>
-        ${expanded ? `<div class="report-manager-cards" style="margin-bottom:14px;">
-          ${contacts.map(c=>`
-            <div class="report-manager-card report-contact-card" data-site="${escapeHtml(site)}" data-name="${escapeHtml(c.name)}" style="cursor:pointer;">
-              <div class="report-manager-card-head"><span>${escapeHtml(c.name)}${c.role?` <span style="font-weight:400;color:var(--text-dim);font-size:10px;">(${escapeHtml(c.role)})</span>`:''}</span><span style="flex:none;">${c.count}회</span></div>
-            </div>`).join('')}
-        </div>` : ''}`;
-      }).join('') : '<div style="color:var(--text-dim);font-size:12px;padding:16px 0;">접촉자 기록이 없습니다.</div>'}
-      <div id="reportContactDetailPanel" class="report-detail-panel" style="display:none;"></div>
-    `;
-
-    body.querySelectorAll('.report-site-toggle-row').forEach(row=>{
-      row.addEventListener('click', ()=>{
-        const site = row.dataset.toggleSite;
-        if(expandedContactSites.has(site)) expandedContactSites.delete(site);
-        else expandedContactSites.add(site);
-        renderContactsView();
+    const body=document.getElementById('contactReportBody');
+    const targetOffices=currentOffice===ALL_OFFICE?OFFICES:[currentOffice];
+    const siteMap=new Map();
+    targetOffices.forEach(office=>(allOfficesData[office]||[]).forEach(site=>{
+      const key=JSON.stringify([office,site.id||site.name]);
+      const contacts=new Map();
+      miReportLogs(site).filter(l=>!isTourBookingLog(l)).forEach(l=>{
+        const parsed=fullyStripRoles(l.contactName);if(!parsed.name)return;
+        const personKey=String(l.personId||JSON.stringify([parsed.name,l.unit||'']));
+        if(!contacts.has(personKey))contacts.set(personKey,{key:personKey,name:parsed.name,role:l.role||parsed.role||'',unit:l.unit||'',logs:[]});
+        contacts.get(personKey).logs.push(l);
       });
-    });
-
-    let selectedKey = null;
-    function showContactDetail(site, name, highlightEl){
-      const key = site+'|'+name;
-      const panel = document.getElementById('reportContactDetailPanel');
-      if(selectedKey === key){
-        selectedKey = null;
-        panel.style.display = 'none'; panel.innerHTML = '';
-        body.querySelectorAll('.report-contact-card').forEach(el=>el.style.borderColor='');
-        return;
-      }
-      selectedKey = key;
-      const c = siteMap[site] && siteMap[site][name];
-      if(!c) return;
-      body.querySelectorAll('.report-contact-card').forEach(el=>el.style.borderColor='');
-      if(highlightEl) highlightEl.style.borderColor = 'var(--accent)';
-      const sortedLogs = c.logs.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-      const shownC = new Set(), shownS = new Set();
-      const rosterSite = sites.find(x=>x.name===site);
-      const cardRoster = rosterSite ? (rosterSite.ownerRoster||[]).map(normalizeRosterEntry).filter(x=>x.name) : [];
-      panel.style.display = 'block';
-      panel.innerHTML = `
-        <div class="report-detail-head">
-          <b>${escapeHtml(c.name)}</b>
-          <span style="color:var(--text-dim);font-size:11.5px;">📍 ${escapeHtml(site)}</span>
-          <span style="margin-left:auto;font-weight:700;color:var(--accent);">${c.count}회 접촉</span>
-        </div>
-        <div class="report-detail-notes">
-          <div class="report-timeline">${sortedLogs.map(l=>buildLogCard(l, shownC, shownS, {fullDate:true, roster:cardRoster})).join('')}</div>
-        </div>`;
-      panel.scrollIntoView({behavior:'smooth', block:'nearest'});
-    }
-    body.querySelectorAll('.report-contact-card').forEach(card=>{
-      card.addEventListener('click', ()=>{
-        showContactDetail(card.dataset.site, card.dataset.name, card);
-      });
-    });
+      if(contacts.size)siteMap.set(key,{key,office,site,contacts});
+    }));
+    const allRecords=[...siteMap.values()];
+    const totalContacts=allRecords.reduce((n,r)=>n+r.contacts.size,0);
+    const records=allRecords.map(r=>({...r,visible:[...r.contacts.values()].filter(c=>!relationshipInterestFilter||relationshipInterests(c.logs).some(t=>t.name===relationshipInterestFilter)).sort((a,b)=>b.logs.length-a.logs.length)})).filter(r=>r.visible.length).sort((a,b)=>b.visible.length-a.visible.length);
+    body.innerHTML=`<div class="relationship-interest-toolbar"><label for="relationshipInterestFilter">관심사</label><select id="relationshipInterestFilter"><option value="">전체 주제</option>${relationshipInterestTopics.map(t=>`<option value="${escapeHtml(t.name)}"${t.name===relationshipInterestFilter?' selected':''}>${escapeHtml(t.name)}</option>`).join('')}</select></div>
+      <div class="relationship-interest-caption">전체 기간 · 현장별 접촉자 ${totalContacts}명 · ${records.reduce((n,r)=>n+r.visible.length,0)}명 표시 · 이름을 누르면 관심사 근거와 상담일지를 확인합니다.</div>
+      ${records.map(r=>{
+        const expanded=expandedContactSites.has(r.key)||!!relationshipInterestFilter;
+        return `<div class="report-site-toggle-row" data-toggle-site="${escapeHtml(r.key)}"><span>📍 ${escapeHtml(r.site.name)} <small>${escapeHtml(r.office)}</small></span><span>${r.visible.length}명</span><span class="report-site-toggle-arrow">${expanded?'▲':'▼'}</span></div>${expanded?`<div class="report-manager-cards">${r.visible.map(c=>`<button type="button" class="report-manager-card report-contact-card" data-site="${escapeHtml(r.key)}" data-person="${escapeHtml(c.key)}"><div class="report-manager-card-head"><span>${escapeHtml(c.name)}${c.role?` <small>(${escapeHtml(c.role)})</small>`:''}${c.unit?` <small>${escapeHtml(c.unit)}</small>`:''}</span><span>${c.logs.length}회</span></div>${relationshipInterestTags(c.logs)}</button>`).join('')}</div>`:''}`;
+      }).join('')||'<div class="relationship-interest-caption">조건에 맞는 접촉 기록이 없습니다.</div>'}<div id="reportContactDetailPanel" class="report-detail-panel" style="display:none"></div>`;
+    body.querySelector('#relationshipInterestFilter').addEventListener('change',e=>{relationshipInterestFilter=e.target.value;renderContactsView();});
+    body.querySelectorAll('[data-toggle-site]').forEach(row=>row.addEventListener('click',()=>{
+      const key=row.dataset.toggleSite;if(expandedContactSites.has(key))expandedContactSites.delete(key);else expandedContactSites.add(key);renderContactsView();
+    }));
+    let selectedKey='';
+    body.querySelectorAll('.report-contact-card').forEach(card=>card.addEventListener('click',()=>{
+      const record=siteMap.get(card.dataset.site),c=record?.contacts.get(card.dataset.person);if(!c)return;
+      const panel=body.querySelector('#reportContactDetailPanel');
+      const key=JSON.stringify([record.key,c.key]);
+      body.querySelectorAll('.report-contact-card').forEach(el=>el.classList.remove('relationship-contact-selected'));
+      if(selectedKey===key){selectedKey='';panel.style.display='none';panel.innerHTML='';return;}
+      selectedKey=key;card.classList.add('relationship-contact-selected');
+      const roster=(record.site.ownerRoster||[]).map(normalizeRosterEntry).filter(x=>x.name);
+      const shownC=new Set(),shownS=new Set();
+      panel.style.display='block';panel.innerHTML=`<div class="report-detail-head"><b>${escapeHtml(c.name)}</b><span>${escapeHtml(record.site.name)} · ${escapeHtml(record.office)}${c.unit?' · '+escapeHtml(c.unit):''}</span><span>${c.logs.length}회 접촉</span></div>${relationshipInterestMarkup(c.logs)}<div class="report-detail-notes"><div class="report-timeline">${c.logs.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))).map(l=>buildLogCard(l,shownC,shownS,{fullDate:true,roster})).join('')}</div></div>`;
+      panel.scrollIntoView({behavior:'smooth',block:'start'});
+    }));
   }
 
   // ---------- 통합 검색 뷰: 현장명·담당자·접촉자·상담내용 전체에서 검색 ----------
@@ -34301,6 +34293,23 @@ body.ux383 #rivalOverviewContent .rival-person-chip-region{min-width:0;color:var
  .management-mobile-links{display:flex;gap:7px}
  .management-mobile-links button{font:inherit;font-size:11px;color:var(--accent);background:transparent;border:1px solid var(--line);border-radius:5px;padding:5px 8px}
 }
+</style>
+<style id="relationship-interests-20261009">
+.relationship-interest-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.relationship-interest-toolbar select{font:inherit;color:var(--text-main);background:var(--bg-side-2);border:1px solid var(--line);border-radius:8px;padding:8px;max-width:100%}
+.relationship-interest-caption{color:var(--text-dim);font-size:12px;line-height:1.6;margin:8px 0 14px}
+.relationship-interest-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;font-size:11px;font-weight:400}
+.relationship-interest-tags span{color:var(--accent);background:var(--bg-side-2);border-radius:5px;padding:3px 6px}
+button.report-contact-card{font:inherit;color:var(--text-main);text-align:left;width:100%;cursor:pointer}
+.relationship-contact-selected{border-color:var(--accent)!important}
+.relationship-interests{padding:14px;border:1px solid var(--line);border-radius:10px;margin:12px 0}
+.relationship-interest-evidence{border-top:1px solid var(--line);padding:10px 0}
+.relationship-interest-evidence summary{cursor:pointer;line-height:1.6;color:var(--text-main);font-size:13px}
+.relationship-interest-evidence summary span{font-size:11px;color:var(--text-dim);margin-left:6px}
+.relationship-interest-evidence article{padding:10px 0;border-bottom:1px solid var(--line)}
+.relationship-interest-source{font-size:11px;line-height:1.6;color:var(--text-dim);overflow-wrap:anywhere}
+.relationship-interest-original{white-space:pre-wrap;font-size:13px;line-height:1.7;margin-top:6px;overflow-wrap:anywhere;color:var(--text-main)}
+@media(max-width:820px){.relationship-interests{padding:12px}.relationship-interest-tags{font-size:12px}.relationship-interest-evidence summary{font-size:14px}.relationship-interest-original{font-size:14px}.relationship-interest-evidence summary span{display:block;margin-left:16px}.relationship-interest-toolbar{font-size:14px}}
 </style>
 </body>
 </html>
