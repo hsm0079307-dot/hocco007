@@ -19000,6 +19000,16 @@ function renderDetailPanel(site){
     const roles=new Set(['부장','차장','과장','대리','사원','팀장','실장','소장','본부장','지점장','센터장','이사','상무','전무','대표','대표이사']);
     return [...new Set(String(value||'').split(/[\s,，;/|·]+/).map(name=>name.trim()).filter(name=>name&&!roles.has(name)))];
   }
+  function savedReportBrief(site,range,mode){
+    const dateKey=v=>v instanceof Date?smDateKey(v):String(v||'').slice(0,10);
+    const start=dateKey(range.start),end=dateKey(range.end);
+    const notes=site.reportSpecialNotesByPeriod||{};
+    const weekly='w-'+start;
+    const months=[...new Set([start.slice(0,7),end.slice(0,7)])].filter(m=>/^20\d{2}-\d{2}$/.test(m));
+    const entries=months.filter(m=>Object.prototype.hasOwnProperty.call(notes,'m-'+m)).map(m=>({month:m,text:String(notes['m-'+m]||'')}));
+    if(!entries.length&&mode==='week'&&Object.prototype.hasOwnProperty.call(notes,weekly))return {found:true,key:weekly,text:String(notes[weekly]||''),label:start+' ~ '+end+' 주간정리'};
+    return {found:entries.length>0,key:entries.length===1?'m-'+entries[0].month:'',text:entries.map(x=>(mode==='month'&&entries.length===1?'':x.month+' 월간정리\n')+x.text).join('\n\n'),label:entries.map(x=>x.month+' 월간정리').join(' · ')};
+  }
   function contactReportNoteDisplay(value){
     return String(value||'').replace(/[ \t]*\[R[0-9a-f]{4,}\b[^\]\r\n]*\]/gi,'');
   }
@@ -20875,22 +20885,22 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
       <div class="report-site-notes-summary">
         <div class="report-missed-label" style="display:flex;align-items:center;justify-content:space-between;color:var(--accent);margin-bottom:8px;">
           <span>현장별 핵심 정리${reportSelectedSiteId && groupRows.some(r=>r.id===reportSelectedSiteId) ? ` <span style="font-weight:400;color:var(--text-dim);font-size:10.5px;">· 선택한 현장만 보는 중 <button type="button" class="report-notes-show-all-btn no-print" style="background:none;border:1px solid var(--line);color:var(--text-dim);border-radius:6px;padding:1px 7px;font-size:9.5px;cursor:pointer;">전체보기</button></span>` : ''}</span>
-          ${(!guestMode && groupRows.length) ? `<button type="button" class="report-site-note-bulk-ai-btn no-print" data-site-ids="${escapeHtml(groupRows.map(r=>r.id).join(','))}" title="저장된 메모가 없는 현장의 정리 초안 만들기">전체 핵심 정리</button>` : ''}
+          
         </div>
         ${(reportSelectedSiteId && groupRows.some(r=>r.id===reportSelectedSiteId) ? groupRows.filter(r=>r.id===reportSelectedSiteId) : groupRows).map(r=>{
           const periodKey = currentReportPeriodKey();
           const saved = r.reportSpecialNotesByPeriod && r.reportSpecialNotesByPeriod[periodKey] && r.reportSpecialNotesByPeriod[periodKey].trim();
-          const draft = siteSpecialNote(r);
-          const displayValue = saved || draft; // 저장된 값이 없으면 로그에서 뽑은 초안을 그대로 편집 가능한 값으로 채워둔다
+          const stored = savedReportBrief(r,range,reportMode);
+          const displayValue = stored.text;
           const sid = escapeHtml(r.id||'');
           return `<div class="report-site-note-edit">
             <div class="report-site-note-edit-head">
               <b>${escapeHtml(r.site)}</b>
               ${guestMode?'':`<button type="button" class="report-site-note-pencil no-print" data-target="${sid}" title="수정">✏️</button>`}
-              ${guestMode?'':`<button type="button" class="report-site-note-ai-btn no-print" data-ai-target="${sid}" data-ai-office="${escapeHtml(r.office||'')}" title="선택 기간의 실제 보고 내용에서 업무 관련 핵심만 추출">핵심 정리</button>`}
+              <button type="button" class="report-site-note-saved-btn no-print" data-saved-target="${sid}" title="저장된 월간정리 보기">월간정리</button>
             </div>
-            <div class="report-site-note-view" data-view-for="${sid}">${displayValue ? escapeHtml(contactReportNoteDisplay(displayValue)) : '<span style="color:var(--text-dim);">특이사항 없음</span>'}</div>
-            ${guestMode ? '' : `<textarea class="report-site-note-textarea" style="display:none;" data-site-id="${sid}" data-office="${escapeHtml(r.office||'')}" data-saved="${escapeHtml(saved||'')}" rows="2" placeholder="이 현장 특이사항을 입력하세요">${escapeHtml(displayValue||'')}</textarea><div class="visit-note-controls no-print" style="display:none"><button type="button" class="btn visit-note-save">저장</button><button type="button" class="btn visit-note-cancel">취소</button><small role="status"></small></div>`}
+            <div class="report-site-note-view" data-view-for="${sid}">${stored.label && reportMode!=='month'?'<div class="saved-brief-period">'+escapeHtml(stored.label)+'</div>':''}${displayValue ? escapeHtml(contactReportNoteDisplay(displayValue)) : '<span style="color:var(--text-dim);">저장된 정리 내용 없음</span>'}</div>
+            ${guestMode ? '' : `<textarea class="report-site-note-textarea" style="display:none;" data-site-id="${sid}" data-office="${escapeHtml(r.office||'')}" data-saved="${escapeHtml(saved||'')}" rows="2" placeholder="이 현장 특이사항을 입력하세요">${escapeHtml(saved||'')}</textarea><div class="visit-note-controls no-print" style="display:none"><button type="button" class="btn visit-note-save">저장</button><button type="button" class="btn visit-note-cancel">취소</button><small role="status"></small></div>`}
           </div>`;
         }).join('')}
       </div>
@@ -21156,6 +21166,11 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
       });
     });
 
+    body.querySelectorAll('.report-site-note-saved-btn').forEach(btn=>btn.onclick=()=>{
+      const row=rows.find(r=>r.id===btn.dataset.savedTarget);if(!row)return;
+      const monthRange=getMonthRange(reportBaseDate),stored=savedReportBrief(row,monthRange,'month');
+      uxModal(row.site+' · 월간정리','<div class="saved-monthly-brief-text">'+escapeHtml(contactReportNoteDisplay(stored.text)||'선택한 달에 저장된 월간정리가 없습니다.')+'</div>');
+    });
     function makeVisitDraft(sid){
       const row=filteredRows.find(r=>r.id===sid)||rows.find(r=>r.id===sid);
       if(!row)return false;
@@ -22886,7 +22901,7 @@ ead><body>
 
   function smIssueLogs(site,range){
     const effective=siteMgmtPeriod==='all'?smMonthRangeForCurrent():range;
-    return(site.logs||[]).filter(l=>!isTourBookingLog(l)&&smInRangeDate(String(l.date||''),effective)&&String(l.text||'').trim()).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+    return miReportLogs(site).filter(l=>!isTourBookingLog(l)&&smInRangeDate(String(l.date||''),effective)&&String(l.text||'').trim()).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
   }
   function smLogTextForPerson(site,date,name){
     const k=smCore(name);
@@ -23285,6 +23300,12 @@ ead><body>
   }
 
   function smIssuesSection(site,range){
+    const effective=siteMgmtPeriod==='all'?smMonthRangeForCurrent():range;
+    const stored=savedReportBrief(site,effective,siteMgmtPeriod);
+    if(stored.found){
+      const text=contactReportNoteDisplay(stored.text);
+      return `<div class="pdf-section pdf-issues-card"><div class="pdf-section-title"><span class="section-heading-text">⑤ 특이사항</span></div><div class="saved-brief-period">${escapeHtml(stored.label)}</div><div class="pdf-issues saved-monthly-brief-text">${escapeHtml(text||'저장된 정리 내용 없음')}</div></div>`;
+    }
     const logs=smIssueLogs(site,range);
     const body=logs.length?logs.slice(0,8).map(l=>`<div class="pdf-issue"><span class="pdf-issue-date">${escapeHtml(l.date||'')}</span><b>${escapeHtml(l.contactName||l.owner||'')}</b>${l.author?' · '+escapeHtml(smManagerKey(l.author)):''}<br>${escapeHtml(l.text||'')}</div>`).join(''):'<div class="pdf-empty">특이사항 없음</div>';
     return`<div class="pdf-section pdf-issues-card"><div class="pdf-section-title"><span class="section-heading-text">⑤ 특이사항</span></div><div class="pdf-issues">${body}</div></div>`;
@@ -38502,5 +38523,22 @@ body.ux383 .ux-search-modal .ux-search-results .menu-item-btn{width:100%!importa
     background:transparent;color:inherit;font:inherit;letter-spacing:inherit;
     box-shadow:none;cursor:pointer;
   }
+}
+</style>
+
+<style id="mobile-report-period-shared-brief-20261009">
+.saved-monthly-brief-text{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7;font-size:13px;color:var(--text-main)}
+.saved-brief-period{font-size:11px;color:var(--text-dim);margin:6px 0 10px}
+.report-site-note-saved-btn{border:0;background:transparent;color:var(--text-dim);padding:3px 6px;font:inherit;font-size:11px;cursor:pointer}
+@media screen and (max-width:820px){
+ body.ux383 #contactReportModalBox > .v20-report-head{grid-template-columns:80px minmax(0,1fr)!important;column-gap:6px!important;row-gap:7px!important}
+ body.ux383 #contactReportModalBox > .v20-report-head > #contactReportTitle{grid-column:1 / -1!important;grid-row:1!important;padding-right:85px!important}
+ body.ux383 #contactReportModalBox .v20-report-actions{grid-column:1 / -1!important;grid-row:1!important;justify-self:end!important}
+ body.ux383 #contactReportModalBox #reportPeriodToggleWrap{grid-column:1!important;grid-row:2!important;justify-content:flex-start!important;gap:4px!important;width:80px!important;min-width:0!important}
+ body.ux383 #contactReportModalBox #reportDateNavWrap{grid-column:2!important;grid-row:2!important;grid-template-columns:24px minmax(0,1fr) 24px!important;gap:3px!important;width:100%!important;min-width:0!important}
+ body.ux383 #contactReportModalBox :is(#reportPrevBtn,#reportNextBtn){width:24px!important;min-width:24px!important;height:30px!important;min-height:30px!important;font-size:12px!important}
+ body.ux383 #contactReportModalBox #reportRangeLabel{font-size:11px!important;min-width:0!important;line-height:1.3!important;letter-spacing:-.3px!important}
+ body.ux383 #globalStatsBody .pdf-issues-card{height:auto!important;min-height:0!important;max-height:none!important}
+ body.ux383 #globalStatsBody .pdf-issues{height:auto!important;min-height:0!important;max-height:none!important;overflow:visible!important}
 }
 </style>
