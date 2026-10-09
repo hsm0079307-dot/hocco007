@@ -19566,9 +19566,22 @@ function bfQuality(item,range){
  const latest=refs.map(r=>new Date((r.date||'')+'T12:00:00')).filter(d=>!isNaN(d)).sort((a,b)=>b-a)[0];const end=new Date(range.end+'T12:00:00');
  if(latest&&!isNaN(end)&&Math.abs((end-latest)/86400000)<=7)badges.push('최근 보고');return badges;
 }
-function buildSiteReportBrief(site){
- const range=bfRange(),data=bfData(site),override=bfOverride(site),esc=escapeHtml,snapshot=bfSnapshot(data),periodLabel=bfPeriodDisplay(range);
- return `<section class="report-brief bf-brief"><header class="bf-head"><div class="bf-headline">${overviewSectionIcon('brief')}<strong>${bfView.mode==='month'?`${esc(periodLabel)} 월간정리 <span class="bf-ai-done" aria-label="정리 완료">✓</span>`:'주요 내용'}</strong></div><div class="bf-head-tools no-print"><span class="bf-view-label">보기</span><select id="bfMode" aria-label="브리핑 보기 방식">${[['day','일별'],['week','주별'],['month','월별'],['custom','기간 지정']].map(([v,t])=>`<option value="${v}" ${bfView.mode===v?'selected':''}>${t}</option>`).join('')}</select>${bfView.mode==='custom'?`<input id="bfStart" type="date" value="${range.start}" aria-label="시작 날짜"><input id="bfEnd" type="date" value="${range.end}" aria-label="종료 날짜"><button class="btn" data-bf-apply>조회</button>`:`<button class="btn bf-nav-btn" data-bf-step="-1" aria-label="이전 기간">‹</button><button type="button" class="bf-period-display" data-bf-date-picker aria-label="기준 날짜 선택">${esc(periodLabel)}</button><input id="bfDate" class="bf-date-native" type="date" aria-label="브리핑 기준 날짜" value="${bfView.date}"><button class="btn bf-nav-btn" data-bf-step="1" aria-label="다음 기간">›</button>`}${guestMode?'':`<button class="btn bf-edit-btn" data-bf-edit>브리핑 수정</button>`}</div></header><div class="bf-grid">${HoccoBrief.fields.map(([key,title])=>{
+function sharedBriefContext(site,requestedRange,requestedMode){
+ const mode=requestedMode||bfView.mode;
+ const dateKey=v=>v instanceof Date?smDateKey(v):String(v||'').slice(0,10);
+ const range=requestedRange?{start:dateKey(requestedRange.start),end:dateKey(requestedRange.end)}:bfRange();
+ range.key=mode+':'+range.start+':'+range.end;
+ const data=HoccoBrief.generate(miReportLogs(site).filter(l=>!isTourBookingLog(l)),range);
+ const override=site.briefingEdits?.[range.key]||null;
+ return {range,mode,data,override};
+}
+function reportBriefSite(row){
+ return (allOfficesData[row.office]||[]).find(s=>s.id===row.id)||null;
+}
+function buildSiteReportBrief(site,requestedRange,requestedMode){
+ const {range,mode,data,override}=sharedBriefContext(site,requestedRange,requestedMode);
+ const embedded=!!requestedRange,esc=escapeHtml,periodLabel=embedded?(mode==='month'?range.start.slice(0,7):range.start+' ~ '+range.end):bfPeriodDisplay(range);
+ return `<section class="report-brief bf-brief${embedded?' bf-shared-embedded':''}">${embedded?`<div class="shared-brief-period">${esc(periodLabel)}</div>`:`<header class="bf-head"><div class="bf-headline">${overviewSectionIcon('brief')}<strong>${bfView.mode==='month'?`${esc(periodLabel)} 월간정리 <span class="bf-ai-done" aria-label="정리 완료">✓</span>`:'주요 내용'}</strong></div><div class="bf-head-tools no-print"><span class="bf-view-label">보기</span><select id="bfMode" aria-label="브리핑 보기 방식">${[['day','일별'],['week','주별'],['month','월별'],['custom','기간 지정']].map(([v,t])=>`<option value="${v}" ${bfView.mode===v?'selected':''}>${t}</option>`).join('')}</select>${bfView.mode==='custom'?`<input id="bfStart" type="date" value="${range.start}" aria-label="시작 날짜"><input id="bfEnd" type="date" value="${range.end}" aria-label="종료 날짜"><button class="btn" data-bf-apply>조회</button>`:`<button class="btn bf-nav-btn" data-bf-step="-1" aria-label="이전 기간">‹</button><button type="button" class="bf-period-display" data-bf-date-picker aria-label="기준 날짜 선택">${esc(periodLabel)}</button><input id="bfDate" class="bf-date-native" type="date" aria-label="브리핑 기준 날짜" value="${bfView.date}"><button class="btn bf-nav-btn" data-bf-step="1" aria-label="다음 기간">›</button>`}${guestMode?'':`<button class="btn bf-edit-btn" data-bf-edit>브리핑 수정</button>`}</div></header>`}<div class="bf-grid">${HoccoBrief.fields.map(([key,title])=>{
  const manual=override&&Object.prototype.hasOwnProperty.call(override.sections||{},key),rawItems=data.sections[key],items=bfGroupItems(rawItems);
  const itemHtml=item=>{
    const speaker=bfSpeakerLabel(item);
@@ -19588,10 +19601,10 @@ function buildSiteReportBrief(site){
    sourceSeen.add(sig);
    sourceRefs.push({...r,_fallback:item.text||''});
  }));
- const checkButton=(!guestMode&&sourceRefs.length)
+ const checkButton=(!embedded&&!guestMode&&sourceRefs.length)
    ?`<button type="button" class="bf-check-v46 no-print" data-bf-check aria-expanded="false">확인</button>`:'';
- const sourceGroup=(!guestMode&&sourceRefs.length)
-   ?`<div class="bf-source-group-v46" hidden>${sourceRefs.map(r=>`<div class="bf-source"><small>${esc([r.date,r.name,r.author].filter(Boolean).join(' · '))}</small><p>${esc(String(r.text||r._fallback||'').split('excel-report:')[0].replace(/[.\s·|:-]+$/,'').trim())}</p></div>`).join('')}</div>`:'';
+ const sourceGroup=((embedded||!guestMode)&&sourceRefs.length)
+   ?`<${embedded?'details':'div'} class="bf-source-group-v46" ${embedded?'':'hidden'}>${embedded?'<summary>근거 확인</summary>':''}${sourceRefs.map(r=>`<div class="bf-source"><small>${esc([r.date,r.name,r.author].filter(Boolean).join(' · '))}</small><p>${esc(String(r.text||r._fallback||'').split('excel-report:')[0].replace(/[.\s·|:-]+$/,'').trim())}</p></div>`).join('')}</${embedded?'details':'div'}>`:'';
 
  const topItems=items.slice(0,3),extraItems=items.slice(3);
  const sectionLabel={issue:'핵심 이슈',competitor:'경쟁사 활동',executive:'관계자 반응',next:'다음 접촉·후속 업무'}[key]||title;
@@ -19612,11 +19625,11 @@ async function bfSaveField(site,field,baseline,value){
  const wr=await fetch(FIREBASE_DATA_WRITE_URL,{method:'PUT',headers:{'Content-Type':'application/json','if-match':etag},body:JSON.stringify(fresh)});if(wr.status===412)throw Error('저장 중 다른 변경이 발생했습니다. 다시 저장해 주세요.');if(!wr.ok)throw Error('저장하지 못했습니다. 입력 내용은 창에 남아 있습니다.');
  site[field]=value;allOfficesData=fresh.offices;sites=currentOffice===ALL_OFFICE?OFFICES.flatMap(o=>allOfficesData[o]||[]):(allOfficesData[currentOffice]||[]);localDataVersion=fresh.dataVersion;lastSavedStateSnapshot=uxClone(allOfficesData);await mfCacheWrite(STORAGE_KEY,JSON.stringify(allOfficesData));syncState='ok';renderSyncStatus();
 }
-function bfEdit(site){
- const range=bfRange(),data=bfData(site),baseline=uxClone(site.briefingEdits||null),existing=bfOverride(site),manual=new Set(Object.keys(existing?.sections||{}));const host=document.createElement('div'),modal=uxModal('핵심 브리핑 수정 · '+range.start+' ~ '+range.end,host);
+function bfEdit(site,requestedRange,requestedMode){
+ const {range,mode,data,override:existing}=sharedBriefContext(site,requestedRange,requestedMode),baseline=uxClone(site.briefingEdits||null),manual=new Set(Object.keys(existing?.sections||{}));const host=document.createElement('div'),modal=uxModal('핵심 브리핑 수정 · '+range.start+' ~ '+range.end,host);
  host.innerHTML=`<p>변경한 항목만 이 기간에 저장됩니다. 날짜·대상·확인된 변화·후속 계획을 구분해 작성하세요.</p>${HoccoBrief.fields.map(([k,t])=>`<label class="bf-edit-label">${t}<textarea data-bf-field="${k}" rows="6">${escapeHtml(manual.has(k)?existing.sections[k]:bfAutoText(data,k))}</textarea></label><button class="btn" data-bf-reset="${k}">이 항목을 자동 초안으로 되돌리기</button>`).join('')}<p class="bf-save-status" role="status"></p><button class="btn btn-primary" id="bfSave">이 기간에 저장</button>`;
  host.querySelectorAll('textarea').forEach(t=>t.oninput=()=>manual.add(t.dataset.bfField));host.querySelectorAll('[data-bf-reset]').forEach(b=>b.onclick=()=>{const k=b.dataset.bfReset;manual.delete(k);host.querySelector(`[data-bf-field="${k}"]`).value=bfAutoText(data,k)});
- host.querySelector('#bfSave').onclick=async e=>{const b=e.currentTarget,status=host.querySelector('.bf-save-status');b.disabled=true;const value=uxClone(baseline||{}),sections={};manual.forEach(k=>sections[k]=host.querySelector(`[data-bf-field="${k}"]`).value.trim());if(manual.size)value[range.key]={sections,start:range.start,end:range.end,mode:bfView.mode,updatedAt:new Date().toISOString(),author:currentGuest?.name||'관리자'};else delete value[range.key];try{await bfSaveField(site,'briefingEdits',baseline,value);modal.close();renderDetailBody(sites.find(s=>s.id===site.id)||site)}catch(err){status.textContent=err.message;b.disabled=false}};
+ host.querySelector('#bfSave').onclick=async e=>{const b=e.currentTarget,status=host.querySelector('.bf-save-status');b.disabled=true;const value=uxClone(baseline||{}),sections={};manual.forEach(k=>sections[k]=host.querySelector(`[data-bf-field="${k}"]`).value.trim());if(manual.size)value[range.key]={sections,start:range.start,end:range.end,mode,updatedAt:new Date().toISOString(),author:currentGuest?.name||'관리자'};else delete value[range.key];try{await bfSaveField(site,'briefingEdits',baseline,value);modal.close();requestedRange?renderContactReport():renderDetailBody(sites.find(s=>s.id===site.id)||site)}catch(err){status.textContent=err.message;b.disabled=false}};
 }
 function bfRoleRows(site,rows){
  const config=site.roleView;if(!config)return rows;
@@ -20882,16 +20895,16 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
         ${(reportSelectedSiteId && groupRows.some(r=>r.id===reportSelectedSiteId) ? groupRows.filter(r=>r.id===reportSelectedSiteId) : groupRows).map(r=>{
           const periodKey = currentReportPeriodKey();
           const saved = r.reportSpecialNotesByPeriod && r.reportSpecialNotesByPeriod[periodKey] && r.reportSpecialNotesByPeriod[periodKey].trim();
-          const stored = savedReportBrief(r,range,reportMode);
-          const displayValue = stored.text;
+          const canonicalSite=reportBriefSite(r);
+          const displayValue=canonicalSite?buildSiteReportBrief(canonicalSite,range,reportMode):'<p class="bf-empty">현장 자료를 확인할 수 없습니다.</p>';
           const sid = escapeHtml(r.id||'');
           return `<div class="report-site-note-edit">
             <div class="report-site-note-edit-head">
               <b>${escapeHtml(r.site)}</b>
               ${guestMode?'':`<button type="button" class="report-site-note-pencil no-print" data-target="${sid}" title="수정">✏️</button>`}
-              <button type="button" class="report-site-note-saved-btn no-print" data-saved-target="${sid}" title="저장된 월간정리 보기">월간정리</button>
+              <button type="button" class="report-site-note-saved-btn no-print" data-saved-target="${sid}" title="주요 내용과 같은 정리 보기">핵심정리</button>
             </div>
-            <div class="report-site-note-view" data-view-for="${sid}">${stored.label && reportMode!=='month'?'<div class="saved-brief-period">'+escapeHtml(stored.label)+'</div>':''}${displayValue ? escapeHtml(contactReportNoteDisplay(displayValue)) : '<span style="color:var(--text-dim);">저장된 정리 내용 없음</span>'}</div>
+            <div class="report-site-note-view" data-view-for="${sid}">${displayValue}</div>
             ${guestMode ? '' : `<textarea class="report-site-note-textarea" style="display:none;" data-site-id="${sid}" data-office="${escapeHtml(r.office||'')}" data-saved="${escapeHtml(saved||'')}" rows="2" placeholder="이 현장 특이사항을 입력하세요">${escapeHtml(saved||'')}</textarea><div class="visit-note-controls no-print" style="display:none"><button type="button" class="btn visit-note-save">저장</button><button type="button" class="btn visit-note-cancel">취소</button><small role="status"></small></div>`}
           </div>`;
         }).join('')}
@@ -21143,25 +21156,12 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
         });
       });
     }
-    body.querySelectorAll('.report-site-note-pencil').forEach(btn=>{
-      btn.addEventListener('click', ()=>{
-        const sid = btn.dataset.target;
-        const viewEl = body.querySelector(`.report-site-note-view[data-view-for="${CSS.escape(sid)}"]`);
-        const ta = body.querySelector(`.report-site-note-textarea[data-site-id="${CSS.escape(sid)}"]`);
-        if(!ta) return;
-        if(viewEl) viewEl.style.display = 'none';
-        ta.style.display = 'block';
-        ta.style.height = 'auto'; ta.style.height = (ta.scrollHeight) + 'px';
-        ta.closest('.report-site-note-edit').querySelector('.visit-note-controls').style.display='flex';
-        ta.focus();
-        ta.setSelectionRange(ta.value.length, ta.value.length);
-      });
+    body.querySelectorAll('.report-site-note-pencil').forEach(btn=>btn.onclick=()=>{
+      const row=rows.find(r=>r.id===btn.dataset.target),site=row&&reportBriefSite(row);if(site)bfEdit(site,range,reportMode);
     });
-
     body.querySelectorAll('.report-site-note-saved-btn').forEach(btn=>btn.onclick=()=>{
-      const row=rows.find(r=>r.id===btn.dataset.savedTarget);if(!row)return;
-      const monthRange=getMonthRange(reportBaseDate),stored=savedReportBrief(row,monthRange,'month');
-      uxModal(row.site+' · 월간정리','<div class="saved-monthly-brief-text">'+escapeHtml(contactReportNoteDisplay(stored.text)||'선택한 달에 저장된 월간정리가 없습니다.')+'</div>');
+      const row=rows.find(r=>r.id===btn.dataset.savedTarget),site=row&&reportBriefSite(row);if(!site)return;
+      uxModal(row.site+' · 핵심정리',buildSiteReportBrief(site,range,reportMode));
     });
     function makeVisitDraft(sid){
       const row=filteredRows.find(r=>r.id===sid)||rows.find(r=>r.id===sid);
@@ -23293,14 +23293,8 @@ ead><body>
 
   function smIssuesSection(site,range){
     const effective=siteMgmtPeriod==='all'?smMonthRangeForCurrent():range;
-    const stored=savedReportBrief(site,effective,siteMgmtPeriod);
-    if(stored.found){
-      const text=contactReportNoteDisplay(stored.text);
-      return `<div class="pdf-section pdf-issues-card"><div class="pdf-section-title"><span class="section-heading-text">⑤ 특이사항</span></div><div class="saved-brief-period">${escapeHtml(stored.label)}</div><div class="pdf-issues saved-monthly-brief-text">${escapeHtml(text||'저장된 정리 내용 없음')}</div></div>`;
-    }
-    const logs=smIssueLogs(site,range);
-    const body=logs.length?logs.slice(0,8).map(l=>`<div class="pdf-issue"><span class="pdf-issue-date">${escapeHtml(l.date||'')}</span><b>${escapeHtml(l.contactName||l.owner||'')}</b>${l.author?' · '+escapeHtml(smManagerKey(l.author)):''}<br>${escapeHtml(l.text||'')}</div>`).join(''):'<div class="pdf-empty">특이사항 없음</div>';
-    return`<div class="pdf-section pdf-issues-card"><div class="pdf-section-title"><span class="section-heading-text">⑤ 특이사항</span></div><div class="pdf-issues">${body}</div></div>`;
+    const mode=siteMgmtPeriod==='all'?'month':siteMgmtPeriod;
+    return `<div class="pdf-section pdf-issues-card"><div class="pdf-section-title"><span class="section-heading-text">⑤ 특이사항</span></div><div class="pdf-issues shared-brief-issues">${buildSiteReportBrief(site,effective,mode)}</div></div>`;
   }
 
   function smCharts(site,x,events,periodMode,managerRows){
@@ -34310,6 +34304,21 @@ button.report-contact-card{font:inherit;color:var(--text-main);text-align:left;w
 .relationship-interest-source{font-size:11px;line-height:1.6;color:var(--text-dim);overflow-wrap:anywhere}
 .relationship-interest-original{white-space:pre-wrap;font-size:13px;line-height:1.7;margin-top:6px;overflow-wrap:anywhere;color:var(--text-main)}
 @media(max-width:820px){.relationship-interests{padding:12px}.relationship-interest-tags{font-size:12px}.relationship-interest-evidence summary{font-size:14px}.relationship-interest-original{font-size:14px}.relationship-interest-evidence summary span{display:block;margin-left:16px}.relationship-interest-toolbar{font-size:14px}}
+</style>
+<style id="shared-brief-and-info-link-20261009">
+body.ux383 #mobileSiteInfoEditBtn.mobile-site-info-edit{appearance:none!important;-webkit-appearance:none!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;outline:none!important;padding:0!important;margin-left:8px!important;min-width:0!important;min-height:0!important;width:auto!important;height:auto!important;color:inherit!important;font:inherit!important;font-size:inherit!important;line-height:inherit!important;letter-spacing:inherit!important;transform:none!important}
+body.ux383 #mobileSiteInfoEditBtn.mobile-site-info-edit::before,body.ux383 #mobileSiteInfoEditBtn.mobile-site-info-edit::after{display:none!important}
+body.ux383 #mobileSiteInfoEditBtn.mobile-site-info-edit:focus-visible{outline:1px solid var(--accent)!important;outline-offset:3px!important}
+.bf-shared-embedded{margin:0!important;padding:0!important;background:transparent!important;border:0!important;box-shadow:none!important}
+.shared-brief-period{font-size:12px;color:var(--text-dim);margin:0 0 12px}
+.bf-shared-embedded .bf-source-group-v46 summary{cursor:pointer;color:var(--text-dim);font-size:12px}
+.bf-shared-embedded .bf-source-group-v46[open]{display:block}
+.shared-brief-issues{height:auto!important;max-height:none!important;overflow:visible!important}
+.bf-shared-embedded .bf-grid{display:block!important}
+.bf-shared-embedded .bf-section{margin-bottom:18px}
+@media(max-width:820px){.shared-brief-issues .bf-entry-copy,.report-site-note-view .bf-entry-copy{font-size:14px;line-height:1.7}}
+body.ux383 .report-site-note-view:has(.bf-shared-embedded){white-space:normal!important}
+body.ux383 .bf-shared-embedded .bf-manual{white-space:pre-wrap!important}
 </style>
 </body>
 </html>
