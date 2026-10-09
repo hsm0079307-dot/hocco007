@@ -16486,6 +16486,13 @@ function renderDetailPanel(site){
           applyLogFilter(item=>dates.has(item.dataset.logDate)&&(btn.dataset.allManagers==='1'||managers.has(normalize(item.dataset.logAuthor))),btn.dataset.label);
         });
       });
+      body.querySelectorAll('.mgr-interest-toggle').forEach(btn=>btn.addEventListener('click',()=>{
+        const row=document.getElementById(btn.dataset.interestTarget);if(!row)return;
+        const open=btn.getAttribute('aria-expanded')!=='true';
+        btn.setAttribute('aria-expanded',String(open));btn.textContent=open?'▾':'▸';
+        btn.setAttribute('aria-label',(btn.closest('tr').dataset.ownerRow||'')+' 관심사항 '+(open?'접기':'펼치기'));
+        row.hidden=!open;
+      }));
       body.querySelectorAll('.mgr-contact-journal-btn').forEach(btn=>{
         btn.addEventListener('click',()=>{
           const name=btn.dataset.contact;
@@ -16501,8 +16508,10 @@ function renderDetailPanel(site){
           // data-owner-row엔 순수 이름만 들어있어서(예: "백정순"), "선일부동산"처럼 이름 옆 괄호 안에만
           // 적힌 회사명/직책으로 검색하면 아무 것도 안 걸리는 문제가 있었다. 화면에 보이는 행 전체 텍스트
           // (이름+직책+담당 등)를 기준으로 찾도록 바꿔서, 중간에 있는 값으로 검색해도 잡히게 한다.
-          const text = (row.textContent||'').toLowerCase();
-          row.style.display = (!q || text.includes(q)) ? '' : 'none';
+          const detail=row.nextElementSibling;
+          const text=((row.textContent||'')+(detail?.classList.contains('mgr-interest-row')?detail.textContent:'')).toLowerCase();
+          const match=!q||text.includes(q);row.style.display=match?'':'none';
+          if(detail?.classList.contains('mgr-interest-row'))detail.hidden=!match||row.querySelector('.mgr-interest-toggle')?.getAttribute('aria-expanded')!=='true';
         });
       });
       const mgrMergeBar = document.getElementById('mgrMergeBar');
@@ -19423,9 +19432,11 @@ function renderDetailPanel(site){
       return `<div class="mgr-owner-search-row no-print"><input type="text" id="mgrOwnerSearchInput" placeholder="🔍 이름 · 담당 · 동호수 검색"></div>
       <div style="overflow-x:auto;"><table class="mgr-breakdown-table mgr-owner-table" id="mgrOwnerTable" style="min-width:660px;">
         <thead><tr><th style="text-align:left;">접촉자</th><th>담당</th><th>동호수</th><th>접촉일수</th><th>건수</th><th>최근접촉</th><th>방법</th></tr></thead>
-        <tbody>${rows.map(r=>{
+        <tbody>${rows.map((r,interestIndex)=>{
           const meth=['상담','단순','TM'].map(m=>r.methods[m]?`${m==='상담'?'상':m==='단순'?'단':'TM'}${r.methods[m]}`:'').filter(Boolean).join(' ');
-          return `<tr data-owner-row="${escapeHtml(r.name)}"><td style="text-align:left;font-weight:700;"><button type="button" class="mgr-contact-journal-btn" data-person="${escapeHtml(r.personKey)}" data-contact="${escapeHtml(r.name)}" style="border:0;background:transparent;padding:0;color:var(--accent);font:inherit;text-decoration:underline;text-underline-offset:3px;cursor:pointer;">${escapeHtml(r.name)}</button>${r.role?` <span style="color:var(--text-dim);font-size:8px;">(${escapeHtml(r.role)})</span>`:''}${relationshipInterestTags(r.interestLogs)}</td><td>${escapeHtml(r.manager||'-')}</td><td>${escapeHtml(r.unit||'-')}</td><td>${r.dates.size}</td><td>${r.count}</td><td>${escapeHtml(r.last||'-')}</td><td>${escapeHtml(meth||'-')}</td></tr>`;
+          const interestId='owner-interest-'+encodeURIComponent(String(site.id))+'-'+interestIndex;
+          const topics=relationshipInterestTags(r.interestLogs);
+          return `<tr data-owner-row="${escapeHtml(r.name)}"><td style="text-align:left;font-weight:700;"><button type="button" class="mgr-contact-journal-btn" data-person="${escapeHtml(r.personKey)}" data-contact="${escapeHtml(r.name)}" style="border:0;background:transparent;padding:0;color:var(--accent);font:inherit;text-decoration:underline;text-underline-offset:3px;cursor:pointer;">${escapeHtml(r.name)}</button>${r.role?` <span style="color:var(--text-dim);font-size:8px;">(${escapeHtml(r.role)})</span>`:''} <button type="button" class="mgr-interest-toggle" aria-label="${escapeHtml(r.name)} 관심사항 펼치기" aria-expanded="false" aria-controls="${interestId}" data-interest-target="${interestId}">▸</button></td><td>${escapeHtml(r.manager||'-')}</td><td>${escapeHtml(r.unit||'-')}</td><td>${r.dates.size}</td><td>${r.count}</td><td>${escapeHtml(r.last||'-')}</td><td>${escapeHtml(meth||'-')}</td></tr><tr id="${interestId}" class="mgr-interest-row" hidden><td colspan="7"><div class="mgr-interest-content"><div class="mgr-interest-title">${escapeHtml(r.name)} · 관심사항</div>${topics||'<div class="relationship-interest-caption">분류할 상담 내용이 없습니다.</div>'}<details class="mgr-interest-sources"><summary>상담 근거 보기</summary>${relationshipInterestMarkup(r.interestLogs)}</details></div></td></tr>`;
         }).join('')}</tbody>
       </table></div>`;
     }
@@ -20168,14 +20179,23 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
 
   // 관계자 관심사: 상담 원문을 주제별로 모으되 개인 선호나 발언자를 추정하지 않는다.
   const relationshipInterestTopics = [
-    {name:'이주비·금리', re:/이주비|추가.?이주비|대출|이자율|금리/},
-    {name:'분담금·환급금', re:/분담금|환급금|청산금/},
-    {name:'공사비·사업조건', re:/공사비|사업비|입찰보증금|물가상승|책임준공|공사중단/},
-    {name:'브랜드·시공사', re:/브랜드|시공사|래미안|아크로|오티에르|오띠에르|르엘|힐스테이트|더샵/},
-    {name:'설계·커뮤니티', re:/설계|스카이브릿지|스카이.?브릿지|커뮤니티|평형|평면|주차|조경|고층|천장고/},
-    {name:'품질·안전·AS', re:/하자|안전|화재|부실공사|품질|보수|AS기간|AS 기간|A\/?S|사후관리/},
-    {name:'일정·이주', re:/착공|입주|이주.?시기|이주.?일정|통합심의|시공사.?선정|사업.?일정/},
-    {name:'권리·상가', re:/상가|제척|독립정산|상속|증여|지위.?승계|분양권|세입자.?보상|주거이전비/}
+    {name:'분담금',re:/분담금/},
+    {name:'환급금',re:/환급금|청산금/},
+    {name:'브랜드',re:/브랜드|래미안|아크로|오티에르|오띠에르|르엘|힐스테이트|더샵/},
+    {name:'이주비',re:/이주비|추가.?이주비/},
+    {name:'금리',re:/금리|이자율|대출.?이자/},
+    {name:'공사비',re:/공사비|사업비|물가상승/},
+    {name:'사업조건',re:/입찰보증금|책임준공|공사중단/},
+    {name:'시공사',re:/시공사/},
+    {name:'설계',re:/설계|스카이브릿지|스카이.?브릿지|평형|평면|주차|조경|고층|천장고/},
+    {name:'커뮤니티',re:/커뮤니티/},
+    {name:'품질',re:/하자|품질|부실공사/},
+    {name:'안전',re:/안전|화재/},
+    {name:'AS',re:/보수|AS기간|AS 기간|A\/?S|사후관리/},
+    {name:'일정',re:/착공|입주|통합심의|시공사.?선정|사업.?일정/},
+    {name:'이주',re:/이주.?시기|이주.?일정|이주.?지역|이주.?대책/},
+    {name:'권리',re:/상속|증여|지위.?승계|분양권|세입자.?보상|주거이전비/},
+    {name:'상가',re:/상가|제척|독립정산/}
   ];
   function relationshipInterests(logs){
     const seen=new Set();
@@ -38559,4 +38579,16 @@ body.ux383 .ux-search-modal .ux-search-results .menu-item-btn{width:100%!importa
  body.ux383 #globalStatsBody .pdf-issues-card{height:auto!important;min-height:0!important;max-height:none!important}
  body.ux383 #globalStatsBody .pdf-issues{height:auto!important;min-height:0!important;max-height:none!important;overflow:visible!important}
 }
+</style>
+
+<style id="owner-interest-fold-20261009">
+body.ux383 #mgrOwnerTable .mgr-interest-toggle{appearance:none!important;background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;color:var(--accent)!important;font:inherit!important;padding:2px 4px!important;min-width:20px!important;min-height:24px!important;width:auto!important;height:auto!important;vertical-align:middle!important;cursor:pointer}
+body.ux383 #mgrOwnerTable .mgr-interest-toggle::before,body.ux383 #mgrOwnerTable .mgr-interest-toggle::after{display:none!important}
+body.ux383 #mgrOwnerTable .mgr-interest-row[hidden]{display:none!important}
+body.ux383 #mgrOwnerTable .mgr-interest-row td{text-align:center!important;padding:12px!important}
+.mgr-interest-title{text-align:center;font-weight:700;color:var(--accent);margin-bottom:8px}
+body.ux383 .mgr-interest-content .relationship-interest-tags{justify-content:center!important;align-items:center!important;gap:8px!important;margin:0!important;max-width:100%!important}
+body.ux383 .mgr-interest-content .relationship-interest-tags span{white-space:nowrap!important;text-align:center!important;word-break:keep-all!important;flex:none!important;background:transparent!important;padding:3px 5px!important;border:0!important;font-size:13px!important}
+.mgr-interest-sources{margin-top:10px;font-weight:400;text-align:left}
+.mgr-interest-sources>summary{cursor:pointer;text-align:center;font-size:12px;color:var(--text-dim)}
 </style>
