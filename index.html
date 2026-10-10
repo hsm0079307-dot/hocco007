@@ -23915,24 +23915,9 @@ function v16Sync(){
  requestAnimationFrame(()=>{v16Detail();v17Refresh()});
 }
 function v16Detail(){
- const body=document.getElementById('detailBody'),site=sites.find(s=>s.id===currentDetailId);
- if(!body||!site||detailTab!=='개요'||editMode)return;
- const summary=body.querySelector(':scope > .summary-strip');
- let recent=body.querySelector('#v16RecentReports');
- if(!recent){
-  recent=document.createElement('section');recent.id='v16RecentReports';
-  recent.innerHTML='<div class="v16-section-head"><h3>최근 보고</h3><button type="button">전체 보고서</button></div><div class="v16-recent-content"></div>';
-  recent.querySelector('button').addEventListener('click',()=>{detailTab='일지';renderDetailPanel(site)});
- }
- const content=recent.querySelector('.v16-recent-content');
- const logs=miReportLogs(site).filter(l=>!isTourBookingLog(l)).slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))).slice(0,3);
- const recordsKey=JSON.stringify([site.id,logs.map(l=>[l.id,l.date,l.author,l.contactName,l.text])]);
- if(recent.__recordsKey!==recordsKey){
- recent.__recordsKey=recordsKey;content.replaceChildren();
- if(!logs.length){const p=document.createElement('p');p.textContent='불러온 보고 원문이 없습니다. 전체 보고서에서 확인해 주세요.';content.append(p)}
- logs.forEach(l=>{const d=document.createElement('details'),h=document.createElement('summary'),p=document.createElement('p');h.textContent=[l.date||'날짜 미입력',l.author||'담당 미지정',l.contactName||''].filter(Boolean).join(' · ');p.textContent=l.text||'내용 미기재';d.append(h,p);content.append(d)});
- }
- if(summary){body.prepend(summary);summary.after(recent)}else body.prepend(recent);
+ const body=document.getElementById('detailBody');
+ if(!body)return;
+ body.querySelector('#v16RecentReports')?.remove();
 }
 
 var v17Position=null,v17ToastTimer=null,v17Loading=0;
@@ -24496,8 +24481,7 @@ function uiComparisonLogs(logs){
 }
 function uiReportComparisonMarkup(logs){
  const pair=uiComparisonLogs(logs);if(pair.length<2)return '';
- const sameDay=pair[0].date===pair[1].date&&!(pair[0].createdAt&&pair[1].createdAt);
- return `<details class="ui-report-comparison"><summary>최근 · 이전 보고 비교</summary><div class="ui-compare-columns">${pair.map((l,i)=>`<article><header><strong>${sameDay?'같은 날 보고 '+(i+1):i===0?'최근 보고':'이전 보고'}</strong><time>${escapeHtml(l.date||'날짜 미기재')}</time></header><small>${escapeHtml(l.contactName||'')} · 담당 ${escapeHtml(l.author||'미기재')}${l.unit?' · '+escapeHtml(l.unit):''}</small><p>${escapeHtml(l.text)}</p>${/^R[\da-z]+$/i.test(l.id||'')?`<small>${escapeHtml(l.id)}</small>`:''}</article>`).join('')}</div></details>`;
+ return `<div class="ui-report-comparison"><div class="ui-compare-columns">${pair.map(l=>`<article><header><time><strong>${escapeHtml(l.date||'날짜 미기재')}</strong></time></header><small>${escapeHtml(l.contactName||'')} · 담당 ${escapeHtml(l.author||'미기재')}${l.unit?' · '+escapeHtml(l.unit):''}</small><p>${escapeHtml(l.text)}</p>${/^R[\da-z]+$/i.test(l.id||'')?`<small>${escapeHtml(l.id)}</small>`:''}</article>`).join('')}</div></div>`;
 }
 function uiOpenComparison(site,person,name,unit){
  const logs=miReportLogs(site).filter(l=>person?String(l.personId||'')===String(person):!!unit&&l.contactName===name&&l.unit===unit);
