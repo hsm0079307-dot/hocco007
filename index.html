@@ -15034,8 +15034,8 @@ function renderDetailPanel(site){
       if(reportOpenSiteStatsBtn) reportOpenSiteStatsBtn.addEventListener('click', ()=>{
         siteMgmtOffice = site.office || currentOffice || '__ALL__';
         siteMgmtSiteId = String(site.id||'');
-        siteMgmtPeriod = 'month';
-        siteMgmtDate = new Date();
+        siteMgmtPeriod = uxPrefs.selectedPeriod?.mode||'month';
+        siteMgmtDate = new Date((uxPrefs.selectedPeriod?.date||smDateKey(new Date()))+'T12:00:00');
         const of=document.getElementById('globalStatsOfficeFilter');
         if(of)of.value=siteMgmtOffice;
         smFillSiteSelect();
@@ -15771,7 +15771,6 @@ function renderDetailPanel(site){
         box.querySelectorAll('.cstat-period-btn').forEach(btn=>{
           btn.addEventListener('click', ()=>{
             cstatPeriod = btn.dataset.period;
-            cstatNavDate = new Date();
             renderContactStatsReport();
           });
         });
@@ -19497,7 +19496,7 @@ function renderDetailPanel(site){
         <thead><tr><th style="text-align:center;">접촉자</th><th>담당</th><th>동호수</th><th>접촉일수</th><th>건수</th><th>최근접촉</th><th>방법</th></tr></thead>
         <tbody>${rows.map((r,interestIndex)=>{
           const meth=['상담','단순','TM'].map(m=>r.methods[m]?`${m==='상담'?'상':m==='단순'?'단':'TM'}${r.methods[m]}`:'').filter(Boolean).join('·');
-          const interestId='owner-interest-'+encodeURIComponent(String(site.id))+'-'+interestIndex;
+          const interestId='owner-interest-'+encodeURIComponent(String(site.id))+'-'+encodeURIComponent(String(r.personKey));
           const topics=ownerInterestPanel(r.interestLogs,interestId);
           const shortName=r.name.split(/[\[（(]/)[0].trim()||r.name;
           const embeddedRole=r.role&&r.name.includes(r.role);
@@ -19793,7 +19792,7 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
     const logicalSiteKey=String(site&&site.id||'')+'|'+smSiteLogicalKey(site&&site.name);
     if(mgrBreakdownLastSiteKey!==logicalSiteKey){
       mgrBreakdownLastSiteKey=logicalSiteKey;
-      mgrBreakdownNavDate=new Date();
+      // Keep the selected month when moving between sites.
       mgrBreakdownManagerFilter=null;
     }
     const excelMaster=(site&&site.excelStats&&site.excelStats.source==='excel-master')?site.excelStats:null;
@@ -20339,7 +20338,7 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
   }
   function relationshipInterestMarkup(logs){
     const items=relationshipInterests(logs);
-    return `<section class="relationship-interests"><b>관계자 관심사</b><p class="relationship-interest-caption">본인 질문·의견 / 설명·전언 구분</p>${items.length?items.map(t=>`<details class="relationship-interest-evidence"><summary>${escapeHtml(t.name)} <span>${t.logs.length}건 · 최근 ${escapeHtml(t.logs[0].date||'날짜 미기재')}</span></summary>${t.logs.map(l=>`<article><div class="relationship-interest-source">${escapeHtml(l.date||'날짜 미기재')} · 접촉자 ${escapeHtml(l.contactName||'-')} · 담당 ${escapeHtml(l.author||'미기재')}${l.unit?' · '+escapeHtml(l.unit):''}${l.id&&!/^excel-report:/.test(l.id)?' · 보고 '+escapeHtml(l.id):''}</div><div class="relationship-interest-original">${relationshipEvidenceMarkup(l)}</div></article>`).join('')}</details>`).join(''):'<p class="relationship-interest-caption">분류할 상담 내용이 없습니다. 관심사가 없다는 뜻은 아닙니다.</p>'}</section>`;
+    return `${uiReportComparisonMarkup(logs)}<section class="relationship-interests"><b>관계자 관심사</b><p class="relationship-interest-caption">본인 질문·의견 / 설명·전언 구분</p>${items.length?items.map(t=>`<details class="relationship-interest-evidence"><summary>${escapeHtml(t.name)} <span>${t.logs.length}건 · 최근 ${escapeHtml(t.logs[0].date||'날짜 미기재')}</span></summary>${t.logs.map(l=>`<article><div class="relationship-interest-source">${escapeHtml(l.date||'날짜 미기재')} · 접촉자 ${escapeHtml(l.contactName||'-')} · 담당 ${escapeHtml(l.author||'미기재')}${l.unit?' · '+escapeHtml(l.unit):''}${l.id&&!/^excel-report:/.test(l.id)?' · 보고 '+escapeHtml(l.id):''}</div><div class="relationship-interest-original">${relationshipEvidenceMarkup(l)}</div></article>`).join('')}</details>`).join(''):'<p class="relationship-interest-caption">분류할 상담 내용이 없습니다. 관심사가 없다는 뜻은 아닙니다.</p>'}</section>`;
   }
   let expandedContactSites = new Set();
   let relationshipInterestFilter = '';
@@ -21470,7 +21469,7 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
     reportDayFilter = null;
     reportSelectedSiteId = null;
     reportSelectedDayKey = null;
-    uxPrefs.period=uxPeriodToRestore;uxRestorePeriods();
+    uxPrefs.period=uxPeriodToRestore;uxRestorePeriods();uiApplySelectedPeriod();
     document.getElementById('contactReportOverlay').classList.add('show');
     document.getElementById('contactReportBody').innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-dim);">최신 데이터 확인 중...</div>';
     await refreshAllOfficesDataForReport();
@@ -23563,7 +23562,7 @@ ead><body>
     siteMgmtOffice=(currentOffice&&currentOffice!==ALL_OFFICE)?currentOffice:'__ALL__';
     const o=document.getElementById('globalStatsOfficeFilter');if(o)o.value=siteMgmtOffice;
     if(currentDetailId)siteMgmtSiteId=String(currentDetailId);
-    smFillSiteSelect();uxRestorePeriods();siteMgmtDate=new Date();renderGlobalStats();
+    smFillSiteSelect();uxRestorePeriods();uiApplySelectedPeriod();renderGlobalStats();
     document.getElementById('globalStatsOverlay').classList.add('show');
     const p=smSelected();if(p&&p.site)refreshLogsForSiteIfNeeded(p.site,true);
     setTimeout(()=>{try{renderGlobalStats();}catch(e){}},700);
@@ -23571,7 +23570,7 @@ ead><body>
   window.openGlobalStats=openGlobalStats;
   const smOffice=document.getElementById('globalStatsOfficeFilter');if(smOffice)smOffice.addEventListener('change',()=>{siteMgmtOffice=smOffice.value;siteMgmtSiteId='';smFillSiteSelect();renderGlobalStats();const p=smSelected();if(p&&p.site)refreshLogsForSiteIfNeeded(p.site,true);setTimeout(renderGlobalStats,700);});
   const smSite=document.getElementById('siteMgmtSiteSelect');if(smSite)smSite.addEventListener('change',()=>{siteMgmtSiteId=smSite.value;renderGlobalStats();const p=smSelected();if(p&&p.site)refreshLogsForSiteIfNeeded(p.site,true);setTimeout(renderGlobalStats,700);});
-  [['all','All'],['month','Month'],['week','Week'],['day','Day']].forEach(([m,n])=>{const e=document.getElementById('siteMgmt'+n+'Btn');if(e)e.addEventListener('click',()=>{siteMgmtPeriod=m;if(m==='day')siteMgmtDate=new Date();renderGlobalStats();});});
+  [['all','All'],['month','Month'],['week','Week'],['day','Day']].forEach(([m,n])=>{const e=document.getElementById('siteMgmt'+n+'Btn');if(e)e.addEventListener('click',()=>{siteMgmtPeriod=m;renderGlobalStats();});});
   const smPrev=document.getElementById('siteMgmtPrevBtn');if(smPrev)smPrev.addEventListener('click',()=>{if(siteMgmtPeriod==='day')siteMgmtDate=new Date(siteMgmtDate.getFullYear(),siteMgmtDate.getMonth(),siteMgmtDate.getDate()-1);else if(siteMgmtPeriod==='week')siteMgmtDate=new Date(siteMgmtDate.getFullYear(),siteMgmtDate.getMonth(),siteMgmtDate.getDate()-7);else if(siteMgmtPeriod==='month')siteMgmtDate=new Date(siteMgmtDate.getFullYear(),siteMgmtDate.getMonth()-1,1);renderGlobalStats();});
   const smNext=document.getElementById('siteMgmtNextBtn');if(smNext)smNext.addEventListener('click',()=>{if(siteMgmtPeriod==='day')siteMgmtDate=new Date(siteMgmtDate.getFullYear(),siteMgmtDate.getMonth(),siteMgmtDate.getDate()+1);else if(siteMgmtPeriod==='week')siteMgmtDate=new Date(siteMgmtDate.getFullYear(),siteMgmtDate.getMonth(),siteMgmtDate.getDate()+7);else if(siteMgmtPeriod==='month')siteMgmtDate=new Date(siteMgmtDate.getFullYear(),siteMgmtDate.getMonth()+1,1);renderGlobalStats();});
   const smRefresh=document.getElementById('globalStatsRefreshBtn');if(smRefresh)smRefresh.addEventListener('click',()=>{const p=smSelected();if(p&&p.site)refreshLogsForSiteIfNeeded(p.site,true);setTimeout(renderGlobalStats,700);});
@@ -23646,6 +23645,7 @@ function uxModal(title,body){
 function uxSetMap(hidden){document.body.classList.toggle('ux-map-hidden',hidden);uxPrefs.mapHidden=hidden;uxStore();const b=uxById('uxMapToggle');if(b){b.textContent=hidden?'지도 보기':'지도 접기';b.setAttribute('aria-expanded',String(!hidden))}setTimeout(()=>{try{map?.invalidateSize({pan:false,animate:false})}catch(e){}},50)}
 function uxOpenSite(id){
  const s=sites.find(s=>s.id===id);if(!s)return;
+ v17Remember();uiCaptureBrowse(document.getElementById('detailBody'));uiApplySelectedPeriod();
  // A quick link may be outside active filters: clear only filters obstructing this selection.
  if(!filteredSites().some(x=>x.id===id)){selectedStage='전체';selectedDistrict=null;selectedManagers.clear();selectedNameIds.clear();searchText='';quickFilter='all';uxFavoriteOnly=false;const input=uxById('searchInput');if(input)input.value=''}
  currentDetailId=id;currentView='detail';detailTab='개요';editMode=false;
@@ -23938,12 +23938,13 @@ var v17Position=null,v17ToastTimer=null,v17Loading=0;
 function v17Remember(){
  if(window.innerWidth>820||document.body.classList.contains('ux-mobile-detail'))return;
  const list=document.getElementById('masterList');
- v17Position={office:currentOffice,list:list?list.scrollTop:0,page:window.scrollY,mode:v16State.mode,collapsed:v16State.collapsed};
+ v17Position={office:currentOffice,list:list?list.scrollTop:0,page:window.scrollY,mode:v16State.mode,collapsed:v16State.collapsed,selectedId:currentDetailId,filters:{search:searchText,stage:selectedStage,district:selectedDistrict,managers:[...selectedManagers],names:[...selectedNameIds],quick:quickFilter,favorites:uxFavoriteOnly,sort:listSort}};
 }
 function v17Back(){
+ uiCaptureBrowse(document.getElementById('detailBody'));const root=document.getElementById('detailBody');if(root)root.__uiSuspended=true;
  const p=v17Position&&v17Position.office===currentOffice?v17Position:null;
  v16SetMode(p?p.mode:'both');
- if(p){v16State.collapsed=p.collapsed;v16Sync();}
+ if(p){v16State.collapsed=p.collapsed;if(p.filters){searchText=p.filters.search;selectedStage=p.filters.stage;selectedDistrict=p.filters.district;selectedManagers=new Set(p.filters.managers);selectedNameIds=new Set(p.filters.names);quickFilter=p.filters.quick;uxFavoriteOnly=p.filters.favorites;listSort=p.filters.sort;const input=document.getElementById('searchInput');if(input)input.value=searchText;renderAll();}v16Sync();}
  requestAnimationFrame(()=>{const list=document.getElementById('masterList');if(list&&p){list.scrollTop=p.list;savedListScroll=p.list}window.scrollTo({top:p?p.page:0,behavior:'instant'});});
 }
 function v17Toast(message,error){
@@ -24427,6 +24428,136 @@ function miExcelReportCard(l){
  </div>
  </div>`;
 }
+
+
+// Browsing state is local to the current account, office, site, tab and period.
+const uiBrowseMemory=new Map();
+const uiSiteViews=new Map();
+let uiBrowseRestoring=false,uiBrowseFrame=0;
+function uiLocalDate(date){return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;}
+function uiApplySelectedPeriod(){
+ const p=uxPrefs.selectedPeriod;if(!p||!/^\d{4}-\d{2}-\d{2}$/.test(p.date))return;
+ const d=new Date(p.date+'T12:00:00');if(isNaN(d)||uiLocalDate(d)!==p.date)return;
+ if(p.mode==='custom'){bfView={...bfView,mode:'custom',date:p.date,start:p.start,end:p.end};return;}
+ calYear=d.getFullYear();calMonth=d.getMonth();
+ mgrBreakdownNavDate=new Date(d);cstatNavDate=new Date(d);siteMgmtDate=new Date(d);reportBaseDate=new Date(d);reportSummaryDate=new Date(d);
+ if(['day','week','month'].includes(p.mode)){bfView.mode=p.mode;bfView.date=p.date;cstatPeriod=p.mode;siteMgmtPeriod=p.mode;reportSummaryMode=p.mode;if(p.mode!=='day')reportMode=p.mode;}
+}
+function uiRememberPeriod(date,mode){
+ const d=date instanceof Date?date:new Date(String(date)+'T12:00:00');if(isNaN(d))return;
+ uxPrefs.selectedPeriod={date:uiLocalDate(d),mode:['day','week','month'].includes(mode)?mode:'month'};
+ uiApplySelectedPeriod();uxSaveFilters();
+}
+function uiViewKey(root){
+ const base=[uxAccountKey(),currentOffice,root.id];
+ if(root.id==='detailBody')base.push(currentDetailId,detailTab,mgrBreakdownSubTab,mgrOwnerSubView,uiLocalDate(mgrBreakdownNavDate),bfView.mode,bfView.date);
+ else if(root.id==='contactReportBody')base.push(reportViewTab,reportSelectedSiteId,reportMode,uiLocalDate(reportBaseDate),reportSummaryMode,uiLocalDate(reportSummaryDate));
+ else if(root.id==='globalStatsBody')base.push(siteMgmtSiteId,siteMgmtPeriod,uiLocalDate(siteMgmtDate));
+ else if(root.id==='calendarView')base.push(calYear,calMonth);
+ return JSON.stringify(base);
+}
+function uiDetailsKey(el,index){return el.id||JSON.stringify([el.closest('[data-log-id]')?.dataset.logId||el.closest('[data-owner-row]')?.dataset.ownerRow||'',el.className,el.querySelector(':scope > summary')?.textContent.trim(),index]);}
+function uiCaptureBrowse(root){
+ if(!root||uiBrowseRestoring||root.__uiSuspended||!root.__uiBrowseKey)return;
+ const detailOpen=[...root.querySelectorAll('details')].map((el,i)=>[uiDetailsKey(el,i),el.open]);
+ const toggles=[...root.querySelectorAll('.mgr-interest-toggle,[data-owner-interest-topic]')].map(el=>[el.getAttribute('aria-controls'),el.getAttribute('aria-expanded')==='true']);
+ const searches=[...root.querySelectorAll('#mgrOwnerSearchInput,#reportSearchInput')].map(el=>[el.id,el.value]);
+ const scrolls=[root,...root.querySelectorAll('[id]')].filter(el=>el.scrollHeight>el.clientHeight+1&&el.clientHeight>0).map(el=>[el.id,el.scrollTop,el.scrollLeft]);
+ const parent=root.closest('#masterPanel,#contactReportModalBox,#globalStatsModalBox');if(parent?.id&&parent!==root)scrolls.push([parent.id,parent.scrollTop,parent.scrollLeft]);
+ uiBrowseMemory.set(root.__uiBrowseKey,{detailOpen,toggles,searches,scrolls,page:window.scrollY});
+ if(uiBrowseMemory.size>100)uiBrowseMemory.delete(uiBrowseMemory.keys().next().value);
+}
+function uiRestoreBrowse(root){
+ if(!root)return;const key=uiViewKey(root);if(root.id==='detailBody')uiSiteViews.set(JSON.stringify([uxAccountKey(),currentOffice,currentDetailId]),{tab:detailTab,subtab:mgrBreakdownSubTab,ownerView:mgrOwnerSubView,manager:mgrBreakdownManagerFilter});root.__uiBrowseKey=key;root.__uiSuspended=root.id==='detailBody'&&window.innerWidth<=820&&!document.body.classList.contains('ux-mobile-detail');if(root.__uiSuspended)return;const saved=uiBrowseMemory.get(key);
+ const token=(root.__uiRestoreToken||0)+1;root.__uiRestoreToken=token;
+ requestAnimationFrame(()=>requestAnimationFrame(()=>{
+  if(!root.isConnected||root.__uiRestoreToken!==token||root.__uiBrowseKey!==key)return;
+  uiBrowseRestoring=true;
+  try{
+   if(saved){
+    const opened=new Map(saved.detailOpen);root.querySelectorAll('details').forEach((el,i)=>{const k=uiDetailsKey(el,i);if(opened.has(k))el.open=opened.get(k)});
+    const toggles=new Map(saved.toggles);root.querySelectorAll('.mgr-interest-toggle,[data-owner-interest-topic]').forEach(el=>{const id=el.getAttribute('aria-controls');if(!toggles.has(id))return;const open=toggles.get(id);el.setAttribute('aria-expanded',String(open));const panel=root.querySelector('#'+CSS.escape(id));if(panel)panel.hidden=!open;if(el.classList.contains('mgr-interest-toggle'))el.textContent=open?'▾':'▸';else el.classList.toggle('active',open)});
+    for(const [id,value]of saved.searches){const input=root.querySelector('#'+CSS.escape(id));if(input&&input.value!==value){input.value=value;input.dispatchEvent(new Event('input',{bubbles:true}))}}
+    for(const [id,top,left]of saved.scrolls){const el=document.getElementById(id);if(el){el.scrollTop=top;el.scrollLeft=left}}
+    if(root.id==='detailBody'&&(window.innerWidth>820||document.body.classList.contains('ux-mobile-detail'))&&!document.querySelector('.ux-overlay'))window.scrollTo({top:saved.page,behavior:'instant'});
+   }
+   uiDecorateBrowsing();
+  }finally{uiBrowseRestoring=false}
+ }));
+}
+function uiComparisonLogs(logs){
+ const seen=new Set();const sorted=(logs||[]).filter(l=>String(l.text||'').trim()&&!isTourBookingLog(l)).slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+ const first=sorted[0];if(!first)return [];
+ // A person ID is authoritative; otherwise require both exact name and unit.
+ const same=l=>first.personId?String(l.personId||'')===String(first.personId):!!first.contactName&&!!first.unit&&l.contactName===first.contactName&&l.unit===first.unit;
+ return sorted.filter(l=>{if(!same(l))return false;const key=JSON.stringify([l.date,l.author,l.contactName,l.unit,l.text]);if(seen.has(key))return false;seen.add(key);return true}).slice(0,2);
+}
+function uiReportComparisonMarkup(logs){
+ const pair=uiComparisonLogs(logs);if(pair.length<2)return '';
+ const sameDay=pair[0].date===pair[1].date&&!(pair[0].createdAt&&pair[1].createdAt);
+ return `<details class="ui-report-comparison"><summary>최근 · 이전 보고 비교</summary><div class="ui-compare-columns">${pair.map((l,i)=>`<article><header><strong>${sameDay?'같은 날 보고 '+(i+1):i===0?'최근 보고':'이전 보고'}</strong><time>${escapeHtml(l.date||'날짜 미기재')}</time></header><small>${escapeHtml(l.contactName||'')} · 담당 ${escapeHtml(l.author||'미기재')}${l.unit?' · '+escapeHtml(l.unit):''}</small><p>${escapeHtml(l.text)}</p>${/^R[\da-z]+$/i.test(l.id||'')?`<small>${escapeHtml(l.id)}</small>`:''}</article>`).join('')}</div></details>`;
+}
+function uiOpenComparison(site,person,name,unit){
+ const logs=miReportLogs(site).filter(l=>person?String(l.personId||'')===String(person):!!unit&&l.contactName===name&&l.unit===unit);
+ const host=document.createElement('div'),modal=uxModal(name+' · 보고 비교',host);host.className='ui-comparison-dialog';
+ const markup=uiReportComparisonMarkup(logs);host.innerHTML=markup||'<p>동일 인물로 확인된 보고가 2건 이상일 때 비교할 수 있습니다.</p>';const fold=host.querySelector('details');if(fold)fold.open=true;
+}
+function uiHighlightText(root,query){
+ if(!root)return;
+ root.querySelectorAll('mark.ui-search-hit').forEach(mark=>{const p=mark.parentNode;mark.replaceWith(document.createTextNode(mark.textContent));p.normalize()});
+ const terms=[...new Set(String(query||'').trim().split(/\s+/).filter(Boolean))].sort((a,b)=>b.length-a.length);if(!terms.length)return;
+ const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);const nodes=[];let node;
+ while(node=walker.nextNode()){if(!node.parentElement?.closest('script,style,textarea,input,select,mark,code,.ui-report-comparison'))nodes.push(node)}
+ for(const n of nodes){const text=n.nodeValue,lower=text.toLocaleLowerCase();let cursor=0,found=false;const fragment=document.createDocumentFragment();
+  while(cursor<text.length){let index=-1,term='';for(const t of terms){const p=lower.indexOf(t.toLocaleLowerCase(),cursor);if(p>=0&&(index<0||p<index)){index=p;term=t}}if(index<0){fragment.append(document.createTextNode(text.slice(cursor)));break}found=true;fragment.append(document.createTextNode(text.slice(cursor,index)));const mark=document.createElement('mark');mark.className='ui-search-hit';mark.textContent=text.slice(index,index+term.length);fragment.append(mark);cursor=index+term.length;}
+  if(found)n.replaceWith(fragment);
+ }
+}
+function uiDecorateBrowsing(){
+ document.querySelectorAll('#masterList .name-item-text,#masterList .name-item-meta').forEach(el=>uiHighlightText(el,searchText));
+ const ownerQuery=document.getElementById('mgrOwnerSearchInput')?.value||'';document.querySelectorAll('#mgrOwnerTable tr[data-owner-row]').forEach(row=>uiHighlightText(row,ownerQuery));
+ const reportQuery=document.getElementById('reportSearchInput')?.value||'';document.querySelectorAll('#reportSearchResults,.report-search-results').forEach(el=>uiHighlightText(el,reportQuery));
+ const todayAnchor=document.querySelector('#reportDateNavWrap');if(todayAnchor&&!todayAnchor.querySelector('[data-ui-today]')){const b=uxButton('오늘',()=>{uiRememberPeriod(new Date(),reportMode);renderContactReport()},'btn ui-period-today');b.dataset.uiToday='report';todayAnchor.append(b)}
+ const briefHead=document.querySelector('.bf-head-tools');if(briefHead&&!briefHead.querySelector('[data-ui-today]')&&bfView.mode!=='custom'){const b=uxButton('오늘',()=>{uiRememberPeriod(new Date(),bfView.mode);const site=sites.find(s=>s.id===currentDetailId);if(site)renderDetailBody(site)},'btn ui-period-today');b.dataset.uiToday='brief';briefHead.append(b)}
+ const statsNav=document.getElementById('siteMgmtPeriodLabel')?.parentElement;if(statsNav&&!statsNav.querySelector('[data-ui-today]')){const b=uxButton('오늘',()=>{uiRememberPeriod(new Date(),siteMgmtPeriod==='all'?'month':siteMgmtPeriod);renderGlobalStats()},'sm-btn ui-period-today');b.dataset.uiToday='stats';statsNav.append(b)}
+ const summaryNav=document.getElementById('cisNext')?.parentElement;if(summaryNav&&!summaryNav.querySelector('[data-ui-today]')){const b=uxButton('오늘',()=>{uiRememberPeriod(new Date(),reportSummaryMode);renderIntegratedSummary()},'cis-btn ui-period-today');b.dataset.uiToday='summary';summaryNav.append(b)}
+ const site=sites.find(s=>s.id===currentDetailId),byPerson=new Map();if(site)miReportLogs(site).forEach(l=>{const key=String(l.personId||'');if(!byPerson.has(key))byPerson.set(key,[]);byPerson.get(key).push(l)});
+ document.querySelectorAll('#mgrOwnerTable tr[data-owner-row]').forEach(row=>{
+  const journal=row.querySelector('.mgr-contact-journal-btn');if(!site||!journal||row.querySelector('[data-ui-compare]'))return;
+  const logs=byPerson.get(journal.dataset.person)||[];if(uiComparisonLogs(logs).length<2)return;
+  const b=uxButton('보고 비교',()=>uiOpenComparison(site,journal.dataset.person,journal.dataset.contact,''),'ui-compare-link');b.dataset.uiCompare='1';row.querySelector('.mgr-contact-cell')?.append(b);
+ });
+}
+function uiBrowsingInstall(){
+ uiApplySelectedPeriod();
+ for(const [name,id]of [['renderDetailBody','detailBody'],['renderContactReport','contactReportBody'],['renderIntegratedSummary','contactReportBody'],['renderGlobalStats','globalStatsBody'],['renderCalendarView','calendarView']]){
+  const originals={renderDetailBody,renderContactReport,renderIntegratedSummary,renderGlobalStats,renderCalendarView};const original=originals[name];
+  const wrapped=function(...args){uiCaptureBrowse(document.getElementById(id));const result=original(...args);uiRestoreBrowse(document.getElementById(id));return result};
+  if(name==='renderDetailBody')renderDetailBody=wrapped;else if(name==='renderContactReport')renderContactReport=wrapped;else if(name==='renderIntegratedSummary')renderIntegratedSummary=wrapped;else if(name==='renderGlobalStats')renderGlobalStats=wrapped;else renderCalendarView=wrapped;
+ }
+ const panel=renderDetailPanel;renderDetailPanel=function(...args){const root=document.getElementById('detailBody');uiCaptureBrowse(root);const previous=root?.__uiBrowseKey?JSON.parse(root.__uiBrowseKey):null;const remembered=uiSiteViews.get(JSON.stringify([uxAccountKey(),currentOffice,args[0]?.id]));if(remembered&&detailTab==='개요'&&(root?.__uiSuspended||previous?.[3]!==args[0]?.id)){detailTab=remembered.tab;mgrBreakdownSubTab=remembered.subtab;mgrOwnerSubView=remembered.ownerView;mgrBreakdownManagerFilter=remembered.manager;}const result=panel(...args);uiRestoreBrowse(document.getElementById('detailBody'));return result};
+ const side=renderSidebar;renderSidebar=function(...args){const result=side(...args);requestAnimationFrame(uiDecorateBrowsing);return result};
+ document.addEventListener('input',e=>{if(e.target.matches('#searchInput,#mgrOwnerSearchInput,#reportSearchInput'))requestAnimationFrame(uiDecorateBrowsing)},true);
+ document.addEventListener('click',e=>{
+  const button=e.target.closest('button,[data-bf-step],[data-cis-mode],.cstat-period-btn');if(!button)return;
+  const id=button.id;
+  queueMicrotask(()=>{
+   if(/^(?:reportPrevBtn|reportNextBtn|reportModeWeekBtn|reportModeMonthBtn)$/.test(id))uiRememberPeriod(reportBaseDate,reportMode);
+   else if(id==='cisPrev'||id==='cisNext'||button.hasAttribute('data-cis-mode')){if(reportSummaryMode!=='all')uiRememberPeriod(reportSummaryDate,reportSummaryMode);}
+   else if(/^mgrBreakdown(?:Prev|Next|Today)Btn$/.test(id))uiRememberPeriod(mgrBreakdownNavDate,'month');
+   else if(/^cstatNav(?:Prev|Next|Today)Btn$/.test(id)||button.classList.contains('cstat-period-btn'))uiRememberPeriod(cstatNavDate,cstatPeriod);
+   else if(button.hasAttribute('data-bf-step'))uiRememberPeriod(bfView.date,bfView.mode);
+   else if(/^siteMgmt(?:Prev|Next|Month|Week|Day)Btn$/.test(id))uiRememberPeriod(siteMgmtDate,siteMgmtPeriod);
+   else if(id==='calPrev'||id==='calNext'||id==='calToday')uiRememberPeriod(new Date(calYear,calMonth,1),'month');
+   else if(button.hasAttribute('data-bf-apply')){uxPrefs.selectedPeriod={mode:'custom',date:bfView.date,start:bfView.start,end:bfView.end};uxStore();}
+   requestAnimationFrame(uiDecorateBrowsing);
+  });
+ },true);
+ document.addEventListener('change',e=>queueMicrotask(()=>{if(e.target.id==='bfDate'||e.target.id==='bfMode'){if(bfView.mode!=='custom')uiRememberPeriod(bfView.date,bfView.mode);else{uxPrefs.selectedPeriod={mode:'custom',date:bfView.date,start:bfView.start,end:bfView.end};uxStore();}}else if(e.target.id==='cstatDateInput')uiRememberPeriod(cstatNavDate,cstatPeriod)}),true);
+ document.addEventListener('pointerdown',e=>{if(e.target.closest('.name-item,.site-label,.site-dot,.map-tooltip,#uxQuickSites,#v16MapSelection'))uiCaptureBrowse(document.getElementById('detailBody'))},true);
+ uiRestoreBrowse(document.getElementById('detailBody'));requestAnimationFrame(uiDecorateBrowsing);
+}
+uiBrowsingInstall();
 
 
 })();
@@ -34477,6 +34608,16 @@ body.ux383 .bf-shared-embedded .bf-manual{white-space:pre-wrap!important}
 .interest-evidence-kind{display:block;color:var(--accent,#a2c4b0);font-size:12px;margin:6px 0}.interest-attributed-evidence p{margin:5px 0 12px}.interest-topic-context{font-size:10px;display:block;opacity:.7;font-weight:400}
 .event-row{flex-wrap:wrap}.event-row .ev-status{min-width:100px;flex:0 1 110px}.ev-previous{display:flex;flex-wrap:wrap;gap:8px;flex-basis:100%;font-size:12px;color:var(--muted)}.ev-previous label{display:flex;flex:1;min-width:130px;flex-direction:column;gap:4px}.ev-previous input{width:100%;box-sizing:border-box}
 .schedule-edit-dialog label{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;font-size:13px}.schedule-edit-dialog input,.schedule-edit-dialog select{width:100%;box-sizing:border-box;min-height:40px;font-size:16px}.schedule-edit-previous{display:flex;flex-wrap:wrap;gap:12px}.schedule-edit-previous label{flex:1;min-width:130px}
+</style>
+
+<style id="browsing-polish-v18">
+mark.ui-search-hit{background:rgba(165,198,175,.26);color:inherit;border-radius:2px;padding:0;font-weight:700}
+.ui-compare-link{border:0!important;background:none!important;box-shadow:none!important;padding:4px 0!important;font:inherit!important;font-size:10px!important;color:var(--text-dim)!important;display:block;margin:3px auto 0;text-align:center;cursor:pointer}
+.ui-report-comparison{margin:12px 0;text-align:left}.ui-report-comparison>summary{font-size:12px;color:var(--accent,#a1c3af);cursor:pointer;list-style:disclosure-closed;padding:6px 0}.ui-report-comparison[open]>summary{list-style:disclosure-open}
+.ui-compare-columns{display:grid;grid-template-columns:1fr 1fr;gap:18px;padding:10px 0}.ui-compare-columns article{min-width:0;border-top:1px solid var(--line);padding-top:10px}.ui-compare-columns header{display:flex;justify-content:space-between;gap:8px;font-size:12px}.ui-compare-columns time,.ui-compare-columns small{color:var(--text-dim);font-size:11px}.ui-compare-columns small{display:block;margin-top:7px}.ui-compare-columns p{font-size:13px;line-height:1.7;font-weight:400;white-space:pre-wrap;overflow-wrap:anywhere;margin:10px 0;color:var(--text-main)}
+.ui-period-today{font-family:inherit!important;font-size:11px!important;padding:4px 7px!important;min-width:0!important;box-shadow:none!important;background:transparent!important;border:0!important;color:var(--text-dim)!important;white-space:nowrap}
+@media(max-width:820px){.ui-compare-columns{grid-template-columns:1fr;gap:14px}.ui-comparison-dialog .ui-compare-columns{max-height:65svh;overflow-y:auto}.ui-period-today{font-size:10px!important}}
+@media print{mark.ui-search-hit{background:none}.ui-compare-link,.ui-report-comparison,.ui-period-today{display:none!important}}
 </style>
 </body>
 </html>
