@@ -16440,9 +16440,6 @@ function renderDetailPanel(site){
         const listArea = document.getElementById('logListArea');
         if(!listArea) return;
         clearLogFilter();
-        if(opts.relationshipEvidence){
-          const holder=document.createElement('div');holder.id='relationshipJournalInterests';holder.innerHTML=relationshipInterestMarkup(opts.relationshipEvidence);listArea.before(holder);
-        }
         const banner = document.createElement('div');
         banner.id = 'logFilterBanner';
         banner.className = 'log-contact-filter-banner';
@@ -16510,7 +16507,7 @@ function renderDetailPanel(site){
           const name=btn.dataset.contact;
           const evidence=miReportLogs(site).filter(l=>String(l.personId||'')===btn.dataset.person);
           const ids=new Set(evidence.map(l=>String(l.id||'')));
-          applyLogFilter(item=>ids.has(item.dataset.logId),name+' 상담일지',{relationshipEvidence:evidence});
+          applyLogFilter(item=>ids.has(item.dataset.logId),name+' 상담일지');
         });
       });
       const mgrOwnerSearchInput = document.getElementById('mgrOwnerSearchInput');
@@ -19443,12 +19440,16 @@ function renderDetailPanel(site){
       if(!rows.length)return `<div class="mgr-empty">${periodPayloadReady?`${year}년 ${month}월 Excel 접촉기록이 없습니다.`:'Excel 기간이력 동기화가 아직 완료되지 않았습니다.'}</div>`;
       return `<div class="mgr-owner-search-row no-print"><input type="text" id="mgrOwnerSearchInput" placeholder="🔍 이름 · 담당 · 동호수 검색"></div>
       <div style="overflow-x:auto;"><table class="mgr-breakdown-table mgr-owner-table" id="mgrOwnerTable" style="min-width:660px;">
-        <thead><tr><th style="text-align:left;">접촉자</th><th>담당</th><th>동호수</th><th>접촉일수</th><th>건수</th><th>최근접촉</th><th>방법</th></tr></thead>
+        <thead><tr><th style="text-align:center;">접촉자</th><th>담당</th><th>동호수</th><th>접촉일수</th><th>건수</th><th>최근접촉</th><th>방법</th></tr></thead>
         <tbody>${rows.map((r,interestIndex)=>{
           const meth=['상담','단순','TM'].map(m=>r.methods[m]?`${m==='상담'?'상':m==='단순'?'단':'TM'}${r.methods[m]}`:'').filter(Boolean).join(' ');
           const interestId='owner-interest-'+encodeURIComponent(String(site.id))+'-'+interestIndex;
           const topics=ownerInterestPanel(r.interestLogs,interestId);
-          return `<tr data-owner-row="${escapeHtml(r.name)}"><td style="text-align:left;font-weight:700;"><button type="button" class="mgr-contact-journal-btn" data-person="${escapeHtml(r.personKey)}" data-contact="${escapeHtml(r.name)}" style="border:0;background:transparent;padding:0;color:var(--accent);font:inherit;text-decoration:underline;text-underline-offset:3px;cursor:pointer;">${escapeHtml(r.name)}</button>${r.role?` <span style="color:var(--text-dim);font-size:8px;">(${escapeHtml(r.role)})</span>`:''} <button type="button" class="mgr-interest-toggle" aria-label="${escapeHtml(r.name)} 관심사항 펼치기" aria-expanded="false" aria-controls="${interestId}" data-interest-target="${interestId}">▸</button></td><td>${escapeHtml(r.manager||'-')}</td><td>${escapeHtml(r.unit||'-')}</td><td>${r.dates.size}</td><td>${r.count}</td><td>${escapeHtml(r.last||'-')}</td><td>${escapeHtml(meth||'-')}</td></tr><tr id="${interestId}" class="mgr-interest-row" hidden><td colspan="7"><div class="mgr-interest-content">${topics}</div></td></tr>`;
+          const shortName=r.name.split(/[\[（(]/)[0].trim()||r.name;
+          const embeddedRole=r.role&&r.name.includes(r.role);
+          const fullIdentity=r.name+(r.role&&!embeddedRole?' · '+r.role:'');
+          const hasMore=shortName!==r.name||shortName.length>9;
+          return `<tr data-owner-row="${escapeHtml(r.name)}"><td class="mgr-contact-cell"><div class="mgr-contact-heading"><button type="button" class="mgr-contact-journal-btn" data-person="${escapeHtml(r.personKey)}" data-contact="${escapeHtml(r.name)}">${escapeHtml(shortName)}</button><button type="button" class="mgr-interest-toggle" aria-label="${escapeHtml(r.name)} 관심사항 펼치기" aria-expanded="false" aria-controls="${interestId}" data-interest-target="${interestId}">▸</button></div>${r.role?`<div class="mgr-contact-role">${escapeHtml(r.role)}</div>`:''}${hasMore?`<details class="mgr-contact-identity"><summary aria-label="${escapeHtml(r.name)} 전체 이름 및 정보 보기">…</summary><div>${escapeHtml(fullIdentity)}</div></details>`:''}</td><td>${escapeHtml(r.manager||'-')}</td><td>${escapeHtml(r.unit||'-')}</td><td>${r.dates.size}</td><td>${r.count}</td><td>${escapeHtml(r.last||'-')}</td><td>${escapeHtml(meth||'-')}</td></tr><tr id="${interestId}" class="mgr-interest-row" hidden><td colspan="7"><div class="mgr-interest-content">${topics}</div></td></tr>`;
         }).join('')}</tbody>
       </table></div>`;
     }
@@ -20051,7 +20052,7 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
         <input type="text" id="mgrOwnerSearchInput" placeholder="🔍 이름으로 찾기 (동일 인물 찾을 때 편해요)">
       </div>`;
       return toggleHtml + searchBarHtml + mergeBarHtml + `<table class="mgr-breakdown-table mgr-owner-table" id="mgrOwnerTable">
-        <thead><tr>${guestMode?'':'<th class="no-print"></th>'}<th style="text-align:left;">접촉자</th><th>횟수</th><th>최근 접촉일</th><th>담당</th><th class="no-print">수정</th></tr></thead>
+        <thead><tr>${guestMode?'':'<th class="no-print"></th>'}<th style="text-align:center;">접촉자</th><th>횟수</th><th>최근 접촉일</th><th>담당</th><th class="no-print">수정</th></tr></thead>
         <tbody>
           ${owners.map(o=>{
             const logs = byOwner[o].logs;
@@ -20226,7 +20227,7 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
   function ownerInterestPanel(logs,prefix){
     const topics=relationshipInterests(logs);
     if(!topics.length)return '<div class="owner-interest-empty">분류할 상담 내용이 없습니다.</div>';
-    return `<div class="owner-interest-panel"><div class="owner-interest-topics" aria-label="관심사항">${topics.map((t,i)=>`<button type="button" class="owner-interest-topic" data-owner-interest-topic aria-expanded="false" aria-controls="${escapeHtml(prefix+'-topic-'+i)}">${escapeHtml(t.name)}<span>${t.logs.length}</span></button>`).join('')}</div>${topics.map((t,i)=>`<div class="owner-interest-evidence" id="${escapeHtml(prefix+'-topic-'+i)}" hidden>${t.logs.map(l=>`<article class="owner-interest-record"><div class="owner-interest-record-meta"><time>${escapeHtml(l.date||'날짜 미기재')}</time><span>${escapeHtml(l.author||'담당 미기재')}</span></div><p>${escapeHtml(l.text)}</p>${l.id&&!/^excel-report:/.test(l.id)?`<small>${escapeHtml(l.id)}</small>`:''}</article>`).join('')}</div>`).join('')}<div class="owner-interest-hint">상담 주제 · 항목을 누르면 근거 확인</div></div>`;
+    return `<div class="owner-interest-panel"><div class="owner-interest-topics" aria-label="관심사항">${topics.map((t,i)=>`<button type="button" class="owner-interest-topic" data-owner-interest-topic aria-expanded="false" aria-controls="${escapeHtml(prefix+'-topic-'+i)}">${escapeHtml(t.name)}<span>${t.logs.length}</span></button>`).join('')}</div>${topics.map((t,i)=>`<div class="owner-interest-evidence" id="${escapeHtml(prefix+'-topic-'+i)}" hidden>${t.logs.map(l=>`<article class="owner-interest-record"><div class="owner-interest-record-meta"><time>${escapeHtml(l.date||'날짜 미기재')}</time><span>${escapeHtml(l.author||'담당 미기재')}</span></div><p>${escapeHtml(l.text)}</p>${l.id&&!/^excel-report:/.test(l.id)?`<small>${escapeHtml(l.id)}</small>`:''}</article>`).join('')}</div>`).join('')}</div>`;
   }
   function relationshipInterestMarkup(logs){
     const items=relationshipInterests(logs);
@@ -38628,4 +38629,18 @@ body.ux383 #mgrOwnerTable button.owner-interest-topic::before,body.ux383 #mgrOwn
 .owner-interest-hint{text-align:center;color:var(--text-dim);font-size:10px;font-weight:400;margin-top:8px;opacity:.8}
 .owner-interest-empty{font-size:12px;font-weight:400;text-align:center;color:var(--text-dim)}
 @media(max-width:820px){body.ux383 #mgrOwnerTable button.owner-interest-topic{font-size:13px!important}.owner-interest-evidence{font-size:13px}}
+</style>
+
+<style id="contact-identity-tidy-20261010">
+body.ux383 #mgrOwnerTable .mgr-contact-cell{text-align:center!important;vertical-align:middle!important;padding:9px 6px!important;width:22%;font-weight:400!important}
+body.ux383 #mgrOwnerTable .mgr-contact-heading{display:flex!important;align-items:center!important;justify-content:center!important;gap:2px!important;min-width:0}
+body.ux383 #mgrOwnerTable .mgr-contact-journal-btn{appearance:none!important;display:block!important;min-width:0!important;max-width:125px!important;width:auto!important;min-height:24px!important;height:auto!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;color:var(--accent)!important;font:inherit!important;font-weight:600!important;text-decoration:none!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;cursor:pointer}
+body.ux383 #mgrOwnerTable .mgr-contact-journal-btn::before,body.ux383 #mgrOwnerTable .mgr-contact-journal-btn::after{display:none!important}
+body.ux383 #mgrOwnerTable .mgr-contact-role{color:var(--text-dim)!important;font-size:11px!important;font-weight:400!important;line-height:1.4!important;text-align:center!important;margin-top:2px}
+body.ux383 #mgrOwnerTable .mgr-contact-identity{margin:2px 0 0!important;border:0!important;padding:0!important;background:transparent!important;font-size:11px!important;font-weight:400!important;text-align:center!important}
+body.ux383 #mgrOwnerTable .mgr-contact-identity summary{list-style:none!important;display:block!important;cursor:pointer;color:var(--text-dim)!important;padding:0 8px!important;line-height:20px!important;font-size:14px!important}
+body.ux383 #mgrOwnerTable .mgr-contact-identity summary::-webkit-details-marker{display:none}
+body.ux383 #mgrOwnerTable .mgr-contact-identity summary::before,body.ux383 #mgrOwnerTable .mgr-contact-identity summary::after{display:none!important}
+body.ux383 #mgrOwnerTable .mgr-contact-identity[open] summary{color:var(--accent)!important}
+body.ux383 #mgrOwnerTable .mgr-contact-identity>div{max-width:155px;margin:3px auto 0;white-space:normal;overflow-wrap:anywhere;line-height:1.5;color:var(--text-dim)}
 </style>
