@@ -19448,8 +19448,8 @@ function renderDetailPanel(site){
           const shortName=r.name.split(/[\[（(]/)[0].trim()||r.name;
           const embeddedRole=r.role&&r.name.includes(r.role);
           const fullIdentity=r.name+(r.role&&!embeddedRole?' · '+r.role:'');
-          const hasMore=shortName!==r.name||shortName.length>9;
-          return `<tr data-owner-row="${escapeHtml(r.name)}"><td class="mgr-contact-cell"><div class="mgr-contact-heading"><button type="button" class="mgr-contact-journal-btn" data-person="${escapeHtml(r.personKey)}" data-contact="${escapeHtml(r.name)}">${escapeHtml(shortName)}</button><button type="button" class="mgr-interest-toggle" aria-label="${escapeHtml(r.name)} 관심사항 펼치기" aria-expanded="false" aria-controls="${interestId}" data-interest-target="${interestId}">▸</button></div>${r.role?`<div class="mgr-contact-role">${escapeHtml(r.role)}</div>`:''}${hasMore?`<details class="mgr-contact-identity"><summary aria-label="${escapeHtml(r.name)} 전체 이름 및 정보 보기">…</summary><div>${escapeHtml(fullIdentity)}</div></details>`:''}</td><td>${escapeHtml(r.manager||'-')}</td><td>${escapeHtml(r.unit||'-')}</td><td>${r.dates.size}</td><td>${r.count}</td><td>${escapeHtml(r.last||'-')}</td><td>${escapeHtml(meth||'-')}</td></tr><tr id="${interestId}" class="mgr-interest-row" hidden><td colspan="7"><div class="mgr-interest-content">${topics}</div></td></tr>`;
+          const hasMore=shortName!==r.name||shortName.length>12;
+          return `<tr data-owner-row="${escapeHtml(r.name)}"><td class="mgr-contact-cell"><div class="mgr-contact-heading"><button type="button" class="mgr-contact-journal-btn" data-person="${escapeHtml(r.personKey)}" data-contact="${escapeHtml(r.name)}">${escapeHtml(shortName)}</button><button type="button" class="mgr-interest-toggle" aria-label="${escapeHtml(r.name)} 관심사항 펼치기" aria-expanded="false" aria-controls="${interestId}" data-interest-target="${interestId}">▸</button></div>${r.role?`<div class="mgr-contact-role">${escapeHtml(r.role)}</div>`:''}</td><td>${escapeHtml(r.manager||'-')}</td><td>${escapeHtml(r.unit||'-')}</td><td>${r.dates.size}</td><td>${r.count}</td><td>${escapeHtml(r.last||'-')}</td><td>${escapeHtml(meth||'-')}</td></tr><tr id="${interestId}" class="mgr-interest-row" hidden><td colspan="7"><div class="mgr-interest-content">${hasMore?`<div class="mgr-contact-full-identity">${escapeHtml(fullIdentity)}</div>`:''}${topics}</div></td></tr>`;
         }).join('')}</tbody>
       </table></div>`;
     }
@@ -38643,4 +38643,13 @@ body.ux383 #mgrOwnerTable .mgr-contact-identity summary::-webkit-details-marker{
 body.ux383 #mgrOwnerTable .mgr-contact-identity summary::before,body.ux383 #mgrOwnerTable .mgr-contact-identity summary::after{display:none!important}
 body.ux383 #mgrOwnerTable .mgr-contact-identity[open] summary{color:var(--accent)!important}
 body.ux383 #mgrOwnerTable .mgr-contact-identity>div{max-width:155px;margin:3px auto 0;white-space:normal;overflow-wrap:anywhere;line-height:1.5;color:var(--text-dim)}
+</style>
+
+<style id="contact-readable-names-20261010">
+body.ux383 #mgrOwnerTable .mgr-contact-heading{display:grid!important;grid-template-columns:minmax(0,1fr) 14px!important;gap:3px!important;align-items:center!important;width:100%!important}
+body.ux383 #mgrOwnerTable .mgr-contact-heading .mgr-contact-journal-btn{display:-webkit-box!important;-webkit-box-orient:vertical!important;-webkit-line-clamp:2!important;max-width:none!important;width:100%!important;white-space:normal!important;word-break:keep-all!important;overflow-wrap:anywhere!important;overflow:hidden!important;text-overflow:clip!important;line-height:1.45!important;font-size:12px!important;text-align:center!important;letter-spacing:0!important}
+body.ux383 #mgrOwnerTable .mgr-contact-heading .mgr-interest-toggle{min-width:14px!important;width:14px!important;padding:0!important;font-size:11px!important}
+body.ux383 #mgrOwnerTable .mgr-contact-cell{padding:8px 5px!important}
+body.ux383 #mgrOwnerTable .mgr-contact-role{margin-top:3px!important;font-size:10px!important;line-height:1.3!important}
+.mgr-contact-full-identity{margin:0 0 10px;text-align:center;font-size:12px;font-weight:600;color:var(--accent);line-height:1.5;overflow-wrap:anywhere}
 </style>
