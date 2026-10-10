@@ -14767,6 +14767,7 @@ function renderDetailPanel(site){
           if(window.openGlobalStats) window.openGlobalStats();
           return;
         }
+        uiExplicitDetailTab = true;
         detailTab = t.dataset.tab;
         editMode = false;
         editingLogId = null;
@@ -19467,7 +19468,7 @@ function renderDetailPanel(site){
     function buildMonthTable(){
       const months=Array.from({length:12},(_,i)=>i+1);
       const rowManagers=managers.length?managers:['(전체)'];
-      return `<div style="overflow-x:auto;"><table class="mgr-breakdown-table mgr-month-table" style="min-width:760px;">
+      return `<div style="overflow-x:auto;"><table class="mgr-breakdown-table mgr-month-table ui-year-month-table" style="min-width:760px;">
         <thead><tr><th>담당</th>${months.map(m=>`<th>${m}월</th>`).join('')}<th>연계</th></tr></thead>
         <tbody>${rowManagers.map(m=>{
           const yev=rawEvents.filter(e=>String(e.date||'').startsWith(year+'-')&&(m==='(전체)'||mgrKey(e.manager)===m));
@@ -20482,7 +20483,7 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
     const body = document.getElementById('contactReportBody');
     const mode = reportMode;
     const range = mode==='week' ? getWeekRange(reportBaseDate) : getMonthRange(reportBaseDate);
-    document.getElementById('reportRangeLabel').textContent = range.label;
+    uiSetPeriodLabel(document.getElementById('reportRangeLabel'),range.label);
     const targetOffices = currentOffice===ALL_OFFICE ? OFFICES : [currentOffice];
     const allSites = targetOffices.flatMap(o=>(allOfficesData[o]||[]).map(s=>Object.assign({},s,{office:o})));
     const methods = ['상담','단순','TM','거부','부재','불명'];
@@ -20902,7 +20903,7 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
 
   function renderSitesView(){
     const {range, rows, managerTotals, managerSiteCounts, allSites} = buildContactReportData();
-    document.getElementById('reportRangeLabel').textContent = range.label;
+    uiSetPeriodLabel(document.getElementById('reportRangeLabel'),range.label);
     const body = document.getElementById('contactReportBody');
     const managerRows = Object.keys(managerTotals).sort((a,b)=>managerTotals[b]-managerTotals[a]);
     // 담당자 칩 클릭시 그 담당자 현장만 걸러서 보여줌 (다시 누르면 해제)
@@ -24433,6 +24434,7 @@ function miExcelReportCard(l){
 // Browsing state is local to the current account, office, site, tab and period.
 const uiBrowseMemory=new Map();
 const uiSiteViews=new Map();
+let uiExplicitDetailTab=false;
 let uiBrowseRestoring=false,uiBrowseFrame=0;
 function uiLocalDate(date){return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;}
 function uiApplySelectedPeriod(){
@@ -24513,6 +24515,12 @@ function uiHighlightText(root,query){
   if(found)n.replaceWith(fragment);
  }
 }
+function uiSetPeriodLabel(el,label){
+ if(!el)return;const full=String(label||'');let short=full;
+ const years=full.match(/\b\d{4}\b/g)||[];
+ if(new Set(years).size<=1)short=full.replace(/^\d{4}\.\s*/, '').replace(/\s*\.\s*/g,'.').replace(/\s*~\s*/g,' ~ ');
+ el.title=full;el.innerHTML='<span class="ui-date-full">'+escapeHtml(full)+'</span><span class="ui-date-short">'+escapeHtml(short)+'</span>';
+}
 function uiDecorateBrowsing(){
  document.querySelectorAll('#masterList .name-item-text,#masterList .name-item-meta').forEach(el=>uiHighlightText(el,searchText));
  const ownerQuery=document.getElementById('mgrOwnerSearchInput')?.value||'';document.querySelectorAll('#mgrOwnerTable tr[data-owner-row]').forEach(row=>uiHighlightText(row,ownerQuery));
@@ -24525,7 +24533,11 @@ function uiDecorateBrowsing(){
  document.querySelectorAll('#mgrOwnerTable tr[data-owner-row]').forEach(row=>{
   const journal=row.querySelector('.mgr-contact-journal-btn');if(!site||!journal||row.querySelector('[data-ui-compare]'))return;
   const logs=byPerson.get(journal.dataset.person)||[];if(uiComparisonLogs(logs).length<2)return;
-  const b=uxButton('보고 비교',()=>uiOpenComparison(site,journal.dataset.person,journal.dataset.contact,''),'ui-compare-link');b.dataset.uiCompare='1';row.querySelector('.mgr-contact-cell')?.append(b);
+  const compareRow=document.createElement('tr');compareRow.className='ui-contact-compare-row';compareRow.hidden=true;
+  const cell=document.createElement('td');cell.colSpan=7;cell.innerHTML=uiReportComparisonMarkup(logs);compareRow.append(cell);
+  const fold=cell.querySelector('details');if(fold)fold.open=true;
+  const b=uxButton('비교 ▸',()=>{const open=compareRow.hidden;compareRow.hidden=!open;b.textContent=open?'비교 ▾':'비교 ▸';b.setAttribute('aria-expanded',String(open));},'ui-compare-link');b.dataset.uiCompare='1';b.setAttribute('aria-expanded','false');
+  const actions=document.createElement('div');actions.className='ui-contact-actions';actions.append(b);row.querySelector('.mgr-contact-cell')?.append(actions);row.after(compareRow);
  });
 }
 function uiBrowsingInstall(){
@@ -24535,7 +24547,7 @@ function uiBrowsingInstall(){
   const wrapped=function(...args){uiCaptureBrowse(document.getElementById(id));const result=original(...args);uiRestoreBrowse(document.getElementById(id));return result};
   if(name==='renderDetailBody')renderDetailBody=wrapped;else if(name==='renderContactReport')renderContactReport=wrapped;else if(name==='renderIntegratedSummary')renderIntegratedSummary=wrapped;else if(name==='renderGlobalStats')renderGlobalStats=wrapped;else renderCalendarView=wrapped;
  }
- const panel=renderDetailPanel;renderDetailPanel=function(...args){const root=document.getElementById('detailBody');uiCaptureBrowse(root);const previous=root?.__uiBrowseKey?JSON.parse(root.__uiBrowseKey):null;const remembered=uiSiteViews.get(JSON.stringify([uxAccountKey(),currentOffice,args[0]?.id]));if(remembered&&detailTab==='개요'&&(root?.__uiSuspended||previous?.[3]!==args[0]?.id)){detailTab=remembered.tab;mgrBreakdownSubTab=remembered.subtab;mgrOwnerSubView=remembered.ownerView;mgrBreakdownManagerFilter=remembered.manager;}const result=panel(...args);uiRestoreBrowse(document.getElementById('detailBody'));return result};
+ const panel=renderDetailPanel;renderDetailPanel=function(...args){const root=document.getElementById('detailBody');uiCaptureBrowse(root);const previous=root?.__uiBrowseKey?JSON.parse(root.__uiBrowseKey):null;const remembered=uiSiteViews.get(JSON.stringify([uxAccountKey(),currentOffice,args[0]?.id]));if(!uiExplicitDetailTab&&remembered&&detailTab==='개요'&&(root?.__uiSuspended||(previous&&previous[3]!==args[0]?.id))){detailTab=remembered.tab;mgrBreakdownSubTab=remembered.subtab;mgrOwnerSubView=remembered.ownerView;mgrBreakdownManagerFilter=remembered.manager;}uiExplicitDetailTab=false;const result=panel(...args);uiRestoreBrowse(document.getElementById('detailBody'));return result};
  const side=renderSidebar;renderSidebar=function(...args){const result=side(...args);requestAnimationFrame(uiDecorateBrowsing);return result};
  document.addEventListener('input',e=>{if(e.target.matches('#searchInput,#mgrOwnerSearchInput,#reportSearchInput'))requestAnimationFrame(uiDecorateBrowsing)},true);
  document.addEventListener('click',e=>{
@@ -34618,6 +34630,30 @@ mark.ui-search-hit{background:rgba(165,198,175,.26);color:inherit;border-radius:
 .ui-period-today{font-family:inherit!important;font-size:11px!important;padding:4px 7px!important;min-width:0!important;box-shadow:none!important;background:transparent!important;border:0!important;color:var(--text-dim)!important;white-space:nowrap}
 @media(max-width:820px){.ui-compare-columns{grid-template-columns:1fr;gap:14px}.ui-comparison-dialog .ui-compare-columns{max-height:65svh;overflow-y:auto}.ui-period-today{font-size:10px!important}}
 @media print{mark.ui-search-hit{background:none}.ui-compare-link,.ui-report-comparison,.ui-period-today{display:none!important}}
+</style>
+
+<style id="mobile-table-navigation-fix-20261010">
+.ui-date-short{display:none}
+.ui-contact-compare-row[hidden]{display:none!important}
+body.ux383 #mgrOwnerTable .ui-contact-actions{display:flex;justify-content:center;align-items:center;margin:4px 0 0}
+body.ux383 #mgrOwnerTable .ui-compare-link{display:inline-flex!important;align-items:center!important;justify-content:center!important;width:auto!important;min-width:0!important;height:auto!important;min-height:0!important;margin:0!important;padding:2px 5px!important;line-height:1.3!important;font-size:10px!important;border:0!important;background:transparent!important;white-space:nowrap!important}
+body.ux383 #mgrOwnerTable .mgr-contact-cell,body.ux383 #mgrOwnerTable .mgr-contact-role{text-align:center!important;vertical-align:middle!important}
+body.ux383 #mgrOwnerTable .ui-contact-compare-row>td{padding:10px!important}
+body.ux383 #mgrOwnerTable .ui-contact-compare-row .ui-report-comparison{margin:0!important;text-align:left}
+body.ux383 #mgrOwnerTable .ui-contact-compare-row .ui-report-comparison>summary{font-size:11px!important;text-align:center;padding:4px!important}
+body.ux383 #mgrOwnerTable .ui-contact-compare-row article header{text-align:center;justify-content:center}
+@media screen and (max-width:820px){
+ body.ux383 .ui-year-month-table{min-width:760px!important;width:760px!important;table-layout:fixed!important}
+ body.ux383 .ui-year-month-table th,body.ux383 .ui-year-month-table td{width:auto!important;min-width:0!important;text-align:center!important;white-space:nowrap!important;word-break:normal!important;overflow-wrap:normal!important;font-size:12px!important;line-height:1.4!important;padding:8px 4px!important}
+ body.ux383 .ui-year-month-table th:first-child,body.ux383 .ui-year-month-table td:first-child{width:76px!important;position:sticky;left:0;background:var(--panel,#24352f);z-index:1}
+ body.ux383 .ui-year-month-table button,body.ux383 .ui-year-month-table a{display:inline!important;width:auto!important;min-width:0!important;min-height:0!important;height:auto!important;padding:0!important;font:inherit!important;white-space:nowrap!important;word-break:normal!important;overflow-wrap:normal!important}
+ body.ux383 #reportRangeLabel .ui-date-full{display:none!important}
+ body.ux383 #reportRangeLabel .ui-date-short{display:inline!important}
+ body.ux383 #contactReportModalBox #reportDateNavWrap{grid-template-columns:22px minmax(0,1fr) 22px 28px!important;gap:2px!important;align-items:center!important}
+ body.ux383 #contactReportModalBox #reportRangeLabel{white-space:nowrap!important;font-size:10px!important;letter-spacing:0!important}
+ body.ux383 #contactReportModalBox #reportDateNavWrap .ui-period-today{grid-column:4!important;grid-row:1!important;display:flex!important;align-items:center!important;justify-content:center!important;width:28px!important;min-width:0!important;height:28px!important;min-height:0!important;padding:0!important;margin:0!important;font-size:9px!important;line-height:1!important;border:0!important;background:transparent!important}
+ body.ux383 #contactReportModalBox :is(#reportPrevBtn,#reportNextBtn){width:22px!important;min-width:22px!important;height:28px!important;min-height:28px!important}
+}
 </style>
 </body>
 </html>
