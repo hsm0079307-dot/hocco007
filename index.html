@@ -11200,11 +11200,11 @@ async function mfRetrySync(){
   }
   function sooniFlatEventsForMonth(year, month){
     const rows=[];
-    sites.forEach(s=>eventsOf(s).forEach(ev=>{
+    sites.forEach(s=>activeScheduleEvents(s).forEach(ev=>{
       if(!ev || !ev.date || !ev.label) return;
       const d=new Date(ev.date);
       if(isNaN(d.getTime()) || d.getFullYear()!==year || d.getMonth()!==month) return;
-      rows.push({site:s,date:ev.date,label:ev.label,type:sooniEventType(ev.label)});
+      rows.push({...ev,site:s,type:sooniEventType(ev.label)});
     }));
     return rows.sort((a,b)=>a.date.localeCompare(b.date)||a.site.name.localeCompare(b.site.name));
   }
@@ -11219,8 +11219,48 @@ async function mfRetrySync(){
   function eventsOf(site){
     return Array.isArray(site.events) ? site.events : legacyEventsFrom(site);
   }
+  function scheduleKey(e){return JSON.stringify([String(e.date||''),String(e.label||'').trim()]);}
+  function scheduleStatus(e,today){
+    if(['planned','changed','completed','cancelled'].includes(e.status))return e.status;
+    const label=String(e.label||'');
+    if(/\[(?:완료)\]|(?:개최|접수|진행|설치|철거)\s*완료(?:\s|$|[.)])/.test(label)&&!/예정|계획|완료\s*여부/.test(label))return 'completed';
+    if(/\[취소\]|취소\s*(?:확정|됨|완료)/.test(label))return 'cancelled';
+    if(/\[변경\]|일정\s*변경\s*(?:확정|됨)/.test(label))return 'changed';
+    const now=today||new Date().toLocaleDateString('sv-SE');
+    return /예정|계획/.test(label)||e.date>=now?'planned':'unconfirmed';
+  }
+  function scheduleStatusLabel(e){return ({planned:'예정',changed:'변경',completed:'완료',cancelled:'취소',unconfirmed:'결과 확인 필요'})[scheduleStatus(e)];}
+  function scheduleStatusMarkup(e){return `<span class="schedule-state schedule-state-${scheduleStatus(e)}">${scheduleStatusLabel(e)}</span>`;}
+  function activeScheduleEvents(site){
+    const original=eventsOf(site).filter(e=>e&&e.date&&e.label);
+    const replaced=new Set(original.filter(e=>e.previousDate&&e.previousLabel&&scheduleKey(e)!==scheduleKey({date:e.previousDate,label:e.previousLabel})).map(e=>scheduleKey({date:e.previousDate,label:e.previousLabel})));
+    const unique=new Map();
+    original.forEach(e=>{if(replaced.has(scheduleKey(e)))return;const key=scheduleKey(e);unique.set(key,{...(unique.get(key)||{}),...e});});
+    return [...unique.values()];
+  }
+  function upcomingScheduleEvents(site){return activeScheduleEvents(site).filter(e=>!['completed','cancelled'].includes(scheduleStatus(e)));}
+  function scheduleEditDialog(site,selected){
+    const baseline=uxClone(site.events??null),events=eventsOf(site).map(e=>({...e}));
+    const index=events.findIndex(e=>scheduleKey(e)===scheduleKey(selected));if(index<0)return;
+    const original=events[index],host=document.createElement('div'),modal=uxModal(site.name+' · 일정 수정',host);
+    host.className='schedule-edit-dialog';
+    host.innerHTML=`<label>날짜<input type="date" data-schedule-date value="${escapeHtml(original.date)}"></label><label>일정 내용<input data-schedule-label value="${escapeHtml(original.label)}"></label><label>상태<select data-schedule-status>${[['','결과 미확인'],['planned','예정'],['changed','변경'],['completed','완료'],['cancelled','취소']].map(([value,label])=>`<option value="${value}"${(original.status||'')===value?' selected':''}>${label}</option>`).join('')}</select></label><div class="schedule-edit-previous"><label>이전 날짜<input type="date" data-schedule-previous-date value="${escapeHtml(original.previousDate||'')}"></label><label>이전 일정<input data-schedule-previous-label value="${escapeHtml(original.previousLabel||'')}" placeholder="동일 행사일 때만 입력"></label></div><p role="status"></p><button type="button" class="btn btn-primary">저장</button>`;
+    const dateInput=host.querySelector('[data-schedule-date]'),labelInput=host.querySelector('[data-schedule-label]'),statusInput=host.querySelector('[data-schedule-status]');
+    dateInput.onchange=()=>{if(dateInput.value&&dateInput.value!==original.date){statusInput.value='changed';host.querySelector('[data-schedule-previous-date]').value=original.previousDate||original.date;host.querySelector('[data-schedule-previous-label]').value=original.previousLabel||original.label;}};
+    host.querySelector('button').onclick=async e=>{
+      const button=e.currentTarget,status=host.querySelector('[role="status"]'),date=dateInput.value,label=labelInput.value.trim();
+      if(!date||!label){status.textContent='날짜와 일정 내용을 입력해 주세요.';return;}
+      const previousDate=host.querySelector('[data-schedule-previous-date]').value,previousLabel=host.querySelector('[data-schedule-previous-label]').value.trim();
+      if(!!previousDate!==!!previousLabel){status.textContent='이전 날짜와 이전 일정을 함께 입력해 주세요.';return;}
+      const replacement={...original,date,label,status:statusInput.value,previousDate,previousLabel};
+      if(previousDate&&scheduleKey(replacement)===scheduleKey({date:previousDate,label:previousLabel})){status.textContent='이전 일정과 변경 일정을 서로 다르게 입력해 주세요.';return;}
+      events[index]=replacement;button.disabled=true;status.textContent='저장 중…';
+      try{await bfSaveField(site,'events',baseline,events);modal.close();sooniCalSelected=null;renderAll();renderCalendarView();}
+      catch(err){status.textContent=err.message;button.disabled=false;}
+    };
+  }
   function eventsSummary(site){
-    return eventsOf(site).filter(e=>e.date && e.label).map(e=>`${e.date} ${e.label}`).join(' / ');
+    return activeScheduleEvents(site).filter(e=>e.date && e.label).map(e=>`${e.date} [${scheduleStatusLabel(e)}] ${e.label}`).join(' / ');
   }
   const EVENT_COLOR_PALETTE = ['#4a90d9','#d9534f','#5cb85c','#f0ad4e','#9b59b6','#16a085','#e67e22','#c0392b'];
   function colorForEventLabel(label){
@@ -11253,22 +11293,14 @@ async function mfRetrySync(){
     });
     return found;
   }
-  // 기존 일정 + 새로 뽑아낸 일정을 합치되, 같은 날짜에 겹치는(한쪽이 다른 쪽에 포함되는) 표현은
-  // 더 긴 쪽 하나만 남김 (예: "창립총회"와 "2시 창립총회"가 같이 있으면 뒤엣것만 남김)
+  // 날짜와 일정 문구가 모두 같은 기록만 합치고 상태·변경 이력을 보존한다.
   function mergeEvents(existing, extracted){
-    const byDate = {};
-    [...existing, ...extracted].forEach(e=>{
-      if(!e || !e.date || !e.label) return;
-      (byDate[e.date] = byDate[e.date] || []).push(e.label);
+    const unique=new Map();
+    [...existing,...extracted].forEach(e=>{
+      if(!e||!e.date||!String(e.label||'').trim())return;
+      const key=scheduleKey(e);unique.set(key,{...(unique.get(key)||{}),...e,label:String(e.label).trim()});
     });
-    const result = [];
-    Object.keys(byDate).forEach(date=>{
-      const labels = Array.from(new Set(byDate[date])).sort((a,b)=>b.length-a.length);
-      const kept = [];
-      labels.forEach(l=>{ if(!kept.some(k=>k.includes(l))) kept.push(l); });
-      kept.forEach(l=> result.push({date, label:l}));
-    });
-    return result.sort((a,b)=> a.date.localeCompare(b.date));
+    return [...unique.values()].sort((a,b)=>a.date.localeCompare(b.date));
   }
   // *텍스트* -> 굵게(강조색), **텍스트** -> 굵고 크게+빨강(매우 강조). 진행단계/비고에서 중요 표시용
   function renderRichText(text, opts){
@@ -11331,14 +11363,14 @@ async function mfRetrySync(){
     // key: 'YYYY-MM-DD' -> [{site, label, color}]
     const map = {};
     sites.forEach(s=>{
-      eventsOf(s).forEach(ev=>{
+      activeScheduleEvents(s).forEach(ev=>{
         if(!ev.date || !ev.label) return;
         const d = new Date(ev.date);
         if(isNaN(d.getTime())) return;
         if(d.getFullYear()===year && d.getMonth()===month){
           const key = ev.date;
           if(!map[key]) map[key] = [];
-          map[key].push({site:s, label:ev.label, color:colorForEventLabel(ev.label)});
+          map[key].push({...ev,site:s, color:colorForEventLabel(ev.label)});
         }
       });
     });
@@ -11363,6 +11395,7 @@ async function mfRetrySync(){
       sooniCalSelected = rows[0] || allRows[0] || null;
     }
 
+    if(sooniCalSelected)sooniCalSelected=rows.find(x=>x.site.id===sooniCalSelected.site.id&&x.date===sooniCalSelected.date&&x.label===sooniCalSelected.label)||sooniCalSelected;
     const first = new Date(calYear, calMonth, 1);
     const startDow = first.getDay();
     const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
@@ -11457,16 +11490,17 @@ async function mfRetrySync(){
         </div>
 
         <aside class="sooni-sch-detail">
-          <div class="sooni-sch-detail-top"><span class="sooni-sch-detail-type">${selType}</span></div>
+          <div class="sooni-sch-detail-top"><span class="sooni-sch-detail-type">${selType}</span>${sel?scheduleStatusMarkup(sel):''}</div>
           <div class="sooni-sch-detail-body">
             <h3>${sel?escapeHtml(sel.site.name):'선택된 일정 없음'}</h3>
-            <div class="sooni-sch-info"><span>📅</span><div><b>일정일</b><br>${sel?escapeHtml(sel.date):'-'}</div></div>
+            <div class="sooni-sch-info"><span>📅</span><div><b>일정일</b><br>${sel?escapeHtml(sel.date):'-'}${sel?.previousDate?`<small class="schedule-previous">이전 ${escapeHtml(sel.previousDate)} · ${escapeHtml(sel.previousLabel||'')}</small>`:''}</div></div>
             <div class="sooni-sch-info"><span>📝</span><div><b>일정 내용</b><br>${sel?escapeHtml(sel.label):'-'}</div></div>
             <div class="sooni-sch-info"><span>👤</span><div><b>담당자</b><br>${selSite?escapeHtml(selSite.manager||'미지정'):'-'}</div></div>
             <div class="sooni-sch-info"><span>📍</span><div><b>현장</b><br>${selSite?escapeHtml(selSite.district||'')+' · '+escapeHtml(selSite.stage||selSite.progressStage||''):'-'}</div></div>
             <div class="sooni-sch-progress"><div class="sooni-sch-mini"><small>조합원</small><br><b>${selSite?escapeHtml(selSite.unionMembers||'-'):'-'}</b></div><div class="sooni-sch-mini"><small>최근보고</small><br><b style="font-size:11px">${selSite?escapeHtml(selSite.lastDate||'-'):'-'}</b></div><div class="sooni-sch-ring"></div></div>
             <div class="sooni-sch-detail-actions">
               <button id="sooniOpenSite" class="primary" ${sel?'':'disabled'}>현장 상세</button>
+              <button id="sooniEditEvent" ${sel?'':'disabled'}>일정 수정</button>
               <button id="sooniDeleteEvent" ${sel?'':'disabled'}>일정 삭제</button>
             </div>
           </div>
@@ -11475,10 +11509,10 @@ async function mfRetrySync(){
 
       <div class="sooni-sch-list">
         <div class="sooni-sch-list-head">이번 달 일정 목록 · ${rows.length}건</div>
-        <div class="sooni-sch-desktop-list">${rows.length?rows.map(x=>`<button type="button" class="sooni-sch-list-item sooni-sch-row" data-id="${x.site.id}" data-date="${x.date}" data-label="${escapeHtml(x.label)}"><span class="sooni-sch-item-date">${escapeHtml(x.date)}</span><span class="sooni-sch-item-heading"><b class="sooni-sch-item-site">${escapeHtml(x.site.name)}</b><span class="sooni-sch-badge ${x.type}">${sooniTypeLabel(x.type)}</span></span><span class="sooni-sch-item-content">${escapeHtml(x.label)}</span><span class="sooni-sch-item-meta">담당 ${escapeHtml(x.site.manager||'-')} · ${escapeHtml(x.site.stage||x.site.progressStage||'-')}</span></button>`).join(''):'<div class="sooni-sch-list-empty">조건에 맞는 일정이 없습니다.</div>'}</div>
+        <div class="sooni-sch-desktop-list">${rows.length?rows.map(x=>`<button type="button" class="sooni-sch-list-item sooni-sch-row" data-id="${x.site.id}" data-date="${x.date}" data-label="${escapeHtml(x.label)}"><span class="sooni-sch-item-date">${escapeHtml(x.date)}</span><span class="sooni-sch-item-heading"><b class="sooni-sch-item-site">${escapeHtml(x.site.name)}</b><span class="sooni-sch-badge ${x.type}">${sooniTypeLabel(x.type)}</span>${scheduleStatusMarkup(x)}</span><span class="sooni-sch-item-content">${escapeHtml(x.label)}</span><span class="sooni-sch-item-meta">담당 ${escapeHtml(x.site.manager||'-')} · ${escapeHtml(x.site.stage||x.site.progressStage||'-')}</span></button>`).join(''):'<div class="sooni-sch-list-empty">조건에 맞는 일정이 없습니다.</div>'}</div>
         <div class="sooni-sch-tablewrap"><table class="sooni-sch-table">
           <thead><tr><th>일자</th><th>현장명</th><th>구분</th><th>일정 내용</th><th>담당자</th><th>사업단계</th></tr></thead>
-          <tbody>${rows.length?rows.map(x=>`<tr class="sooni-sch-row" data-id="${x.site.id}" data-date="${x.date}" data-label="${escapeHtml(x.label)}"><td>${escapeHtml(x.date)}</td><td><b>${escapeHtml(x.site.name)}</b></td><td><span class="sooni-sch-badge ${x.type}">${sooniTypeLabel(x.type)}</span></td><td>${escapeHtml(x.label)}</td><td>${escapeHtml(x.site.manager||'-')}</td><td>${escapeHtml(x.site.stage||x.site.progressStage||'-')}</td></tr>`).join(''):`<tr><td colspan="6" style="text-align:center;color:#8799a5;padding:20px">조건에 맞는 일정이 없습니다.</td></tr>`}</tbody>
+          <tbody>${rows.length?rows.map(x=>`<tr class="sooni-sch-row" data-id="${x.site.id}" data-date="${x.date}" data-label="${escapeHtml(x.label)}"><td>${escapeHtml(x.date)}</td><td><b>${escapeHtml(x.site.name)}</b></td><td><span class="sooni-sch-badge ${x.type}">${sooniTypeLabel(x.type)}</span>${scheduleStatusMarkup(x)}</td><td>${escapeHtml(x.label)}</td><td>${escapeHtml(x.site.manager||'-')}</td><td>${escapeHtml(x.site.stage||x.site.progressStage||'-')}</td></tr>`).join(''):`<tr><td colspan="6" style="text-align:center;color:#8799a5;padding:20px">조건에 맞는 일정이 없습니다.</td></tr>`}</tbody>
         </table></div>
       </div>
     `;
@@ -11496,7 +11530,7 @@ async function mfRetrySync(){
       const site=sites.find(s=>s.id===el.dataset.id);
       if(!site) return;
       const type=sooniEventType(el.dataset.label);
-      sooniCalSelected={site,date:el.dataset.date,label:el.dataset.label,type};
+      sooniCalSelected=rows.find(x=>x.site.id===site.id&&x.date===el.dataset.date&&x.label===el.dataset.label)||{site,date:el.dataset.date,label:el.dataset.label,type};
       renderCalendarView();
     });
 
@@ -11520,7 +11554,7 @@ async function mfRetrySync(){
         const label=document.getElementById('qaLabel').value.trim();
         if(!label){alert('일정 내용을 입력해주세요.');return;}
         const site=sites.find(s=>s.id===siteId);if(!site)return;
-        site.events=mergeEvents(eventsOf(site),[{date:quickAddDate,label}]);
+        site.events=mergeEvents(eventsOf(site),[{date:quickAddDate,label,status:'planned'}]);
         lastEditedSiteId=site.id;await saveSites();quickAddDate=null;renderCalendarView();
       };
       document.getElementById('qaCancel').onclick=()=>{quickAddDate=null;renderCalendarView();};
@@ -11532,6 +11566,8 @@ async function mfRetrySync(){
       currentDetailId=sel.site.id;currentView='detail';detailTab='개요';editMode=false;renderAll();
       const fresh=sites.find(s=>s.id===sel.site.id);if(fresh)renderDetailPanel(fresh);
     };
+    const editBtn=document.getElementById('sooniEditEvent');
+    if(editBtn&&sel)editBtn.onclick=async()=>{if(guestMode||!(await ensureUnlocked()))return;scheduleEditDialog(sites.find(s=>s.id===sel.site.id)||sel.site,sel);};
     const delBtn=document.getElementById('sooniDeleteEvent');
     if(delBtn && sel) delBtn.onclick=async()=>{
       if(!(await ensureUnlocked()))return;
@@ -11859,7 +11895,7 @@ async function mfRetrySync(){
   function hasUpcomingEvent(s, days=7){
     const now=new Date(); now.setHours(0,0,0,0);
     const end=new Date(now); end.setDate(end.getDate()+days);
-    return eventsOf(s).some(e=>{ if(!e.date) return false; const d=new Date(e.date+'T00:00:00'); return d>=now&&d<=end; });
+    return upcomingScheduleEvents(s).some(e=>{ if(!e.date) return false; const d=new Date(e.date+'T00:00:00'); return d>=now&&d<=end; });
   }
   function matchesQuickFilter(s){
     if(quickFilter==='stale') return isStale(s);
@@ -11909,7 +11945,7 @@ async function mfRetrySync(){
     return {start:mon, end:sun, label:`${fmt(mon)} ~ ${fmt(sun)}`, monIso:toIso(mon)};
   }
   function eventsInRange(site, start, end){
-    return eventsOf(site).filter(e=>{
+    return activeScheduleEvents(site).filter(e=>{
       if(!e.date) return false;
       const d = new Date(e.date+'T00:00:00');
       return d >= start && d <= new Date(end.getFullYear(),end.getMonth(),end.getDate(),23,59,59);
@@ -13119,7 +13155,7 @@ async function mfRetrySync(){
     const key = d => { const x=new Date(d); x.setHours(0,0,0,0); return Math.round((x-today)/86400000); };
     const logs = (site.logs||[]).filter(l=>l.date && !isTourBookingLog(l)).slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)));
     const last = logs[0];
-    const events = eventsOf(site).filter(e=>e.date && e.label).slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+    const events = upcomingScheduleEvents(site).filter(e=>e.date && e.label).slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
     const upcoming = events.find(e=>key(e.date)>=0);
     const staleDays = last && last.date ? Math.max(0, Math.floor((today-new Date(last.date))/86400000)) : null;
     const stale = staleDays===null || staleDays>=60;
@@ -13943,13 +13979,17 @@ window.addEventListener('resize', ()=>{
       if(!line.trim())continue;const parsed=managementDateLine(line);
       if(parsed)rows.push({...parsed,origin:'stage'});else if(rows.length)rows.at(-1).label+=' '+line.trim();else plain.push(line.trim());
     }
-    if(!manual)eventsOf(site).forEach(e=>{
+    if(!manual)activeScheduleEvents(site).forEach(e=>{
       if(!e.date||!e.label)return;
       const date=managementDateLine(String(e.date).split('T')[0]);
       if(!date?.full)return;
       const embedded=managementDateLine(e.label);
-      rows.push({date:date.date,label:embedded?.date===date.date?embedded.label:String(e.label).trim(),full:true,origin:'event'});
+      rows.push({...e,date:date.date,label:embedded?.date===date.date?embedded.label:String(e.label).trim(),full:true,origin:'event'});
     });
+    if(!manual){
+      const replaced=new Set(eventsOf(site).filter(e=>e.previousDate&&e.previousLabel).map(e=>scheduleKey({date:e.previousDate,label:e.previousLabel})));
+      for(let i=rows.length-1;i>=0;i--)if(replaced.has(scheduleKey(rows[i])))rows.splice(i,1);
+    }
     const normalized=t=>String(t).normalize('NFKC').replace(/\p{Cf}/gu,'').replace(/\s|[()（）.,:·ㆍ]/g,'');
     // '예정'은 일정의 상태이며 별도 행을 만드는 행사 이름이 아닙니다.
     const identity=t=>normalized(String(t).normalize('NFKC').replace(/\p{Cf}/gu,'').replace(/[（(\[]\s*(?:예정|[월화수목금토일])\s*[）)\]]/g,'').replace(/\s*예정\s*$/,''));
@@ -13962,9 +14002,10 @@ window.addEventListener('resize', ()=>{
       if(kind==='통합심의')kind+=':'+(['재접수','보완','통과','승인','접수'].find(k=>row.label.includes(k))||normalized(row.label));
       if(/취소|연기/.test(row.label))kind+=':'+(/취소/.test(row.label)?'취소':'연기');
       const time=row.label.match(/(\d{1,2})\s*시(?:\s*(\d{1,2})\s*분)?/);const timeKey=time?time[1]+':'+(time[2]||'00'):'';
-      const old=groups.find(x=>x.kind===kind&&(!x.timeKey||!timeKey||x.timeKey===timeKey)&&(x.date===row.date||kind==='통합심의:접수'&&identity(x.label)===identity(row.label)&&x.full&&row.full&&Math.abs(Date.parse(x.date)-Date.parse(row.date))<=86400000));
+      const old=groups.find(x=>x.date===row.date&&identity(x.label)===identity(row.label));
       if(!old){groups.push({...row,kind,timeKey});continue;}
       if(old.date!==row.date&&row.origin==='stage'&&(old.origin!=='stage'||row.date>old.date)){old.date=row.date;old.origin='stage';}
+      if(row.status)old.status=row.status;
       if(/예정/.test(row.label)&&!/예정/.test(old.label))old.label+='(예정)';
       // 기존 진행단계 기록을 우선하고, 중복 일정의 별도 계약·안건만 덧붙입니다.
       const details=[...row.label.matchAll(/[（(]([^）)]*)[）)]/g)].map(m=>m[1]);
@@ -14207,7 +14248,7 @@ window.addEventListener('resize', ()=>{
       selection:site.contractorSelectionTime??site.selectionTime??ref.selection??'',
       scale:[['구역면적',site.area?site.area+'㎡':''],['연면적',site.totalFloorArea?site.totalFloorArea+'㎡':''],['규모',site.scale],['조합원',site.unionMembers],['신축세대',site.households]].filter(x=>x[1]).map(x=>'• '+x.join(': ')).join('\n'),
       partners:[['신탁',site.trustCompany],['정비',site.managementCompany],['설계',site.designCompany]].filter(x=>x[1]).map(x=>'• '+x.join(': ')).join('\n'),
-      stage:site.progressStage||site.stage||'',schedule:[...managementTimeline(site).rows.map(e=>e.date.slice(2).replaceAll('-','. ')+' '+e.label),...managementTimeline(site).plain].join('\n'),
+      stage:site.progressStage||site.stage||'',schedule:[...managementTimeline(site).rows.map(e=>e.date.slice(2).replaceAll('-','. ')+' ['+scheduleStatusLabel(e)+'] '+e.label),...managementTimeline(site).plain].join('\n'),
       thisWeek:range(week.start,week.end),nextWeek:range(week.next,week.nextEnd),notes:managementNotes(site,noteMonth),noteItems:managementNoteItems(site,noteMonth),
       rivals:managementRivals(site)
     };
@@ -17837,13 +17878,18 @@ function renderDetailPanel(site){
     el.innerHTML = modalEvents.map((ev,i)=>`
       <div class="log-add event-row" data-idx="${i}">
         <input type="date" class="ev-date" value="${ev.date||''}">
-        <input type="text" class="ev-label" placeholder="예: 정기총회" value="${escapeHtml(ev.label||'')}">
+        <input type="text" class="ev-label" aria-label="일정 내용" placeholder="예: 정기총회" value="${escapeHtml(ev.label||'')}">
+        <select class="ev-status" aria-label="일정 상태">${[['','결과 미확인'],['planned','예정'],['changed','변경'],['completed','완료'],['cancelled','취소']].map(([value,label])=>`<option value="${value}"${(ev.status||'')===value?' selected':''}>${label}</option>`).join('')}</select>
+        ${ev.status==='changed'?`<div class="ev-previous"><label>이전 날짜<input type="date" class="ev-previous-date" value="${escapeHtml(ev.previousDate||'')}"></label><label>이전 일정<input class="ev-previous-label" value="${escapeHtml(ev.previousLabel||'')}" placeholder="동일 행사일 때만 입력"></label></div>`:''}
         <button type="button" class="btn btn-ghost btn-sm ev-del">삭제</button>
       </div>`).join('') || '<div class="empty" style="padding:6px 0;">등록된 일정이 없습니다.</div>';
     el.querySelectorAll('.event-row').forEach(row=>{
       const idx = Number(row.dataset.idx);
-      row.querySelector('.ev-date').addEventListener('change', e=>{ modalEvents[idx].date = e.target.value; });
+      row.querySelector('.ev-date').addEventListener('change', e=>{const ev=modalEvents[idx];if(ev.date&&e.target.value&&ev.date!==e.target.value){ev.previousDate=ev.previousDate||ev.date;ev.previousLabel=ev.previousLabel||ev.label;ev.status='changed';}ev.date=e.target.value;renderEventRows();});
       row.querySelector('.ev-label').addEventListener('input', e=>{ modalEvents[idx].label = e.target.value; });
+      row.querySelector('.ev-status').addEventListener('change',e=>{modalEvents[idx].status=e.target.value;renderEventRows();});
+      row.querySelector('.ev-previous-date')?.addEventListener('change',e=>{modalEvents[idx].previousDate=e.target.value;});
+      row.querySelector('.ev-previous-label')?.addEventListener('input',e=>{modalEvents[idx].previousLabel=e.target.value;});
       row.querySelector('.ev-del').addEventListener('click', ()=>{ modalEvents.splice(idx,1); renderEventRows(); });
     });
   }
@@ -17866,7 +17912,7 @@ function renderDetailPanel(site){
     document.getElementById('f_progressStage').value = site ? (site.progressStage||'') : '';
     document.getElementById('f_area').value = site ? (site.area||'') : '';
     document.getElementById('f_date').value = site ? (site.lastDate||'') : '';
-    modalEvents = site ? eventsOf(site).map(e=>({date:e.date||'', label:e.label||''})) : [];
+    modalEvents = site ? eventsOf(site).map(e=>({...e,date:e.date||'', label:e.label||''})) : [];
     renderEventRows();
     document.getElementById('f_lat').value = site && site.lat ? site.lat : '';
     document.getElementById('f_lng').value = site && site.lng ? site.lng : '';
@@ -17945,7 +17991,7 @@ function renderDetailPanel(site){
       trustCompany: document.getElementById('f_trustCo').value.trim(),
       manager: document.getElementById('f_manager').value.trim(),
       lastDate: document.getElementById('f_date').value,
-      events: modalEvents.filter(e=>e.date && e.label && e.label.trim()).map(e=>({date:e.date, label:e.label.trim()})),
+      events: modalEvents.filter(e=>e.date && e.label && e.label.trim()).map(e=>({...e,date:e.date, label:e.label.trim()})),
       assemblyDate: '',
       bidDeadline: '',
       lat: parseFloat(document.getElementById('f_lat').value) || null,
@@ -18167,13 +18213,13 @@ function renderDetailPanel(site){
     const cutoff = new Date(now.getFullYear(), now.getMonth()+monthsAhead, now.getDate());
     const map = {};
     sites.forEach(s=>{
-      eventsOf(s).forEach(ev=>{
+      upcomingScheduleEvents(s).forEach(ev=>{
         if(!ev.date || !ev.label) return;
         const d = new Date(ev.date);
         if(isNaN(d.getTime())) return;
         if(d>=now && d<=cutoff){
           if(!map[ev.date]) map[ev.date] = [];
-          map[ev.date].push({site:s, label:ev.label, color:colorForEventLabel(ev.label)});
+          map[ev.date].push({...ev,site:s, color:colorForEventLabel(ev.label)});
         }
       });
     });
@@ -20249,6 +20295,29 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
     {name:'권리',re:/상속|증여|지위.?승계|분양권|세입자.?보상|주거이전비/},
     {name:'상가',re:/상가|제척|독립정산/}
   ];
+  function relationshipEvidenceKind(text,log){
+    const clause=String(text||'').trim();
+    if(/전해|전언|들었|들었다|들음|들었다고|하더라|한다더라|다고\s*(?:함|전함|전했|들)|라는\s*(?:말|이야기|얘기)|단톡방.{0,20}(?:공유|올라|게시)|소문/.test(clause))return '전언·타인 의견';
+    if(/설명드|안내드|안내하|설명하자|설명했더니|전달드|당사.{0,30}(?:설명|안내)|포스코.{0,20}(?:설명드|안내)|제안서.{0,12}(?:전달|제시)|브랜드.{0,12}설명/.test(clause))return '당사 설명';
+    const names=String(log.contactName||'').split(/[\s,·\n\[\]()]+/).filter(n=>/^[가-힣]{2,4}$/.test(n)&&!/^(?:위원|위원장|부장|차장|대표|실장|상근위원)$/.test(n));
+    const ownSubject=/본인|나는|자신|본인은/.test(clause)||names.some(n=>clause.startsWith(n));
+    const embeddedOther=/(?:주민|소유주|조합원|남편|부인|아들|자녀)(?:들)?(?:은|는|이|가|의)/.test(clause);
+    const namedOther=clause.match(/^([가-힣]{2,4})(?:은|는|이|가)\s/);
+    const unknownSubject=namedOther&&!names.includes(namedOther[1])&&!relationshipInterestTopics.some(t=>t.name===namedOther[1])&&!/^(?:본인|재건축|사업|금융|조건|가격|아파트)$/.test(namedOther[1]);
+    const otherSubject=embeddedOther||(/주민들?|소유주들?|조합원들?|남편|부인|아들|자녀|위원장|부장|차장|시공사|타사/.test(clause)&&!ownSubject);
+    const opinion=/문의|질문|물어|물었|관심|선호|희망|걱정|우려|중요|원한다|원함|원하|평가|마음에|좋아|싫어/.test(clause);
+    if(opinion&&unknownSubject&&!otherSubject)return '관련 언급·발언자 확인 필요';
+    if(opinion&&!otherSubject&&!/설명|안내|전달|추정|예상/.test(clause))return '본인 질문·의견';
+    if(otherSubject&&opinion)return '타인 의견';
+    return '관련 언급·발언자 확인 필요';
+  }
+  function relationshipTopicEvidence(log,topic){
+    const clauses=String(log.text||'').split(/\n+|(?<=[.!?。])\s+/).map(x=>x.trim()).filter(x=>x&&topic.re.test(x));
+    return clauses.map(text=>({text,kind:relationshipEvidenceKind(text,log)}));
+  }
+  function relationshipEvidenceMarkup(log){
+    return (log.interestEvidence||[]).map(e=>`<div class="interest-attributed-evidence"><small class="interest-evidence-kind">${escapeHtml(e.kind)}</small><p>${escapeHtml(e.text)}</p></div>`).join('');
+  }
   function relationshipInterests(logs){
     const seen=new Set();
     const records=(logs||[]).filter(l=>{
@@ -20257,20 +20326,20 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
       const key=[l.id||'',l.date||'',l.author||'',text].join('|');
       if(seen.has(key))return false;seen.add(key);return true;
     }).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
-    return relationshipInterestTopics.map(t=>({name:t.name,logs:records.filter(l=>t.re.test(String(l.text||'')))})).filter(t=>t.logs.length);
+    return relationshipInterestTopics.map(t=>({name:t.name,logs:records.map(l=>({...l,interestEvidence:relationshipTopicEvidence(l,t)})).filter(l=>l.interestEvidence.length)})).filter(t=>t.logs.length);
   }
   function relationshipInterestTags(logs){
     const items=relationshipInterests(logs);
-    return items.length?`<div class="relationship-interest-tags">${items.map(t=>`<span>${escapeHtml(t.name)}</span>`).join('')}</div>`:'';
+    return items.length?`<div class="relationship-interest-tags">${items.filter(t=>t.logs.some(l=>l.interestEvidence.some(e=>e.kind==='본인 질문·의견'))).map(t=>`<span>${escapeHtml(t.name)}</span>`).join('')}</div>`:'';
   }
   function ownerInterestPanel(logs,prefix){
     const topics=relationshipInterests(logs);
     if(!topics.length)return '<div class="owner-interest-empty">분류할 상담 내용이 없습니다.</div>';
-    return `<div class="owner-interest-panel"><div class="owner-interest-topics" aria-label="관심사항">${topics.map((t,i)=>`<button type="button" class="owner-interest-topic" data-owner-interest-topic aria-expanded="false" aria-controls="${escapeHtml(prefix+'-topic-'+i)}">${escapeHtml(t.name)}<span>${t.logs.length}</span></button>`).join('')}</div>${topics.map((t,i)=>`<div class="owner-interest-evidence" id="${escapeHtml(prefix+'-topic-'+i)}" hidden>${t.logs.map(l=>`<article class="owner-interest-record"><div class="owner-interest-record-meta"><time>${escapeHtml(l.date||'날짜 미기재')}</time><span>${escapeHtml(l.author||'담당 미기재')}</span></div><p>${escapeHtml(l.text)}</p>${l.id&&!/^excel-report:/.test(l.id)?`<small>${escapeHtml(l.id)}</small>`:''}</article>`).join('')}</div>`).join('')}</div>`;
+    return `<div class="owner-interest-panel"><div class="owner-interest-topics" aria-label="관심사항">${topics.map((t,i)=>`<button type="button" class="owner-interest-topic" data-owner-interest-topic aria-expanded="false" aria-controls="${escapeHtml(prefix+'-topic-'+i)}">${escapeHtml(t.name)}<span>${t.logs.length}</span>${t.logs.some(l=>l.interestEvidence.some(e=>e.kind==='본인 질문·의견'))?'':'<small class="interest-topic-context">관련 언급</small>'}</button>`).join('')}</div>${topics.map((t,i)=>`<div class="owner-interest-evidence" id="${escapeHtml(prefix+'-topic-'+i)}" hidden>${t.logs.map(l=>`<article class="owner-interest-record"><div class="owner-interest-record-meta"><time>${escapeHtml(l.date||'날짜 미기재')}</time><span>${escapeHtml(l.author||'담당 미기재')}</span></div>${relationshipEvidenceMarkup(l)}${l.id&&!/^excel-report:/.test(l.id)?`<small>${escapeHtml(l.id)}</small>`:''}</article>`).join('')}</div>`).join('')}</div>`;
   }
   function relationshipInterestMarkup(logs){
     const items=relationshipInterests(logs);
-    return `<section class="relationship-interests"><b>관계자 관심사</b><p class="relationship-interest-caption">상담 원문에서 주제를 자동 분류했습니다. 설명·전언·타인의 의견이 포함될 수 있으며, 본인의 선호를 확정하지 않습니다.</p>${items.length?items.map(t=>`<details class="relationship-interest-evidence"><summary>${escapeHtml(t.name)} <span>${t.logs.length}건 · 최근 ${escapeHtml(t.logs[0].date||'날짜 미기재')}</span></summary>${t.logs.map(l=>`<article><div class="relationship-interest-source">${escapeHtml(l.date||'날짜 미기재')} · 접촉자 ${escapeHtml(l.contactName||'-')} · 담당 ${escapeHtml(l.author||'미기재')}${l.unit?' · '+escapeHtml(l.unit):''}${l.id?' · 보고 '+escapeHtml(l.id):''}</div><div class="relationship-interest-original">${escapeHtml(l.text)}</div></article>`).join('')}</details>`).join(''):'<p class="relationship-interest-caption">분류할 상담 내용이 없습니다. 관심사가 없다는 뜻은 아닙니다.</p>'}</section>`;
+    return `<section class="relationship-interests"><b>관계자 관심사</b><p class="relationship-interest-caption">본인 질문·의견 / 설명·전언 구분</p>${items.length?items.map(t=>`<details class="relationship-interest-evidence"><summary>${escapeHtml(t.name)} <span>${t.logs.length}건 · 최근 ${escapeHtml(t.logs[0].date||'날짜 미기재')}</span></summary>${t.logs.map(l=>`<article><div class="relationship-interest-source">${escapeHtml(l.date||'날짜 미기재')} · 접촉자 ${escapeHtml(l.contactName||'-')} · 담당 ${escapeHtml(l.author||'미기재')}${l.unit?' · '+escapeHtml(l.unit):''}${l.id&&!/^excel-report:/.test(l.id)?' · 보고 '+escapeHtml(l.id):''}</div><div class="relationship-interest-original">${relationshipEvidenceMarkup(l)}</div></article>`).join('')}</details>`).join(''):'<p class="relationship-interest-caption">분류할 상담 내용이 없습니다. 관심사가 없다는 뜻은 아닙니다.</p>'}</section>`;
   }
   let expandedContactSites = new Set();
   let relationshipInterestFilter = '';
@@ -21617,7 +21686,7 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
     const upcoming = [];
     inScopeSiteIds.forEach(id=>{
       const s = siteById[id]; if(!s) return;
-      eventsOf(s).forEach(ev=>{
+      upcomingScheduleEvents(s).forEach(ev=>{
         if(ev.date && ev.label && ev.date>=todayKey) upcoming.push({site:s.name, date:ev.date, label:ev.label});
       });
     });
@@ -21789,7 +21858,7 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
         const names = String(s.manager||'').split(/[,，;/|]+/).filter(Boolean);
         if(!names.includes(managerName)) return;
         const recentLogs = (s.logs||[]).filter(l=>!isTourBookingLog(l)).slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
-        const upcomingEvents = eventsOf(s).filter(e=>e.date && e.label && e.date>=todayKeyStr0).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,4);
+        const upcomingEvents = upcomingScheduleEvents(s).filter(e=>e.date && e.label && e.date>=todayKeyStr0).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,4);
         items.push({
           site: s.name, office, district: s.district||'', progressStage: s.progressStage||'-',
           manager: s.manager||'-', salesNote: s.salesNote||'', stageDetail: s.stageDetail||'',
@@ -22337,7 +22406,7 @@ ead><body>
 
     const monthEvents = [];
     sitesList.forEach(s=>{
-      eventsOf(s).forEach(ev=>{
+      upcomingScheduleEvents(s).forEach(ev=>{
         if(!ev.date || !ev.label) return;
         const ey = parseInt(ev.date.slice(0,4),10), em = parseInt(ev.date.slice(5,7),10);
         if(ey===y && em===(mo+1)) monthEvents.push({date:ev.date, site:s.name, label:ev.label});
@@ -23853,10 +23922,14 @@ function v16Detail(){
   recent=document.createElement('section');recent.id='v16RecentReports';
   recent.innerHTML='<div class="v16-section-head"><h3>최근 보고</h3><button type="button">전체 보고서</button></div><div class="v16-recent-content"></div>';
   recent.querySelector('button').addEventListener('click',()=>{detailTab='일지';renderDetailPanel(site)});
-  const content=recent.querySelector('.v16-recent-content');
-  const logs=(site.logs||[]).filter(l=>!isTourBookingLog(l)).slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))).slice(0,3);
-  if(!logs.length){const p=document.createElement('p');p.textContent='등록된 보고서가 없습니다.';content.append(p)}
-  logs.forEach(l=>{const d=document.createElement('details'),h=document.createElement('summary'),p=document.createElement('p');h.textContent=[l.date||'날짜 미입력',l.author||'담당 미지정',l.contactName||''].filter(Boolean).join(' · ');p.textContent=l.text||'내용 없음';d.append(h,p);content.append(d)});
+ }
+ const content=recent.querySelector('.v16-recent-content');
+ const logs=miReportLogs(site).filter(l=>!isTourBookingLog(l)).slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))).slice(0,3);
+ const recordsKey=JSON.stringify([site.id,logs.map(l=>[l.id,l.date,l.author,l.contactName,l.text])]);
+ if(recent.__recordsKey!==recordsKey){
+ recent.__recordsKey=recordsKey;content.replaceChildren();
+ if(!logs.length){const p=document.createElement('p');p.textContent='불러온 보고 원문이 없습니다. 전체 보고서에서 확인해 주세요.';content.append(p)}
+ logs.forEach(l=>{const d=document.createElement('details'),h=document.createElement('summary'),p=document.createElement('p');h.textContent=[l.date||'날짜 미입력',l.author||'담당 미지정',l.contactName||''].filter(Boolean).join(' · ');p.textContent=l.text||'내용 미기재';d.append(h,p);content.append(d)});
  }
  if(summary){body.prepend(summary);summary.after(recent)}else body.prepend(recent);
 }
@@ -34396,6 +34469,14 @@ body.ux383 #mobileSiteInfoEditBtn.mobile-site-info-edit:focus-visible{outline:1p
 @media(max-width:820px){.shared-brief-issues .bf-entry-copy,.report-site-note-view .bf-entry-copy{font-size:14px;line-height:1.7}}
 body.ux383 .report-site-note-view:has(.bf-shared-embedded){white-space:normal!important}
 body.ux383 .bf-shared-embedded .bf-manual{white-space:pre-wrap!important}
+</style>
+
+<style id="report-accuracy-schedules-v17">
+.schedule-state{display:inline-block;font-size:11px;font-weight:600;padding:2px 7px;border-radius:4px;color:var(--muted,#aabbaf);background:rgba(154,191,172,.08);white-space:nowrap;margin:3px}
+.schedule-state-changed{color:#e2b875}.schedule-state-completed{color:#9cc4ae}.schedule-state-cancelled{color:#cdaaa5}.schedule-previous{display:block;margin-top:5px;color:var(--muted);font-size:12px}
+.interest-evidence-kind{display:block;color:var(--accent,#a2c4b0);font-size:12px;margin:6px 0}.interest-attributed-evidence p{margin:5px 0 12px}.interest-topic-context{font-size:10px;display:block;opacity:.7;font-weight:400}
+.event-row{flex-wrap:wrap}.event-row .ev-status{min-width:100px;flex:0 1 110px}.ev-previous{display:flex;flex-wrap:wrap;gap:8px;flex-basis:100%;font-size:12px;color:var(--muted)}.ev-previous label{display:flex;flex:1;min-width:130px;flex-direction:column;gap:4px}.ev-previous input{width:100%;box-sizing:border-box}
+.schedule-edit-dialog label{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;font-size:13px}.schedule-edit-dialog input,.schedule-edit-dialog select{width:100%;box-sizing:border-box;min-height:40px;font-size:16px}.schedule-edit-previous{display:flex;flex-wrap:wrap;gap:12px}.schedule-edit-previous label{flex:1;min-width:130px}
 </style>
 </body>
 </html>
