@@ -19447,17 +19447,17 @@ function renderDetailPanel(site){
       const rows=Object.entries(map).map(([key,r])=>({...r,personKey:key,interestLogs:interestLogs.filter(l=>String(l.personId||'')===key)})).sort((a,b)=>String(b.last).localeCompare(String(a.last))||a.name.localeCompare(b.name,'ko'));
       if(!rows.length)return `<div class="mgr-empty">${periodPayloadReady?`${year}년 ${month}월 Excel 접촉기록이 없습니다.`:'Excel 기간이력 동기화가 아직 완료되지 않았습니다.'}</div>`;
       return `<div class="mgr-owner-search-row no-print"><input type="text" id="mgrOwnerSearchInput" placeholder="🔍 이름 · 담당 · 동호수 검색"></div>
-      <div style="overflow-x:auto;"><table class="mgr-breakdown-table mgr-owner-table" id="mgrOwnerTable" style="min-width:660px;">
+      <div style="overflow-x:auto;"><table class="mgr-breakdown-table mgr-owner-table contact-compact-table" id="mgrOwnerTable" style="min-width:660px;">
         <thead><tr><th style="text-align:center;">접촉자</th><th>담당</th><th>동호수</th><th>접촉일수</th><th>건수</th><th>최근접촉</th><th>방법</th></tr></thead>
         <tbody>${rows.map((r,interestIndex)=>{
-          const meth=['상담','단순','TM'].map(m=>r.methods[m]?`${m==='상담'?'상':m==='단순'?'단':'TM'}${r.methods[m]}`:'').filter(Boolean).join(' ');
+          const meth=['상담','단순','TM'].map(m=>r.methods[m]?`${m==='상담'?'상':m==='단순'?'단':'TM'}${r.methods[m]}`:'').filter(Boolean).join('·');
           const interestId='owner-interest-'+encodeURIComponent(String(site.id))+'-'+interestIndex;
           const topics=ownerInterestPanel(r.interestLogs,interestId);
           const shortName=r.name.split(/[\[（(]/)[0].trim()||r.name;
           const embeddedRole=r.role&&r.name.includes(r.role);
           const fullIdentity=r.name+(r.role&&!embeddedRole?' · '+r.role:'');
           const hasMore=shortName!==r.name||shortName.length>12;
-          return `<tr data-owner-row="${escapeHtml(r.name)}"><td class="mgr-contact-cell"><div class="mgr-contact-heading"><button type="button" class="mgr-contact-journal-btn" data-person="${escapeHtml(r.personKey)}" data-contact="${escapeHtml(r.name)}">${escapeHtml(shortName)}</button><button type="button" class="mgr-interest-toggle" aria-label="${escapeHtml(r.name)} 관심사항 펼치기" aria-expanded="false" aria-controls="${interestId}" data-interest-target="${interestId}">▸</button></div>${r.role?`<div class="mgr-contact-role">${escapeHtml(r.role)}</div>`:''}</td><td>${escapeHtml(r.manager||'-')}</td><td>${escapeHtml(r.unit||'-')}</td><td>${r.dates.size}</td><td>${r.count}</td><td>${escapeHtml(r.last||'-')}</td><td>${escapeHtml(meth||'-')}</td></tr><tr id="${interestId}" class="mgr-interest-row" hidden><td colspan="7"><div class="mgr-interest-content">${hasMore?`<div class="mgr-contact-full-identity">${escapeHtml(fullIdentity)}</div>`:''}${topics}</div></td></tr>`;
+          return `<tr data-owner-row="${escapeHtml(r.name)}"><td class="mgr-contact-cell"><div class="mgr-contact-heading"><button type="button" class="mgr-contact-journal-btn" data-person="${escapeHtml(r.personKey)}" data-contact="${escapeHtml(r.name)}">${escapeHtml(shortName)}</button><button type="button" class="mgr-interest-toggle" aria-label="${escapeHtml(r.name)} 관심사항 펼치기" aria-expanded="false" aria-controls="${interestId}" data-interest-target="${interestId}">▸</button></div>${r.role?`<div class="mgr-contact-role">${escapeHtml(r.role)}</div>`:''}</td><td>${escapeHtml(r.manager||'-')}</td><td>${escapeHtml(r.unit||'-')}</td><td>${r.dates.size}</td><td>${r.count}</td><td><span class="contact-date-full">${escapeHtml(r.last||'-')}</span><span class="contact-date-short" title="${escapeHtml(r.last||'')}">${escapeHtml(r.last?Number(r.last.slice(5,7))+'.'+Number(r.last.slice(8,10)):'-')}</span></td><td class="contact-method-compact">${escapeHtml(meth||'-')}</td></tr><tr id="${interestId}" class="mgr-interest-row" hidden><td colspan="7"><div class="mgr-interest-content">${hasMore?`<div class="mgr-contact-full-identity">${escapeHtml(fullIdentity)}</div>`:''}${topics}</div></td></tr>`;
         }).join('')}</tbody>
       </table></div>`;
     }
@@ -19610,6 +19610,43 @@ function sharedBriefContext(site,requestedRange,requestedMode){
 function reportBriefSite(row){
  return (allOfficesData[row.office]||[]).find(s=>s.id===row.id)||null;
 }
+
+function bfEvidenceMarkup(refs,label='보고 근거'){
+ const rows=(refs||[]).filter(Boolean);
+ if(!rows.length)return '';
+ return `<details class="bf-evidence-fold"><summary>${escapeHtml(label)} <span>${rows.length}건</span></summary>${rows.map(r=>`<div class="bf-evidence-record"><div class="bf-evidence-meta">${escapeHtml([r.date,r.name,r.author?'보고 담당 '+r.author:'',/^R[0-9a-f]+$/i.test(String(r.id||''))?r.id:''].filter(Boolean).join(' · '))}</div><p>${escapeHtml(r.text||r._fallback||'')}</p></div>`).join('')}</details>`;
+}
+function bfFollowupItems(logs,range){
+ const rows=[],seen=new Map();
+ const contactPlan=/(?:재방문|재접촉|다시.{0,16}(?:방문|연락)|연락|전화|찾아뵙|방문).{0,25}(?:예정|계획|하기로|드리기로|드리겠|약속|요청|부탁)|(?:예정|계획).{0,12}(?:재방문|재접촉)/;
+ const intro=/소개.{0,20}(?:받|주심|받음|해주|해 주|예정|주겠|하기로)|연락처.{0,12}(?:받음|받았|주심|소개)/;
+ const check=/(?:확인|파악|문의|점검).{0,20}(?:예정|필요|요청|하기로|부탁)|미확인|확인하지 못|확인되지 않/;
+ const negative=/(?:재방문|재접촉|연락|소개).{0,8}(?:계획|예정).{0,4}(?:없|아니)|방문.{0,8}(?:거절|사양)/;
+ for(const l of (logs||[]).filter(l=>l.date>=range.start&&l.date<=range.end&&l.text&&!isTourBookingLog(l)).sort((a,b)=>String(b.date).localeCompare(String(a.date)))){
+  const parts=String(l.text).replace(/\r/g,'').split(/\n+|(?<=[.!?])\s+(?=[가-힣A-Z])/).map(t=>t.trim()).filter(Boolean);
+  for(const text of parts){
+   if(negative.test(text))continue;
+   if(intro.test(text)&&/(?:상담|통화|접촉|면담).{0,8}완료/.test(text)&&!contactPlan.test(text)&&!check.test(text))continue;
+   const category=intro.test(text)?'소개 후 접촉 확인':contactPlan.test(text)?'재접촉 계획':check.test(text)?'추가 확인':null;
+   if(!category)continue;
+   const name=l.contactName||l.owner||'',key=category+'|'+l.date+'|'+String(l.personId||name)+'|'+text.replace(/\s+/g,' ');
+   const ref={date:l.date,name,author:l.author||'',id:l.id||'',text:l.text};
+   if(seen.has(key)){const old=seen.get(key);if(!old.refs.some(r=>r.id===ref.id&&r.date===ref.date&&r.author===ref.author))old.refs.push(ref);continue;}
+   const row={category,text,name,date:l.date,refs:[ref]};seen.set(key,row);rows.push(row);
+  }
+ }
+ return rows;
+}
+function bfFollowupMarkup(site,range){
+ const rows=bfFollowupItems(miReportLogs(site),range);
+ if(!rows.length)return '<p class="bf-empty">해당 기간 보고에서 소개·재접촉·추가 확인 계획을 찾지 못함.</p>';
+ return ['소개 후 접촉 확인','재접촉 계획','추가 확인'].map(category=>{
+  const items=rows.filter(r=>r.category===category);if(!items.length)return '';
+  const itemHtml=r=>`<article class="bf-followup-item"><div class="bf-followup-meta"><span>${escapeHtml(r.date)} 보고${r.name?' · 접촉자 '+escapeHtml(r.name):''}</span><span class="bf-followup-state">${category==='소개 후 접촉 확인'?'후속 접촉 여부 확인 필요':'완료 여부 확인 필요'}</span></div><p>${escapeHtml(reportStyleText(r.text))}</p>${bfEvidenceMarkup(r.refs)}</article>`;
+  return `<div class="bf-followup-group"><h4>${category} <span>${items.length}</span></h4>${items.slice(0,3).map(itemHtml).join('')}${items.length>3?`<details class="bf-followup-more"><summary>추가 ${items.length-3}건</summary>${items.slice(3).map(itemHtml).join('')}</details>`:''}</div>`;
+ }).join('');
+}
+
 function buildSiteReportBrief(site,requestedRange,requestedMode){
  const {range,mode,data,override}=sharedBriefContext(site,requestedRange,requestedMode);
  const embedded=!!requestedRange,esc=escapeHtml,periodLabel=embedded?(mode==='month'?range.start.slice(0,7):range.start+' ~ '+range.end):bfPeriodDisplay(range);
@@ -19618,12 +19655,8 @@ function buildSiteReportBrief(site,requestedRange,requestedMode){
  const itemHtml=item=>{
    const speaker=bfSpeakerLabel(item);
    const refs=(item.refs||[]).filter(r=>r&&(r.id||r.date));
-   const r0=refs[0]||{};
-   const shortDate=r0.date?String(r0.date).replace(/^\d{4}-0?(\d{1,2})-0?(\d{1,2})$/,'$1/$2'):'';
-   const evidenceId=/^excel-report:/i.test(String(r0.id||''))?'':String(r0.id||'');
-   const evidence=(evidenceId||shortDate)?`<span class="bf-inline-ref">${esc([evidenceId,shortDate].filter(Boolean).join(' · '))}${refs.length>1?` 외 ${refs.length-1}건`:''}</span>`:'';
    const cleanText=String(item.text||'').split('excel-report:')[0].replace(/[.\s·|:-]+$/,'').trim();
-   return `<article class="bf-entry"><div class="bf-entry-topline"><p><strong>${esc(item.topic||'핵심')}</strong>${speaker?` <span class="bf-speaker-v118">${esc(speaker)}</span>`:''} · <span class="bf-entry-copy">${esc(reportStyleText(cleanText))}</span>${evidence}</p></div></article>`;
+   return `<article class="bf-entry bf-focused-entry" data-mobile-brief-v11="1"><div class="bf-entry-topline"><p><strong>${esc(item.topic||'핵심')}</strong>${speaker?` <span class="bf-speaker-v118">${esc(speaker)}</span>`:''} · <span class="bf-entry-copy">${esc(reportStyleText(cleanText))}</span></p></div>${bfEvidenceMarkup(refs)}</article>`;
  };
 
  const sourceRefs=[],sourceSeen=new Set();
@@ -19633,16 +19666,14 @@ function buildSiteReportBrief(site,requestedRange,requestedMode){
    sourceSeen.add(sig);
    sourceRefs.push({...r,_fallback:item.text||''});
  }));
- const checkButton=(!embedded&&!guestMode&&sourceRefs.length)
-   ?`<button type="button" class="bf-check-v46 no-print" data-bf-check aria-expanded="false">확인</button>`:'';
- const sourceGroup=((embedded||!guestMode)&&sourceRefs.length)
-   ?`<${embedded?'details':'div'} class="bf-source-group-v46" ${embedded?'':'hidden'}>${embedded?'<summary>근거 확인</summary>':''}${sourceRefs.map(r=>`<div class="bf-source"><small>${esc([r.date,r.name,r.author].filter(Boolean).join(' · '))}</small><p>${esc(String(r.text||r._fallback||'').split('excel-report:')[0].replace(/[.\s·|:-]+$/,'').trim())}</p></div>`).join('')}</${embedded?'details':'div'}>`:'';
+ const checkButton='';
+ const sourceGroup=manual?bfEvidenceMarkup(sourceRefs,'수정 내용의 참고 보고'):'';
 
  const topItems=items.slice(0,3),extraItems=items.slice(3);
  const sectionLabel={issue:'핵심 이슈',competitor:'경쟁사 활동',executive:'관계자 반응',next:'다음 접촉·후속 업무'}[key]||title;
  const sectionIcon={issue:'●',competitor:'◇',executive:'○',next:'→'}[key]||'•';
  const mobileMore=''; // v151: 항목별 기존 더보기만 사용해 중복 버튼 제거
- return `<section class="bf-section bf-section-${key}"><h3><span class="bf-section-icon" aria-hidden="true">${sectionIcon}</span><span>${sectionLabel}</span>${checkButton}</h3>${manual?`<div class="bf-manual">${esc(reportStyleText(override.sections[key]||'직접 작성된 내용이 없습니다.'))}</div><p class="bf-meta">수정 ${esc(override.updatedAt?.slice(0,16).replace('T',' ')||'')} · ${esc(override.author||'관리자')}</p>`:(topItems.length?topItems.map(itemHtml).join('')+(extraItems.length?`<details class="bf-extra"><summary>추가 핵심 ${extraItems.length}개</summary>${extraItems.map(itemHtml).join('')}</details>`:''):(key==='competitor'?'<p class="bf-empty">해당 기간 확인된 경쟁사 활동이 없습니다.</p>':'<p class="bf-empty">이 기간 보고서에서 이 항목을 뒷받침하는 구체적인 내용을 찾지 못했습니다.</p>'))}${sourceGroup}${mobileMore}</section>`;
+ return `<section class="bf-section bf-section-${key}"><h3><span class="bf-section-icon" aria-hidden="true">${sectionIcon}</span><span>${sectionLabel}</span>${checkButton}</h3>${manual?`<div class="bf-manual">${esc(reportStyleText(override.sections[key]||'직접 작성된 내용이 없습니다.'))}</div><p class="bf-meta">수정 ${esc(override.updatedAt?.slice(0,16).replace('T',' ')||'')} · ${esc(override.author||'관리자')}</p>`:(key==='next'?bfFollowupMarkup(site,range):topItems.length?topItems.map(itemHtml).join('')+(extraItems.length?`<details class="bf-extra"><summary>추가 핵심 ${extraItems.length}개</summary>${extraItems.map(itemHtml).join('')}</details>`:''):(key==='competitor'?'<p class="bf-empty">해당 기간 보고에서 경쟁사 활동 근거를 찾지 못함.</p>':'<p class="bf-empty">이 기간 보고서에서 이 항목을 뒷받침하는 구체적인 내용을 찾지 못했습니다.</p>'))}${sourceGroup}${mobileMore}</section>`;
  }).join('')}</div></section>`;
 }
 async function bfSaveField(site,field,baseline,value){
@@ -38675,4 +38706,48 @@ body.ux383 #mgrOwnerTable .mgr-contact-role{margin-top:3px!important;font-size:1
   body.ux383:not(.ux-mobile-detail) :is(.main,.sidebar,.master-detail,.sidebar-column-v21,.map-wrap){width:100%!important}
   body.ux383 .map-wrap > #map{width:100%!important;min-width:0!important;max-width:100%!important}
 }
+</style>
+
+<style id="dashboard-polish-and-followup-20261010">
+.contact-date-short{display:none}
+body.ux383 .report-brief .bf-focused-entry .bf-entry-topline>p{display:block!important;max-height:none!important;overflow:visible!important;-webkit-line-clamp:unset!important}
+body.ux383 .report-brief .bf-focused-entry{padding:7px 0!important;margin:0!important;border-bottom:1px solid var(--line)!important}
+body.ux383 .report-brief .bf-focused-entry .bf-evidence-fold{display:block!important}
+.bf-evidence-fold{margin:5px 0 8px;font-size:11px;font-weight:400;color:var(--text-dim)}
+.bf-evidence-fold>summary{cursor:pointer;width:fit-content;padding:3px 0;line-height:1.5}
+.bf-evidence-fold>summary span{font-size:10px;margin-left:4px;opacity:.8}
+.bf-evidence-record{padding:8px 0;border-top:1px solid var(--line)}
+.bf-evidence-meta{font-size:11px;color:var(--text-dim);line-height:1.5;overflow-wrap:anywhere}
+body.ux383 .bf-evidence-record p{white-space:pre-wrap;font-size:12px!important;line-height:1.65!important;font-weight:400;margin:5px 0!important}
+.bf-followup-group{padding:6px 0 10px}
+.bf-followup-group h4{margin:0 0 7px;font-size:12px;color:var(--accent);font-weight:650}
+.bf-followup-group h4 span{font-weight:400;font-size:11px;margin-left:5px;color:var(--text-dim)}
+.bf-followup-item{padding:9px 0;border-bottom:1px solid var(--line);font-size:12px;line-height:1.65}
+.bf-followup-item>p{margin:5px 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.bf-followup-meta{display:flex;flex-wrap:wrap;gap:4px 10px;justify-content:space-between;align-items:center;font-size:10px;color:var(--text-dim);line-height:1.5}
+.bf-followup-state{font-size:10px;color:var(--warn-text);background:var(--warn-bg);border-radius:4px;padding:1px 5px}
+.bf-followup-more>summary{cursor:pointer;padding:6px 0;font-size:11px;color:var(--text-dim)}
+@media screen and (max-width:820px){
+ body.ux383 #mgrOwnerTable.contact-compact-table{width:100%!important;min-width:0!important;max-width:100%!important;table-layout:fixed!important;font-size:11px!important}
+ body.ux383 #mgrOwnerTable.contact-compact-table th{padding:5px 2px!important;font-size:10px!important;line-height:1.3!important;white-space:normal!important}
+ body.ux383 #mgrOwnerTable.contact-compact-table td:not([colspan]){padding:7px 3px!important;font-size:11px!important;line-height:1.4!important;overflow-wrap:anywhere}
+ body.ux383 #mgrOwnerTable.contact-compact-table th:nth-child(1){width:26%!important}
+ body.ux383 #mgrOwnerTable.contact-compact-table th:nth-child(2){width:12%!important}
+ body.ux383 #mgrOwnerTable.contact-compact-table th:nth-child(3){width:14%!important}
+ body.ux383 #mgrOwnerTable.contact-compact-table th:nth-child(4){width:9%!important}
+ body.ux383 #mgrOwnerTable.contact-compact-table th:nth-child(5){width:7%!important}
+ body.ux383 #mgrOwnerTable.contact-compact-table th:nth-child(6){width:14%!important}
+ body.ux383 #mgrOwnerTable.contact-compact-table th:nth-child(7){width:18%!important}
+ body.ux383 #mgrOwnerTable.contact-compact-table .contact-date-full{display:none!important}
+ body.ux383 #mgrOwnerTable.contact-compact-table .contact-date-short{display:inline!important;white-space:nowrap!important}
+ body.ux383 #mgrOwnerTable.contact-compact-table .contact-method-compact{word-break:keep-all!important;overflow-wrap:normal!important;font-size:10px!important}
+ body.ux383:not(.ux-mobile-detail):not([data-mobile-workspace="list"]):not([data-mobile-workspace="map"]) #masterList{height:clamp(128px,23svh,190px)!important;max-height:clamp(128px,23svh,190px)!important;overflow-y:auto!important;overflow-x:hidden!important}
+ body.ux383:not(.ux-mobile-detail):not([data-mobile-workspace="list"]):not([data-mobile-workspace="map"]) .map-wrap{height:auto!important;min-height:0!important;flex:0 0 auto!important}
+ body.ux383:not(.ux-mobile-detail):not([data-mobile-workspace="list"]):not([data-mobile-workspace="map"]) .map-wrap>#map{height:clamp(220px,33svh,340px)!important;min-height:220px!important;max-height:340px!important}
+ body.ux383:not(.ux-mobile-detail) #v16MapSelection{padding:7px 9px!important;min-height:0!important;font-size:11px!important;line-height:1.4!important}
+ body.ux383:not(.ux-mobile-detail) .main{gap:7px!important}
+ body.ux383 .bf-followup-item>p{font-size:12.5px!important;line-height:1.65!important}
+ body.ux383 .bf-evidence-fold>summary{font-size:11px!important;min-height:24px}
+}
+@media print{.contact-date-short{display:none!important}.contact-date-full{display:inline!important}.bf-evidence-fold:not([open]){display:none}}
 </style>
