@@ -14300,7 +14300,7 @@ window.addEventListener('resize', ()=>{
     let visibleRows=[], miniMaps=[], mapObserver=null;
     function clearMaps(){mapObserver?.disconnect();mapObserver=null;miniMaps.forEach(m=>{m.overlays.forEach(o=>o.setMap(null));});miniMaps=[];}
     modal.setOnClose?.(clearMaps);
-    function drawLocations(){
+    function drawLocations(force=false){
       if(window.innerWidth<=820)return;
       const ready=typeof kakao!=='undefined'&&kakao.maps?.Map;
       if(!ready){content.querySelectorAll('[data-management-map]').forEach(n=>{n.textContent='지도를 불러오지 못했습니다.';});return;}
@@ -14325,7 +14325,7 @@ window.addEventListener('resize', ()=>{
         }catch(error){node.textContent='지도를 불러오지 못했습니다.';}
       };
       const nodes=content.querySelectorAll('[data-management-map]');
-      if(typeof IntersectionObserver==='undefined'){nodes.forEach(draw);return;}
+      if(force||typeof IntersectionObserver==='undefined'){nodes.forEach(draw);return;}
       mapObserver=new IntersectionObserver(entries=>entries.filter(e=>e.isIntersecting).forEach(e=>{draw(e.target);mapObserver.unobserve(e.target);}),{root:content.querySelector('.management-scroll'),rootMargin:'120px'});
       nodes.forEach(node=>mapObserver.observe(node));
     }
@@ -14405,11 +14405,21 @@ window.addEventListener('resize', ()=>{
     };
     content.querySelector('#managementPrint').onclick=()=>{
       const win=window.open('','_blank');if(!win){alert('인쇄 창을 열 수 없습니다. 브라우저의 팝업 차단을 확인해 주세요.');return;}
-      const week=selectedWeek(),widths=[36,64,98,126,66,82,140,112,95,70,188,145,145,194,154],totalWidth=widths.reduce((a,b)=>a+b,0);
-      const table=`<table><colgroup>${widths.map(w=>`<col style="width:${w/totalWidth*100}%">`).join('')}</colgroup><thead><tr>${headers(week).map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${visibleRows.map((r,i)=>`<tr>${values(r,i).map(v=>`<td><div class="print-cell">${esc(managementDisplayText(String(v||'—')))}</div></td>`).join('')}</tr>`).join('')}</tbody></table>`;
-      const css='@page{size:A3 landscape;margin:8mm}*{box-sizing:border-box}body{margin:0;font-family:Arial,"Malgun Gothic",sans-serif;font-size:9px;color:#233d38}h1{font-size:18px;margin:0 0 5px}.meta{font-size:10px;margin:0 0 12px}table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{border:1px solid #b9c7c8;padding:5px;vertical-align:top;overflow-wrap:anywhere}th{background:#eaf2ef;text-align:center;font-weight:700;white-space:pre-line}thead{display:table-header-group}tr{break-inside:avoid;page-break-inside:avoid}.print-cell{height:104px;max-height:104px;overflow:hidden;white-space:pre-wrap;line-height:1.5}td:nth-child(1),td:nth-child(2),td:nth-child(3),td:nth-child(5),td:nth-child(6),td:nth-child(9),td:nth-child(10){text-align:center}.actions{margin-bottom:10px}.actions button{padding:6px 12px}@media print{.actions{display:none}}';
-      win.document.write('<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>전체 현장표</title><style>'+css+'</style></head><body><div class="actions"><button id="printAgain">인쇄 / PDF 저장</button></div><h1>전체 현장표</h1><p class="meta">'+esc(dateInput.value)+' 기준 · '+visibleRows.length+'개 현장</p>'+table+'</body></html>');win.document.close();
-      win.document.getElementById('printAgain').onclick=()=>win.print();win.focus();setTimeout(()=>{if(!win.closed)win.print()},350);
+      drawLocations(true);
+      const source=content.querySelector('.management-table'),table=source.cloneNode(true);
+      const sourceMaps=source.querySelectorAll('.management-mini-map'),copyMaps=table.querySelectorAll('.management-mini-map');
+      sourceMaps.forEach((original,index)=>{
+        const copy=copyMaps[index],src=[original,...original.querySelectorAll('*')],dst=[copy,...copy.querySelectorAll('*')];
+        src.forEach((node,i)=>{const style=getComputedStyle(node);if(!dst[i])return;for(const key of ['position','top','left','right','bottom','width','height','transform','transform-origin','background','background-image','background-size','background-position','z-index','display','overflow','opacity','border','border-radius','color','font-size'])dst[i].style.setProperty(key,style.getPropertyValue(key));});
+        copy.style.width=original.getBoundingClientRect().width+'px';copy.style.height='96px';
+      });
+      table.querySelectorAll('.management-note-popover,[data-management-notes-edit],[data-management-schedule]').forEach(el=>el.remove());
+      const widths=[...table.querySelectorAll('col')].map(c=>parseFloat(c.style.width)||1),total=widths.reduce((a,b)=>a+b,0);table.querySelectorAll('col').forEach((c,i)=>c.style.width=widths[i]/total*100+'%');
+      const css='@page{size:A3 landscape;margin:8mm}*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}body{margin:0;background:white;color:#244d59;font-family:Arial,"Malgun Gothic",sans-serif;font-size:10px}h1{font-size:17px;margin:0 0 5px;color:#172632}.meta{font-size:10px;color:#6d8788;margin-bottom:12px}table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{border:1px solid #d8e3e9}th{background:#f1f5f7;color:#244d59;text-align:center;white-space:pre-line;line-height:1.7;padding:9px 4px;font-weight:400}td{height:176px;padding:6px;vertical-align:middle;text-align:center}thead{display:table-header-group}tr{break-inside:avoid;page-break-inside:avoid}.management-cell{height:164px;max-height:164px;overflow:hidden;width:100%}.management-cell-content{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}.management-text{width:100%;white-space:pre-wrap;line-height:1.75;overflow-wrap:anywhere}button{border:0;background:none;color:#547b79;padding:2px 0;font:inherit;line-height:1.7}button.management-site-link{color:#205fab;font-weight:700}small{color:#819390;font-size:9px;line-height:1.7}.management-mini-map{flex-shrink:0;margin:6px auto 0;max-width:100%;overflow:hidden;border-radius:4px}.management-map-link{font-size:9px}td:nth-child(7) .management-cell-content,td:nth-child(8) .management-cell-content,td:nth-child(11) .management-cell-content,td:nth-child(12) .management-cell-content,td:nth-child(13) .management-cell-content,td:nth-child(14) .management-cell-content,td:nth-child(15) .management-cell-content{display:block;min-height:0;text-align:left}td:nth-child(7) .management-text,td:nth-child(8) .management-text,td:nth-child(11) .management-text,td:nth-child(12) .management-text,td:nth-child(13) .management-text,td:nth-child(14) .management-text,td:nth-child(15) .management-text{text-align:left}.management-note-item{margin:0 0 9px;color:#008678;line-height:1.75}.management-note-month{margin-bottom:5px;color:#547b79}.management-note-toggle{font-size:8px;color:#819390}.management-note-popover,[hidden]{display:none!important}.actions{margin-bottom:10px}.actions button{padding:5px 12px;border:1px solid #c8d8d3;border-radius:5px}@media print{.actions{display:none}}';
+      win.document.write('<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>전체 현장표</title><style>'+css+'</style></head><body><div class="actions"><button id="printAgain">인쇄 / PDF 저장</button></div><h1>전체 현장표</h1><div class="meta">'+esc(dateInput.value)+' 기준 · '+visibleRows.length+'개 현장</div>'+table.outerHTML+'</body></html>');win.document.close();
+      win.document.getElementById('printAgain').onclick=()=>win.print();win.focus();
+      const images=[...win.document.images];Promise.all(images.map(img=>img.complete?Promise.resolve():new Promise(resolve=>{img.onload=resolve;img.onerror=resolve}))).then(()=>{if(!win.closed&& !win.__tablePrintStarted){win.__tablePrintStarted=true;win.print()}});
+      setTimeout(()=>{if(!win.closed&&!win.__tablePrintStarted){win.__tablePrintStarted=true;win.print()}},1800);
     };
     render();
   }
@@ -19527,7 +19537,7 @@ function renderDetailPanel(site){
           const embeddedRole=r.role&&r.name.includes(r.role);
           const fullIdentity=r.name+(r.role&&!embeddedRole?' · '+r.role:'');
           const hasMore=shortName!==r.name||shortName.length>12;
-          return `<tr data-owner-row="${escapeHtml(r.name)}"><td class="mgr-contact-cell"><div class="mgr-contact-heading"><button type="button" class="mgr-contact-journal-btn" data-person="${escapeHtml(r.personKey)}" data-contact="${escapeHtml(r.name)}">${escapeHtml(shortName)}</button><button type="button" class="mgr-interest-toggle" aria-label="${escapeHtml(r.name)} 관심사항 펼치기" aria-expanded="false" aria-controls="${interestId}" data-interest-target="${interestId}">▸</button></div>${r.role?`<div class="mgr-contact-role">${escapeHtml(r.role)}</div>`:''}</td><td>${escapeHtml(r.manager||'-')}</td><td>${escapeHtml(r.unit||'-')}</td><td>${r.dates.size}</td><td>${r.count}</td><td><span class="contact-date-full">${escapeHtml(r.last||'-')}</span><span class="contact-date-short" title="${escapeHtml(r.last||'')}">${escapeHtml(r.last?Number(r.last.slice(5,7))+'.'+Number(r.last.slice(8,10)):'-')}</span></td><td class="contact-method-compact">${escapeHtml(meth||'-')}</td></tr><tr id="${interestId}" class="mgr-interest-row" hidden><td colspan="7"><div class="mgr-interest-content">${hasMore?`<div class="mgr-contact-full-identity">${escapeHtml(fullIdentity)}</div>`:''}${topics}</div></td></tr>`;
+          return `<tr data-owner-row="${escapeHtml(r.name)}"><td class="mgr-contact-cell"><div class="mgr-contact-heading"><button type="button" class="mgr-contact-journal-btn" data-person="${escapeHtml(r.personKey)}" data-contact="${escapeHtml(r.name)}">${escapeHtml(shortName)}</button><button type="button" class="mgr-interest-toggle" aria-label="${escapeHtml(r.name)} 관심사항 펼치기" aria-expanded="false" aria-controls="${interestId}" data-interest-target="${interestId}">▸</button></div>${r.role?`<div class="mgr-contact-role">${escapeHtml(r.role)}</div>`:''}</td><td>${escapeHtml(r.manager||'-')}</td><td>${escapeHtml(r.unit||'-')}</td><td>${r.dates.size}</td><td>${r.count}</td><td><span class="contact-date-full">${escapeHtml(r.last||'-')}</span><span class="contact-date-short" title="${escapeHtml(r.last||'')}">${escapeHtml(r.last?Number(r.last.slice(5,7))+'. '+Number(r.last.slice(8,10)):'-')}</span></td><td class="contact-method-compact">${escapeHtml(meth||'-')}</td></tr><tr id="${interestId}" class="mgr-interest-row" hidden><td colspan="7"><div class="mgr-interest-content">${hasMore?`<div class="mgr-contact-full-identity">${escapeHtml(fullIdentity)}</div>`:''}${topics}</div></td></tr>`;
         }).join('')}</tbody>
       </table></div>`;
     }
@@ -34524,6 +34534,25 @@ body.ux383 .report-brief .bf-entry,body.ux383 .report-brief .bf-entry p,body.ux3
  body.ux383 #mgrOwnerTable .ui-contact-meta .mgr-contact-role{margin:0!important;font-size:10px!important;line-height:1.4!important}
  body.ux383 #mgrOwnerTable .ui-contact-meta .ui-contact-actions{margin:0!important;padding:0!important;display:flex!important;align-items:center!important}
  body.ux383 #mgrOwnerTable .ui-contact-meta .ui-compare-link{font-size:10px!important;line-height:1.4!important;padding:0!important;margin:0!important;min-height:0!important;height:auto!important}
+}
+</style>
+<style id="desktop-contact-short-date-20261012">
+@media screen and (min-width:821px){
+ body.ux383 #mgrOwnerTable.contact-compact-table .contact-date-full{display:none!important}
+ body.ux383 #mgrOwnerTable.contact-compact-table .contact-date-short{display:inline!important;white-space:nowrap!important;font-size:12px!important}
+}
+</style>
+<style id="desktop-interest-inline-small-20261012">
+@media screen and (min-width:821px){
+ body.ux383 #mgrOwnerTable .mgr-interest-row>td{padding:6px 10px!important;background:transparent!important}
+ body.ux383 #mgrOwnerTable .mgr-interest-content{display:flex!important;flex-wrap:wrap!important;align-items:center!important;justify-content:center!important;gap:5px 10px!important;padding:0!important;margin:0!important;min-height:0!important}
+ body.ux383 #mgrOwnerTable .mgr-contact-full-identity{font-size:10px!important;font-weight:400!important;line-height:1.4!important;margin:0!important;padding:0!important;color:var(--text-dim)!important}
+ body.ux383 #mgrOwnerTable .owner-interest-panel{width:auto!important;max-width:none!important;margin:0!important}
+ body.ux383 #mgrOwnerTable .owner-interest-topics{gap:5px!important}
+ body.ux383 #mgrOwnerTable button.owner-interest-topic{border:1px solid var(--line)!important;border-radius:4px!important;background:transparent!important;padding:2px 6px!important;min-height:20px!important;height:auto!important;line-height:1.3!important;font-size:10px!important;gap:4px!important}
+ body.ux383 #mgrOwnerTable button.owner-interest-topic span,body.ux383 #mgrOwnerTable .interest-topic-context{font-size:9px!important;line-height:1.3!important}
+ body.ux383 #mgrOwnerTable button.owner-interest-topic.active{background:var(--accent-soft)!important;color:var(--text-main)!important;border-color:var(--accent)!important}
+ body.ux383 #mgrOwnerTable .owner-interest-evidence{margin-top:6px!important;max-width:800px;font-size:12px!important}
 }
 </style>
 </body>
