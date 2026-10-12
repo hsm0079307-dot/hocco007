@@ -8764,6 +8764,7 @@ body.ux383 .topbar #mobileAllSitesDirectBtn{display:flex!important;grid-column:1
 }
 </style>
 <style>.project-progress-mobile-audit{display:none}@media(max-width:820px){.project-progress-mobile-audit{display:inline}}.project-audit-detail{margin:12px 0 0;font-size:12px;color:var(--muted);text-align:left}.project-audit-detail summary{cursor:pointer}.project-audit-detail p{margin:8px 0;line-height:1.6}.project-audit-detail small{font-size:11px}@media print{.project-audit-detail{display:none}}</style>
+<style>body.ux383 button.overview-audit-open{display:inline-block!important;margin-left:auto!important;padding:0 3px!important;border:0!important;background:transparent!important;box-shadow:none!important;border-radius:0!important;width:auto!important;min-width:0!important;height:auto!important;min-height:0!important;font:inherit!important;font-size:12px!important;font-weight:500!important;color:var(--muted)!important;cursor:pointer}body.ux383 button.overview-audit-open:hover{text-decoration:underline}@media print{button.overview-audit-open{display:none!important}}</style>
 </head>
 <body data-report-source="excel-only">
 
@@ -11961,14 +11962,20 @@ async function mfRetrySync(){
     source:'우리자산신탁 · 목동1단지 CM 용역 입찰공고',url:'https://www.wooriat.com/companyinfo/news/1186/C'
   }];
   OVERVIEW_OFFICIAL_CHECKS.push({siteKey:'독산시흥구역',district:'서울 금천구',field:'stageDetail',label:'사업시행자 지정일',value:'2025-08-21',publishedAt:'공식 추진경과(게시일 미표기)',checkedAt:'2026-10-12',kind:'milestone',match:/사업시행자\s*지정/,source:'서울시 정비사업 정보몽땅 · 독산시흥구역',url:'https://cleanup.seoul.go.kr/assc/scrin-bbs/execute.do?cafeId=545900001313q49'}, {siteKey:'대림역인근',district:'서울 구로구',field:'progressStage',label:'사업단계',value:'예정지구 지정',publishedAt:'2026-10-01',checkedAt:'2026-10-12',kind:'outdatedStage',match:/^(?:후보지\s*선정|후보지)$/,source:'LH · 대림역 인근 예정지구 지정',url:'https://www.lh.or.kr/gallery.es?act=view&bid=0003&list_no=12139&mid=a10502000000'});
-  function overviewFieldChecks(site,field){return OVERVIEW_OFFICIAL_CHECKS.filter(check=>check.field===field&&projectProgressKey(site.name)===check.siteKey&&String(site.district||'').replace(/\s/g,'')===check.district.replace(/\s/g,''));}
+  function overviewAuditSiteKey(name){return projectProgressKey(name).replace(/재건축|재개발/g,'').replace(/아파트$/,'');}
+  function overviewAuditRegionMatch(actual,expected){
+    const normalize=value=>String(value||'').replace(/서울특별시/g,'서울').replace(/경기도/g,'경기').replace(/인천광역시/g,'인천').replace(/\s/g,'');
+    const a=normalize(actual),b=normalize(expected);return a===b||a===b.replace(/^(서울|경기|인천)/,'');
+  }
+  function overviewFieldChecks(site,field){return OVERVIEW_OFFICIAL_CHECKS.filter(check=>check.field===field&&overviewAuditSiteKey(site.name)===check.siteKey&&overviewAuditRegionMatch(site.district,check.district));}
+
   function overviewCheckMismatch(check,value){
-    const text=String(value||'').trim();if(!text||/^[-—–]$/.test(text))return false;
+    const text=String(value||'').replace(/[*~]/g,'').trim();if(!text||/^[-—–]$/.test(text))return false;
     if(check.kind==='name')return !check.match.test(text);
     if(check.kind==='outdatedStage')return check.match.test(text);
     if(check.kind==='milestone'){
       if(!check.match.test(text)||/예정|신청|접수|검토/.test(text))return false;
-      const date=text.match(/(?:^|\s)(\d{4}|\d{2})[.\-/]\s*(\d{1,2})(?:[.\-/]\s*(\d{1,2}))?/);if(!date)return false;
+      const date=text.match(/(?:^|\s)(\d{4}|\d{2})(?:[.\-/]|년)\s*(\d{1,2})(?:(?:[.\-/]|월)\s*(\d{1,2}))?/);if(!date)return false;
       if(!date[3])return ((date[1].length===2?'20':'')+date[1]+'-'+date[2].padStart(2,'0'))!==check.value.slice(0,7);
       const actual=(date[1].length===2?'20':'')+date[1]+'-'+date[2].padStart(2,'0')+'-'+date[3].padStart(2,'0');return actual!==check.value;
     }
@@ -14627,8 +14634,8 @@ function projectProgressActiveStep(row){
 }
 function projectProgressDialogContent(site){
   const row=projectProgressFor(site),tone=projectProgressTone(row),active=projectProgressActiveStep(row);
-  const auditEntry=PROJECT_PROGRESS_REVIEW.audit.progress.find(a=>projectProgressKey(a.name)===projectProgressKey(site.name)&&(!site.district||projectProgressKey(PROJECT_PROGRESS_REVIEW.rows[a.index].region)===projectProgressKey(site.district)));
-  const auditDetail=auditEntry?`<details class="project-audit-detail"><summary>검증 내역</summary><p>${escapeHtml(auditEntry.reason)}</p><small>확인 ${escapeHtml(auditEntry.checkedAt)}${auditEntry.sourceDate?' · 자료 '+escapeHtml(auditEntry.sourceDate):''}</small></details>`:'';
+  const auditEntry=PROJECT_PROGRESS_REVIEW.audit.progress.find(a=>overviewAuditSiteKey(a.name)===overviewAuditSiteKey(site.name)&&overviewAuditRegionMatch(site.district,PROJECT_PROGRESS_REVIEW.rows[a.index].region));
+  const auditDetail=auditEntry?`<details class="project-audit-detail"><summary>검증 내역</summary><p>${escapeHtml(auditEntry.reason)}</p>${auditEntry.status==='conflict'?`<p>공식 자료: ${escapeHtml(auditEntry.officialValue)}</p>`:''}<small>확인 ${escapeHtml(auditEntry.checkedAt)}${auditEntry.sourceDate?' · 자료 '+escapeHtml(auditEntry.sourceDate):''}</small></details>`:'<details class="project-audit-detail"><summary>검증 내역</summary><p>현재 현장명·지역과 검증자료가 일치하지 않아 확인이 필요합니다.</p></details>';
   const links=(row.sources||(row.sourceIds||[]).map(id=>PROJECT_PROGRESS_REVIEW.sources[id])).filter(s=>s&&/^https?:\/\//.test(s.url||'')).map(s=>`<a href="${escapeHtml(s.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(s.title)} <span aria-hidden="true">↗</span></a>`).join('');
   const flow=row.flow?.length?`<ol class="project-progress-flow">${row.flow.map((step,i)=>`<li${i===active?' class="is-current project-progress-'+tone+'" aria-current="step"':''}><span>${escapeHtml(projectProgressStepLabel(step))}</span></li>`).join('')}</ol>`:'';
   return `<div class="project-progress-dialog-head"><div><small>사업 진행현황</small><h3 id="projectProgressDialogTitle">${escapeHtml(site.name||'현장')}</h3></div><button type="button" class="project-progress-close" data-project-progress-close aria-label="닫기">✕</button></div><div class="project-progress-dialog-body"><div class="project-progress-current"><span class="project-progress-business">${escapeHtml(row.type)}</span><strong class="project-progress-state project-progress-${tone}">${escapeHtml(row.current)}</strong>${overviewAuditDot(site,'progressStage',row.current)}</div>${flow}${links?`<div class="project-progress-sources">${links}</div>`:''}${auditDetail}${projectProcedureAdmin()?`<div class="project-procedure-tools"><button type="button" class="btn btn-ghost btn-sm" data-procedure-edit>수정</button><button type="button" class="btn btn-ghost btn-sm" data-procedure-search>검색</button><small>${row.checkedAt?'최근 확인 '+escapeHtml(row.checkedAt.slice(0,10)):''}</small></div><div data-procedure-message role="status"></div>${projectProcedureHistory(row)}`:''}</div>`;
@@ -15030,7 +15037,7 @@ function renderDetailPanel(site){
         </div>
       ` : `
         <div class="detail-quad-box">
-          <div class="spec-heading">${overviewSectionIcon('business')} 사업현황 ${guestMode ? '' : '<button class="quad-edit-btn no-print" data-quad-edit="1" title="수정">✏</button>'}</div>
+          <div class="spec-heading">${overviewSectionIcon('business')} 사업현황 <button type="button" class="overview-audit-open no-print" data-overview-audit-open>검증</button> ${guestMode ? '' : '<button class="quad-edit-btn no-print" data-quad-edit="1" title="수정">✏</button>'}</div>
           <div class="spec-lines-2col">
             <div class="spec-line spec-line-v48"><span class="spec-label spec-label-spread-v45"><span>사</span><span>업</span><span>단</span><span>계</span></span><span class="spec-sep-v48">:</span><span class="spec-value-v48">${escapeHtml(site.progressStage||'-')}${overviewAuditDot(site,'progressStage',site.progressStage)}</span></div>
             <div class="spec-line spec-line-v48"><span class="spec-label spec-label-spread-v45"><span>조</span><span>합</span><span>원</span></span><span class="spec-sep-v48">:</span><span class="spec-value-v48 num-value">${escapeHtml(site.unionMembers||'-')}</span></div>
@@ -15054,7 +15061,7 @@ function renderDetailPanel(site){
         </div>
       ` : `
         <div class="detail-quad-box">
-          <div class="spec-heading">${overviewSectionIcon('stage')} ${heading} ${guestMode ? '' : '<button class="quad-edit-btn no-print" data-quad-edit="1" title="수정">✏</button>'}</div>
+          <div class="spec-heading">${overviewSectionIcon('stage')} ${heading} ${editId==='e_stageDetail'?'<button type="button" class="overview-audit-open no-print" data-overview-audit-open>검증</button>':''} ${guestMode ? '' : '<button class="quad-edit-btn no-print" data-quad-edit="1" title="수정">✏</button>'}</div>
           <div class="spec-stage-detail">${value ? (editId==='e_stageDetail'?overviewStageDetail(site,value,opts):renderRichText(value,opts)) : '-'}</div>
         </div>
       `;
@@ -15073,6 +15080,7 @@ function renderDetailPanel(site){
           </div>
         </div>` : ''}
       `;
+      body.querySelectorAll('[data-overview-audit-open]').forEach(button=>button.addEventListener('click',event=>{event.stopPropagation();openProjectProgress(site);const detail=document.querySelector('#legalProjectProgressDialog .project-audit-detail');if(detail){detail.open=true;detail.scrollIntoView({block:'nearest'});}}));
       if(editMode) wireRichToolbars(body);
       if(!editMode && !guestMode){
         const enterEdit = async ()=>{
