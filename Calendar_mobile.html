@@ -2846,7 +2846,7 @@ function buildCalendarArea(){
       badges.className = "badges";
       if(info){
         if(showClosed) badges.innerHTML += "<div class='b closed'>휴</div>";
-        if(hasGalleryRows && activeCategories.gallery && galleryMatchesDanjiFilter()) badges.innerHTML += "<div class='b gallery'>갤</div>";
+        if(hasGalleryRows && activeCategories.gallery && galleryMatchesDanjiFilter(key)) badges.innerHTML += "<div class='b gallery'>갤</div>";
         if(info.tour && activeCategories.tour && tourMatchesDanjiFilter(key)) badges.innerHTML += "<div class='b tour'>투</div>";
       }
       el.appendChild(badges);
@@ -2886,10 +2886,10 @@ function buildCalendarArea(){
         scheduleList.appendChild(closedItem);
       }
 
-      if(activeCategories.gallery && galleryMatchesDanjiFilter() && Array.isArray(GALLERY_ROWS[key])){
+      if(activeCategories.gallery && galleryMatchesDanjiFilter(key) && Array.isArray(GALLERY_ROWS[key])){
         GALLERY_ROWS[key].forEach(r=>{
           const [time, spot, name, plus, manager] = r;
-          addScheduleItem("gallery", time, GALLERY_DANJI, name, manager);
+          if(!activeDanjiFilter.size||activeDanjiFilter.has(gallerySite(r)))addScheduleItem("gallery", time, gallerySite(r), name, manager);
         });
       }
 
@@ -2986,11 +2986,14 @@ function populateFilter(){
 
 // 원본 데이터 배열을 [시간, 단지명, 동호수, 성함, 동반, 담당, 픽업/자가] 순서로 재정렬
 const GALLERY_DANJI = "화랑아파트";
+function gallerySite(row){return String(row?.[5]||GALLERY_DANJI).trim();}
+function gallerySites(){return [...new Set(Object.values(GALLERY_ROWS||{}).flatMap(rows=>(rows||[]).map(gallerySite)))];}
+function gallerySiteSuggestions(){const selected=new URLSearchParams(location.search).get('site')||'';return [...new Set([selected,...gallerySites(),...Object.values(TOUR_ROWS||{}).flatMap(rows=>(rows||[]).map(row=>row[1]))])].filter(x=>x&&x!=='-').sort((a,b)=>a.localeCompare(b,'ko',{numeric:true}));}
 function reorderRow(kind, r){
   if(kind==="gallery"){
     // r = [시간, 자가/픽업, 성함, 동반, 담당]
     const [time, spot, name, plus, manager] = r;
-    return [time, GALLERY_DANJI, "-", name, plus, manager, spot];
+    return [time, gallerySite(r), r[6]||"-", name, plus, manager, spot];
   } else {
     // r = [시간, 단지, 동호수, 성함/업체, 동반, 담당]
     const [time, danji, ho, name, plus, manager] = r;
@@ -3034,8 +3037,8 @@ function toggleClosedFilter(){
 
 // ---------- 단지별 토글 필터 (예: 화랑아파트, 14단지, 11단지) ----------
 let activeDanjiFilter = new Set(); // 비어있으면 전체 표시
-function galleryMatchesDanjiFilter(){
-  return activeDanjiFilter.size===0 || activeDanjiFilter.has(GALLERY_DANJI);
+function galleryMatchesDanjiFilter(key){
+  return activeDanjiFilter.size===0 || (key?(GALLERY_ROWS[key]||[]).map(gallerySite):gallerySites()).some(site=>activeDanjiFilter.has(site));
 }
 function tourMatchesDanjiFilter(key){
   if(activeDanjiFilter.size===0) return true;
@@ -3044,7 +3047,7 @@ function tourMatchesDanjiFilter(key){
   return rows.some(r=>activeDanjiFilter.has(r[1]));
 }
 function populateDanjiToggleBar(){
-  const danjiSet = new Set([GALLERY_DANJI]);
+  const danjiSet = new Set(gallerySites());
   Object.values(TOUR_ROWS).forEach(rows=>rows.forEach(r=>danjiSet.add(r[1])));
   const names = [...danjiSet].sort();
   const bar = document.getElementById("danjiToggleBar");
@@ -3069,7 +3072,7 @@ function populateManagerFilter(){
   Object.values(GALLERY_ROWS).forEach(rows=>rows.forEach(r=>managers.add(r[4])));
   Object.values(TOUR_ROWS).forEach(rows=>rows.forEach(r=>managers.add(r[5])));
   const danjiSelect=document.getElementById('checklistDanjiFilter');
-  const danjiNames=[...new Set([GALLERY_DANJI,...Object.values(TOUR_ROWS).flatMap(rows=>rows.map(r=>r[1]))].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ko',{numeric:true}));
+  const danjiNames=[...new Set([...gallerySites(),...Object.values(TOUR_ROWS).flatMap(rows=>rows.map(r=>r[1]))].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ko',{numeric:true}));
   if(danjiSelect){
     danjiSelect.replaceChildren(new Option('단지명 전체',''),...danjiNames.map(name=>new Option(name,name)));
     danjiSelect.value=checklistDanjiFilterValue;
@@ -3091,7 +3094,7 @@ function populateManagerFilter(){
 function renderTable(kind, key, rows, colorClass, tagLabel){
   if(!rows || rows.length===0) return "";
   const managerIdx = kind==="gallery" ? 4 : 5;
-  const danjiOf = (raw)=> kind==="gallery" ? GALLERY_DANJI : raw[1];
+  const danjiOf = (raw)=> kind==="gallery" ? gallerySite(raw) : raw[1];
   const visibleIdx = [];
   rows.forEach((raw, idx)=>{
     const managerOk = !managerFilterValue || raw[managerIdx]===managerFilterValue;
@@ -3272,7 +3275,7 @@ function computeManagerTally(){
     GALLERY_ROWS[key].forEach((r, idx)=>{
       const manager = r[4];
       const status = rowStatus("gallery", key, idx);
-      bump(manager, status, GALLERY_DANJI);
+      bump(manager, status, gallerySite(r));
     });
   });
   Object.keys(TOUR_ROWS).forEach(key=>{
@@ -3446,7 +3449,7 @@ function exportExcel(){
   };
   const passesDanjiFilter = (raw, idxKind)=>{
     if(selectedDanji.size===0) return true;
-    const d = idxKind==="gallery" ? GALLERY_DANJI : raw[1];
+    const d = idxKind==="gallery" ? gallerySite(raw) : raw[1];
     return selectedDanji.has(d);
   };
 
@@ -3577,7 +3580,8 @@ function openForm(title, fields, callback){
   document.getElementById("formTitle").textContent = title;
   const fieldsEl = document.getElementById("formFields");
   fieldsEl.innerHTML = fields.map(f=>{
-    const val = (f.value||"").replace(/'/g,"&#39;");
+    const val = escText(String(f.value||"")).replace(/'/g,"&#39;");
+    if(f.options){return "<div class='field-label'>"+f.label+"</div><input type='text' id='ff-"+f.id+"' list='ff-options-"+f.id+"' required placeholder='현장 선택 또는 입력' value='"+val+"'><datalist id='ff-options-"+f.id+"'>"+f.options.map(x=>"<option value='"+escText(String(x)).replace(/'/g,"&#39;")+"'></option>").join("")+"</datalist>";}
     if(f.multiline){
       return "<div class='field-label'>"+f.label+"</div>"+
         "<textarea id='ff-"+f.id+"' placeholder='"+(f.placeholder||"")+"' rows='4'>"+escText(f.value||"")+"</textarea>";
@@ -3603,6 +3607,8 @@ function submitForm(){
   const inputs = document.querySelectorAll("#formFields input, #formFields textarea");
   const values = {};
   inputs.forEach(inp=>{ values[inp.id.replace("ff-","")] = inp.value.trim(); });
+  const invalid=[...inputs].find(input=>input.required&&!input.value.trim());
+  if(invalid){invalid.focus();invalid.reportValidity();return;}
   const cb = formCallback;
   document.getElementById("formOverlay").classList.remove("on");
   formCallback = null;
@@ -3685,6 +3691,8 @@ function addEntryFlow(kind){
   if(!key) return;
   if(kind==="gallery"){
     openForm(CAT_LABEL.gallery+" 일정 추가", [
+      {id:"danji", label:"현장", options:gallerySiteSuggestions(), value:new URLSearchParams(location.search).get("site")||""},
+      {id:"ho", label:"동호수", placeholder:"예: 101-1001"},
       {id:"time", label:"시간", placeholder:"예: 10:30"},
       {id:"name", label:"성함", placeholder:"이름"},
       {id:"plus", label:"동반", placeholder:"예: 외1명, 없으면 -", value:"-"},
@@ -3692,7 +3700,7 @@ function addEntryFlow(kind){
       {id:"spot", label:"픽업/자가", placeholder:"예: 픽업, 자가:12가3456", value:"-"},
     ], (v)=>{
       if(!GALLERY_ROWS[key]) GALLERY_ROWS[key] = [];
-      GALLERY_ROWS[key].push([v.time||"-", v.spot||"-", v.name||"-", v.plus||"-", v.manager||"-"]);
+      GALLERY_ROWS[key].push([v.time||"-", v.spot||"-", v.name||"-", v.plus||"-", v.manager||"-", v.danji||"", v.ho||""]);
       onScheduleDataChanged();
       openPreview(key);
     });
@@ -4438,7 +4446,7 @@ function computeDateHeadcount(key){
   function visibleRows(kind,key,rows){
     if(!rows||!rows.length) return [];
     const managerIdx=kind==='gallery'?4:5;
-    const danjiOf=(raw)=>kind==='gallery'?GALLERY_DANJI:raw[1];
+    const danjiOf=(raw)=>kind==='gallery'?gallerySite(raw):raw[1];
     const out=[];
     rows.forEach((raw,idx)=>{
       const managerOk=!managerFilterValue||raw[managerIdx]===managerFilterValue;
@@ -4461,7 +4469,7 @@ function computeDateHeadcount(key){
     let time='',title='',sub='';
     if(kind==='gallery'){
       const [t,spot,name,plus,manager]=raw;time=t;
-      title=[GALLERY_DANJI,name].filter(Boolean).join(' · ');
+      title=[gallerySite(raw),name].filter(Boolean).join(' · ');
       sub=[plus&&plus!=='-'?plus:'',manager?'담당 '+manager:'',spot&&spot!=='-'?spot:''].filter(Boolean).join(' · ');
     }else{
       const [t,danji,ho,name,plus,manager]=raw;time=t;
@@ -4512,7 +4520,7 @@ function computeDateHeadcount(key){
       items.forEach(it=>{
         let time='',ttl='',sub='';
         if(it.kind==='gallery'){
-          const [t,spot,name,plus,manager]=it.r; time=t; ttl=[GALLERY_DANJI,name].filter(Boolean).join(' · '); sub=[plus&&plus!=='-'?plus:'',manager?'담당 '+manager:'',spot&&spot!=='-'?spot:''].filter(Boolean).join(' · ');
+          const [t,spot,name,plus,manager]=it.r; time=t; ttl=[gallerySite(it.r),name].filter(Boolean).join(' · '); sub=[plus&&plus!=='-'?plus:'',manager?'담당 '+manager:'',spot&&spot!=='-'?spot:''].filter(Boolean).join(' · ');
         }else{
           const [t,danji,ho,name,plus,manager]=it.r; time=t; ttl=[danji,(ho&&ho!=='-'?ho:'')].filter(Boolean).join(' '); sub=[name,plus&&plus!=='-'?plus:'',manager?'담당 '+manager:''].filter(Boolean).join(' · ');
         }
@@ -5412,7 +5420,7 @@ function computeDateHeadcount(key){
 
   function eventFor(k){
     const closed=!!GALLERY_CLOSED[k] && showClosedToggle && galleryMatchesDanjiFilter();
-    const hasG=!!(GALLERY_ROWS[k]&&GALLERY_ROWS[k].length) && activeCategories.gallery && galleryMatchesDanjiFilter();
+    const hasG=!!(GALLERY_ROWS[k]&&GALLERY_ROWS[k].length) && activeCategories.gallery && galleryMatchesDanjiFilter(k);
     const hasT=!!(TOUR_ROWS[k]&&TOUR_ROWS[k].length) && activeCategories.tour && tourMatchesDanjiFilter(k);
     const arr=[];
     if(closed) arr.push(['closed','휴관/불가']);
@@ -5428,13 +5436,14 @@ function computeDateHeadcount(key){
       rows.push({kind:'closed', time:'휴관', site:'갤러리', name:'이용 불가', manager:''});
     }
 
-    if(activeCategories.gallery && galleryMatchesDanjiFilter() && Array.isArray(GALLERY_ROWS[k])){
+    if(activeCategories.gallery && galleryMatchesDanjiFilter(k) && Array.isArray(GALLERY_ROWS[k])){
       GALLERY_ROWS[k].forEach(r=>{
+        if(activeDanjiFilter.size&&!activeDanjiFilter.has(gallerySite(r)))return;
         const [time,spot,name,plus,manager]=r;
         rows.push({
           kind:'gallery',
           time:(time&&time!=='-')?time:'일정',
-          site:GALLERY_DANJI||'갤러리',
+          site:gallerySite(r),
           name:(name&&name!=='-')?name:'성명 미입력',
           manager:(manager&&manager!=='-')?manager:''
         });
@@ -6241,7 +6250,7 @@ function computeDateHeadcount(key){
           <div class="preview-v2-time">${esc2(time||'일정')}</div>
           <div class="preview-v2-main">
             <div class="preview-v2-title">
-              <span class="preview-v2-site">${esc2(GALLERY_DANJI||'갤러리')}</span>
+              <span class="preview-v2-site">${esc2(gallerySite(r))}</span>
               <span class="preview-v2-name">${esc2(name||'성명 미입력')}</span>
             </div>
             <div class="preview-v2-meta">${esc2(meta||'상세 정보 없음')}</div>
@@ -7942,6 +7951,43 @@ tbody tr:hover td{background:#fbfdfd!important}
 .fd-event-controls{display:flex;gap:8px;align-items:center;justify-content:flex-end;}
 @media(max-width:760px){#statusOverlay .modal{width:96vw!important;padding:16px 12px!important;}#statusBody th,#statusBody td{padding:8px!important;}}
 </style>
+
+<style id="gallery-management-dialog-fix">
+#formOverlay .modal{max-height:90vh;overflow-y:auto}
+#formOverlay.gallery-admin-open .modal{width:320px!important;max-width:calc(100vw - 32px)!important;padding:20px!important;border:1px solid #e3eae7!important;border-radius:16px!important;background:#fff!important;box-shadow:0 16px 48px rgba(23,48,41,.16)!important;box-sizing:border-box!important}
+#formOverlay.gallery-admin-open #formTitle{margin:0 0 14px!important;font-size:16px!important;line-height:24px!important;font-weight:700!important;color:#243e35!important}
+#formOverlay.gallery-admin-open .close{top:16px!important;right:16px!important;width:28px!important;height:28px!important;border:0!important;border-radius:50%!important;background:transparent!important;color:#7a8d85!important;font-size:20px!important;padding:0!important}
+#formOverlay.gallery-admin-open .modal-actions{display:none!important}
+#formOverlay .gallery-admin-actions{display:flex!important;flex-direction:column!important;gap:0!important;margin:0!important;padding:0!important;background:none!important;border:0!important}
+#formOverlay .gallery-admin-actions button{display:flex!important;align-items:center!important;gap:10px!important;width:100%!important;min-height:42px!important;padding:9px 8px!important;border:0!important;border-radius:7px!important;background:transparent!important;box-shadow:none!important;color:#354c43!important;font:inherit!important;font-size:13px!important;font-weight:500!important;text-align:left!important;cursor:pointer}
+#formOverlay .gallery-admin-actions button:hover,#formOverlay .gallery-admin-actions button:focus-visible{background:#edf5f0!important;color:#235e43!important}
+#formOverlay .gallery-admin-actions button:focus-visible{outline:2px solid #9cc3ad!important;outline-offset:1px}
+#formOverlay .gallery-admin-actions button:nth-child(4){margin-top:8px!important;border-top:1px solid #e8eeea!important;border-top-left-radius:0!important;border-top-right-radius:0!important;padding-top:14px!important}
+#formOverlay .gallery-admin-icon{display:flex;align-items:center;justify-content:center;flex:0 0 24px;height:24px;color:#668d77}
+#formOverlay .gallery-admin-icon svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+#formOverlay .gallery-admin-label{flex:1;line-height:20px}
+#formOverlay .gallery-admin-chevron{color:#a7b6ad;font-size:18px;line-height:20px;font-weight:400}
+</style>
+<script id="gallery-management-dialog-fix-script">
+(function(){
+  function management(){
+    openForm('관리',[],()=>{});
+    document.getElementById('formOverlay').classList.add('gallery-admin-open');
+    const fields=document.getElementById('formFields');fields.classList.add('gallery-admin-actions');
+    const actions=[['정원 설정',()=>openCapacitySettings()],['엑셀 저장',()=>exportExcel()],['인쇄',()=>window.print()],['일정 백업',()=>backupScheduleData()],['백업 불러오기',()=>restoreScheduleDataPrompt()],['비밀번호 변경',()=>changePassword()]];
+    const paths=['<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M17 4a4 4 0 0 1 0 8m5 9v-2a4 4 0 0 0-3-3.9"/>','<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13l4 5m0-5-4 5"/>','<path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6zM18 12h.01"/>','<path d="M12 3v12m-4-4 4 4 4-4M4 16v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/>','<path d="M12 16V4m-4 4 4-4 4 4M4 16v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/>','<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V6a4 4 0 0 1 8 0v4M12 15v2"/>'];
+    actions.forEach(([label,run],index)=>{const button=document.createElement('button');button.type='button';
+      const icon=document.createElement('span');icon.className='gallery-admin-icon';icon.setAttribute('aria-hidden','true');icon.innerHTML='<svg viewBox="0 0 24 24">'+paths[index]+'</svg>';
+      const text=document.createElement('span');text.className='gallery-admin-label';text.textContent=label;
+      const arrow=document.createElement('span');arrow.className='gallery-admin-chevron';arrow.setAttribute('aria-hidden','true');arrow.textContent='›';button.append(icon,text,arrow);
+button.onclick=()=>{closeFormOverlay();fields.classList.remove('gallery-admin-actions');try{run()}catch(error){alert('관리 기능을 실행하지 못했습니다. '+error.message)}};fields.append(button)});
+    const save=document.querySelector('#formOverlay button[onclick="submitForm()"]');if(save)save.hidden=true;
+  }
+  window.addEventListener('click',event=>{if(!event.target.closest('#fdAdminBtn,#proManage,#mobileAdminFab'))return;event.preventDefault();event.stopImmediatePropagation();management()},true);
+  const original=window.openForm;window.openForm=function(){document.getElementById('formOverlay')?.classList.remove('gallery-admin-open');document.getElementById('formFields')?.classList.remove('gallery-admin-actions');const save=document.querySelector('#formOverlay button[onclick="submitForm()"]');if(save)save.hidden=false;return original.apply(this,arguments)};
+})();
+</script>
+
 </body>
 </html>
 <style id="mobile-calendar-layout-repair-oct01">
@@ -8010,7 +8056,7 @@ function toggleChecklistColumnFilter(kind){
   document.querySelectorAll('.colFilterDropdown').forEach(el=>el.classList.remove('open'));
   if(open)return;
   const selected=isDanji?checklistSelectedDanji:checklistSelectedManagers;
-  const names=[...new Set(isDanji?[GALLERY_DANJI,...Object.values(TOUR_ROWS).flatMap(rows=>rows.map(r=>r[1]))]:[...Object.values(GALLERY_ROWS).flatMap(rows=>rows.map(r=>r[4])),...Object.values(TOUR_ROWS).flatMap(rows=>rows.map(r=>r[5]))])].filter(Boolean).sort((a,b)=>a.localeCompare(b,'ko',{numeric:true}));
+  const names=[...new Set(isDanji?[...gallerySites(),...Object.values(TOUR_ROWS).flatMap(rows=>rows.map(r=>r[1]))]:[...Object.values(GALLERY_ROWS).flatMap(rows=>rows.map(r=>r[4])),...Object.values(TOUR_ROWS).flatMap(rows=>rows.map(r=>r[5]))])].filter(Boolean).sort((a,b)=>a.localeCompare(b,'ko',{numeric:true}));
   dropdown.replaceChildren();
   const update=()=>{document.getElementById(isDanji?'checklistDanjiButton':'checklistManagerButton').classList.toggle('active',selected.size>0);selectDate(currentDateKey,false);};
   names.forEach(name=>{const label=document.createElement('label'),input=document.createElement('input');input.type='checkbox';input.checked=selected.has(name);input.onchange=()=>{if(input.checked)selected.add(name);else selected.delete(name);update();};label.append(input,document.createTextNode(name));dropdown.append(label);});
