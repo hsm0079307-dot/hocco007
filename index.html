@@ -20901,15 +20901,19 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
     });
   }
 
+  function reportScopeRows(rows){
+    return reportSelectedSiteId ? rows.filter(r=>String(r.id)===String(reportSelectedSiteId)) : rows;
+  }
   function renderSitesView(){
     const {range, rows, managerTotals, managerSiteCounts, allSites} = buildContactReportData();
     uiSetPeriodLabel(document.getElementById('reportRangeLabel'),range.label);
     const body = document.getElementById('contactReportBody');
     const managerRows = Object.keys(managerTotals).sort((a,b)=>managerTotals[b]-managerTotals[a]);
     // 담당자 칩 클릭시 그 담당자 현장만 걸러서 보여줌 (다시 누르면 해제)
-    const filteredRows = reportManagerFilter
+    const managerFilteredRows = reportManagerFilter
       ? rows.map(r=>{const logs=(r.logs||[]).filter(l=>contactReportManagerNames(l.author).includes(reportManagerFilter));return {...r,logs,count:new Set(logs.map(l=>l.date)).size,manager:reportManagerFilter}}).filter(r=>r.logs.length)
       : rows;
+    const filteredRows = reportScopeRows(managerFilteredRows);
     // 주간: 월~일 요일별 / 월간: 1주차~N주차 별로 방문 현장을 묶어서 표로 보여준다 (양천구/영등포구/그외로 나눔)
     function districtGroupOf(obj){
       const d = String(obj.district||'');
@@ -20925,6 +20929,7 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
     const visitedSiteNames = new Set(filteredRows.map(r=>r.site));
     const districtMissed = {'양천구':[], '영등포구':[], '그외':[]};
     allSites.forEach(s=>{
+      if(reportSelectedSiteId && String(s.id)!==String(reportSelectedSiteId)) return;
       if(visitedSiteNames.has(s.name)) return;
       if(reportManagerFilter && !siteManagerNames(s).includes(reportManagerFilter)) return;
       districtMissed[districtGroupOf(s)].push(s.name);
@@ -20981,8 +20986,8 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
         : '';
       if(!groupRows.length) return `<div style="color:var(--text-dim);font-size:12px;padding:10px 0;">기록 없음</div>${missedHtml}`;
       // 특정 현장을 선택해서 상세보기 중이면, 표에도 그 현장 한 줄만 남기고 나머지는 숨긴다 (요일별 집계 자체는 전체 기준 그대로 계산)
-      const isFilteredToOne = reportSelectedSiteId && groupRows.some(r=>r.id===reportSelectedSiteId);
-      const displayRows = isFilteredToOne ? groupRows.filter(r=>r.id===reportSelectedSiteId) : groupRows;
+      const isFilteredToOne = !!reportSelectedSiteId;
+      const displayRows = reportScopeRows(groupRows);
       const groupDaily = buildDailyGroups(groupRows, range, reportMode);
       const colHeadHtml = groupDaily.map(day=>{
         if(reportMode==='week'){
@@ -21151,7 +21156,7 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
       </div>
       ` : ''}
       ${filteredRows.length ? `
-      ${districtNames.map(name=>`
+      ${districtNames.filter(name=>!reportSelectedSiteId || districtGroups[name].length).map(name=>`
         <div class="report-matrix-title">${name} <span style="font-weight:400;color:var(--text-dim);">${districtGroups[name].length}곳</span></div>
         ${buildMatrixTable(districtGroups[name], districtMissed[name])}
       `).join('')}
@@ -21159,7 +21164,7 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
       <table class="report-table no-print" style="margin-top:16px;">
         <thead><tr><th>사업소</th><th>현장명</th><th>담당자</th><th>방문</th><th>상담 내용</th></tr></thead>
         <tbody>
-          ${rows.length ? rows.map(r=>`
+          ${filteredRows.length ? filteredRows.map(r=>`
             <tr>
               <td>${escapeHtml(r.office)}</td>
               <td class="report-site-name">${escapeHtml(r.site)}</td>
@@ -21636,9 +21641,10 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
   });
   document.getElementById('reportPrintBtn').addEventListener('click', ()=>{
     const {range, rows, allSites} = buildContactReportData();
-    const filteredRows = reportManagerFilter
+    const managerFilteredRows = reportManagerFilter
       ? rows.filter(r => String(r.manager).split(/[\s,]+/).filter(Boolean).includes(reportManagerFilter))
       : rows;
+    const filteredRows = reportScopeRows(managerFilteredRows);
     function districtGroupOfPrint(obj){
       const d = String(obj.district||'');
       if(d.includes('양천')) return '양천구';
@@ -21652,6 +21658,7 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
     const visitedSiteNames = new Set(filteredRows.map(r=>r.site));
     const districtMissed = {'양천구':[], '영등포구':[], '그외':[]};
     allSites.forEach(s=>{
+      if(reportSelectedSiteId && String(s.id)!==String(reportSelectedSiteId)) return;
       if(visitedSiteNames.has(s.name)) return;
       if(reportManagerFilter && !siteManagerNamesPrint(s).includes(reportManagerFilter)) return;
       districtMissed[districtGroupOfPrint(s)].push(s.name);
@@ -34647,6 +34654,12 @@ body.ux383 #mgrOwnerTable .ui-contact-compare-row article header{text-align:cent
  body.ux383 #contactReportBody #cisNext{grid-column:5!important;grid-row:2!important}
  body.ux383 #contactReportBody .cis-toolbar [data-ui-today="summary"]{grid-column:6!important;grid-row:2!important;min-width:0!important;width:100%!important;height:36px!important;min-height:36px!important;margin:0!important;padding:0!important;font-size:11px!important;line-height:1!important;display:flex!important;align-items:center!important;justify-content:center!important;border:0!important;background:transparent!important}
 }
+</style>
+<style id="brief-section-heading-left-20261012">
+body.ux383 .report-brief .bf-section>h3{display:flex!important;justify-content:flex-start!important;align-items:center!important;text-align:left!important;width:100%!important;margin-left:0!important;margin-right:0!important;padding-left:0!important;padding-right:0!important;gap:7px!important}
+body.ux383 .report-brief .bf-section>h3>span{flex:0 0 auto!important;text-align:left!important;margin-left:0!important;margin-right:0!important;width:auto!important}
+body.ux383 .report-brief .bf-section>h3>.bf-section-icon{width:15px!important;text-align:center!important;justify-content:center!important}
+body.ux383 .report-brief .bf-entry,body.ux383 .report-brief .bf-entry p,body.ux383 .report-brief .bf-manual,body.ux383 .report-brief .bf-empty{text-align:left!important}
 </style>
 </body>
 </html>
