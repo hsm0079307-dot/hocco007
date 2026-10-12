@@ -13904,20 +13904,94 @@ window.addEventListener('resize', ()=>{
     const fresh=rivalSites().find(s=>String(s.id)===String(siteId))||site;
     currentDetailId=fresh.id;currentView='detail';detailTab='타사';renderDetailPanel(fresh);
   }
+  // Company activity references keep their original report site and wording.
+  function rivalActivityCompanies(){
+    return [...new Set([...rivalOverviewCompanyOrder,...rivalPeople().map(p=>p.company)])].filter(c=>c&&c!=='포스코');
+  }
+  function rivalActivityMentions(text,company){
+    const aliases=rivalCompanyAliases.filter(pair=>pair[1]===company).map(pair=>pair[0]);
+    if(!aliases.length)aliases.push(company);
+    const escape=value=>value.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    const names=aliases.sort((a,b)=>b.length-a.length).map(alias=>escape(alias)+(alias==='현대'?'(?!산업)':alias==='DL'?'(?!건설)':'')).join('|');
+    const matcher=new RegExp('(?<![A-Za-z])(?:'+names+')(?![A-Za-z]|부동산|의료원|병원|단지|아파트)','i');
+    const activity=/방문|활동|현수막|라운지|설명회|홍보|인사|미팅|접촉|입찰|제안서|도열|투어|물품|참여|철수|수주(?:했|함|했다)|선정(?:됐|됨)/;
+    return String(text||'').split(/\n+|(?<=[.!?。])\s+/).map(line=>line.trim()).filter(line=>matcher.test(line)&&activity.test(line));
+  }
+  function rivalActivityRecords(company,filters={}){
+    const records=[],seen=new Set();
+    for(const {site,office} of managementSites()){
+      if(filters.office&&office!==filters.office)continue;
+      if(filters.siteId&&String(site.id)!==String(filters.siteId))continue;
+      const logs=typeof miReportLogs==='function'?miReportLogs(site):(site.logs||[]);
+      for(const log of logs){
+        if(typeof isTourBookingLog==='function'&&isTourBookingLog(log))continue;
+        if(filters.month&&!String(log.date||'').startsWith(filters.month))continue;
+        const text=String(log.text||log.content||log.note||'').trim(),mentions=rivalActivityMentions(text,company);
+        if(!mentions.length)continue;
+        if(filters.search&&![site.name,office,log.contactName,log.author,text].join(' ').toLowerCase().includes(filters.search.toLowerCase()))continue;
+        const key=[office,site.id,log.id||'',log.date||'',log.contactName||'',log.author||'',text].join('|');if(seen.has(key))continue;seen.add(key);
+        records.push({site,office,log,text,mentions});
+      }
+    }
+    return records.sort((a,b)=>String(b.log.date||'').localeCompare(String(a.log.date||''))||String(a.site.name).localeCompare(String(b.site.name),'ko'));
+  }
+  function openRivalActivity(initialCompany='',embedded=null){
+    if(document.getElementById('rivalActivityContent'))return;
+    const content=document.createElement('div');content.id='rivalActivityContent';
+    const companies=rivalActivityCompanies();let company=companies.includes(initialCompany)?initialCompany:'';let shown=[],siteId='';
+    content.innerHTML='<div class="rival-activity-companies" aria-label="경쟁사 선택"></div><div class="rival-activity-filters"><select aria-label="사업소" id="rivalActivityOffice"><option value="">전체 사업소</option>'+[...new Set(managementSites().map(r=>r.office).filter(Boolean))].map(o=>'<option value="'+escapeHtml(o)+'">'+escapeHtml(o)+'</option>').join('')+'</select><label>보고월 <input type="month" id="rivalActivityMonth"></label><button type="button" id="rivalActivityAllMonths">전체 기간</button><input type="search" id="rivalActivitySearch" aria-label="현장·접촉자·보고 내용 검색" placeholder="현장 · 접촉자 · 내용 검색"></div><div class="rival-activity-count" role="status"></div><div class="rival-activity-results"></div>';
+    const modal=embedded?.modal||uxModal('경쟁사 활동',content);if(embedded){embedded.host.append(content);content.classList.add('rival-activity-embedded');}else modal.dialog.classList.add('rival-activity-modal');
+    const office=content.querySelector('#rivalActivityOffice'),month=content.querySelector('#rivalActivityMonth'),search=content.querySelector('#rivalActivitySearch');
+    if(currentOffice!==ALL_OFFICE&&[...office.options].some(o=>o.value===currentOffice))office.value=currentOffice;
+    function draw(){
+      content.querySelector('.rival-activity-companies').innerHTML=companies.map(c=>'<button type="button" data-activity-company="'+escapeHtml(c)+'" aria-pressed="'+(company===c)+'" class="'+(company===c?'selected':'')+'">'+escapeHtml(c)+'</button>').join('');
+      const target=content.querySelector('.rival-activity-results'),count=content.querySelector('.rival-activity-count');
+      if(!company){shown=[];count.textContent='';target.innerHTML='<p class="rival-activity-empty">회사를 선택하면 활동 관련 보고를 현장별로 볼 수 있습니다.</p>';return;}
+      shown=rivalActivityRecords(company,{office:office.value,month:month.value,search:search.value.trim(),siteId});
+      const groups=new Map();shown.forEach((record,index)=>{const key=record.office+'|'+record.site.id;if(!groups.has(key))groups.set(key,[]);groups.get(key).push({...record,index})});
+      count.textContent=company+' · 관련 보고 '+shown.length+'건 · 보고 현장 '+groups.size+'곳';
+      if(!shown.length){target.innerHTML='<p class="rival-activity-empty">선택 조건에 맞는 활동 관련 보고가 없습니다.</p>';return;}
+      const reportMarkup=record=>'<div class="rival-activity-report"><div class="rival-activity-meta"><time>'+escapeHtml(record.log.date||'보고일 미기재')+'</time><span>'+escapeHtml(record.log.contactName||'접촉자 미기재')+'</span>'+(record.log.author?'<span>담당 '+escapeHtml(record.log.author)+'</span>':'')+'</div>'+record.mentions.map(text=>'<p>'+escapeHtml(text)+'</p>').join('')+'<div class="rival-activity-source"><details><summary>보고 원문</summary><p>'+escapeHtml(record.text)+'</p></details><button type="button" data-activity-report="'+record.index+'">보고서 보기 ›</button></div></div>';
+      target.innerHTML=[...groups.values()].map(rows=>{const r=rows[0];return '<article class="rival-activity-site"><header><div><h3>'+escapeHtml(r.site.name)+'</h3><small>'+escapeHtml(r.office)+' · 최근 보고 '+escapeHtml(r.log.date||'날짜 미기재')+'</small></div><div class="rival-activity-site-actions"><span>'+rows.length+'건</span>'+(embedded?'<button type="button" data-activity-roster="'+r.index+'">등록 정보 ›</button>':'')+'</div></header>'+rows.slice(0,3).map(reportMarkup).join('')+(rows.length>3?'<details class="rival-activity-more"><summary>지난 보고 '+(rows.length-3)+'건 더 보기</summary>'+rows.slice(3).map(reportMarkup).join('')+'</details>':'')+'</article>'}).join('');
+    }
+    content.addEventListener('click',async event=>{
+      const choice=event.target.closest('[data-activity-company]');if(choice){company=choice.dataset.activityCompany;draw();return;}
+      const roster=event.target.closest('[data-activity-roster]');if(roster){const record=shown[Number(roster.dataset.activityRoster)];if(record)embedded?.onRoster?.(record,company);return;}
+      const open=event.target.closest('[data-activity-report]');if(!open)return;const record=shown[Number(open.dataset.activityReport)];if(!record)return;
+      modal.close();if(!sites.some(s=>String(s.id)===String(record.site.id))&&record.office)await switchOffice(record.office);
+      uxOpenSite(record.site.id);const site=sites.find(s=>String(s.id)===String(record.site.id))||record.site;
+      pendingReportLogFilter={siteId:site.id,matchFn:element=>record.log.id?element.dataset.logId===String(record.log.id):element.dataset.logDate===String(record.log.date),label:company+' · '+String(record.log.date||'')+' 관련 보고',opts:{}};
+      detailTab='일지';renderDetailPanel(site);
+    });
+    office.onchange=()=>{siteId='';embedded?.onContext?.({office:office.value,siteId});draw();};month.onchange=draw;search.oninput=draw;
+    content.querySelector('#rivalActivityAllMonths').onclick=()=>{month.value='';draw()};draw();
+    return {setContext(selected,officeValue='',selectedSite=''){company=selected;office.value=officeValue;siteId=selectedSite;draw();}};
+  }
+  document.addEventListener('click',event=>{if(event.target.closest('#openRivalActivity'))openRivalActivity();});
+
   function openRivalOverview(){
     if(document.getElementById('rivalOverviewContent'))return;
     const content=document.createElement('div');content.id='rivalOverviewContent';
-    content.innerHTML='<h3 class="rival-brand-heading">▦ 타사현황</h3><div class="rival-overview-workspace"><div class="rival-overview-left"><div id="rivalOverviewCompanies"></div><div class="rival-overview-controls"><input type="hidden" id="rivalOverviewSite"><input type="hidden" id="rivalOverviewCompany"><input id="rivalOverviewSearch" aria-label="타사 현황 검색" placeholder="성함 · 연락처 · 단지 · 주소 검색"><span id="rivalOverviewCount"></span></div><div id="rivalOverviewDetails" hidden><div id="rivalOverviewSites" class="rival-overview-site-buttons" aria-label="현장 선택"></div><div id="rivalOverviewCards"></div></div></div><section class="rival-overview-map-section" hidden><div class="rival-overview-map-heading"><h3>사무실 · 라운지 위치</h3><span>■ 사무실　 ● 라운지</span></div><div id="rivalOverviewMap"></div><p id="rivalOverviewMapStatus" role="status"></p></section></div>';
+    content.innerHTML='<div class="rival-overview-heading"><h3 class="rival-brand-heading">타사 현황</h3></div><div class="rival-overview-tabs" aria-label="타사 현황 보기"><button type="button" data-rival-view="roster" aria-pressed="true">등록 현황</button><button type="button" data-rival-view="activity" aria-pressed="false">활동 보고</button></div><div class="rival-overview-activity-host" hidden></div><div class="rival-overview-workspace"><div class="rival-overview-left"><div id="rivalOverviewCompanies"></div><div class="rival-overview-controls"><input type="hidden" id="rivalOverviewSite"><input type="hidden" id="rivalOverviewCompany"><input id="rivalOverviewSearch" aria-label="타사 현황 검색" placeholder="성함 · 연락처 · 단지 · 주소 검색"><span id="rivalOverviewCount"></span></div><div id="rivalOverviewDetails" hidden><div id="rivalOverviewSites" class="rival-overview-site-buttons" aria-label="현장 선택"></div><div id="rivalOverviewCards"></div></div></div><section class="rival-overview-map-section" hidden><div class="rival-overview-map-heading"><h3>사무실 · 라운지 위치</h3><span>■ 사무실　 ● 라운지</span></div><div id="rivalOverviewMap"></div><p id="rivalOverviewMapStatus" role="status"></p></section></div>';
     const modal=uxModal('▦ 타사현황',content);modal.dialog.classList.add('rival-overview-modal');modal.dialog.querySelector('.ux-modal-head h2')?.classList.add('rival-overview-hidden-title');
     const select=content.querySelector('#rivalOverviewSite'),companySelect=content.querySelector('#rivalOverviewCompany'),search=content.querySelector('#rivalOverviewSearch'),cards=content.querySelector('#rivalOverviewCards'),siteButtons=content.querySelector('#rivalOverviewSites'),mapNode=content.querySelector('#rivalOverviewMap'),status=content.querySelector('#rivalOverviewMapStatus');
     const locationMap=rivalCreateLocationMap(mapNode,status);
-    let activated=false,officeFilter='';
+    let activated=false,officeFilter='',viewMode='roster';
+    const workspace=content.querySelector('.rival-overview-workspace'),activityHost=content.querySelector('.rival-overview-activity-host');
+    const companyBar=content.querySelector('#rivalOverviewCompanies');
+    content.insertBefore(companyBar,content.querySelector('.rival-overview-tabs'));
+    const activityView=openRivalActivity('',{host:activityHost,modal,onContext:state=>{officeFilter=state.office;select.value=state.siteId||'';},onRoster:(record,selectedCompany)=>{companySelect.value=selectedCompany;officeFilter=record.office;select.value=String(record.site.id);activated=true;viewMode='roster';draw();}});
+    content.querySelectorAll('[data-rival-view]').forEach(button=>button.onclick=()=>{viewMode=button.dataset.rivalView;draw();});
     modal.setOnClose(()=>locationMap.close());
     function edit(site,company){if(!site||rivalReadOnly())return;openRivalCompanySettings(site,company,'site',draw);}
     function draw(){
       const tiles=content.querySelector('#rivalOverviewCompanies');
       tiles.innerHTML='<button type="button" class="rival-brand-tile '+(!companySelect.value?'selected':'')+'" data-rival-filter=""><strong>전체 타사</strong></button>'+rivalOverviewCompanyOrder.map(company=>'<button type="button" class="rival-brand-tile '+(companySelect.value===company?'selected':'')+'" data-rival-filter="'+escapeHtml(company)+'" aria-label="'+escapeHtml(company)+'" title="'+escapeHtml(company)+'">'+rivalCompanyChoice(company)+'</button>').join('');
       tiles.querySelectorAll('[data-rival-filter]').forEach(button=>{button.setAttribute('aria-pressed',String(button.dataset.rivalFilter===companySelect.value));button.onclick=()=>{activated=true;companySelect.value=button.dataset.rivalFilter;select.value='';draw();};});
+      content.querySelectorAll('[data-rival-view]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.rivalView===viewMode)));
+      workspace.hidden=viewMode==='activity';activityHost.hidden=viewMode!=='activity';
+      modal.dialog.classList.toggle('rival-overview-activity-mode',viewMode==='activity');
+      if(viewMode==='activity'){modal.dialog.classList.add('rival-overview-expanded');locationMap.clear();activityView.setContext(companySelect.value,officeFilter,select.value);return;}
       const showDetails=activated||!!(select.value||companySelect.value);
       modal.dialog.classList.toggle('rival-overview-expanded',showDetails);
       content.querySelector('#rivalOverviewDetails').hidden=!showDetails;
@@ -13926,6 +14000,7 @@ window.addEventListener('resize', ()=>{
       if(!showDetails){locationMap.clear();siteButtons.innerHTML='';cards.innerHTML='';return;}
       const availableGroups=rivalOverviewModel('',companySelect.value,search.value),activeIds=new Set();
       availableGroups.forEach(g=>{g.people.forEach(p=>(p.siteIds||[]).forEach(id=>activeIds.add(String(id))));g.locations.forEach(l=>activeIds.add(String(l.site.id)));});
+      if(select.value)activeIds.add(select.value);
       const registered=rivalSites().filter(site=>activeIds.has(String(site.id))).sort((a,b)=>a.name.localeCompare(b.name,'ko',{numeric:true}));
       const offices=['강서사업소','강남사업소','강북사업소',...new Set(registered.map(rivalSiteOffice).filter(o=>!['강서사업소','강남사업소','강북사업소'].includes(o)))];
       const choices=registered.filter(site=>!officeFilter||rivalSiteOffice(site)===officeFilter),visibleIds=new Set(choices.map(site=>String(site.id)));
@@ -34589,6 +34664,74 @@ body.ux383 .report-brief .bf-entry,body.ux383 .report-brief .bf-entry p,body.ux3
  body.ux383 #mgrOwnerTable button.owner-interest-topic.active{background:var(--accent-soft)!important;color:var(--text-main)!important;border-color:var(--accent)!important}
  body.ux383 #mgrOwnerTable .owner-interest-evidence{margin-top:6px!important;max-width:800px;font-size:12px!important}
 }
+</style>
+
+<style id="rival-company-activity-ui">
+body.ux383 .rival-activity-modal{width:min(940px,calc(100vw - 24px))!important}
+#rivalActivityContent{font-size:12px;color:var(--text-main)}
+.rival-activity-companies{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px}
+.rival-activity-companies button{border:0;border-bottom:2px solid transparent;border-radius:5px;padding:7px 12px;background:var(--bg-side-2);color:var(--text-main);font:inherit;cursor:pointer}
+.rival-activity-companies button.selected{background:var(--accent-soft);border-bottom-color:var(--accent);font-weight:700}
+.rival-activity-filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.rival-activity-filters select,.rival-activity-filters input{height:32px;border:1px solid var(--line);border-radius:6px;padding:4px 8px;background:var(--bg-side-2);color:var(--text-main);font:inherit;min-width:0}
+.rival-activity-filters label{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-dim)}
+#rivalActivitySearch{flex:1;min-width:160px}.rival-activity-filters button{border:0;background:none;color:var(--text-dim);font:inherit;font-size:11px;cursor:pointer}
+.rival-activity-count{color:var(--text-dim);font-size:11px;margin:12px 0}
+.rival-activity-results{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}
+.rival-activity-site{border:1px solid var(--line);border-radius:10px;padding:14px;background:var(--bg-side-2);min-width:0}
+.rival-activity-site header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-bottom:10px}
+.rival-activity-site h3{margin:0 0 4px;font-size:14px;color:var(--accent)}.rival-activity-site small,.rival-activity-site header>span{font-size:10px;color:var(--text-dim)}
+.rival-activity-report{border-top:1px solid var(--line);padding:10px 0}
+.rival-activity-meta{display:flex;flex-wrap:wrap;gap:5px 9px;color:var(--text-dim);font-size:10px}.rival-activity-meta time{font-weight:600}
+.rival-activity-report p{margin:7px 0 0;font-size:12px;line-height:1.7;white-space:pre-wrap;text-align:left;overflow-wrap:anywhere}
+.rival-activity-source{display:flex;align-items:start;justify-content:space-between;gap:8px;margin-top:8px}
+.rival-activity-source details{flex:1;min-width:0}.rival-activity-source summary,.rival-activity-more>summary{font-size:10px;color:var(--text-dim);cursor:pointer}
+.rival-activity-source button{border:0;background:none;padding:0;color:var(--accent);font:inherit;font-size:10px;white-space:nowrap;cursor:pointer}
+.rival-activity-empty{grid-column:1/-1;text-align:center;color:var(--text-dim);padding:24px 0;font-size:12px}
+@media(max-width:650px){.rival-activity-results{grid-template-columns:1fr}.rival-activity-filters{gap:6px}#rivalActivitySearch{flex-basis:100%}.rival-activity-site{padding:12px}.rival-activity-companies button{padding:7px 9px}}
+</style>
+
+<style id="manager-period-column-alignment">
+@media(min-width:821px){
+ body.ux383 .mgr-breakdown-wrap .mgr-subtab-body .mgr-week-table th:first-child,
+ body.ux383 .mgr-breakdown-wrap .mgr-subtab-body .mgr-week-table td.mgr-name,
+ body.ux383 .mgr-breakdown-wrap .mgr-subtab-body .mgr-month-table th:first-child,
+ body.ux383 .mgr-breakdown-wrap .mgr-subtab-body .mgr-month-table td.mgr-name{
+   width:76px!important;min-width:76px!important;max-width:76px!important;padding:6px 4px!important;text-align:center!important;white-space:nowrap!important;word-break:keep-all!important;
+ }
+ body.ux383 .mgr-breakdown-wrap .mgr-subtab-body :is(.mgr-week-table,.mgr-month-table) :is(th,td){text-align:center!important;vertical-align:middle!important;}
+ body.ux383 .rf-nonmember .rf-nonmember-summary-table-v69 col:first-child{width:80px!important;}
+ body.ux383 .rf-nonmember .rf-nonmember-summary-table-v69 tr>:first-child{width:80px!important;min-width:80px!important;max-width:80px!important;padding:7px 4px!important;text-align:center!important;white-space:nowrap!important;}
+ body.ux383 .rf-nonmember .rf-nonmember-summary-table-v69 :is(th,td){text-align:center!important;vertical-align:middle!important;}
+}
+</style>
+
+<style id="rival-integrated-views">
+body.ux383 .sidebar-overview-buttons{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:5px!important;}
+body.ux383 .sidebar-overview-buttons>.btn{height:30px!important;min-height:30px!important;padding:4px 7px!important;border-radius:6px!important;font-size:11px!important;box-shadow:none!important;}
+#rivalOverviewContent .rival-overview-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+#rivalOverviewContent .rival-overview-heading h3{margin:0;font-size:16px;font-weight:700}
+#rivalOverviewContent .rival-overview-heading>span{font-size:10px;color:var(--text-dim)}
+#rivalOverviewContent #rivalOverviewCompanies{display:flex!important;flex-wrap:wrap!important;gap:5px!important;width:100%!important;max-width:none!important;margin-bottom:12px!important}
+#rivalOverviewContent #rivalOverviewCompanies .rival-brand-tile{width:auto!important;min-width:66px!important;padding:5px 9px!important;}
+#rivalOverviewContent .rival-overview-tabs{display:flex;gap:18px;border-bottom:1px solid var(--line);margin-bottom:14px}
+#rivalOverviewContent .rival-overview-tabs button{border:0;border-bottom:2px solid transparent;padding:8px 2px;background:none;color:var(--text-dim);font:inherit;font-size:12px;cursor:pointer}
+#rivalOverviewContent .rival-overview-tabs button[aria-pressed="true"]{color:var(--accent);font-weight:700;border-bottom-color:var(--accent)}
+#rivalOverviewContent .rival-activity-embedded .rival-activity-companies{display:none!important}
+#rivalOverviewContent .rival-overview-workspace[hidden],#rivalOverviewContent .rival-overview-activity-host[hidden]{display:none!important}
+#rivalOverviewContent .rival-activity-site{border:0;border-radius:8px;padding:12px 14px;background:var(--bg-side-2)}
+#rivalOverviewContent .rival-overview-site-buttons{margin-bottom:12px!important}
+@media(max-width:600px){#rivalOverviewContent .rival-overview-heading>span{display:none}#rivalOverviewContent #rivalOverviewCompanies .rival-brand-tile{min-width:58px!important;padding:5px 7px!important}}
+</style>
+
+<style id="rival-linked-record-controls">
+.rival-activity-site-actions{display:flex;align-items:center;gap:10px;font-size:10px;color:var(--text-dim)}
+.rival-activity-site-actions button{border:0;background:none;padding:0;color:var(--accent);font:inherit;font-size:10px;cursor:pointer}
+</style>
+
+<style id="rival-tabs-plain-text">
+body.ux383 #rivalOverviewContent .rival-overview-tabs button{background:transparent!important;box-shadow:none!important;border:0!important;border-bottom:2px solid transparent!important;border-radius:0!important;outline-offset:3px;padding:8px 2px!important;min-width:0!important;min-height:0!important;}
+body.ux383 #rivalOverviewContent .rival-overview-tabs button[aria-pressed="true"]{border-bottom-color:var(--accent)!important;}
 </style>
 </body>
 </html>
