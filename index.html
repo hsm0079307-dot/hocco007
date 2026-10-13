@@ -39604,8 +39604,13 @@ body.ux383:is(.guest-mode,.guest-viewer-readonly,.guest-readonly) button.overvie
  body.ux383 #contactReportModalBox :is(#reportPrevBtn,#reportNextBtn){width:20px!important;max-width:20px!important;flex:0 0 20px!important}
  body.ux383 #contactReportModalBox #reportPeriodToggleWrap .btn{flex:1 1 0!important;min-width:0!important;height:30px!important;min-height:30px!important;padding:0 4px!important;font-size:10px!important}
  body.ux383 #contactReportModalBox #reportDateNavWrap .ui-period-today{grid-column:4!important;grid-row:1!important;width:26px!important;font-size:10px!important}
- body.ux383 :is(#siteMgmtPeriodLabel,#reportRangeLabel)[data-mobile-period-label]{font-size:0!important;letter-spacing:normal!important}
- body.ux383 :is(#siteMgmtPeriodLabel,#reportRangeLabel)[data-mobile-period-label]::after{content:attr(data-mobile-period-label);font-size:10px!important;font-weight:600;line-height:1.2;white-space:nowrap}
+ body.ux383 #globalStatsModalBox #siteMgmtPeriodLabel,
+ body.ux383 #contactReportModalBox #reportRangeLabel{font-size:10px!important;letter-spacing:normal!important}
+ body.ux383 #globalStatsModalBox #siteMgmtPeriodLabel::before,
+ body.ux383 #globalStatsModalBox #siteMgmtPeriodLabel::after,
+ body.ux383 #contactReportModalBox #reportRangeLabel::before,
+ body.ux383 #contactReportModalBox #reportRangeLabel::after{content:none!important;display:none!important}
+
 }
 @media screen and (max-width:360px){
  body.ux383 #globalStatsModalBox .sm-head{grid-template-columns:repeat(4,22px) 18px minmax(44px,1fr) 18px 22px 24px 22px!important}
@@ -39618,8 +39623,22 @@ body.ux383:is(.guest-mode,.guest-viewer-readonly,.guest-readonly) button.overvie
 <script id="mobile-period-label-format-20261013">
 (function(){
  function compact(value){return String(value||'').trim().replace(/\b20(\d{2})\s*년/g,'$1년').replace(/\s*년\s*/g,'.').replace(/\s*월\s*/g,'.').replace(/\s*일/g,'').replace(/\s*~\s*/g,'~').replace(/\s+/g,'').replace(/[.]$/,'');}
- function update(){for(const id of ['siteMgmtPeriodLabel','reportRangeLabel']){const label=document.getElementById(id);if(!label)continue;const short=compact(label.textContent);if(label.dataset.mobilePeriodLabel!==short)label.dataset.mobilePeriodLabel=short;}}
- function start(){update();for(const id of ['siteMgmtPeriodLabel','reportRangeLabel']){const label=document.getElementById(id);if(label)new MutationObserver(update).observe(label,{childList:true,characterData:true,subtree:true});}}
+ const states=new WeakMap();
+ function update(){
+  const mobile=window.matchMedia('(max-width:820px)').matches;
+  for(const id of ['siteMgmtPeriodLabel','reportRangeLabel']){
+   const label=document.getElementById(id);if(!label)continue;
+   const current=label.textContent;
+   let state=states.get(label);
+   if(!state){state={full:current,shown:null};states.set(label,state);}
+   else if(current!==state.shown&&current!==state.full){state.full=current;}
+   label.removeAttribute('data-mobile-period-label');
+   const shown=mobile?compact(state.full):state.full;
+   state.shown=shown;
+   if(current!==shown)label.textContent=shown;
+  }
+ }
+ function start(){update();for(const id of ['siteMgmtPeriodLabel','reportRangeLabel']){const label=document.getElementById(id);if(label)new MutationObserver(update).observe(label,{childList:true,characterData:true,subtree:true});}window.addEventListener('resize',update);}
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();
 </script>
