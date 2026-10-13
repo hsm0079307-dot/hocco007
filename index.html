@@ -14027,6 +14027,18 @@ window.addEventListener('resize', ()=>{
     }
     return records.sort((a,b)=>String(b.log.date||'').localeCompare(String(a.log.date||''))||String(a.site.name).localeCompare(String(b.site.name),'ko'));
   }
+  function rivalOverviewReportSites(company='',query=''){
+    const results=new Map(),seen=new Set();
+    const companies=company?[company]:rivalActivityCompanies();
+    for(const selected of companies)for(const record of rivalActivityRecords(selected,{search:query.trim()})){
+      const id=String(record.site.id),key=[record.office,id,record.log.id||'',record.log.date||'',record.log.contactName||'',record.log.author||'',record.text].join('|');
+      if(seen.has(key))continue;seen.add(key);
+      if(!results.has(id))results.set(id,{site:record.site,office:record.office,count:0,latest:''});
+      const item=results.get(id);item.count++;
+      if(String(record.log.date||'')>item.latest)item.latest=String(record.log.date||'');
+    }
+    return results;
+  }
   function openRivalActivity(initialCompany='',embedded=null){
     if(document.getElementById('rivalActivityContent'))return;
     const content=document.createElement('div');content.id='rivalActivityContent';
@@ -14044,11 +14056,11 @@ window.addEventListener('resize', ()=>{
       count.textContent=company+' · 관련 보고 '+shown.length+'건 · 보고 현장 '+groups.size+'곳';
       if(!shown.length){target.innerHTML='<p class="rival-activity-empty">선택 조건에 맞는 활동 관련 보고가 없습니다.</p>';return;}
       const reportMarkup=record=>'<div class="rival-activity-report"><div class="rival-activity-meta"><time>'+escapeHtml(record.log.date||'보고일 미기재')+'</time><span>'+escapeHtml(record.log.contactName||'접촉자 미기재')+'</span>'+(record.log.author?'<span>담당 '+escapeHtml(record.log.author)+'</span>':'')+'</div>'+record.mentions.map(text=>'<p>'+escapeHtml(text)+'</p>').join('')+'<div class="rival-activity-source"><details><summary>보고 원문</summary><p>'+escapeHtml(record.text)+'</p></details><button type="button" data-activity-report="'+record.index+'">보고서 보기 ›</button></div></div>';
-      target.innerHTML=[...groups.values()].map(rows=>{const r=rows[0];return '<article class="rival-activity-site"><header><div><h3>'+escapeHtml(r.site.name)+'</h3><small>'+escapeHtml(r.office)+' · 최근 보고 '+escapeHtml(r.log.date||'날짜 미기재')+'</small></div><div class="rival-activity-site-actions"><span>'+rows.length+'건</span>'+(embedded?'<button type="button" data-activity-roster="'+r.index+'">등록 정보 ›</button>':'')+'</div></header>'+rows.slice(0,3).map(reportMarkup).join('')+(rows.length>3?'<details class="rival-activity-more"><summary>지난 보고 '+(rows.length-3)+'건 더 보기</summary>'+rows.slice(3).map(reportMarkup).join('')+'</details>':'')+'</article>'}).join('');
+      target.innerHTML=[...groups.values()].map(rows=>{const r=rows[0];return '<details class="rival-activity-site"><summary><span class="rival-activity-site-icon" aria-hidden="true">▥</span><div class="rival-activity-site-title"><h3>'+escapeHtml(r.site.name)+'</h3><small>'+escapeHtml(r.office)+' · 최근 보고 '+escapeHtml(r.log.date||'날짜 미기재')+'</small></div><div class="rival-activity-site-actions"><span>'+rows.length+'건</span>'+(embedded?'<button type="button" data-activity-roster="'+r.index+'">등록 정보 ›</button>':'')+'</div></summary><div class="rival-activity-site-body">'+rows.slice(0,3).map(reportMarkup).join('')+(rows.length>3?'<details class="rival-activity-more"><summary>지난 보고 '+(rows.length-3)+'건 더 보기</summary>'+rows.slice(3).map(reportMarkup).join('')+'</details>':'')+'</div></details>'}).join('');
     }
     content.addEventListener('click',async event=>{
       const choice=event.target.closest('[data-activity-company]');if(choice){company=choice.dataset.activityCompany;draw();return;}
-      const roster=event.target.closest('[data-activity-roster]');if(roster){const record=shown[Number(roster.dataset.activityRoster)];if(record)embedded?.onRoster?.(record,company);return;}
+      const roster=event.target.closest('[data-activity-roster]');if(roster){event.preventDefault();const record=shown[Number(roster.dataset.activityRoster)];if(record)embedded?.onRoster?.(record,company);return;}
       const open=event.target.closest('[data-activity-report]');if(!open)return;const record=shown[Number(open.dataset.activityReport)];if(!record)return;
       modal.close();if(!sites.some(s=>String(s.id)===String(record.site.id))&&record.office)await switchOffice(record.office);
       uxOpenSite(record.site.id);const site=sites.find(s=>String(s.id)===String(record.site.id))||record.site;
@@ -14057,7 +14069,7 @@ window.addEventListener('resize', ()=>{
     });
     office.onchange=()=>{siteId='';embedded?.onContext?.({office:office.value,siteId});draw();};month.onchange=draw;search.oninput=draw;
     content.querySelector('#rivalActivityAllMonths').onclick=()=>{month.value='';draw()};draw();
-    return {setContext(selected,officeValue='',selectedSite=''){company=selected;office.value=officeValue;siteId=selectedSite;draw();}};
+    return {setContext(selected,officeValue='',selectedSite='',expandSelected=false){company=selected;office.value=officeValue;siteId=selectedSite;draw();if(expandSelected&&selectedSite)content.querySelector('.rival-activity-site')?.setAttribute('open','');}};
   }
   document.addEventListener('click',event=>{if(event.target.closest('#openRivalActivity'))openRivalActivity();});
 
@@ -14068,7 +14080,7 @@ window.addEventListener('resize', ()=>{
     const modal=uxModal('▦ 타사현황',content);modal.dialog.classList.add('rival-overview-modal');modal.dialog.querySelector('.ux-modal-head h2')?.classList.add('rival-overview-hidden-title');
     const select=content.querySelector('#rivalOverviewSite'),companySelect=content.querySelector('#rivalOverviewCompany'),search=content.querySelector('#rivalOverviewSearch'),cards=content.querySelector('#rivalOverviewCards'),siteButtons=content.querySelector('#rivalOverviewSites'),mapNode=content.querySelector('#rivalOverviewMap'),status=content.querySelector('#rivalOverviewMapStatus');
     const locationMap=rivalCreateLocationMap(mapNode,status);
-    let activated=false,officeFilter='',viewMode='roster';
+    let activated=false,officeFilter='',viewMode='roster',activityOpenOnArrival=false;
     const workspace=content.querySelector('.rival-overview-workspace'),activityHost=content.querySelector('.rival-overview-activity-host');
     const companyBar=content.querySelector('#rivalOverviewCompanies');
     content.insertBefore(companyBar,content.querySelector('.rival-overview-tabs'));
@@ -14083,25 +14095,33 @@ window.addEventListener('resize', ()=>{
       content.querySelectorAll('[data-rival-view]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.rivalView===viewMode)));
       workspace.hidden=viewMode==='activity';activityHost.hidden=viewMode!=='activity';
       modal.dialog.classList.toggle('rival-overview-activity-mode',viewMode==='activity');
-      if(viewMode==='activity'){modal.dialog.classList.add('rival-overview-expanded');locationMap.clear();activityView.setContext(companySelect.value,officeFilter,select.value);return;}
+      if(viewMode==='activity'){modal.dialog.classList.add('rival-overview-expanded');locationMap.clear();activityView.setContext(companySelect.value,officeFilter,select.value,activityOpenOnArrival);activityOpenOnArrival=false;return;}
       const showDetails=activated||!!(select.value||companySelect.value);
       modal.dialog.classList.toggle('rival-overview-expanded',showDetails);
       content.querySelector('#rivalOverviewDetails').hidden=!showDetails;
       content.querySelector('.rival-overview-map-section').hidden=!showDetails;
       content.querySelector('#rivalOverviewCount').textContent='';
       if(!showDetails){locationMap.clear();siteButtons.innerHTML='';cards.innerHTML='';return;}
-      const availableGroups=rivalOverviewModel('',companySelect.value,search.value),activeIds=new Set();
+      const availableGroups=rivalOverviewModel('',companySelect.value,search.value),activeIds=new Set(),reportSites=rivalOverviewReportSites(companySelect.value,search.value);
       availableGroups.forEach(g=>{g.people.forEach(p=>(p.siteIds||[]).forEach(id=>activeIds.add(String(id))));g.locations.forEach(l=>activeIds.add(String(l.site.id)));});
+      reportSites.forEach((info,id)=>activeIds.add(id));
       if(select.value)activeIds.add(select.value);
       const registered=rivalSites().filter(site=>activeIds.has(String(site.id))).sort((a,b)=>a.name.localeCompare(b.name,'ko',{numeric:true}));
       const offices=['강서사업소','강남사업소','강북사업소',...new Set(registered.map(rivalSiteOffice).filter(o=>!['강서사업소','강남사업소','강북사업소'].includes(o)))];
       const choices=registered.filter(site=>!officeFilter||rivalSiteOffice(site)===officeFilter),visibleIds=new Set(choices.map(site=>String(site.id)));
       if(select.value&&!visibleIds.has(select.value))select.value='';
-      siteButtons.innerHTML='<div class="rival-overview-office-buttons">'+['',...offices].map(office=>'<button type="button" class="rival-overview-office-button '+(office===officeFilter?'selected':'')+'" data-overview-office="'+escapeHtml(office)+'" aria-pressed="'+(office===officeFilter)+'">'+escapeHtml(office?office.replace('사업소',''):'전체 사업소')+' <small>'+String(office?registered.filter(site=>rivalSiteOffice(site)===office).length:registered.length)+'</small></button>').join('')+'</div><p class="rival-overview-office-status">'+escapeHtml(officeFilter||'전체 사업소')+' · 타사 정보 등록 현장 '+choices.length+'개</p>'+(companySelect.value?'<button type="button" class="rival-overview-site-button '+(!select.value?'selected':'')+'" data-overview-site-select="" aria-pressed="'+(!select.value)+'">전체</button>':'')+ (choices.length?offices.filter(office=>choices.some(site=>rivalSiteOffice(site)===office)).map(office=>'<section class="rival-overview-office-group"><h4>'+escapeHtml(office)+'</h4><div class="rival-overview-office-sites">'+choices.filter(site=>rivalSiteOffice(site)===office).map(site=>'<button type="button" class="rival-overview-site-button '+(select.value===String(site.id)?'selected':'')+'" data-overview-site-select="'+escapeHtml(String(site.id))+'" aria-pressed="'+(select.value===String(site.id))+'">'+escapeHtml(site.name)+'</button>').join('')+'</div></section>').join(''):'<p class="rival-empty">이 사업소에 등록된 타사 정보가 없습니다.</p>');
+      siteButtons.innerHTML='<div class="rival-overview-office-buttons">'+['',...offices.filter(office=>registered.some(site=>rivalSiteOffice(site)===office))].map(office=>'<button type="button" class="rival-overview-office-button '+(office===officeFilter?'selected':'')+'" data-overview-office="'+escapeHtml(office)+'" aria-pressed="'+(office===officeFilter)+'">'+escapeHtml(office?office.replace('사업소',''):'전체 사업소')+' <small>'+String(office?registered.filter(site=>rivalSiteOffice(site)===office).length:registered.length)+'</small></button>').join('')+'</div><p class="rival-overview-office-status">'+escapeHtml(officeFilter||'전체 사업소')+' · 등록 '+choices.filter(site=>availableGroups.some(g=>g.people.some(p=>(p.siteIds||[]).map(String).includes(String(site.id)))||g.locations.some(l=>String(l.site.id)===String(site.id)))).length+'곳 · 활동 보고 '+choices.filter(site=>reportSites.has(String(site.id))).length+'곳</p>'+ (choices.length?offices.filter(office=>choices.some(site=>rivalSiteOffice(site)===office)).map(office=>'<section class="rival-overview-office-group"><h4>'+escapeHtml(office)+'</h4><div class="rival-overview-office-sites">'+choices.filter(site=>rivalSiteOffice(site)===office).map(site=>'<button type="button" class="rival-overview-site-button '+(select.value===String(site.id)?'selected':'')+'" data-overview-site-select="'+escapeHtml(String(site.id))+'" aria-pressed="'+(select.value===String(site.id))+'">'+escapeHtml(site.name)+'</button>').join('')+'</div></section>').join(''):'<p class="rival-empty">이 사업소에 등록된 타사 정보가 없습니다.</p>');
       siteButtons.querySelectorAll('[data-overview-office]').forEach(button=>button.onclick=()=>{officeFilter=button.dataset.overviewOffice;select.value='';draw();});
-      siteButtons.querySelectorAll('[data-overview-site-select]').forEach(button=>button.onclick=()=>{if(!companySelect.value){rivalOpenSiteTab(button.dataset.overviewSiteSelect,modal).catch(()=>{status.textContent='현장을 열지 못했습니다. 다시 선택해 주세요.';});return;}select.value=button.dataset.overviewSiteSelect;draw();});
+      siteButtons.querySelectorAll('[data-overview-site-select]').forEach(button=>button.onclick=()=>{if(!companySelect.value){rivalOpenSiteTab(button.dataset.overviewSiteSelect,modal).catch(()=>{status.textContent='현장을 열지 못했습니다. 다시 선택해 주세요.';});return;}select.value=button.dataset.overviewSiteSelect;if(select.value&&reportSites.has(select.value)){viewMode='activity';activityOpenOnArrival=true;}draw();});
       const filterMap=groups=>groups.map(g=>({...g,locations:g.locations.filter(l=>visibleIds.has(String(l.site.id)))}));
-      if(!companySelect.value && !select.value){cards.innerHTML='';locationMap.draw(filterMap(availableGroups));return;}
+      function showLocationMap(groups){
+        const filtered=filterMap(groups),hasAddresses=rivalOverviewAddresses(filtered).length>0;
+        content.querySelector('.rival-overview-map-section').hidden=!hasAddresses;
+        workspace.classList.toggle('has-rival-map',hasAddresses);
+        if(hasAddresses)locationMap.draw(filtered);else locationMap.clear();
+      }
+
+      if(!companySelect.value && !select.value){cards.innerHTML='';showLocationMap(availableGroups);return;}
       const groups=rivalOverviewModel(select.value,companySelect.value,search.value).map(g=>({...g,people:g.people.filter(p=>(p.siteIds||[]).some(id=>visibleIds.has(String(id))))}));
       cards.innerHTML=groups.map(g=>{
         const site=rivalSites().find(s=>String(s.id)===select.value),locations=g.locations.filter(l=>visibleIds.has(String(l.site.id)));
@@ -14110,8 +14130,12 @@ window.addEventListener('resize', ()=>{
         const people=g.people.slice().sort(rivalOverviewPersonOrder);
         return '<section class="rival-overview-card rival-overview-person-list">'+(site?'<div class="rival-overview-company"><strong '+(rivalReadOnly()||!site?'':'tabindex="0" role="button" data-overview-company="'+escapeHtml(g.company)+'" data-overview-site="'+escapeHtml(select.value)+'" title="더블클릭하여 수정"')+'>'+escapeHtml(g.company)+'</strong><span> (기획사: '+escapeHtml(info.agency||'　')+')</span></div><details class="rival-overview-location-toggle"><summary>사무실 · 라운지</summary><div class="rival-overview-locations"><div>사무실: '+escapeHtml(info.office||'　')+'</div><div>라운지: '+escapeHtml(info.lounge||'　')+'</div></div></details>':'')+rivalOverviewTables(people,!site)+'</section>';
       }).join('')||'<p class="rival-empty">등록된 타사 명단이 없습니다.</p>';
+      const registeredPeople=groups.reduce((n,g)=>n+g.people.length,0);
+      if(!select.value&&registeredPeople){
+        cards.innerHTML='<details class="rival-registered-people-fold"><summary>등록 담당자 <span>'+registeredPeople+'명</span></summary>'+cards.innerHTML+'</details>';
+      }else if(!select.value&&!registeredPeople){cards.innerHTML='';}
       cards.querySelectorAll('[data-overview-company]').forEach(node=>{const open=()=>edit(rivalSites().find(s=>String(s.id)===node.dataset.overviewSite),node.dataset.overviewCompany);node.ondblclick=open;node.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open();}};});
-      locationMap.draw(filterMap(groups));
+      showLocationMap(groups);
     }
     select.onchange=()=>{activated=true;draw();};companySelect.onchange=()=>{activated=true;select.value='';draw();};search.oninput=draw;draw();
   }
@@ -39309,3 +39333,94 @@ body.ux383:is(.guest-mode,.guest-viewer-readonly,.guest-readonly) :is(button.ove
 </style>
 
 <style>.whole-audit-server{padding:6px 0;color:var(--text-dim);font-size:12px}.whole-audit-server>summary{cursor:pointer}.whole-audit-server>div{display:flex;gap:6px;margin-top:8px;align-items:center}.whole-audit-server input{flex:1;min-width:0}.whole-audit-server p{font-size:11px;margin:6px 0}</style>
+
+<style id="rival-activity-collapsed-cards-20261013">
+body.ux383 .rival-activity-site{padding:0!important;overflow:hidden}
+body.ux383 .rival-activity-site>summary{
+ display:flex;align-items:center;gap:12px;padding:14px;cursor:pointer;list-style:none;
+}
+body.ux383 .rival-activity-site>summary::-webkit-details-marker{display:none}
+body.ux383 .rival-activity-site>summary>div:first-child{flex:1;min-width:0}
+body.ux383 .rival-activity-site>summary::after{content:'▸';font-size:12px;color:var(--text-dim);flex:none}
+body.ux383 .rival-activity-site[open]>summary::after{content:'▾'}
+body.ux383 .rival-activity-site>summary:focus-visible{outline:2px solid var(--accent);outline-offset:-3px}
+body.ux383 .rival-activity-site-body{padding:0 14px 10px}
+</style>
+
+<style id="rival-report-linked-layout-20261013">
+body.ux383 .rival-activity-results{gap:0 22px!important}
+body.ux383 .rival-activity-site{border:0!important;border-bottom:1px solid var(--line)!important;border-radius:0!important;background:transparent!important}
+body.ux383 .rival-activity-site>summary{min-height:64px;box-sizing:border-box;padding:12px 8px!important;gap:12px}
+body.ux383 .rival-activity-site>summary:hover{background:var(--accent-soft)}
+body.ux383 .rival-activity-site[open]>summary{background:var(--accent-soft)}
+body.ux383 .rival-activity-site-icon{display:flex;align-items:center;justify-content:center;flex:0 0 28px;width:28px;height:28px;border-radius:50%;color:var(--accent);background:var(--accent-soft);font-size:18px}
+body.ux383 .rival-activity-site-title{flex:1;min-width:0}
+body.ux383 .rival-activity-site-title h3{font-size:14px!important;line-height:1.4;margin:0 0 3px!important;font-weight:650}
+body.ux383 .rival-activity-site-title small{font-size:10px;line-height:1.5;color:var(--text-dim)}
+body.ux383 .rival-activity-report-total{display:inline-flex;align-items:baseline;gap:3px;color:var(--accent);white-space:nowrap}
+body.ux383 .rival-activity-report-total b{font-size:16px;font-weight:650}
+body.ux383 .rival-activity-report-total small{font-size:10px}
+body.ux383 .rival-activity-site-actions{gap:10px!important}
+body.ux383 .rival-activity-site-actions button{border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;padding:0!important;font-size:10px!important;color:var(--text-dim)!important}
+body.ux383 .rival-activity-site-body{padding:0 12px 12px 48px!important}
+body.ux383 .rival-site-report-badge{display:inline-block;margin-left:5px;color:var(--accent);font-size:9px;line-height:1.3;font-weight:500;white-space:nowrap}
+body.ux383 .rival-overview-report-links{margin-top:10px}
+body.ux383 .rival-overview-report-links>button{display:flex;align-items:center;gap:10px;width:100%;min-height:32px;padding:8px 0!important;background:transparent!important;box-shadow:none!important;border:0!important;border-bottom:1px solid var(--line)!important;border-radius:0!important;font:inherit;color:var(--accent);text-align:left;cursor:pointer}
+body.ux383 .rival-overview-report-links>button>span{font-size:11px;font-weight:600}
+body.ux383 .rival-overview-report-links>button>small{font-size:10px;color:var(--text-dim);margin-left:auto}
+body.ux383 .rival-overview-report-links>button>b{font-size:14px;font-weight:400}
+@media(max-width:650px){body.ux383 .rival-activity-results{gap:0!important}body.ux383 .rival-activity-site>summary{gap:8px!important}body.ux383 .rival-activity-site-body{padding-left:12px!important}body.ux383 .rival-overview-report-links>button{flex-wrap:wrap;gap:4px 8px}body.ux383 .rival-overview-report-links>button>small{font-size:9px}}
+</style>
+
+<style id="rival-site-grid-direct-reports-20261013">
+body.ux383 #rivalOverviewSites .rival-overview-office-buttons{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:6px!important}
+body.ux383 #rivalOverviewSites .rival-overview-office-button{width:100%!important;min-height:30px!important;box-sizing:border-box;text-align:center!important;justify-content:center!important}
+body.ux383 #rivalOverviewSites .rival-overview-office-sites{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:6px!important}
+body.ux383 #rivalOverviewSites .rival-overview-office-sites>.rival-overview-site-button{display:flex!important;align-items:center!important;justify-content:center!important;width:100%!important;min-width:0!important;min-height:34px!important;height:auto!important;margin:0!important;padding:6px 5px!important;box-sizing:border-box;font-size:11px!important;line-height:1.4!important;text-align:center!important;white-space:normal!important;word-break:keep-all!important;border-radius:6px!important}
+body.ux383 .rival-overview-report-links{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:12px!important}
+body.ux383 .rival-overview-report-links>button{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:3px 6px!important;align-content:center!important;min-height:44px!important;padding:7px 9px!important;border:1px solid var(--line)!important;background:var(--bg-side-2)!important;border-radius:6px!important;margin:0!important}
+body.ux383 .rival-overview-report-links>button>span{grid-column:1;grid-row:1;min-width:0;font-size:11px!important;line-height:1.4;word-break:keep-all}
+body.ux383 .rival-overview-report-links>button>small{grid-column:1;grid-row:2;margin:0!important;font-size:10px!important}
+body.ux383 .rival-overview-report-links>button>b{grid-column:2;grid-row:1 / 3;align-self:center}
+@media(max-width:650px){body.ux383 #rivalOverviewSites .rival-overview-office-sites{grid-template-columns:repeat(2,minmax(0,1fr))!important}body.ux383 .rival-overview-report-links{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+</style>
+
+<style id="rival-single-list-clean-20261013">
+body.ux383 #rivalOverviewContent .rival-overview-workspace:not(.has-rival-map){grid-template-columns:minmax(0,1fr)!important}
+body.ux383 #rivalOverviewContent .rival-overview-map-section[hidden]{display:none!important}
+body.ux383 #rivalOverviewContent .rival-overview-workspace:not(.has-rival-map) .rival-overview-left{width:100%!important;max-width:none!important}
+body.ux383 #rivalOverviewSites .rival-overview-office-buttons{display:flex!important;gap:6px!important;flex-wrap:wrap!important}
+body.ux383 #rivalOverviewSites .rival-overview-office-button{width:auto!important;min-width:90px!important;height:30px!important;padding:4px 12px!important;background:transparent!important;border:1px solid var(--line)!important;border-radius:5px!important;box-shadow:none!important}
+body.ux383 #rivalOverviewSites .rival-overview-office-button.selected{background:var(--accent-soft)!important;color:var(--accent)!important}
+body.ux383 #rivalOverviewSites .rival-overview-office-status{margin:9px 0 14px!important;font-size:10px!important}
+body.ux383 #rivalOverviewSites .rival-overview-office-group h4{font-size:11px!important;font-weight:600!important;margin:0 0 7px!important;color:var(--text-dim)!important}
+body.ux383 #rivalOverviewSites .rival-overview-office-sites{grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:7px!important}
+body.ux383 #rivalOverviewSites .rival-overview-office-sites>.rival-overview-site-button{min-height:34px!important;background:transparent!important;color:var(--text-main)!important;border:1px solid var(--line)!important;border-radius:5px!important;box-shadow:none!important;font-size:12px!important;padding:7px!important}
+body.ux383 #rivalOverviewSites .rival-overview-office-sites>.rival-overview-site-button:hover,body.ux383 #rivalOverviewSites .rival-overview-office-sites>.rival-overview-site-button.selected{background:var(--accent-soft)!important;color:var(--accent)!important;border-color:var(--accent)!important}
+body.ux383 #rivalOverviewCards{border:0!important;margin-top:16px!important;padding-top:0!important}
+body.ux383 .rival-registered-people-fold{border-top:1px solid var(--line);padding-top:10px}
+body.ux383 .rival-registered-people-fold>summary{font-size:12px;color:var(--text-dim);cursor:pointer;padding:4px 0}
+body.ux383 .rival-registered-people-fold>summary>span{font-size:10px;margin-left:4px}
+body.ux383 .rival-registered-people-fold .rival-overview-card{margin-top:10px}
+body.ux383 #rivalOverviewContent .rival-person-chip{border:0!important;background:transparent!important;border-radius:0!important;padding:7px 0!important;box-shadow:none!important;border-bottom:1px solid var(--line)!important}
+@media(max-width:760px){body.ux383 #rivalOverviewSites .rival-overview-office-sites{grid-template-columns:repeat(3,minmax(0,1fr))!important}}
+@media(max-width:480px){body.ux383 #rivalOverviewSites .rival-overview-office-sites{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+</style>
+
+<style id="rival-site-buttons-compact-20261013">
+body.ux383 #rivalOverviewSites .rival-overview-office-sites{grid-template-columns:repeat(auto-fill,150px)!important;gap:5px!important;justify-content:start!important}
+body.ux383 #rivalOverviewSites .rival-overview-office-sites>.rival-overview-site-button{min-height:28px!important;padding:4px 7px!important;font-size:11px!important;line-height:1.3!important;border-radius:4px!important;overflow-wrap:anywhere!important}
+body.ux383 #rivalOverviewSites .rival-overview-office-button{min-width:80px!important;min-height:26px!important;height:26px!important;padding:3px 9px!important}
+body.ux383 #rivalOverviewSites .rival-overview-office-status{margin:7px 0 10px!important}
+body.ux383 #rivalOverviewSites .rival-overview-office-group h4{margin-bottom:5px!important}
+@media(max-width:760px){body.ux383 #rivalOverviewSites .rival-overview-office-sites{grid-template-columns:repeat(3,minmax(0,1fr))!important}}
+@media(max-width:480px){body.ux383 #rivalOverviewSites .rival-overview-office-sites{grid-template-columns:repeat(2,minmax(0,1fr))!important}body.ux383 #rivalOverviewSites .rival-overview-office-sites>.rival-overview-site-button{min-height:30px!important}}
+</style>
+
+<style id="rival-extra-column-20261013">
+@media(min-width:821px){
+ body.ux383 #rivalOverviewContent .rival-overview-workspace:not(.has-rival-map) #rivalOverviewSites .rival-overview-office-sites{grid-template-columns:repeat(8,minmax(0,1fr))!important}
+ body.ux383 #rivalOverviewContent .rival-overview-workspace:not(.has-rival-map) .rival-person-chip-grid{grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:0 12px!important}
+ body.ux383 #rivalOverviewContent .rival-overview-workspace:not(.has-rival-map) .rival-person-chip{grid-template-columns:66px minmax(0,1fr)!important;column-gap:4px!important;padding:5px 0!important;min-height:28px!important}
+}
+</style>
