@@ -8766,6 +8766,16 @@ body.ux383 .topbar #mobileAllSitesDirectBtn{display:flex!important;grid-column:1
 <style>.project-progress-mobile-audit{display:none}@media(max-width:820px){.project-progress-mobile-audit{display:inline}}.project-audit-detail{margin:12px 0 0;font-size:12px;color:var(--muted);text-align:left}.project-audit-detail summary{cursor:pointer}.project-audit-detail p{margin:8px 0;line-height:1.6}.project-audit-detail small{font-size:11px}@media print{.project-audit-detail{display:none}}</style>
 <style>#overviewAuditPopover .overview-audit-reason{font-size:12px;line-height:1.5;margin:7px 0;color:var(--muted)}</style>
 <style>body.ux383 button.overview-audit-dot.is-difference{color:#dc4242!important;font-size:17px!important}body.ux383 button.overview-audit-dot.is-uncertain{color:#dd941c!important;font-size:17px!important}</style>
+<style>#wholeOverviewAuditDialog{width:min(960px,95vw);max-height:88dvh;overflow:auto;padding:18px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--text-main);font:inherit}
+#wholeOverviewAuditDialog::backdrop{background:rgba(0,0,0,.4)}
+#wholeOverviewAuditDialog header{display:flex;align-items:center;justify-content:space-between;gap:12px}#wholeOverviewAuditDialog h3{margin:0;font-size:19px}#wholeOverviewAuditDialog p{font-size:13px;line-height:1.6;margin:10px 0;color:var(--text-dim)}
+#wholeOverviewAuditDialog button{font:inherit;cursor:pointer;border:0;background:transparent;color:inherit;padding:7px 10px;border-radius:5px;min-height:34px}#wholeOverviewAuditDialog button:disabled{opacity:.45;cursor:default}
+#wholeOverviewAuditDialog .whole-audit-actions,#wholeOverviewAuditDialog .whole-audit-filters{display:flex;flex-wrap:wrap;gap:5px;align-items:center}#wholeOverviewAuditDialog [data-audit-run]{background:var(--accent-soft);font-weight:700}#wholeOverviewAuditDialog .is-active{background:var(--accent-soft)}#wholeOverviewAuditDialog b{font-variant-numeric:tabular-nums;margin-left:5px}
+#wholeOverviewAuditDialog [data-audit-search]{width:100%;padding:9px 10px;font:inherit;border:1px solid var(--line);border-radius:6px;margin:12px 0;background:var(--bg-side);color:inherit}#wholeOverviewAuditDialog progress{width:100%;height:7px}
+#wholeOverviewAuditDialog table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:13px}#wholeOverviewAuditDialog th,#wholeOverviewAuditDialog td{border-bottom:1px solid var(--line);padding:10px 8px;vertical-align:top;text-align:center;overflow-wrap:anywhere}#wholeOverviewAuditDialog th:nth-child(1){width:18%}#wholeOverviewAuditDialog th:nth-child(2){width:12%}#wholeOverviewAuditDialog th:nth-child(3){width:23%}#wholeOverviewAuditDialog th:nth-child(4){width:33%}#wholeOverviewAuditDialog th:nth-child(5){width:14%}
+#wholeOverviewAuditDialog summary{cursor:pointer;line-height:1.6}#wholeOverviewAuditDialog details p{text-align:left}#wholeOverviewAuditDialog details small{display:block;font-size:11px;margin-top:4px;color:var(--text-dim)}#wholeOverviewAuditDialog a{color:var(--accent)}#wholeOverviewAuditDialog .is-difference{color:#dc4242}#wholeOverviewAuditDialog .is-review{color:#dd941c}#wholeOverviewAuditDialog .is-match{color:#438967}#wholeOverviewAuditDialog .whole-audit-empty{text-align:center;padding:20px}
+@media(max-width:820px){#wholeOverviewAuditDialog{padding:12px;width:96vw;max-height:92dvh}#wholeOverviewAuditDialog .whole-audit-table-scroll{overflow-x:auto}#wholeOverviewAuditDialog table{min-width:610px}#wholeOverviewAuditDialog .whole-audit-filters{font-size:12px}}
+</style>
 </head>
 <body data-report-source="excel-only">
 
@@ -8800,6 +8810,7 @@ body.ux383 .topbar #mobileAllSitesDirectBtn{display:flex!important;grid-column:1
           <div class="menu-section-body">
             <button class="menu-item-btn" id="themeToggleBtn" type="button" title="다크/라이트 모드 전환">🌙 다크/라이트 전환</button>
             <button class="menu-item-btn" id="refreshDataBtn" type="button" title="클라우드에서 최신 데이터 다시 불러오기">🔄 새로고침</button>
+            <button class="menu-item-btn" id="wholeOverviewAuditMenuBtn" type="button" title="사업현황·진행단계 공식 자료 대조">🔎 전체 검증</button>
             <button class="menu-item-btn" id="manualSaveBtn" type="button" title="지금 화면 내용을 클라우드에 바로 저장">💾 저장</button>
             <button class="menu-item-btn" id="adminLogoutBtn" type="button" title="로그아웃하고 처음 화면으로">🚪 로그아웃</button>
           </div>
@@ -11993,9 +12004,23 @@ async function mfRetrySync(){
     }
     return false;
   }
+  const overviewRuntimeChecks=new Map();
+  function overviewCurrentServerCheck(site,field,value){
+    const audit=site.overviewOfficialAudit;if(!audit)return undefined;
+    const normalize=v=>String(v??'').replace(/[, *~\s]/g,'');
+    const item=field==='stageDetail'?audit.timeline?.find(c=>normalize(c.originalValue)===normalize(value)):audit.checks?.find(c=>c.field===field);
+    if(!item)return undefined;
+    if(normalize(item.originalValue)===normalize(value)&&['match','empty'].includes(item.status))return null;
+    const stale=normalize(item.originalValue)!==normalize(value);
+    const id=String(site.id)+'|'+field+'|'+normalize(value)+'|'+audit.checkedAt;
+    if(overviewRuntimeChecks.has(id))return overviewRuntimeChecks.get(id);
+    const check={label:item.label||field,value:item.officialValue||'공식 원문 미확보',tone:!stale&&item.status==='difference'?'difference':'uncertain',reason:stale?'등록값이 검증 후 변경됐습니다. 재검증이 필요합니다.':item.reason,url:item.sourceUrl,source:item.sourceTitle||'공식 자료',checkedAt:overviewAuditCheckedLabel(audit.checkedAt),publishedAt:item.sourceDate||''};
+    OVERVIEW_OFFICIAL_CHECKS.push(check);overviewRuntimeChecks.set(id,check);return check;
+  }
   function overviewAuditDot(site,field,value){
+    const current=overviewCurrentServerCheck(site,field,value);if(current===null)return '';
     const checks=overviewFieldChecks(site,field);
-    const check=checks.find(check=>check.kind!=='unverifiedSnapshot'&&overviewCheckMismatch(check,value))||checks.find(check=>check.kind==='unverifiedSnapshot'&&overviewCheckMismatch(check,value));if(!check)return '';
+    const check=current||checks.find(check=>check.kind!=='unverifiedSnapshot'&&overviewCheckMismatch(check,value))||checks.find(check=>check.kind==='unverifiedSnapshot'&&overviewCheckMismatch(check,value));if(!check)return '';
     const index=OVERVIEW_OFFICIAL_CHECKS.indexOf(check);
     return '<button type="button" class="overview-audit-dot '+(check.tone==='uncertain'?'is-uncertain':'is-difference')+' no-print" data-overview-audit="'+index+'" data-audit-current="'+escapeHtml(String(value))+'" aria-label="'+escapeHtml(check.label+(check.tone==='uncertain'?' 확인 보류':' 공식 자료와 차이'))+'" title="'+escapeHtml(check.label+(check.tone==='uncertain'?' · 확인 보류: ':' · 공식 자료: ')+check.value)+'">•</button>';
   }
@@ -14615,6 +14640,78 @@ function overviewSectionIcon(kind){
 }
 function mobileStatsPeriodLabel(label){return typeof window!=='undefined'&&window.innerWidth<=820?String(label).replace(/\b20(\d{2})년/g,'$1년'):label;}
 function rivalPromoterCaption(value){const count=String(value??'').trim();return !count||/^[-—–]$/.test(count)?'홍보:':'홍보: '+count.replace(/\s*명$/,'')+'명';}
+function overviewAuditCheckedLabel(value){const text=String(value||'');if(/^\d{4}-\d{2}-\d{2}$/.test(text))return text;const date=new Date(text);return isNaN(date)?text:new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(date);}
+function wholeOverviewAuditRecord(site,office){
+  const source=PROJECT_PROGRESS_REVIEW.audit.business.find(r=>overviewAuditSiteKey(r.name)===overviewAuditSiteKey(site.name)&&overviewAuditRegionMatch(site.district,PROJECT_PROGRESS_REVIEW.audit.progress[r.index].region));
+  const fields={unionMembers:'조합원',households:'신축세대',area:'구역면적',totalFloorArea:'연면적',scale:'규모',managementCompany:'정비업체',designCompany:'설계업체',trustCompany:'신탁사'};
+  const normalize=v=>String(v??'').replace(/[, *~\s]/g,'');
+  const saved=site.overviewOfficialAudit;
+  const checks=Object.entries(fields).map(([field,label])=>{
+    const value=String(site[field]??''),prior=saved?.checks?.find(c=>c.field===field);
+    if(prior&&normalize(prior.originalValue)===normalize(value))return {...prior,name:site.name,office,siteId:site.id};
+    const known=source?.checks.find(c=>c.field===field);
+    let status=!value?'empty':known&&normalize(value)===normalize(known.originalValue)?({supported:'match',conflict:'difference',unresolved:'review',missing:'empty'}[known.status]||'review'):'review';
+    return {field,label,name:site.name,office,siteId:site.id,originalValue:value,officialValue:known?.officialValue||'공식 원문 미확보',status,sourceUrl:known?.sourceUrl,checkedAt:known?.checkedAt||null,reason:!value?'등록값이 비어 있습니다.':known&&normalize(value)===normalize(known.originalValue)?known.reason:'등록값이 이전 대조 이후 바뀌었거나 공식 근거가 없습니다. 재조회가 필요합니다.',mode:'stored-evidence'};
+  });
+  const stage=saved?.checks?.find(c=>c.field==='progressStage');
+  checks.push(stage&&normalize(stage.originalValue)===normalize(site.progressStage)?{...stage,name:site.name,office,siteId:site.id}:{name:site.name,office,siteId:site.id,field:'progressStage',label:'사업단계',originalValue:String(site.progressStage||''),officialValue:'공식 완료 원문 확인 필요',status:site.progressStage?'review':'empty',reason:'예정·운영관리 단계와 법적 완료 단계를 구분해야 합니다.',mode:'stored-evidence'});
+  const timeline=String(site.stageDetail||'').split('\n').filter(line=>line.trim());
+  for(const line of timeline){const prior=saved?.timeline?.find(c=>normalize(c.originalValue)===normalize(line));checks.push(prior?{...prior,name:site.name,office,siteId:site.id}:{name:site.name,office,siteId:site.id,field:'stageDetail',label:'진행단계',originalValue:line,officialValue:'완료 원문 확인 필요',status:'review',reason:'이 일정의 공식 완료·접수 원문을 추가 확인해야 합니다.',mode:'stored-evidence'});}
+  if(!timeline.length)checks.push({name:site.name,office,siteId:site.id,field:'stageDetail',label:'진행단계',originalValue:'',officialValue:'',status:'empty',reason:'등록값이 비어 있습니다.'});
+  return checks;
+}
+function wholeOverviewAuditCounts(rows){return rows.reduce((counts,row)=>{counts[row.status]=(counts[row.status]||0)+1;return counts;},{match:0,difference:0,review:0,empty:0});}
+async function openWholeOverviewAudit(){
+  closeTopbarSettings();document.getElementById('wholeOverviewAuditDialog')?.remove();
+  const dialog=document.createElement('dialog');dialog.id='wholeOverviewAuditDialog';dialog.setAttribute('aria-labelledby','wholeOverviewAuditTitle');
+  dialog.innerHTML=`<header><h3 id="wholeOverviewAuditTitle">전체 검증</h3><button type="button" data-audit-close aria-label="닫기">닫기</button></header><p data-audit-context></p><div class="whole-audit-actions"><button type="button" data-audit-run>공식 출처 재조회</button><button type="button" data-audit-reference>기존 근거 재대조</button><button type="button" data-audit-stop hidden>중단</button></div><p data-audit-message role="status" aria-live="polite"></p><progress data-audit-progress hidden></progress><div class="whole-audit-filters"><button type="button" data-audit-filter="difference">빨간 점 <b data-count="difference"></b></button><button type="button" data-audit-filter="review">주황 점 <b data-count="review"></b></button><button type="button" data-audit-filter="match">일치 <b data-count="match"></b></button><button type="button" data-audit-filter="empty">공란 <b data-count="empty"></b></button><button type="button" data-audit-filter="all">전체</button></div><input type="search" data-audit-search placeholder="현장·항목 검색" aria-label="검증 결과 검색"><div data-audit-results></div>`;
+  document.body.append(dialog);dialog.showModal();
+  const message=dialog.querySelector('[data-audit-message]'),context=dialog.querySelector('[data-audit-context]'),run=dialog.querySelector('[data-audit-run]'),stop=dialog.querySelector('[data-audit-stop]'),progress=dialog.querySelector('progress'),reference=dialog.querySelector('[data-audit-reference]');
+  const endpoint='https://stately-sfogliatella-7ab674.netlify.app/.netlify/functions/overview-audit';
+  let entries=managementSites(),rows=[],filter='difference',running=false,closed=false,controller=null;
+  const labels={difference:'자료 차이',review:'확인 보류',match:'일치',empty:'공란'};
+  function draw(){
+    const counts=wholeOverviewAuditCounts(rows),query=dialog.querySelector('input').value.trim().toLowerCase();
+    context.textContent=`전체 ${entries.length}개 현장 · 조합원~신탁사 · 사업단계·진행단계`;
+    dialog.querySelectorAll('[data-count]').forEach(node=>node.textContent=counts[node.dataset.count]||0);
+    dialog.querySelectorAll('[data-audit-filter]').forEach(button=>button.classList.toggle('is-active',button.dataset.auditFilter===filter));
+    const visible=rows.filter(row=>(filter==='all'||row.status===filter)&&(!query||(row.name+' '+row.label+' '+row.originalValue).toLowerCase().includes(query)));
+    dialog.querySelector('[data-audit-results]').innerHTML=visible.length?'<div class="whole-audit-table-scroll"><table><thead><tr><th>현장</th><th>항목</th><th>현재</th><th>공식·참고 자료</th><th>판정</th></tr></thead><tbody>'+visible.map((row,index)=>`<tr><td>${escapeHtml(row.name)}</td><td>${escapeHtml(row.label)}</td><td>${escapeHtml(row.originalValue)}</td><td><details><summary>${escapeHtml(row.officialValue||'등록값 없음')}</summary><p>${escapeHtml(row.reason||'')}</p>${row.sourceUrl?`<a href="${escapeHtml(row.sourceUrl)}" target="_blank" rel="noopener noreferrer">출처 ↗</a>`:''}${row.checkedAt?`<small>근거 확인 ${escapeHtml(overviewAuditCheckedLabel(row.checkedAt))}</small>`:''}</details></td><td><span class="whole-audit-status is-${row.status}">${labels[row.status]||row.status}</span></td></tr>`).join('')+'</tbody></table></div>':'<p class="whole-audit-empty">해당 항목이 없습니다.</p>';
+  }
+  function stored(){entries=managementSites();rows=entries.flatMap(({site,office})=>wholeOverviewAuditRecord(site,office));draw();}
+  function end(){running=false;run.disabled=false;reference.disabled=false;stop.hidden=true;progress.hidden=true;}
+  async function fresh(){
+    if(!projectProcedureAdmin()){message.textContent='공식 출처 재조회는 관리자 입장에서 실행할 수 있습니다.';return;}
+    if(editMode||logFormOpen){message.textContent='입력 중인 내용을 저장하거나 취소한 뒤 실행해 주세요.';return;}
+    running=true;run.disabled=true;reference.disabled=true;stop.hidden=false;controller=new AbortController();message.textContent='최신 현장 자료를 불러오는 중…';
+    try{
+      const readiness=await fetch(endpoint,{headers:{Accept:'application/json'},cache:'no-store',signal:AbortSignal.any([controller.signal,AbortSignal.timeout(15000)])});
+      const capability=readiness.ok?await readiness.json():null;
+      if(!capability?.ready||capability.mode!=='official-source-refresh')throw Error('공식 재조회 서버가 아직 적용되지 않았습니다. 서버 파일을 적용하면 실행할 수 있습니다. 아래 결과는 저장된 근거와의 대조입니다.');
+      await loadSites();if(controller.signal.aborted||closed)return;stored();progress.hidden=false;progress.max=entries.length;progress.value=0;
+      let position=0,completed=0,failed=0,unavailable=0;
+      const jobs=entries.slice();
+      async function worker(){while(position<jobs.length&&!controller.signal.aborted&&!closed){const pair=jobs[position++];try{
+        const token=window.dashboardPasswordAccess.identity()?.token;if(!token)throw Error('로그인이 만료됐습니다.');
+        const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({office:pair.office,siteId:String(pair.site.id),name:pair.site.name}),signal:AbortSignal.any([controller.signal,AbortSignal.timeout(35000)])});
+        const result=await response.json();if(!response.ok||!result.audit)throw Error(result.message||'공식 출처 조회 실패');
+        pair.site.overviewOfficialAudit=result.audit;if(result.audit.sourceFailure)unavailable++;completed++;
+      }catch(error){if(controller.signal.aborted)break;failed++;}
+      if(!closed){stored();progress.value=completed+failed;message.textContent=`재조회 ${completed+failed}/${jobs.length}곳 · 원문 미확보 ${unavailable}곳 · 요청 실패 ${failed}곳`;}}
+      }
+      await Promise.all([worker(),worker()]);
+      if(!closed){message.textContent=controller.signal.aborted?`중단했습니다. 확인된 ${completed}곳의 결과는 유지됩니다.`:`대조가 끝났습니다. ${completed}곳 확인 · 원문 미확보 ${unavailable}곳 · 요청 실패 ${failed}곳. 주황 점은 오류 확정이 아닙니다.`;if(typeof renderAll==='function')renderAll();}
+    }catch(error){if(!closed)message.textContent=controller.signal.aborted?'중단했습니다. 기존 결과는 유지됩니다.':error instanceof TypeError?'공식 재조회 서버에 연결하지 못했습니다. 서버 파일 적용 여부를 확인해 주세요. 기존 근거 대조 결과는 유지됩니다.':error.message;}finally{end();}
+  }
+  run.onclick=fresh;reference.onclick=()=>{stored();message.textContent='현재 등록값을 저장된 공식 근거와 다시 대조했습니다. 공식 출처를 새로 조회한 결과는 아닙니다.';};
+  stop.onclick=()=>controller?.abort();dialog.querySelector('[data-audit-close]').onclick=()=>dialog.close();
+  dialog.addEventListener('close',()=>{closed=true;controller?.abort();dialog.remove();},{once:true});
+  dialog.querySelector('input').oninput=draw;
+  dialog.querySelectorAll('[data-audit-filter]').forEach(button=>button.onclick=()=>{filter=button.dataset.auditFilter;draw();});
+  stored();message.textContent='저장된 근거와 현재 값의 대조 결과입니다. 공식 출처 재조회로 반복 확인할 수 있습니다.';
+}
+document.getElementById('wholeOverviewAuditMenuBtn')?.addEventListener('click',openWholeOverviewAudit);
+
 function projectProgressKey(value){return String(value||'').replace(/\((?:신탁|조합)\)|\[(?:신탁|조합)\]|\s+/g,'');}
 function projectProgressFor(site){
   const key=projectProgressKey(site?.name);
