@@ -21136,7 +21136,7 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
         <button class="cis-btn ${reportSummaryMode==='week'?'active':''}" data-cis-mode="week">주</button>
         <button class="cis-btn ${reportSummaryMode==='day'?'active':''}" data-cis-mode="day">일</button>
         <button class="cis-btn" id="cisPrev"${reportSummaryMode==='all'?' style="visibility:hidden"':''}>◀</button>
-        <span class="cis-range" title="${escapeHtml(r.label)}"><span class="ui-date-full">${escapeHtml(r.label)}</span><span class="ui-date-short">${escapeHtml(r.label.replace(/^20(\d{2})년/,'$1년'))}</span></span>
+        <span class="cis-range" title="${escapeHtml(r.label)}">${escapeHtml(window.innerWidth<=820?uiCompactPeriodLabel(r.label):r.label)}</span>
         <button class="cis-btn" id="cisNext"${reportSummaryMode==='all'?' style="visibility:hidden"':''}>▶</button>
         <div class="cis-spacer"></div>
         <span class="cis-hint">현장 클릭 → 상세집계</span>
@@ -21896,7 +21896,7 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
     reportDayFilter = null;
     reportSelectedSiteId = null;
     reportSelectedDayKey = null;
-    uxPrefs.period=uxPeriodToRestore;uxRestorePeriods();uiApplySelectedPeriod();
+    uxPrefs.period=uxPeriodToRestore;uxRestorePeriods();uiApplySelectedPeriod();uiClampContactPeriodOnOpen();
     document.getElementById('contactReportOverlay').classList.add('show');
     document.getElementById('contactReportBody').innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-dim);">최신 데이터 확인 중...</div>';
     await refreshAllOfficesDataForReport();
@@ -23777,7 +23777,7 @@ ead><body>
     siteMgmtOffice=(currentOffice&&currentOffice!==ALL_OFFICE)?currentOffice:'__ALL__';
     const o=document.getElementById('globalStatsOfficeFilter');if(o)o.value=siteMgmtOffice;
     if(currentDetailId)siteMgmtSiteId=String(currentDetailId);
-    smFillSiteSelect();uxRestorePeriods();uiApplySelectedPeriod();renderGlobalStats();
+    smFillSiteSelect();uxRestorePeriods();uiApplySelectedPeriod();uiClampContactPeriodOnOpen();renderGlobalStats();
     document.getElementById('globalStatsOverlay').classList.add('show');
     const p=smSelected();if(p&&p.site)refreshLogsForSiteIfNeeded(p.site,true);
     setTimeout(()=>{try{renderGlobalStats();}catch(e){}},700);
@@ -24636,6 +24636,11 @@ const uiSiteViews=new Map();
 let uiExplicitDetailTab=false;
 let uiBrowseRestoring=false,uiBrowseFrame=0;
 function uiLocalDate(date){return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;}
+function uiClampContactPeriodOnOpen(){
+ const today=new Date(),key=uiLocalDate(today);
+ const safe=date=>date instanceof Date&&!isNaN(date)&&uiLocalDate(date)>key?new Date(today):date;
+ reportBaseDate=safe(reportBaseDate);reportSummaryDate=safe(reportSummaryDate);siteMgmtDate=safe(siteMgmtDate);
+}
 function uiApplySelectedPeriod(){
  const p=uxPrefs.selectedPeriod;if(!p||!/^\d{4}-\d{2}-\d{2}$/.test(p.date))return;
  const d=new Date(p.date+'T12:00:00');if(isNaN(d)||uiLocalDate(d)!==p.date)return;
@@ -24738,6 +24743,43 @@ function uiDecorateBrowsing(){
  const briefHead=document.querySelector('.bf-head-tools');if(briefHead&&!briefHead.querySelector('[data-ui-today]')&&bfView.mode!=='custom'){const b=uxButton('오늘',()=>{uiRememberPeriod(new Date(),bfView.mode);const site=sites.find(s=>s.id===currentDetailId);if(site)renderDetailBody(site)},'btn ui-period-today');b.dataset.uiToday='brief';briefHead.append(b)}
  const statsNav=document.getElementById('siteMgmtPeriodLabel')?.parentElement;if(statsNav&&!statsNav.querySelector('[data-ui-today]')){const b=uxButton('오늘',()=>{uiRememberPeriod(new Date(),siteMgmtPeriod==='all'?'month':siteMgmtPeriod);renderGlobalStats()},'sm-btn ui-period-today');b.dataset.uiToday='stats';statsNav.append(b)}
  const summaryNav=document.getElementById('cisNext')?.parentElement;if(summaryNav&&!summaryNav.querySelector('[data-ui-today]')){const b=uxButton('오늘',()=>{uiRememberPeriod(new Date(),reportSummaryMode);renderIntegratedSummary()},'cis-btn ui-period-today');b.dataset.uiToday='summary';summaryNav.append(b)}
+ if(window.innerWidth<=820){
+  const head=document.querySelector('#globalStatsModalBox .sm-head');
+  if(head&&!head.querySelector('.sm-controls-period')){
+   const row=document.createElement('div');row.className='sm-controls-period';
+   for(const selector of ['#siteMgmtAllBtn','#siteMgmtMonthBtn','#siteMgmtWeekBtn','#siteMgmtDayBtn','#siteMgmtPrevBtn','#siteMgmtPeriodLabel','#siteMgmtNextBtn','.ui-period-today','#globalStatsRefreshBtn','#globalStatsCloseBtn']){
+    const control=head.querySelector(selector);if(control)row.append(control);
+   }
+   head.classList.add('aligned-period-head');head.append(row);
+  }
+ }
+ if(window.innerWidth>820){
+  const head=document.querySelector('#globalStatsModalBox .sm-head');
+  const row=head?.querySelector('.sm-controls-period');
+  if(row){for(const control of [...row.children])head.append(control);row.remove();head.classList.remove('aligned-period-head');}
+  const toolbar=document.querySelector('#contactReportBody .cis-toolbar');
+  if(toolbar?.classList.contains('aligned-period-toolbar')){
+   for(const row of [...toolbar.querySelectorAll('.cis-controls-filter,.cis-controls-nav')]){for(const control of [...row.children])toolbar.append(control);row.remove();}
+   toolbar.querySelectorAll('[data-summary-action]').forEach(control=>control.remove());toolbar.classList.remove('aligned-period-toolbar');
+  }
+ }
+ const reportHead=document.querySelector('#contactReportModalBox > .v20-report-head');
+ const summaryToolbar=document.querySelector('#contactReportBody .cis-toolbar');
+ const summaryControls=window.innerWidth<=820&&!!summaryToolbar;
+ reportHead?.classList.toggle('summary-period-in-body',summaryControls);
+ if(summaryControls&&!summaryToolbar.querySelector('[data-summary-action]')){
+  for(const [action,label,source] of [['refresh','↻','reportRefreshBtn'],['close','닫기','contactReportCloseBtn']]){
+   const proxy=uxButton(label,()=>document.getElementById(source)?.click(),'cis-btn summary-period-action');
+   proxy.dataset.summaryAction=action;proxy.setAttribute('aria-label',action==='refresh'?'새로고침':'닫기');summaryToolbar.append(proxy);
+  }
+ }
+ if(summaryControls&&!summaryToolbar.querySelector('.cis-controls-filter')){
+  const filter=document.createElement('div');filter.className='cis-controls-filter';
+  const nav=document.createElement('div');nav.className='cis-controls-nav';
+  for(const selector of ['#cisOffice','[data-cis-mode="all"]','[data-cis-mode="month"]','[data-cis-mode="week"]','[data-cis-mode="day"]']){const control=summaryToolbar.querySelector(selector);if(control)filter.append(control);}
+  for(const selector of ['#cisPrev','.cis-range','#cisNext','[data-ui-today="summary"]','[data-summary-action="refresh"]','[data-summary-action="close"]']){const control=summaryToolbar.querySelector(selector);if(control)nav.append(control);}
+  summaryToolbar.classList.add('aligned-period-toolbar');summaryToolbar.append(filter,nav);
+ }
  const site=sites.find(s=>s.id===currentDetailId),byPerson=new Map();if(site)miReportLogs(site).forEach(l=>{const key=String(l.personId||'');if(!byPerson.has(key))byPerson.set(key,[]);byPerson.get(key).push(l)});
  document.querySelectorAll('#mgrOwnerTable tr[data-owner-row]').forEach(row=>{
   const journal=row.querySelector('.mgr-contact-journal-btn'),contactCell=row.querySelector('.mgr-contact-cell');
@@ -24754,6 +24796,7 @@ function uiDecorateBrowsing(){
 }
 function uiBrowsingInstall(){
  uiApplySelectedPeriod();
+ window.addEventListener('resize',()=>requestAnimationFrame(uiDecorateBrowsing));
  for(const [name,id]of [['renderDetailBody','detailBody'],['renderContactReport','contactReportBody'],['renderIntegratedSummary','contactReportBody'],['renderGlobalStats','globalStatsBody'],['renderCalendarView','calendarView']]){
   const originals={renderDetailBody,renderContactReport,renderIntegratedSummary,renderGlobalStats,renderCalendarView};const original=originals[name];
   const wrapped=function(...args){uiCaptureBrowse(document.getElementById(id));const result=original(...args);uiRestoreBrowse(document.getElementById(id));return result};
@@ -39651,5 +39694,52 @@ window.addEventListener('resize',function(){
 @media screen and (max-width:360px){
  body.ux383 #globalStatsModalBox .sm-head{grid-template-columns:repeat(4,22px) 18px max-content 18px 22px 24px 22px minmax(0,1fr)!important}
  body.ux383 #contactReportModalBox > .v20-report-head{grid-template-columns:70px max-content 54px minmax(0,1fr)!important}
+}
+</style>
+
+<style id="contact-summary-period-controls-20261014">
+@media screen and (max-width:820px){
+ body.ux383 #contactReportModalBox > .v20-report-head.summary-period-in-body{grid-template-columns:minmax(0,1fr)!important;grid-template-rows:auto!important;gap:0!important;margin-bottom:4px!important}
+ body.ux383 #contactReportModalBox > .v20-report-head.summary-period-in-body > .v20-report-actions{display:none!important}
+ body.ux383 #contactReportBody .cis-toolbar{grid-template-columns:24px minmax(56px,1fr) 24px 28px 28px 28px 28px minmax(0,1fr)!important;grid-template-rows:34px 30px!important;gap:5px 3px!important;align-items:center!important}
+ body.ux383 #contactReportBody .cis-toolbar #cisOffice{grid-column:1/4!important;grid-row:1!important;width:100%!important;min-width:0!important;height:34px!important;font-size:12px!important}
+ body.ux383 #contactReportBody .cis-toolbar [data-cis-mode]{grid-row:1!important;height:34px!important;min-width:0!important;width:100%!important;padding:0!important;font-size:11px!important}
+ body.ux383 #contactReportBody .cis-toolbar [data-cis-mode="all"]{grid-column:4!important}
+ body.ux383 #contactReportBody .cis-toolbar [data-cis-mode="month"]{grid-column:5!important}
+ body.ux383 #contactReportBody .cis-toolbar [data-cis-mode="week"]{grid-column:6!important}
+ body.ux383 #contactReportBody .cis-toolbar [data-cis-mode="day"]{grid-column:7!important}
+ body.ux383 #contactReportBody .cis-toolbar :is(#cisPrev,#cisNext,[data-ui-today="summary"],[data-summary-action]){grid-row:2!important;position:static!important;inset:auto!important;width:100%!important;min-width:0!important;height:30px!important;min-height:30px!important;padding:0!important;margin:0!important;display:flex!important;align-items:center!important;justify-content:center!important}
+ body.ux383 #contactReportBody .cis-toolbar #cisPrev{grid-column:1!important}
+ body.ux383 #contactReportBody .cis-toolbar .cis-range{grid-column:2!important;grid-row:2!important;min-width:0!important;width:auto!important;padding:0!important;font-size:10px!important;white-space:nowrap!important;text-align:center!important}
+ body.ux383 #contactReportBody .cis-toolbar #cisNext{grid-column:3!important}
+ body.ux383 #contactReportBody .cis-toolbar [data-ui-today="summary"]{grid-column:4!important;font-size:10px!important}
+ body.ux383 #contactReportBody .cis-toolbar [data-summary-action="refresh"]{grid-column:5!important;font-size:21px!important}
+ body.ux383 #contactReportBody .cis-toolbar [data-summary-action="close"]{grid-column:6!important;font-size:10px!important}
+}
+</style>
+
+<style id="mobile-period-rows-unified-20261014">
+@media screen and (max-width:820px){
+ body.ux383 #globalStatsModalBox .sm-head.aligned-period-head{display:block!important;padding:8px!important}
+ body.ux383 #globalStatsModalBox .sm-head.aligned-period-head #siteMgmtSiteSelect{display:block!important;width:100%!important;height:34px!important;margin:0 0 6px!important}
+ body.ux383 #globalStatsModalBox .sm-controls-period{display:flex!important;align-items:center!important;justify-content:center!important;gap:3px!important;width:100%!important}
+ body.ux383 #globalStatsModalBox .sm-controls-period :is(button,.ui-period-today){flex:0 0 26px!important;width:26px!important;height:30px!important;min-height:30px!important;border-radius:6px!important;font-size:11px!important}
+ body.ux383 #globalStatsModalBox .sm-controls-period :is(#siteMgmtPrevBtn,#siteMgmtNextBtn){flex-basis:20px!important;width:20px!important}
+ body.ux383 #globalStatsModalBox .sm-controls-period #siteMgmtPeriodLabel{flex:0 0 64px!important;width:64px!important;text-align:center!important;padding:0!important;font-size:10px!important}
+ body.ux383 #globalStatsModalBox .sm-controls-period #globalStatsRefreshBtn{font-size:0!important}
+ body.ux383 #globalStatsModalBox .sm-controls-period #globalStatsCloseBtn{font-size:18px!important}
+ body.ux383 #contactReportBody .cis-toolbar.aligned-period-toolbar{display:flex!important;flex-direction:column!important;gap:6px!important;padding:8px!important}
+ body.ux383 #contactReportBody .cis-controls-filter{display:flex!important;align-items:center!important;gap:4px!important;width:100%!important}
+ body.ux383 #contactReportBody .cis-controls-filter #cisOffice{flex:1 1 0!important;width:0!important;min-width:0!important;height:32px!important;font-size:12px!important;margin:0!important}
+ body.ux383 #contactReportBody .cis-controls-filter [data-cis-mode]{flex:0 0 34px!important;width:34px!important;min-width:34px!important;height:32px!important;font-size:11px!important;border-radius:6px!important}
+ body.ux383 #contactReportBody .cis-controls-nav{display:flex!important;align-items:center!important;justify-content:center!important;gap:4px!important;width:100%!important}
+ body.ux383 #contactReportBody .cis-controls-nav :is(button,[data-ui-today="summary"]){flex:0 0 30px!important;width:30px!important;height:30px!important;min-height:30px!important;border-radius:6px!important;font-size:10px!important}
+ body.ux383 #contactReportBody .cis-controls-nav .cis-range{flex:0 0 70px!important;width:70px!important;padding:0!important;text-align:center!important;font-size:10px!important;white-space:nowrap!important}
+ body.ux383 #contactReportBody .cis-controls-nav [data-summary-action="refresh"]{font-size:21px!important}
+}
+@media screen and (max-width:360px){
+ body.ux383 #globalStatsModalBox .sm-controls-period{gap:2px!important}
+ body.ux383 #globalStatsModalBox .sm-controls-period :is(button,.ui-period-today){flex-basis:24px!important;width:24px!important;font-size:10px!important}
+ body.ux383 #globalStatsModalBox .sm-controls-period #siteMgmtPeriodLabel{flex-basis:60px!important;width:60px!important}
 }
 </style>
