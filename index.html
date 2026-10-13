@@ -14054,9 +14054,29 @@ window.addEventListener('resize', ()=>{
     const escape=value=>value.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
     const names=aliases.sort((a,b)=>b.length-a.length).map(alias=>escape(alias)+(alias==='현대'?'(?!산업)':alias==='DL'?'(?!건설)':'')).join('|');
     const matcher=new RegExp('(?<![A-Za-z])(?:'+names+')(?![A-Za-z]|부동산|의료원|병원|단지|아파트)','i');
-    const activity=/방문|활동|현수막|라운지|설명회|홍보|인사|미팅|접촉|입찰|제안서|도열|투어|물품|참여|철수|수주(?:했|함|했다)|선정(?:됐|됨)/;
-    return String(text||'').split(/\n+|(?<=[.!?。])\s+/).map(line=>line.trim()).filter(line=>matcher.test(line)&&activity.test(line));
+    // A company mention, resident opinion, hearsay or plan is not an observed activity.
+    const uncertain=/전해|전언|들었|들음|듣고|들었다|다고\s*(?:함|했|말|설명|전)|라고\s*(?:함|했|말|설명|전)|언급|소문|단톡|카톡|추정|가능성|유력|예정|계획|희망|의향|문의|질문|평가|비판|선호|거론|검토|우려|관련\s*(?:기사|보도)/;
+    const negative=/미방문|미접촉|방문(?:이|은|을)?\s*(?:없|못|안)|(?:안|못)\s*(?:왔|방문|접촉)|방문하지|접촉하지|연락(?:이|은|을)?\s*없|철수하지/;
+    const action=/방문|내방|찾아(?:왔|옴)|다녀(?:갔|감)|전화|연락|미팅|접촉|면담|도열|현수막\s*(?:설치|게시|부착)|(?:홍보물|물품|선물|제안서)\s*(?:전달|배포|제출)|입찰\s*(?:참여|접수)|철수/;
+    const allNames=[...new Set(rivalCompanyAliases.map(p=>p[0]))].sort((a,b)=>b.length-a.length).map(escape).join('|');
+    const allMatcher=new RegExp('(?<![A-Za-z])(?:'+allNames+')(?![A-Za-z]|부동산|의료원|병원|단지|아파트)','gi');
+    return String(text||'').split(/\n+|(?<=[.!?。])\s+|[,;]/).map(line=>line.trim()).filter(line=>{
+      if(!matcher.test(line)||uncertain.test(line)||negative.test(line))return false;
+      // The action must belong to this company, not another company later in the sentence.
+      const hits=[...line.matchAll(allMatcher)];
+      return hits.some((hit,index)=>{
+        if(!matcher.test(hit[0]))return false;
+        let end=index+1<hits.length?hits[index+1].index:line.length;
+        // A simple company list can share one directly reported action.
+        let next=index+1;
+        while(next<hits.length&&/^[\s·ㆍ/&와과및]+$/.test(line.slice(end===line.length?line.length:hits[next-1].index+hits[next-1][0].length,hits[next].index))){
+          end=next+1<hits.length?hits[next+1].index:line.length;next++;
+        }
+        return action.test(line.slice(hit.index+hit[0].length,end));
+      });
+    });
   }
+
   function rivalActivityRecords(company,filters={}){
     const records=[],seen=new Set();
     for(const {site,office} of managementSites()){
@@ -14103,7 +14123,7 @@ window.addEventListener('resize', ()=>{
       shown=rivalActivityRecords(company,{office:office.value,month:month.value,search:search.value.trim(),siteId});
       const groups=new Map();shown.forEach((record,index)=>{const key=record.office+'|'+record.site.id;if(!groups.has(key))groups.set(key,[]);groups.get(key).push({...record,index})});
       count.textContent=company+' · 관련 보고 '+shown.length+'건 · 보고 현장 '+groups.size+'곳';
-      if(!shown.length){target.innerHTML='<p class="rival-activity-empty">선택 조건에 맞는 활동 관련 보고가 없습니다.</p>';return;}
+      if(!shown.length){target.innerHTML='<p class="rival-activity-empty">선택 조건에 맞는 확인된 활동 보고가 없습니다.</p>';return;}
       const reportMarkup=record=>'<div class="rival-activity-report"><div class="rival-activity-meta"><time>'+escapeHtml(record.log.date||'보고일 미기재')+'</time><span>'+escapeHtml(record.log.contactName||'접촉자 미기재')+'</span>'+(record.log.author?'<span>담당 '+escapeHtml(record.log.author)+'</span>':'')+'</div>'+record.mentions.map(text=>'<p>'+escapeHtml(text)+'</p>').join('')+'<div class="rival-activity-source"><details><summary>보고 원문</summary><p>'+escapeHtml(record.text)+'</p></details><button type="button" data-activity-report="'+record.index+'">보고서 보기 ›</button></div></div>';
       target.innerHTML=[...groups.values()].map(rows=>{const r=rows[0];return '<details class="rival-activity-site"><summary><span class="rival-activity-site-icon" aria-hidden="true">▥</span><div class="rival-activity-site-title"><h3>'+escapeHtml(r.site.name)+'</h3><small>'+escapeHtml(r.office)+' · 최근 보고 '+escapeHtml(r.log.date||'날짜 미기재')+'</small></div><div class="rival-activity-site-actions"><span>'+rows.length+'건</span>'+(embedded?'<button type="button" data-activity-roster="'+r.index+'">등록 정보 ›</button>':'')+'</div></summary><div class="rival-activity-site-body">'+rows.slice(0,3).map(reportMarkup).join('')+(rows.length>3?'<details class="rival-activity-more"><summary>지난 보고 '+(rows.length-3)+'건 더 보기</summary>'+rows.slice(3).map(reportMarkup).join('')+'</details>':'')+'</div></details>'}).join('');
     }
@@ -14506,7 +14526,7 @@ window.addEventListener('resize', ()=>{
   }
   function managementAuditedFields(site,partners=false){
     const fields=partners?[['신탁','trustCompany'],['정비','managementCompany'],['설계','designCompany']]:[['구역면적','area'],['연면적','totalFloorArea'],['규모','scale'],['조합원','unionMembers'],['신축세대','households']];
-    return fields.filter(([,field])=>site[field]).map(([label,field])=>{let value=String(site[field]);if(['area','totalFloorArea'].includes(field)&&!/(㎡|m²)$/.test(value))value+='㎡';return '<div>'+escapeHtml(label+': '+value)+overviewAuditDot(site,field,site[field])+'</div>';}).join('');
+    return fields.filter(([,field])=>site[field]).map(([label,field])=>{let value=String(site[field]);if(['area','totalFloorArea'].includes(field)&&!/(㎡|m²)$/.test(value))value+='㎡';const text=label+': '+value;return '<div class="management-audited-line"><span class="management-audited-field'+(partners&&text.length<=14?' is-short':'')+'"><span class="management-audited-text">'+escapeHtml(text)+'</span>'+overviewAuditDot(site,field,site[field])+'</span></div>';}).join('');
   }
   function managementMobileCardsMarkup(rows,showMonths,esc){
     if(!rows.length)return '<p class="management-empty">조건에 맞는 현장이 없습니다.</p>';
@@ -39509,4 +39529,22 @@ body.ux383 .rival-report-logo-row img{display:block;width:32px!important;height:
 body.ux383 .rival-selected-report{padding:12px 0 0}
 body.ux383 .rival-selected-report-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:12px;color:var(--accent);margin-bottom:6px}
 body.ux383 .rival-selected-report-heading time{font-size:10px;color:var(--text-dim)}
+</style>
+
+<style id="overview-audit-marker-alignment-20261013">
+body.ux383 button.overview-audit-dot,
+body.ux383 button.overview-audit-dot:is(.is-difference,.is-uncertain){
+ display:inline-flex!important;align-items:center!important;justify-content:center!important;
+ width:8px!important;min-width:8px!important;height:14px!important;min-height:14px!important;
+ margin:0 0 0 2px!important;padding:0!important;font-size:0!important;line-height:1!important;
+ vertical-align:middle!important;transform:translateY(-1px);flex-shrink:0;
+}
+body.ux383 button.overview-audit-dot::before{content:'';display:block;width:4px;height:4px;border-radius:50%;background:currentColor;}
+body.ux383 .management-audited-field{display:inline-flex;align-items:center;gap:2px;max-width:100%;vertical-align:middle;}
+body.ux383 .management-audited-text{min-width:0;overflow-wrap:anywhere;}
+body.ux383 .management-audited-field.is-short{white-space:nowrap;max-width:none;}
+body.ux383 .management-audited-field.is-short .management-audited-text{overflow-wrap:normal;}
+body.ux383 .management-audited-field>.overview-audit-dot{margin-left:0!important;}
+body.ux383:is(.guest-mode,.guest-viewer-readonly,.guest-readonly) button.overview-audit-dot[class]{display:none!important;}
+@media print{body.ux383 button.overview-audit-dot[class]{display:none!important;}}
 </style>
