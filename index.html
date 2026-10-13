@@ -14731,7 +14731,7 @@ function overviewSectionIcon(kind){
   const paths={business:'<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h2m2 0h2M9 11h2m2 0h2M9 15h2m2 0h2M10 21v-3h4v3"/>',stage:'<circle cx="5" cy="5" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="5" cy="19" r="2"/><path d="M7 5h6a3.5 3.5 0 0 1 0 7h4M7 19h6a3.5 3.5 0 0 0 0-7H7"/>',brief:'<rect x="5" y="4" width="14" height="17" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M9 10h6m-6 4h6m-6 4h4"/>'};
   return `<span class="overview-section-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" focusable="false">${paths[kind]||paths.brief}</svg></span>`;
 }
-function mobileStatsPeriodLabel(label){return typeof window!=='undefined'&&window.innerWidth<=820?String(label).replace(/\b20(\d{2})년/g,'$1년'):label;}
+function mobileStatsPeriodLabel(label){return typeof window!=='undefined'&&window.innerWidth<=820?uiCompactPeriodLabel(label):label;}
 function rivalPromoterCaption(value){const count=String(value??'').trim();return !count||/^[-—–]$/.test(count)?'홍보:':'홍보: '+count.replace(/\s*명$/,'')+'명';}
 function overviewAuditCheckedLabel(value){const text=String(value||'');if(/^\d{4}-\d{2}-\d{2}$/.test(text))return text;const date=new Date(text);return isNaN(date)?text:new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(date);}
 function wholeOverviewAuditRecord(site,office){
@@ -24713,12 +24713,23 @@ function uiHighlightText(root,query){
   if(found)n.replaceWith(fragment);
  }
 }
-function uiSetPeriodLabel(el,label){
- if(!el)return;const full=String(label||'');let short=full;
- const years=full.match(/\b\d{4}\b/g)||[];
- if(new Set(years).size<=1)short=full.replace(/^\d{4}\.\s*/, '').replace(/\s*\.\s*/g,'.').replace(/\s*~\s*/g,' ~ ');
- el.title=full;el.innerHTML='<span class="ui-date-full">'+escapeHtml(full)+'</span><span class="ui-date-short">'+escapeHtml(short)+'</span>';
+function uiCompactPeriodLabel(value){
+ const full=String(value||'').trim();
+ let short=full.replace(/\b20(\d{2})\s*년/g,'$1년').replace(/\s*년\s*/g,'.').replace(/\s*월\s*/g,'.').replace(/\s*일/g,'').replace(/\s*~\s*/g,'~').replace(/\s+/g,'').replace(/[.]$/,'').replace(/^20(\d{2})[.]/,'$1.');
+ const years=full.match(/\b20\d{2}\b/g)||[];
+ if(short.includes('~')&&new Set(years).size<=1){
+  const year=short.match(/^(\d{2})[.]\d{1,2}[.]\d{1,2}~/);
+  if(year){short=short.slice(3);short=short.replace(new RegExp('~(?:20)?'+year[1]+'[.]'),'~');}
+ }
+ return short;
 }
+
+function uiSetPeriodLabel(el,label){
+ if(!el)return;const full=String(label||'');
+ el.title=full;
+ el.textContent=window.innerWidth<=820?uiCompactPeriodLabel(full):full;
+}
+
 function uiDecorateBrowsing(){
  document.querySelectorAll('#masterList .name-item-text,#masterList .name-item-meta').forEach(el=>uiHighlightText(el,searchText));
  const ownerQuery=document.getElementById('mgrOwnerSearchInput')?.value||'';document.querySelectorAll('#mgrOwnerTable tr[data-owner-row]').forEach(row=>uiHighlightText(row,ownerQuery));
@@ -39621,24 +39632,24 @@ body.ux383:is(.guest-mode,.guest-viewer-readonly,.guest-readonly) button.overvie
 }
 </style>
 <script id="mobile-period-label-format-20261013">
-(function(){
- function compact(value){return String(value||'').trim().replace(/\b20(\d{2})\s*년/g,'$1년').replace(/\s*년\s*/g,'.').replace(/\s*월\s*/g,'.').replace(/\s*일/g,'').replace(/\s*~\s*/g,'~').replace(/\s+/g,'').replace(/[.]$/,'');}
- const states=new WeakMap();
- function update(){
-  const mobile=window.matchMedia('(max-width:820px)').matches;
-  for(const id of ['siteMgmtPeriodLabel','reportRangeLabel']){
-   const label=document.getElementById(id);if(!label)continue;
-   const current=label.textContent;
-   let state=states.get(label);
-   if(!state){state={full:current,shown:null};states.set(label,state);}
-   else if(current!==state.shown&&current!==state.full){state.full=current;}
-   label.removeAttribute('data-mobile-period-label');
-   const shown=mobile?compact(state.full):state.full;
-   state.shown=shown;
-   if(current!==shown)label.textContent=shown;
-  }
+window.addEventListener('resize',function(){
+ for(const id of ['siteMgmtPeriodLabel','reportRangeLabel']){
+  const label=document.getElementById(id);
+  if(label&&label.title)uiSetPeriodLabel(label,label.title);
  }
- function start(){update();for(const id of ['siteMgmtPeriodLabel','reportRangeLabel']){const label=document.getElementById(id);if(label)new MutationObserver(update).observe(label,{childList:true,characterData:true,subtree:true});}window.addEventListener('resize',update);}
- if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
-})();
+});
 </script>
+
+<style id="mobile-period-natural-width-20261014">
+@media screen and (max-width:820px){
+ body.ux383 #globalStatsModalBox .sm-head{grid-template-columns:repeat(4,26px) 20px max-content 20px 26px 28px 26px minmax(0,1fr)!important;justify-content:start!important}
+ body.ux383 #globalStatsModalBox .sm-head #siteMgmtPeriodLabel{width:max-content!important;min-width:0!important;padding:0 3px!important}
+ body.ux383 #contactReportModalBox > .v20-report-head{grid-template-columns:76px max-content 58px minmax(0,1fr)!important;justify-content:start!important}
+ body.ux383 #contactReportModalBox #reportDateNavWrap{grid-template-columns:20px max-content 20px 26px!important;width:max-content!important;justify-self:start!important}
+ body.ux383 #contactReportModalBox #reportRangeLabel{width:max-content!important;min-width:0!important;padding:0 3px!important}
+}
+@media screen and (max-width:360px){
+ body.ux383 #globalStatsModalBox .sm-head{grid-template-columns:repeat(4,22px) 18px max-content 18px 22px 24px 22px minmax(0,1fr)!important}
+ body.ux383 #contactReportModalBox > .v20-report-head{grid-template-columns:70px max-content 54px minmax(0,1fr)!important}
+}
+</style>
