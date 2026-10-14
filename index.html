@@ -23828,7 +23828,12 @@ ead><body>
         bins.push({label:(++i)+'주',start:smDateKey(a),end:smDateKey(b)});cursor=new Date(end);cursor.setDate(cursor.getDate()+1);
       }
     }
-    return bins.map(b=>({...b,...smNewContactCount(history,b.start,b.end),observed:!!history.earliest&&b.end>=history.earliest&&b.start<=today}));
+    return bins.map(b=>{
+      const cutoff=b.end<today?b.end:today;
+      const count=smNewContactCount(history,b.start,cutoff);
+      const cumulative=[...history.people.values()].filter(p=>p.first<=cutoff).length;
+      return {...b,...count,cumulative,previous:cumulative-count.newCount,observed:!!history.earliest&&b.end>=history.earliest&&b.start<=today};
+    });
   }
   function smNewContactSection(site,range){
     const x=smExcel(site),raw=x?(Array.isArray(x.contactEvents)?x.contactEvents:[]):smEvents(site,{start:'0000-01-01',end:'9999-12-31'});
@@ -23837,12 +23842,12 @@ ead><body>
     const end=siteMgmtPeriod==='all'?smDateKey(new Date(y,m+1,0)):range.end;
     const count=smNewContactCount(history,start,end),period=siteMgmtPeriod==='all'?`${y}년 ${m+1}월`:range.label;
     const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-    const bins=smNewContactBins(history,y,m,smNewContactChartMode,today),max=Math.max(1,...bins.filter(b=>b.observed).map(b=>b.total));
+    const bins=smNewContactBins(history,y,m,smNewContactChartMode,today),max=Math.max(1,...bins.filter(b=>b.observed).map(b=>b.cumulative));
     const bars=bins.map(b=>{
       const label=b.label+' · '+b.start.slice(5).replace('-','/')+'~'+b.end.slice(5).replace('-','/');
-      return `<button type="button" class="nc-bar" data-nc-start="${b.start}" data-nc-end="${b.end}" data-nc-label="${escapeHtml(label)}" ${b.observed?'':'disabled'} aria-label="${escapeHtml(label)}${b.observed?`: 접촉 ${b.total}명, 신규 ${b.newCount}명`:': 기록 범위 밖'}"><span class="nc-number">${b.observed?b.newCount:'—'}</span><span class="nc-bar-track"><span class="nc-return" style="height:${b.observed?b.returning/max*100:0}%"></span><span class="nc-fresh" style="height:${b.observed?b.newCount/max*100:0}%"></span></span><span>${b.label}</span>${smNewContactChartMode==='week'?`<small>${b.start.slice(8)*1}~${b.end.slice(8)*1}일</small>`:''}</button>`;
+      return `<button type="button" class="nc-bar" data-nc-start="${b.start}" data-nc-end="${b.end}" data-nc-label="${escapeHtml(label)}" ${b.observed?'':'disabled'} aria-label="${escapeHtml(label)}${b.observed?`: 누계 ${b.cumulative}명, 신규 ${b.newCount}명`:': 기록 범위 밖'}"><span class="nc-number">${b.observed?b.cumulative:'—'}</span><span class="nc-bar-track"><span class="nc-fresh" style="height:${b.observed?b.newCount/max*100:0}%"></span><span class="nc-return" style="height:${b.observed?b.previous/max*100:0}%"></span></span><span>${b.label}</span>${smNewContactChartMode==='week'?`<small>${b.start.slice(8)*1}~${b.end.slice(8)*1}일</small>`:''}</button>`;
     }).join('');
-    return `<section class="nc-section" aria-label="신규 접촉 추이"><div class="nc-heading"><strong>신규 접촉 추이</strong><span>${escapeHtml(period)}</span></div><div class="nc-kpis"><div>접촉<strong>${count.total}<small>명</small></strong></div><div>신규<strong>${count.newCount}<small>명</small></strong></div><div>재접촉<strong>${count.returning}<small>명</small></strong></div></div><div class="nc-toolbar"><div><button type="button" data-nc-mode="week" class="${smNewContactChartMode==='week'?'active':''}">주별</button><button type="button" data-nc-mode="month" class="${smNewContactChartMode==='month'?'active':''}">월별</button></div><span>${smNewContactChartMode==='week'?`${y}년 ${m+1}월`:`${y}년`} · <i class="nc-dot"></i> 신규 <i class="nc-dot nc-light"></i> 재접촉</span></div><div class="nc-chart" style="--nc-columns:${bins.length}">${bars}</div><p class="nc-hint">숫자는 신규 인원입니다. 막대를 누르면 명단이 나옵니다.</p><details class="nc-list" open><summary data-nc-list-title>${escapeHtml(period)} 신규 접촉자 · ${count.newCount}명</summary><div data-nc-list-body>${smNewContactNames(count.people)}</div></details><p class="nc-source">${x?'조합원·소유주 Excel':'현장 접촉 기록'} · 상담·단순·TM 기준. 같은 사람은 기간 내 1명으로 집계.<br>저장된 기록의 첫 접촉을 신규로 봅니다.${history.earliest?' 기록 시작 '+history.earliest+'. 이전 이력이 없으면 실제 신규와 다를 수 있습니다.':' 날짜가 있는 접촉 기록이 없습니다.'}</p></section>`;
+    return `<section class="nc-section" aria-label="접촉 누계 추이"><div class="nc-heading"><strong>접촉 누계 추이</strong><span>${escapeHtml(period)}</span></div><div class="nc-kpis"><div>접촉<strong>${count.total}<small>명</small></strong></div><div>신규<strong>${count.newCount}<small>명</small></strong></div><div>재접촉<strong>${count.returning}<small>명</small></strong></div></div><div class="nc-toolbar"><div><button type="button" data-nc-mode="week" class="${smNewContactChartMode==='week'?'active':''}">주별</button><button type="button" data-nc-mode="month" class="${smNewContactChartMode==='month'?'active':''}">월별</button></div><span>${smNewContactChartMode==='week'?`${y}년 ${m+1}월`:`${y}년`} · <i class="nc-dot"></i> 신규 <i class="nc-dot nc-light"></i> 이전 누계</span></div><div class="nc-chart" style="--nc-columns:${bins.length}">${bars}</div><details class="nc-list" open><summary data-nc-list-title>${escapeHtml(period)} 신규 접촉자 · ${count.newCount}명</summary><div data-nc-list-body>${smNewContactNames(count.people)}</div></details></section>`;
   }
   function smNewContactNames(people){
     return people.length?`<div class="nc-names">${people.map(p=>`<div><strong>${escapeHtml(p.name)}</strong><span>${escapeHtml(p.first.slice(5).replace('-','/'))}${p.manager?' · '+escapeHtml(p.manager):''}</span></div>`).join('')}</div>`:'<p class="nc-empty">이 기간의 신규 접촉자가 없습니다.</p>';
@@ -40200,4 +40205,14 @@ body.ux383 #globalStatsBody button.nc-bar{display:flex;flex-direction:column;ali
 #globalStatsBody .nc-list{margin-top:10px;border-top:1px solid var(--border,#d8e3e7);padding-top:10px}#globalStatsBody .nc-list summary{cursor:pointer;font-size:12px;font-weight:600}
 #globalStatsBody .nc-names{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:6px;margin-top:8px}#globalStatsBody .nc-names>div{padding:7px 9px;background:var(--bg,#f3f6f5);border-radius:8px;min-width:0}#globalStatsBody .nc-names strong{font-size:12px;display:block;overflow-wrap:anywhere}#globalStatsBody .nc-names span{display:block;font-size:10px;color:var(--text-dim,#7c8985)}#globalStatsBody .nc-empty{font-size:12px;color:var(--text-dim,#7c8985)}#globalStatsBody .nc-source{line-height:1.6;margin-bottom:0}
 @media(max-width:360px){body.ux383 #globalStatsBody .nc-section{padding:10px}#globalStatsBody .nc-chart{gap:0}body.ux383 #globalStatsBody button.nc-bar{font-size:9px}}
+</style>
+
+<style id="contact-cumulative-compact-20261014">
+body.ux383 #globalStatsBody .nc-section button.nc-bar{border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;padding:2px 0!important;font-size:10px!important;line-height:1.4!important;font-weight:400!important;white-space:nowrap!important}
+body.ux383 #globalStatsBody .nc-section button.nc-bar.selected{background:var(--bg,#eef4f1)!important;border-radius:6px!important}
+body.ux383 #globalStatsBody .nc-section .nc-bar-track{height:100px!important;border:0!important;border-bottom:1px solid var(--line,#d8e3e7)!important}
+body.ux383 #globalStatsBody .nc-section .nc-bar>span:last-child{white-space:nowrap!important}
+body.ux383 #globalStatsBody .nc-section .nc-number{font-size:11px!important;height:19px!important}
+body.ux383 #globalStatsBody .nc-section .nc-toolbar button{width:44px!important;height:28px!important;padding:0!important;font-size:11px!important;line-height:1!important}
+body.ux383 #globalStatsBody .nc-section .nc-toolbar>span{font-size:10px!important;white-space:nowrap!important}
 </style>
