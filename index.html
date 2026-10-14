@@ -23613,6 +23613,11 @@ ead><body>
   }
 
   function smFilterDrill(site,type,d){
+    if(d.basis==='cumulative'&&['site_contacted','site_rate','site_uncontacted'].includes(type)){
+      const snapshot=smNewContactSnapshot(site,smRange());
+      const rows=type==='site_uncontacted'?smPersonRows(site).filter(p=>!snapshot.history.people.has(String(miPersonKey(p)))):smGroupEventRows(site,snapshot.events);
+      return {title:type==='site_uncontacted'?'미접촉자':'누계 접촉자',sub:rows.length+'명',rows};
+    }
     const roster=smPersonRows(site),events=smAllEventsFor(site);
     const mgr=d.manager||'',role=d.role||'',dong=d.dong||'',method=d.method||'';
     const periodSuccessEvents=smEvents(site,smRange()).filter(e=>smIsSuccessMethod(e&&e.method));
@@ -23835,6 +23840,15 @@ ead><body>
       return {...b,...count,cumulative,previous:cumulative-count.newCount,observed:!!history.earliest&&b.end>=history.earliest&&b.start<=today};
     });
   }
+  function smNewContactSnapshot(site,range){
+    const x=smExcel(site),raw=x?(Array.isArray(x.contactEvents)?x.contactEvents:[]):smEvents(site,{start:'0000-01-01',end:'9999-12-31'});
+    const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+    const end=siteMgmtPeriod==='all'?smDateKey(new Date(siteMgmtDate.getFullYear(),siteMgmtDate.getMonth()+1,0)):range.end;
+    const cutoff=end<today?end:today;
+    const events=raw.filter(e=>e&&smNewValidDate(e.date)&&smIsSuccessMethod(e.method)&&e.date<=cutoff);
+    const history=smNewContactHistory(events),contacted=history.people.size,total=Number(smStats(site).totalOwners||0);
+    return {events,history,cutoff,metrics:{total,contacted,uncontacted:Math.max(0,total-contacted),rate:total?contacted/total*100:0}};
+  }
   function smNewContactSection(site,range){
     const x=smExcel(site),raw=x?(Array.isArray(x.contactEvents)?x.contactEvents:[]):smEvents(site,{start:'0000-01-01',end:'9999-12-31'});
     const history=smNewContactHistory(raw),y=siteMgmtDate.getFullYear(),m=siteMgmtDate.getMonth();
@@ -23847,7 +23861,7 @@ ead><body>
       const label=b.label+' · '+b.start.slice(5).replace('-','/')+'~'+b.end.slice(5).replace('-','/');
       return `<button type="button" class="nc-bar" data-nc-start="${b.start}" data-nc-end="${b.end}" data-nc-label="${escapeHtml(label)}" ${b.observed?'':'disabled'} aria-label="${escapeHtml(label)}${b.observed?`: 누계 ${b.cumulative}명, 신규 ${b.newCount}명`:': 기록 범위 밖'}"><span class="nc-number">${b.observed?b.cumulative:'—'}</span><span class="nc-bar-track"><span class="nc-fresh" style="height:${b.observed?b.newCount/max*100:0}%"></span><span class="nc-return" style="height:${b.observed?b.previous/max*100:0}%"></span></span><span>${b.label}</span>${smNewContactChartMode==='week'?`<small>${b.start.slice(8)*1}~${b.end.slice(8)*1}일</small>`:''}</button>`;
     }).join('');
-    return `<section class="nc-section" aria-label="접촉 누계 추이"><div class="nc-heading"><strong>접촉 누계 추이</strong><span>${escapeHtml(period)}</span></div><div class="nc-kpis"><div>접촉<strong>${count.total}<small>명</small></strong></div><div>신규<strong>${count.newCount}<small>명</small></strong></div><div>재접촉<strong>${count.returning}<small>명</small></strong></div></div><div class="nc-toolbar"><div><button type="button" data-nc-mode="week" class="${smNewContactChartMode==='week'?'active':''}">주별</button><button type="button" data-nc-mode="month" class="${smNewContactChartMode==='month'?'active':''}">월별</button></div><span>${smNewContactChartMode==='week'?`${y}년 ${m+1}월`:`${y}년`} · <i class="nc-dot"></i> 신규 <i class="nc-dot nc-light"></i> 이전 누계</span></div><div class="nc-chart" style="--nc-columns:${bins.length}">${bars}</div><details class="nc-list" open><summary data-nc-list-title>${escapeHtml(period)} 신규 접촉자 · ${count.newCount}명</summary><div data-nc-list-body>${smNewContactNames(count.people)}</div></details></section>`;
+    return `<section class="nc-section" aria-label="접촉 누계 추이"><div class="nc-heading"><strong>접촉 누계 추이</strong><span>${escapeHtml(period)}</span></div><div class="nc-kpis"><div>누계접촉<strong>${smNewContactSnapshot(site,range).metrics.contacted}<small>명</small></strong></div><div>기간 접촉<strong>${count.total}<small>명</small></strong></div><div>신규<strong>${count.newCount}<small>명</small></strong></div></div><div class="nc-toolbar"><div><button type="button" data-nc-mode="week" class="${smNewContactChartMode==='week'?'active':''}">주별</button><button type="button" data-nc-mode="month" class="${smNewContactChartMode==='month'?'active':''}">월별</button></div><span>${smNewContactChartMode==='week'?`${y}년 ${m+1}월`:`${y}년`} · <i class="nc-dot"></i> 신규 <i class="nc-dot nc-light"></i> 이전 누계</span></div><div class="nc-chart" style="--nc-columns:${bins.length}">${bars}</div><details class="nc-list" open><summary data-nc-list-title>${escapeHtml(period)} 신규 접촉자 · ${count.newCount}명</summary><div data-nc-list-body>${smNewContactNames(count.people)}</div></details></section>`;
   }
   function smNewContactNames(people){
     return people.length?`<div class="nc-names">${people.map(p=>`<div><strong>${escapeHtml(p.name)}</strong><span>${escapeHtml(p.first.slice(5).replace('-','/'))}${p.manager?' · '+escapeHtml(p.manager):''}</span></div>`).join('')}</div>`:'<p class="nc-empty">이 기간의 신규 접촉자가 없습니다.</p>';
@@ -23864,11 +23878,40 @@ ead><body>
     section.querySelectorAll('.nc-bar').forEach(b=>{b.classList.toggle('selected',b===bar);b.setAttribute('aria-pressed',String(b===bar));});
   });
 
+  function smCompactContactGraphs(root){
+    const specs=[['table.pdf-manager','manager'],['table.rf-nonmember-summary-table-v69','nonmember'],['table.pdf-dong','dong'],['table.pdf-week','week']];
+    for(const [selector,kind] of specs)for(const table of root.querySelectorAll(selector)){
+      if(table.dataset.scConverted)continue;
+      const id='sc-source-'+kind+'-'+root.querySelectorAll('[data-sc-converted]').length;table.dataset.scConverted=id;
+      const rows=[...table.querySelectorAll('tbody tr')],entries=[];
+      const number=c=>{const n=Number(String(c?.textContent||'').replace(/[^\d.]/g,''));return Number.isFinite(n)?n:0;};
+      rows.forEach((row,ri)=>{
+        const cells=[...row.children];if(!cells.length)return;
+        if(kind==='manager'&&cells.length>=13)entries.push({label:cells[1].textContent.trim(),total:number(cells[2]),value:number(cells[3]),col:3,row:ri,extra:number(cells[4])+'%'});
+        if(kind==='nonmember'&&cells.length===6&&!cells[0].textContent.includes('합계'))entries.push({label:cells[0].textContent.trim(),total:number(cells[1]),value:number(cells[2]),col:2,row:ri,extra:number(cells[4])+'%'});
+        if(kind==='dong')for(let offset=0;offset+4<cells.length;offset+=5){const label=cells[offset].textContent.trim();if(label)entries.push({label,total:number(cells[offset+1]),value:number(cells[offset+2]),col:offset+2,row:ri,extra:number(cells[offset+4])+'%'});}
+        if(kind==='week'&&cells.length===6)entries.push({label:cells[1].textContent.trim(),value:number(cells[5]),parts:[number(cells[2]),number(cells[3]),number(cells[4])],col:5,row:ri});
+      });
+      if(!entries.length){delete table.dataset.scConverted;continue;}
+      const max=Math.max(1,...entries.map(r=>kind==='week'?r.value:r.total));
+      const chart=document.createElement('div');chart.className='sc-contact-graph sc-'+kind;
+      chart.setAttribute('aria-label',kind==='week'?'접촉방법별 건수 그래프':'접촉 인원 그래프');
+      chart.innerHTML=(kind==='week'?'<div class="sc-legend"><span>상담</span><span>단순</span><span>TM</span></div>':'')+entries.map(r=>`<button type="button" class="sc-chart-row" data-sc-source="${id}" data-sc-row="${r.row}" data-sc-col="${r.col}" aria-label="${escapeHtml(r.label)} ${kind==='week'?r.value+'건':r.value+'명 / '+r.total+'명'}"><span class="sc-label">${escapeHtml(r.label)}</span><span class="sc-track">${kind==='week'?r.parts.map((n,i)=>`<i class="sc-method-${i}" style="width:${n/max*100}%"></i>`).join(''):`<i class="sc-capacity" style="width:${r.total/max*100}%"></i><i class="sc-contacted" style="width:${r.value/max*100}%"></i>`}</span><span class="sc-value">${r.value}${kind==='week'?'건':' / '+r.total}<small>${r.extra||''}</small></span></button>`).join('');
+      table.parentNode.insertBefore(chart,table);table.classList.add('sc-original-table');
+    }
+  }
+  document.getElementById('globalStatsBody')?.addEventListener('click',e=>{
+    const b=e.target.closest('[data-sc-source]');if(!b)return;
+    const root=document.getElementById('globalStatsBody'),table=[...root.querySelectorAll('[data-sc-converted]')].find(t=>t.dataset.scConverted===b.dataset.scSource);
+    const cell=table?.querySelectorAll('tbody tr')[Number(b.dataset.scRow)]?.children[Number(b.dataset.scCol)];
+    if(cell){e.preventDefault();e.stopImmediatePropagation();cell.click();}
+  },true);
+
   function renderGlobalStats(){
     const body=document.getElementById('globalStatsBody');if(!body)return;
     const pick=smSelected();if(!pick){body.innerHTML='<div class="pdfsheet"><div class="pdf-empty">표시할 현장이 없습니다.</div></div>';return;}
     const{site,office}=pick,range=smRange(),x=smStats(site),periodMode=siteMgmtPeriod!=='all',events=periodMode?smEvents(site,range):smEvents(site,{start:'0000-01-01',end:'9999-12-31'});
-    const metrics=smSummaryMetrics(x,events,periodMode),mr=smManagerRows(x,events,periodMode),roles=bfRoleRows(site,smRoleRows(site,x,events,periodMode)),dongs=smDongRows(site,x,events,periodMode);
+    const metrics=smNewContactSnapshot(site,range).metrics,mr=smManagerRows(x,events,periodMode),roles=bfRoleRows(site,smRoleRows(site,x,events,periodMode)),dongs=smDongRows(site,x,events,periodMode);
     const now=siteMgmtDate,dayNames=['일','월','화','수','목','금','토'];
     const titleDate=siteMgmtPeriod==='day'?`${now.getFullYear()}년 ${now.getMonth()+1}월 ${now.getDate()}일 ${dayNames[now.getDay()]}요일`:range.label;
     const lbl=document.getElementById('siteMgmtPeriodLabel');if(lbl){lbl.textContent=mobileStatsPeriodLabel(range.label);lbl.title=range.label;}
@@ -23904,9 +23947,9 @@ ead><body>
       <div class="pdf-titlebar"><span>▣ ${escapeHtml(site.name)} 접촉현황</span><small>${escapeHtml(titleDate)}</small></div>
       <div class="pdf-summary">
         <div class="pdf-summary-cell sm-drill" data-drill="site_total"><div class="h">소유주</div><div class="n">${metrics.total}명</div></div>
-        <div class="pdf-summary-cell sm-drill" data-drill="site_contacted"><div class="h">접촉</div><div class="n">${metrics.contacted}명</div></div>
-        <div class="pdf-summary-cell sm-drill" data-drill="site_uncontacted"><div class="h">미접촉</div><div class="n">${metrics.uncontacted}명</div></div>
-        <div class="pdf-summary-cell sm-drill" data-drill="site_rate"><div class="h">접촉률</div><div class="n">${metrics.rate.toFixed(1)}%</div></div>
+        <div class="pdf-summary-cell sm-drill" data-drill="site_contacted" data-basis="cumulative"><div class="h">누계접촉</div><div class="n">${metrics.contacted}명</div></div>
+        <div class="pdf-summary-cell sm-drill" data-drill="site_uncontacted" data-basis="cumulative"><div class="h">미접촉</div><div class="n">${metrics.uncontacted}명</div></div>
+        <div class="pdf-summary-cell sm-drill" data-drill="site_rate" data-basis="cumulative"><div class="h">접촉률</div><div class="n">${metrics.rate.toFixed(1)}%</div></div>
       </div>
       ${smNewContactSection(site,range)}
       <div class="pdf-manager-row">${managerTable}</div>${rfNonMemberBlock(site,periodMode?range:null)}
@@ -23920,7 +23963,7 @@ ead><body>
       </div>
       ${siteMgmtPeriod==='day'?'':smCharts(site,x,events,periodMode,mr.rows)}
       ${smTodaySection(site,periodMode?events:smEvents(site,smMonthRangeForCurrent()),periodMode)}
-    </div>`;
+    </div>`;    smCompactContactGraphs(body);
   }
 
   const smDrillBodyRoot=document.getElementById('globalStatsBody');
@@ -40215,4 +40258,22 @@ body.ux383 #globalStatsBody .nc-section .nc-bar>span:last-child{white-space:nowr
 body.ux383 #globalStatsBody .nc-section .nc-number{font-size:11px!important;height:19px!important}
 body.ux383 #globalStatsBody .nc-section .nc-toolbar button{width:44px!important;height:28px!important;padding:0!important;font-size:11px!important;line-height:1!important}
 body.ux383 #globalStatsBody .nc-section .nc-toolbar>span{font-size:10px!important;white-space:nowrap!important}
+</style>
+
+<style id="compact-contact-graphs-20261014">
+body.ux383 #globalStatsBody .nc-section .nc-bar-track{height:50px!important;width:12px!important}
+body.ux383 #globalStatsBody .sc-original-table{display:none!important}
+body.ux383 #globalStatsBody .sc-contact-graph{width:100%;min-width:0;padding:6px 0}
+body.ux383 #globalStatsBody button.sc-chart-row{display:grid!important;grid-template-columns:68px minmax(0,1fr) 64px!important;gap:8px!important;align-items:center!important;width:100%!important;min-width:0!important;height:34px!important;padding:4px 0!important;border:0!important;border-radius:0!important;background:transparent!important;color:var(--text)!important;box-shadow:none!important;font-size:11px!important;line-height:1.2!important;cursor:pointer!important;text-align:left!important}
+body.ux383 #globalStatsBody .sc-label{font-size:11px!important;font-weight:600!important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body.ux383 #globalStatsBody .sc-track{position:relative;display:flex;height:9px;border-radius:5px;overflow:hidden;background:transparent}
+body.ux383 #globalStatsBody .sc-capacity{position:absolute;left:0;top:0;height:100%;background:#dbe9e3;border-radius:5px}
+body.ux383 #globalStatsBody .sc-contacted{position:absolute;left:0;top:0;height:100%;background:#3a8269;border-radius:5px}
+body.ux383 #globalStatsBody .sc-value{font-size:11px!important;text-align:right!important;white-space:nowrap}
+body.ux383 #globalStatsBody .sc-value small{display:block;font-size:9px!important;color:var(--text-dim)!important}
+body.ux383 #globalStatsBody .sc-method-0{background:#3a8269}body.ux383 #globalStatsBody .sc-method-1{background:#85b6a2}body.ux383 #globalStatsBody .sc-method-2{background:#c1d9cd}
+body.ux383 #globalStatsBody .sc-legend{display:flex;gap:12px;justify-content:flex-end;margin-bottom:6px;font-size:10px}
+body.ux383 #globalStatsBody .sc-legend span:before{content:'';display:inline-block;width:7px;height:7px;margin-right:4px;background:#3a8269;border-radius:2px}
+body.ux383 #globalStatsBody .sc-legend span:nth-child(2):before{background:#85b6a2}body.ux383 #globalStatsBody .sc-legend span:nth-child(3):before{background:#c1d9cd}
+@media(min-width:821px){body.ux383 #globalStatsBody .sc-dong{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 24px}}
 </style>
