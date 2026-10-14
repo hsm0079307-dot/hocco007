@@ -10061,6 +10061,7 @@ const L = (function(){
   const REPORT_LOG_PAGE_SIZE = 80;
   const reportLogVisibleLimitBySite = Object.create(null);
   let pendingReportLogFilter = null;
+  let mgrContactPeriod = 'month'; // 접촉자별: 선택 월 또는 전체 이력
   let mgrBreakdownSubTab = '달력'; // 보고서 탭 상단 집계 영역의 하위 탭: 달력 | 주별집계 | 월별집계 | 소유자별
   let mgrBreakdownManagerFilter = null; // 담당자 이름 클릭시 그 사람 것만 필터링
   let mgrOwnerSubView = '전체'; // 소유자별 탭 안의 보기 방식: 전체 | 주별 | 월별
@@ -11704,7 +11705,7 @@ async function mfRetrySync(){
 
       const addProxy = actions.querySelector('#desktopAddProxy');
       if(addProxy){
-        const readonly = !!guestMode || document.body.classList.contains('guest-readonly');
+        const readonly = !!guestMode || !!guestViewerMode || document.body.classList.contains('guest-readonly');
         addProxy.style.display = readonly ? 'none' : 'inline-flex';
       }
     }else{
@@ -11732,8 +11733,8 @@ async function mfRetrySync(){
         <button type="button" class="view-switch-btn desktop-action-proxy desktop-home-active" id="desktopHomeProxy">현장목록</button>
         <button type="button" class="view-switch-btn desktop-action-proxy" id="desktopContactProxy">접촉현황</button>
         <button type="button" class="view-switch-btn desktop-action-proxy" id="desktopCalendarProxy">일정</button>
-        ${guestMode ? '' : '<button type="button" class="view-switch-btn desktop-action-proxy" id="desktopTourProxy">투어</button>'}
-        ${guestMode ? '' : '<button type="button" class="btn btn-primary desktop-action-proxy" id="desktopAddProxy">+ 현장 추가</button>'}
+        ${(guestMode || guestViewerMode) ? '' : '<button type="button" class="view-switch-btn desktop-action-proxy" id="desktopTourProxy">투어</button>'}
+        ${(guestMode || guestViewerMode) ? '' : '<button type="button" class="btn btn-primary desktop-action-proxy" id="desktopAddProxy">+ 현장 추가</button>'}
       </div>` : '';
 
     tabsEl.innerHTML = stageHtml + desktopActions;
@@ -15090,7 +15091,7 @@ function renderDetailPanel(site){
           <div class="detail-head-actions canva-detail-actions">
             ${(editMode && (detailTab==='개요' || detailTab==='공고')) ? `<button class="btn btn-primary no-print" id="tabEditToggle">저장</button>` : ''}
 
-            ${guestMode ? '' : `<button class="btn btn-ghost no-print canva-action-main" id="galleryBookBtn"
+            ${(guestMode || guestViewerMode) ? '' : `<button class="btn btn-ghost no-print canva-action-main" id="galleryBookBtn"
               title="이 현장으로 갤러리 투어 예약 화면 열기">🚗 투어 예약</button>`}
 
             <div class="canva-site-manage-wrap no-print" id="siteManageWrap">
@@ -16902,6 +16903,10 @@ function renderDetailPanel(site){
           renderDetailBody(site);
         });
       });
+      body.querySelectorAll('[data-mgr-contact-period]').forEach(btn=>btn.addEventListener('click',()=>{
+        mgrContactPeriod=btn.dataset.mgrContactPeriod;
+        renderDetailBody(site);
+      }));
       body.querySelectorAll('.mgr-owner-toggle-btn[data-owner-subview]').forEach(btn=>{
         btn.addEventListener('click', ()=>{
           mgrOwnerSubView = btn.dataset.ownerSubview;
@@ -19005,6 +19010,7 @@ function renderDetailPanel(site){
   });
 
   function applyGuestViewerRestrictions(){
+    listSort='manual';
     // 관리자 화면과 동일한 구조/데이터를 유지하고 쓰기 기능만 제거한다.
     document.body.classList.remove('guest-readonly','sooni-guest-view','guest-login-hidden');
     document.body.classList.add('guest-viewer-readonly');
@@ -19031,10 +19037,10 @@ function renderDetailPanel(site){
     const managerFilterWrapEl=document.getElementById('managerFilterWrap');
     if(managerFilterWrapEl) managerFilterWrapEl.style.display='';
 
-    // 게스트도 예약 현황은 조회할 수 있다. 실제 예약 버튼은 별도로 차단한다.
+    // 게스트 화면에서는 투어 메뉴를 표시하지 않는다.
     ['tourBookingTopBtn','mobileNavTourBtn','desktopTourProxy','reportViewTabTours'].forEach(id=>{
       const el=document.getElementById(id);
-      if(el) el.style.display='';
+      if(el) el.style.display='none';
     });
 
     // 기존 관리자 로그아웃 버튼을 그대로 사용해 역할 선택으로 돌아갈 수 있게 한다.
@@ -19043,6 +19049,7 @@ function renderDetailPanel(site){
   }
 
   function applyGuestRestrictions(){
+    listSort='manual';
     // 모든 게스트 화면은 보기 전용으로 고정.
     document.body.classList.add('guest-readonly');
     // 로그인하지 않은 '게스트로 보기' 상태만 별도 클래스를 줘서 UI를 더 단순하게 만든다.
@@ -19561,7 +19568,10 @@ function renderDetailPanel(site){
     return {found:entries.length>0,key:entries.length===1?'m-'+entries[0].month:'',text:entries.map(x=>(mode==='month'&&entries.length===1?'':x.month+' 월간정리\n')+x.text).join('\n\n'),label:entries.map(x=>x.month+' 월간정리').join(' · ')};
   }
   function contactReportNoteDisplay(value){
-    return String(value||'').replace(/[ \t]*\[R[0-9a-f]{4,}\b[^\]]*\]/gi,'').replace(/[ \t]+(?=\n|$)/g,'');
+    return String(value||'')
+      .replace(/[ \t]*[（(]\s*(?:(?:보고\s*근거|근거|출처)\s*[:：]?\s*)?R[0-9a-f]{4,}\b[^()（）]*[)）]/gi,'')
+      .replace(/[ \t]*[［\[]\s*(?:(?:보고\s*근거|근거|출처)\s*[:：]?\s*)?R[0-9a-f]{4,}\b[^\]］]*[\]］]/gi,'')
+      .replace(/[ \t]+(?=\n|$)/g,'');
   }
   function buildContactReportData(baseDateOverride, modeOverride){
     const mode = modeOverride || reportMode;
@@ -19952,7 +19962,8 @@ function renderDetailPanel(site){
     }
 
     function buildContactView(){
-      const ev=monthEvents.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+      const periodToggle=`<div class="mgr-contact-period-toggle no-print">${[['all','전체'],['month','월별']].map(([value,label])=>`<button type="button" class="btn${mgrContactPeriod===value?' active':''}" data-mgr-contact-period="${value}" aria-pressed="${mgrContactPeriod===value}">${label}</button>`).join('')}</div>`;
+      const ev=(mgrContactPeriod==='all'?allFiltered:monthEvents).slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
       const map={};
       ev.forEach(e=>{
         const name=clean(e.name);if(!name)return;
@@ -19963,8 +19974,8 @@ function renderDetailPanel(site){
       });
       const interestLogs=miReportLogs(site);
       const rows=Object.entries(map).map(([key,r])=>({...r,personKey:key,interestLogs:interestLogs.filter(l=>String(l.personId||'')===key)})).sort((a,b)=>String(b.last).localeCompare(String(a.last))||a.name.localeCompare(b.name,'ko'));
-      if(!rows.length)return `<div class="mgr-empty">${periodPayloadReady?`${year}년 ${month}월 Excel 접촉기록이 없습니다.`:'Excel 기간이력 동기화가 아직 완료되지 않았습니다.'}</div>`;
-      return `<div class="mgr-owner-search-row no-print"><input type="text" id="mgrOwnerSearchInput" placeholder="🔍 이름 · 담당 · 동호수 검색"></div>
+      if(!rows.length)return periodToggle+`<div class="mgr-empty">${periodPayloadReady?(mgrContactPeriod==='all'?'Excel 전체 기간 접촉기록이 없습니다.':`${year}년 ${month}월 Excel 접촉기록이 없습니다.`):'Excel 기간이력 동기화가 아직 완료되지 않았습니다.'}</div>`;
+      return periodToggle+`<div class="mgr-owner-search-row no-print"><input type="text" id="mgrOwnerSearchInput" placeholder="🔍 이름 · 담당 · 동호수 검색"></div>
       <div style="overflow-x:auto;"><table class="mgr-breakdown-table mgr-owner-table contact-compact-table" id="mgrOwnerTable" style="min-width:660px;">
         <thead><tr><th style="text-align:center;">접촉자</th><th>담당</th><th>동호수</th><th>접촉일수</th><th>건수</th><th>최근접촉</th><th>방법</th></tr></thead>
         <tbody>${rows.map((r,interestIndex)=>{
@@ -19988,11 +19999,12 @@ function renderDetailPanel(site){
     else if(mgrBreakdownSubTab==='월별집계')bodyHtml=buildMonthTable();
     else bodyHtml=buildContactView();
 
+    const allContacts=mgrBreakdownSubTab==='소유자별'&&mgrContactPeriod==='all';
     const navHtml=`<div class="mgr-nav-row no-print">
-      <button type="button" class="mgr-nav-btn" id="mgrBreakdownPrevBtn">◀</button>
-      <span class="mgr-nav-label">${year}년 ${month}월</span>
-      <button type="button" class="mgr-nav-btn" id="mgrBreakdownNextBtn">▶</button>
-      <button type="button" class="mgr-nav-today-btn" id="mgrBreakdownTodayBtn">오늘</button>
+      ${allContacts?'':'<button type="button" class="mgr-nav-btn" id="mgrBreakdownPrevBtn">◀</button>'}
+      <span class="mgr-nav-label">${allContacts?'전체 기간':year+'년 '+month+'월'}</span>
+      ${allContacts?'':'<button type="button" class="mgr-nav-btn" id="mgrBreakdownNextBtn">▶</button>'}
+      ${allContacts?'':'<button type="button" class="mgr-nav-today-btn" id="mgrBreakdownTodayBtn">오늘</button>'}
     </div>`;
 
     const total=Number(ex.totalOwners||0),contacted=Number(ex.contactedOwners||0),uncontacted=Number(ex.uncontactedOwners||Math.max(0,total-contacted)),rate=Number(ex.contactRate||0);
@@ -21087,7 +21099,7 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
   }
   function cisAllSites(){
     const os=reportSummaryOffice==='__ALL__'?OFFICES:[reportSummaryOffice];
-    return os.flatMap(o=>(allOfficesData[o]||[]).map(s=>({office:o,site:s})));
+    return os.flatMap(o=>rfList(allOfficesData[o]||[],o).map(s=>({office:o,site:s})));
   }
   function cisLogsInRange(site,r){
     return miReportLogs(site).filter(l=>!isTourBookingLog(l)&&String(l.date||'')>=r.start&&String(l.date||'')<=r.end);
@@ -21150,8 +21162,7 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
     const reportCount=rows.reduce((s,x)=>s+x.reportCount,0);
     const issueSites=rows.filter(x=>x.issue).length;
 
-    // 경쟁/순위용 정렬이 아니라 사업소 → 현장명 기준으로 안정적으로 표시.
-    rows.sort((a,b)=>String(a.office).localeCompare(String(b.office),'ko')||String(a.site.name||'').localeCompare(String(b.site.name||''),'ko'));
+    // 관리자 현장 목록과 동일한 사업소·수동 현장 순서를 유지한다.
 
     // KPI 빠른 찾기: 숫자를 누르면 그 숫자를 만든 현장만 남겨서 잘못 입력된 보고/접촉을 즉시 찾는다.
     const displayRows=reportSummaryQuickFilter==='activity'
@@ -21226,7 +21237,6 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
         <span class="cis-range" title="${escapeHtml(r.label)}">${escapeHtml(window.innerWidth<=820?uiCompactPeriodLabel(r.label):r.label)}</span>
         <button class="cis-btn" id="cisNext"${reportSummaryMode==='all'?' style="visibility:hidden"':''}>▶</button>
         <div class="cis-spacer"></div>
-        <span class="cis-hint">현장 클릭 → 상세집계</span>
       </div>
       <div class="cis-kpis">
         <div class="cis-kpi cis-kpi-clickable ${reportSummaryQuickFilter==='activity'?'active':''}" data-cis-quick-filter="activity" role="button" tabindex="0" title="클릭하면 이 기간에 활동이 잡힌 현장만 표시합니다. 다시 누르면 전체로 돌아갑니다."><div class="k">기간 활동 현장</div><div class="v">${activeRows.length}곳</div><div class="s">${escapeHtml(r.label)} · 클릭해서 찾기</div></div>
@@ -23920,7 +23930,7 @@ function uxRestoreFilters(){
  const p=uxPrefs.filters?.[uxAccountKey()+':'+currentOffice];if(!p)return;
  selectedManagers=new Set(Array.isArray(p.managers)?p.managers:[]);selectedStage=STAGES.includes(p.stage)?p.stage:'전체';
  selectedDistrict=sites.some(s=>s.district===p.district)?p.district:null;
- quickFilter=['all','stale','upcoming','updated','procurement'].includes(p.quick)?p.quick:'all';listSort=guestMode?(p.sort||'name'):'manual';
+ quickFilter=['all','stale','upcoming','updated','procurement'].includes(p.quick)?p.quick:'all';listSort='manual';
 }
 function uxRestorePeriods(){
  const p=uxPrefs.period||{};const d=(v,f)=>v&&!isNaN(Date.parse(v))?new Date(v):f;
@@ -24450,8 +24460,8 @@ function miInit(){
 }
 miInit();
 /* Dashboard refinement: view preferences never mutate site records. */
-function rfList(rows){
- let p={};try{p=JSON.parse(localStorage.getItem('hocco-list-layout-v1')||'{}')[currentOffice]||{}}catch(e){}
+function rfList(rows,office=currentOffice){
+ let p={};try{p=JSON.parse(localStorage.getItem('hocco-list-layout-v1')||'{}')[office]||{}}catch(e){}
  const order=p.order||[],hidden=new Set(p.hidden||[]);
  return rows.filter(s=>!hidden.has(String(s.id))).sort((a,b)=>{const ai=order.indexOf(String(a.id)),bi=order.indexOf(String(b.id));return(ai<0?1e6:ai)-(bi<0?1e6:bi)});
 }
@@ -35213,6 +35223,19 @@ body.ux383 button.overview-audit-dot{display:inline!important;border:0!important
 }
 </style>
 
+
+<style id="guest-view-cleanup-20261014">
+/* 동적 렌더링과 상세 탭으로 이동한 버튼에도 동일한 게스트 규칙을 적용한다. */
+body.ux383:is(.guest-readonly,.guest-viewer-readonly) :is(#galleryBookBtn,#tourBookingTopBtn,#mobileNavTourBtn,#desktopTourProxy,#reportViewTabTours,#desktopAddProxy),
+body.ux383:is(.guest-readonly,.guest-viewer-readonly) #siteManageWrap#siteManageWrap,
+body.ux383:is(.guest-readonly,.guest-viewer-readonly) #contactReportOverlay .monthly-export-bar{
+  display:none!important;
+}
+@media screen and (min-width:821px){
+  body.ux383:is(.guest-readonly,.guest-viewer-readonly) #tabs{display:none!important;}
+}
+</style>
+
 </body>
 </html>
 
@@ -38476,10 +38499,7 @@ body.guest-viewer-readonly [data-act="delete"]{
 }
 
 /* 보기/조회 도구는 관리자처럼 그대로 노출 */
-body.guest-viewer-readonly #reportViewTabTours,
-body.guest-viewer-readonly #desktopTourProxy,
 body.guest-viewer-readonly #managerFilterWrap,
-body.guest-viewer-readonly #tabs,
 body.guest-viewer-readonly #officeSwitcher{
   display:revert!important;
 }
@@ -39896,4 +39916,10 @@ body.ux383 #detailBody .mgr-breakdown-wrap .mgr-subtabs .mgr-subtab{
 }
 body.ux383 #detailBody .mgr-breakdown-wrap .mgr-subtabs .mgr-subtab.active{background:var(--accent)!important;color:var(--accent-ink)!important;border-color:var(--accent)!important;font-weight:700!important;}
 body.ux383 #detailBody .mgr-breakdown-wrap .mgr-subtabs .mgr-subtab::before,body.ux383 #detailBody .mgr-breakdown-wrap .mgr-subtabs .mgr-subtab::after{display:none!important;}
+</style>
+
+<style id="contact-all-period-toggle-20261014">
+body.ux383 #detailBody .mgr-contact-period-toggle{display:flex;gap:6px;margin:4px 0 8px;justify-content:flex-end;}
+body.ux383 #detailBody .mgr-contact-period-toggle button{border:1px solid var(--line)!important;border-radius:8px!important;padding:5px 11px!important;min-height:28px;line-height:1.2!important;background:transparent!important;color:var(--text-dim)!important;}
+body.ux383 #detailBody .mgr-contact-period-toggle button.active{background:var(--accent)!important;border-color:var(--accent)!important;color:var(--accent-ink)!important;}
 </style>
