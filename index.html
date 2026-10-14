@@ -9424,7 +9424,7 @@ function splitParts(text){
 }
 function clauses(text){
  const x=clean(text).replace(/\s+/g,' ');
- return x.split(/(?<=[.!?])\s+|[;]\s*|\s+(?:그리고|또한|다만|그러나)\s+/)
+ return x.split(/(?<=[.!?])\s+|[;]\s*|(?<=(?:함|하심|완료|예정|입장|설명))[,，]\s*|\s+(?:그리고|또한|다만|그러나)\s+/)
   .map(v=>v.trim()).filter(v=>v.length>=5);
 }
 function detailSignal(c){
@@ -9491,13 +9491,13 @@ function closeSentence(t){
 }
 function pickClause(k,text,role){
  const cs=clauses(text).map(c=>({c,n:scoreClause(k,c,role)})).sort((a,b)=>b.n-a.n);
- const good=cs.filter(x=>x.n>0).slice(0,2).map(x=>x.c);
+ const good=cs.filter(x=>x.n>0).slice(0,1).map(x=>x.c);
  let t=(good.length?good.join('. '):clean(text)).trim();
  t=t.replace(/^(?:그런데|그리고|또|또한|참고로)\s*/,'');
  t=t.replace(/\s*문의했다고\s*(?:함|전함|말함|했다)\.?$/,' 문의함.');
  t=t.replace(/\s*물어봤다고\s*(?:함|했다)\.?$/,' 문의함.');
  t=closeSentence(t);
- if(t.length>230)t=t.slice(0,227).replace(/[\s,.;]+$/,'')+'…';
+ // Never slice a fact mid-sentence. Long inseparable sentences remain available in the evidence fold.
  return t;
 }
 function topic(text){
@@ -12022,7 +12022,7 @@ async function mfRetrySync(){
     const checks=overviewFieldChecks(site,field);
     const check=current||checks.find(check=>check.kind!=='unverifiedSnapshot'&&overviewCheckMismatch(check,value))||checks.find(check=>check.kind==='unverifiedSnapshot'&&overviewCheckMismatch(check,value));if(!check)return '';
     const index=OVERVIEW_OFFICIAL_CHECKS.indexOf(check);
-    return '<button type="button" class="overview-audit-dot '+(check.tone==='uncertain'?'is-uncertain':'is-difference')+' no-print" data-overview-audit="'+index+'" data-audit-current="'+escapeHtml(String(value))+'" aria-label="'+escapeHtml(check.label+(check.tone==='uncertain'?' 확인 보류':' 공식 자료와 차이'))+'" title="'+escapeHtml(check.label+(check.tone==='uncertain'?' · 확인 보류: ':' · 공식 자료: ')+check.value)+'">•</button>';
+    return '<button type="button" class="overview-audit-dot '+(check.tone==='uncertain'?'is-uncertain':'is-difference')+' no-print" data-overview-audit="'+index+'" data-audit-current="'+escapeHtml(String(value))+'" aria-label="'+escapeHtml(check.label+(check.tone==='uncertain'?' 확인 보류':' 공식 자료와 차이'))+'" title="'+escapeHtml(check.label+(check.tone==='uncertain'?' · 확인 보류: ':' · 공식 자료: ')+check.value)+'"></button>';
   }
   function overviewStageDetail(site,value,opts){
     return String(value||'').split('\n').map(line=>{
@@ -14465,9 +14465,15 @@ window.addEventListener('resize', ()=>{
     }).join('\n');
   }
   function reportStyleText(value){
-    // Display only. Preserve quotations, sources, numbers and uncertainty.
+    // Display only: retain the source report and quoted wording unchanged.
     const endings={말했다:'설명함',설명했다:'설명함',전했다:'전함',언급했다:'언급함',강조했다:'강조함',평가했다:'평가함',문의했다:'문의함',요청했다:'요청함',우려했다:'우려함',제안했다:'제안함',확인했다:'확인함',답했다:'답변함',들었다:'들었음',논의됐다:'논의됨',공유했다:'공유함',예정이다:'예정임',미확인이다:'미확인임'};
-    return String(value||'').split(/(“[^”]*”|「[^」]*」|『[^』]*』|"[^"\n]*")/g).map((part,i)=>i%2?part:part.replace(/(?:말했다|설명했다|전했다|언급했다|강조했다|평가했다|문의했다|요청했다|우려했다|제안했다|확인했다|답했다|들었다|논의됐다|공유했다|예정이다|미확인이다)(?=[.!?。]?(?:\s|$|\[|\())/g,m=>endings[m])).join('');
+    const text=String(value||'').replace(/(^|\n)([\s•·-]*)당사자\s*(?:설명|예정)(?:\s*[·/]\s*(?:설명|예정))*\s*[:：]\s*/g,'$1$2');
+    return text.split(/(“[^”]*”|‘[^’]*’|「[^」]*」|『[^』]*』|"[^"\n]*")/g).map((part,i)=>{
+      if(i%2)return part;
+      return part.replace(/(?:말했다|설명했다|전했다|언급했다|강조했다|평가했다|문의했다|요청했다|우려했다|제안했다|확인했다|답했다|들었다|논의됐다|공유했다|예정이다|미확인이다)(?=[.!?。]?(?:\s|$|\[|\())/g,m=>endings[m])
+        .replace(/(?:하였다|했다)(?=[.!?。]?(?:\s|$|\[|\())/g,'함')
+        .replace(/(?:되었다|됐다)(?=[.!?。]?(?:\s|$|\[|\())/g,'됨');
+    }).join('');
   }
   function managementNotesMarkup(items,siteId,showMonths,esc,site){
     const groups=new Map();items.forEach((item,index)=>{const month=showMonths?item.month:'';if(!groups.has(month))groups.set(month,[]);groups.get(month).push({item,index});});
@@ -19995,10 +20001,11 @@ function bfOverride(site){return site.briefingEdits?.[bfRange().key]||null}
 function bfGroupItems(items){
  const groups=[],map=new Map();
  for(const item of items||[]){
-  const key=item.topic||'핵심';
+  const speakers=[...new Set((item.refs||[]).map(r=>String(r.name||'').trim()).filter(Boolean))].sort().join('|');
+  const key=(item.topic||'핵심')+'|'+speakers;
   let g=map.get(key);
-  if(!g){g={topic:key,texts:[],refs:[],score:item.score||0,date:item.date||''};map.set(key,g);groups.push(g);}
-  if(item.text&&!g.texts.includes(item.text)&&g.texts.length<2)g.texts.push(item.text);
+  if(!g){g={topic:item.topic||'핵심',texts:[],refs:[],score:item.score||0,date:item.date||'',displayDate:''};map.set(key,g);groups.push(g);}
+  if(item.text&&(!g.texts.length||(item.date||'')>g.displayDate)){g.texts=[item.text];g.displayDate=item.date||'';}
   for(const r of item.refs||[])if(!g.refs.some(x=>(x.id&&x.id===r.id)||(!x.id&&x.date===r.date&&x.name===r.name&&x.text===r.text)))g.refs.push(r);
   g.score=Math.max(g.score,item.score||0);if((item.date||'')>g.date)g.date=item.date||'';
  }
