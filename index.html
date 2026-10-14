@@ -23791,6 +23791,74 @@ ead><body>
     return `<div class="pdf-section pdf-today-wrap"><div class="pdf-section-title"><span class="section-heading-text">⑥ ${title} 접촉 상세</span><span class="sub">${escapeHtml(periodLabel)} · ${ev.length}명</span></div><div class="pdf-today-body"><div class="recent-person-cards">${cards||'<div class="pdf-empty">접촉 기록 없음</div>'}</div><table class="pdf-table pdf-today pdf-today-table"><thead><tr><th style="width:32px">No</th><th style="width:70px">담당</th><th style="width:110px">성명</th><th style="width:78px">동호수</th><th style="width:62px">직책</th><th style="width:62px">${periodMode?'기간 내 접촉':'접촉횟수'}</th><th style="width:82px">최근 접촉</th><th style="width:62px">접촉</th><th>접촉 내용</th></tr></thead><tbody>${rows||'<tr><td colspan="9" class="pdf-empty">선택 기간 접촉 기록 없음</td></tr>'}</tbody></table></div></div>`;
   }
 
+  // First successful contact across the complete stored history, before period filtering.
+  let smNewContactChartMode='week';
+  function smNewValidDate(value){
+    const s=String(value||'');if(!/^\d{4}-\d{2}-\d{2}$/.test(s))return false;
+    const [y,m,d]=s.split('-').map(Number),a=new Date(y,m-1,d);
+    return a.getFullYear()===y&&a.getMonth()===m-1&&a.getDate()===d;
+  }
+  function smNewContactHistory(events){
+    const people=new Map();let earliest='';
+    for(const e of events||[]){
+      if(!e||!smNewValidDate(e.date)||!smIsSuccessMethod(e.method))continue;
+      const key=String(miPersonKey(e)||'').trim();if(!key)continue;
+      if(!earliest||e.date<earliest)earliest=e.date;
+      let p=people.get(key);
+      if(!p){p={key,name:String(e.name||'').trim()||key,first:e.date,manager:e.manager||'',unit:e.unit||'',dates:new Set()};people.set(key,p);}
+      p.dates.add(e.date);
+      if(e.date<p.first){p.first=e.date;p.manager=e.manager||'';p.unit=e.unit||'';}
+    }
+    return {people,earliest};
+  }
+  function smNewContactCount(history,start,end){
+    const contacted=[],fresh=[];
+    history.people.forEach(p=>{if([...p.dates].some(d=>d>=start&&d<=end))contacted.push(p);if(p.first>=start&&p.first<=end)fresh.push(p);});
+    fresh.sort((a,b)=>a.first.localeCompare(b.first)||a.name.localeCompare(b.name,'ko'));
+    return {total:contacted.length,newCount:fresh.length,returning:contacted.length-fresh.length,people:fresh};
+  }
+  function smNewContactBins(history,year,month,mode,today){
+    const bins=[];
+    if(mode==='month'){
+      for(let m=0;m<12;m++)bins.push({label:(m+1)+'월',start:smDateKey(new Date(year,m,1)),end:smDateKey(new Date(year,m+1,0))});
+    }else{
+      const first=new Date(year,month,1),last=new Date(year,month+1,0);let cursor=smMonday(first),i=0;
+      while(cursor<=last){const end=new Date(cursor);end.setDate(end.getDate()+6);
+        const a=cursor<first?first:cursor,b=end>last?last:end;
+        bins.push({label:(++i)+'주',start:smDateKey(a),end:smDateKey(b)});cursor=new Date(end);cursor.setDate(cursor.getDate()+1);
+      }
+    }
+    return bins.map(b=>({...b,...smNewContactCount(history,b.start,b.end),observed:!!history.earliest&&b.end>=history.earliest&&b.start<=today}));
+  }
+  function smNewContactSection(site,range){
+    const x=smExcel(site),raw=x?(Array.isArray(x.contactEvents)?x.contactEvents:[]):smEvents(site,{start:'0000-01-01',end:'9999-12-31'});
+    const history=smNewContactHistory(raw),y=siteMgmtDate.getFullYear(),m=siteMgmtDate.getMonth();
+    const start=siteMgmtPeriod==='all'?smDateKey(new Date(y,m,1)):range.start;
+    const end=siteMgmtPeriod==='all'?smDateKey(new Date(y,m+1,0)):range.end;
+    const count=smNewContactCount(history,start,end),period=siteMgmtPeriod==='all'?`${y}년 ${m+1}월`:range.label;
+    const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+    const bins=smNewContactBins(history,y,m,smNewContactChartMode,today),max=Math.max(1,...bins.filter(b=>b.observed).map(b=>b.total));
+    const bars=bins.map(b=>{
+      const label=b.label+' · '+b.start.slice(5).replace('-','/')+'~'+b.end.slice(5).replace('-','/');
+      return `<button type="button" class="nc-bar" data-nc-start="${b.start}" data-nc-end="${b.end}" data-nc-label="${escapeHtml(label)}" ${b.observed?'':'disabled'} aria-label="${escapeHtml(label)}${b.observed?`: 접촉 ${b.total}명, 신규 ${b.newCount}명`:': 기록 범위 밖'}"><span class="nc-number">${b.observed?b.newCount:'—'}</span><span class="nc-bar-track"><span class="nc-return" style="height:${b.observed?b.returning/max*100:0}%"></span><span class="nc-fresh" style="height:${b.observed?b.newCount/max*100:0}%"></span></span><span>${b.label}</span>${smNewContactChartMode==='week'?`<small>${b.start.slice(8)*1}~${b.end.slice(8)*1}일</small>`:''}</button>`;
+    }).join('');
+    return `<section class="nc-section" aria-label="신규 접촉 추이"><div class="nc-heading"><strong>신규 접촉 추이</strong><span>${escapeHtml(period)}</span></div><div class="nc-kpis"><div>접촉<strong>${count.total}<small>명</small></strong></div><div>신규<strong>${count.newCount}<small>명</small></strong></div><div>재접촉<strong>${count.returning}<small>명</small></strong></div></div><div class="nc-toolbar"><div><button type="button" data-nc-mode="week" class="${smNewContactChartMode==='week'?'active':''}">주별</button><button type="button" data-nc-mode="month" class="${smNewContactChartMode==='month'?'active':''}">월별</button></div><span>${smNewContactChartMode==='week'?`${y}년 ${m+1}월`:`${y}년`} · <i class="nc-dot"></i> 신규 <i class="nc-dot nc-light"></i> 재접촉</span></div><div class="nc-chart" style="--nc-columns:${bins.length}">${bars}</div><p class="nc-hint">숫자는 신규 인원입니다. 막대를 누르면 명단이 나옵니다.</p><details class="nc-list" open><summary data-nc-list-title>${escapeHtml(period)} 신규 접촉자 · ${count.newCount}명</summary><div data-nc-list-body>${smNewContactNames(count.people)}</div></details><p class="nc-source">${x?'조합원·소유주 Excel':'현장 접촉 기록'} · 상담·단순·TM 기준. 같은 사람은 기간 내 1명으로 집계.<br>저장된 기록의 첫 접촉을 신규로 봅니다.${history.earliest?' 기록 시작 '+history.earliest+'. 이전 이력이 없으면 실제 신규와 다를 수 있습니다.':' 날짜가 있는 접촉 기록이 없습니다.'}</p></section>`;
+  }
+  function smNewContactNames(people){
+    return people.length?`<div class="nc-names">${people.map(p=>`<div><strong>${escapeHtml(p.name)}</strong><span>${escapeHtml(p.first.slice(5).replace('-','/'))}${p.manager?' · '+escapeHtml(p.manager):''}</span></div>`).join('')}</div>`:'<p class="nc-empty">이 기간의 신규 접촉자가 없습니다.</p>';
+  }
+  document.getElementById('globalStatsBody')?.addEventListener('click',e=>{
+    const mode=e.target.closest('[data-nc-mode]');
+    if(mode){smNewContactChartMode=mode.dataset.ncMode;renderGlobalStats();return;}
+    const bar=e.target.closest('[data-nc-start]');if(!bar||bar.disabled)return;
+    const pick=smSelected();if(!pick)return;const x=smExcel(pick.site);
+    const history=smNewContactHistory(x?(x.contactEvents||[]):smEvents(pick.site,{start:'0000-01-01',end:'9999-12-31'}));
+    const count=smNewContactCount(history,bar.dataset.ncStart,bar.dataset.ncEnd),section=bar.closest('.nc-section');
+    section.querySelector('[data-nc-list-title]').textContent=bar.dataset.ncLabel+' 신규 접촉자 · '+count.newCount+'명';
+    section.querySelector('[data-nc-list-body]').innerHTML=smNewContactNames(count.people);section.querySelector('.nc-list').open=true;
+    section.querySelectorAll('.nc-bar').forEach(b=>{b.classList.toggle('selected',b===bar);b.setAttribute('aria-pressed',String(b===bar));});
+  });
+
   function renderGlobalStats(){
     const body=document.getElementById('globalStatsBody');if(!body)return;
     const pick=smSelected();if(!pick){body.innerHTML='<div class="pdfsheet"><div class="pdf-empty">표시할 현장이 없습니다.</div></div>';return;}
@@ -23835,6 +23903,7 @@ ead><body>
         <div class="pdf-summary-cell sm-drill" data-drill="site_uncontacted"><div class="h">미접촉</div><div class="n">${metrics.uncontacted}명</div></div>
         <div class="pdf-summary-cell sm-drill" data-drill="site_rate"><div class="h">접촉률</div><div class="n">${metrics.rate.toFixed(1)}%</div></div>
       </div>
+      ${smNewContactSection(site,range)}
       <div class="pdf-manager-row">${managerTable}</div>${rfNonMemberBlock(site,periodMode?range:null)}
       <div class="pdf-middle-grid">
         ${roleTable}
@@ -40111,4 +40180,24 @@ body.ux383 #globalStatsBody .pdf-manager-card .pdf-manager :is(th,td){
  text-align:center!important;vertical-align:middle!important;
 }
 }
+</style>
+
+<style id="new-contact-analytics-20261014">
+body.ux383 #globalStatsBody .nc-section{margin:12px 0;padding:14px;border:1px solid var(--border,#d8e3e7);border-radius:14px;background:var(--card,#fff);color:var(--text,#19332c)}
+#globalStatsBody .nc-heading,#globalStatsBody .nc-toolbar{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+#globalStatsBody .nc-heading strong{font-size:15px}#globalStatsBody .nc-heading span,#globalStatsBody .nc-source,#globalStatsBody .nc-hint{font-size:11px;color:var(--text-dim,#7c8985)}
+#globalStatsBody .nc-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:12px 0;gap:8px}
+#globalStatsBody .nc-kpis>div{background:var(--bg,#f3f6f5);border-radius:10px;padding:10px;text-align:center;font-size:12px}
+#globalStatsBody .nc-kpis strong{display:block;font-size:23px;line-height:1.4}#globalStatsBody .nc-kpis>div:nth-child(2) strong{color:var(--accent,#3a8269)}#globalStatsBody .nc-kpis small{font-size:11px;margin-left:3px}
+#globalStatsBody .nc-toolbar button{width:48px;height:30px;padding:0;border:1px solid var(--border,#d8e3e7);border-radius:8px;background:transparent;color:inherit;font-size:12px;cursor:pointer;margin-right:4px}
+#globalStatsBody .nc-toolbar button.active{background:#3a8269;color:white;border-color:#3a8269}#globalStatsBody .nc-toolbar>span{font-size:11px}
+#globalStatsBody .nc-dot{display:inline-block;width:8px;height:8px;background:#3a8269;border-radius:2px;margin-left:5px}#globalStatsBody .nc-dot.nc-light{background:#afcfc1}
+#globalStatsBody .nc-chart{display:grid;grid-template-columns:repeat(var(--nc-columns),minmax(0,1fr));gap:4px;margin:12px 0 0}
+body.ux383 #globalStatsBody button.nc-bar{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;width:100%;min-width:0;height:auto;padding:4px 0;border:1px solid transparent;border-radius:7px;background:transparent;color:inherit;font-size:11px;line-height:1.5;cursor:pointer}
+#globalStatsBody .nc-bar.selected{border-color:#3a8269!important;background:var(--bg,#f3f6f5)!important}#globalStatsBody .nc-bar:disabled{opacity:.45;cursor:default}#globalStatsBody .nc-bar small{font-size:9px;white-space:nowrap}
+#globalStatsBody .nc-number{color:var(--accent,#3a8269);font-weight:700;height:19px}#globalStatsBody .nc-bar-track{height:90px;width:min(65%,28px);display:flex;flex-direction:column;justify-content:flex-end;border-bottom:1px solid var(--border,#d8e3e7);margin-bottom:4px}
+#globalStatsBody .nc-fresh{background:#3a8269;width:100%;display:block}#globalStatsBody .nc-return{background:#afcfc1;width:100%;display:block}
+#globalStatsBody .nc-list{margin-top:10px;border-top:1px solid var(--border,#d8e3e7);padding-top:10px}#globalStatsBody .nc-list summary{cursor:pointer;font-size:12px;font-weight:600}
+#globalStatsBody .nc-names{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:6px;margin-top:8px}#globalStatsBody .nc-names>div{padding:7px 9px;background:var(--bg,#f3f6f5);border-radius:8px;min-width:0}#globalStatsBody .nc-names strong{font-size:12px;display:block;overflow-wrap:anywhere}#globalStatsBody .nc-names span{display:block;font-size:10px;color:var(--text-dim,#7c8985)}#globalStatsBody .nc-empty{font-size:12px;color:var(--text-dim,#7c8985)}#globalStatsBody .nc-source{line-height:1.6;margin-bottom:0}
+@media(max-width:360px){body.ux383 #globalStatsBody .nc-section{padding:10px}#globalStatsBody .nc-chart{gap:0}body.ux383 #globalStatsBody button.nc-bar{font-size:9px}}
 </style>
