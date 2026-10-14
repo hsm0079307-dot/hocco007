@@ -9557,6 +9557,29 @@ function generate(logs,range){
 root.HoccoBrief={generate,fields};
 })(typeof window==='undefined'?globalThis:window);
 </script>
+<script id="ownerAgeEngine">
+(function(root){
+ function today(){const p=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const v=k=>p.find(x=>x.type===k).value;return v('year')+'-'+v('month')+'-'+v('day');}
+ function valid(y,m,d){const x=new Date(Date.UTC(y,m-1,d));return x.getUTCFullYear()===y&&x.getUTCMonth()===m-1&&x.getUTCDate()===d?`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`:'';}
+ function age(birth,asOf=today()){
+  const b=String(birth||'').match(/^(\d{4})-(\d{2})-(\d{2})$/),t=String(asOf).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!b||!t||!valid(+b[1],+b[2],+b[3])||!valid(+t[1],+t[2],+t[3]))return null;
+  const n=+t[1]-b[1]-(t[2]+t[3]<b[2]+b[3]?1:0);return n>=0&&n<=125?n:null;
+ }
+ function birth(value,kind='rrn'){
+  let s=String(value??'').trim(),date='';
+  if(value instanceof Date&&!isNaN(value))date=valid(value.getUTCFullYear(),value.getUTCMonth()+1,value.getUTCDate());
+  else if(kind==='date'&&typeof value==='number'&&value>0&&value<100000){const d=new Date(Date.UTC(1899,11,30)+Math.floor(value)*86400000);date=valid(d.getUTCFullYear(),d.getUTCMonth()+1,d.getUTCDate());}
+  else{
+   let m=s.match(/^(\d{4})[-./년\s]+(\d{1,2})[-./월\s]+(\d{1,2})일?$/)||s.match(/^(\d{4})(\d{2})(\d{2})$/);
+   if(m)date=valid(+m[1],+m[2],+m[3]);
+   else{m=s.replace(/\s/g,'').match(/^(\d{2})(\d{2})(\d{2})-?([0-9])(?:[\d*xX●•]{6})?$/);if(m){const century={1:1900,2:1900,3:2000,4:2000,5:1900,6:1900,7:2000,8:2000,9:1800,0:1800}[m[4]];date=valid(century+(+m[1]),+m[2],+m[3]);}}
+  }
+  return date&&age(date)!==null?date:'';
+ }
+ root.OwnerAge={today,age,birth};
+})(typeof window==='undefined'?globalThis:window);
+</script>
 <script id="memberExcelParser">/* Workbook adapter for the supplied Korean member ledgers. No network or workbook mutation. */
 (function(root){
 'use strict';
@@ -9570,6 +9593,7 @@ function schema(rows,X){
  const headers=rows[hr]||[],find=names=>headers.findIndex(v=>names.includes(norm(v)));
  let start=hr+1;while(start<Math.min(rows.length,hr+4)&&!text(rows[start]?.[find(['성명','성명(소유주)','소유자명','소유주명','이름'])]))start++;
  const s={headerRow:hr,startRow:start,name:find(['성명','성명(소유주)','소유자명','소유주명','이름']),member:find(['조합원','소유주']),manager:find(['담당','담당자']),unit:find(['동호수','동-호수']),dong:find(['동','동명']),parcel:find(['지번','번지']),hosu:find(['호수','호']),status:find(['접촉','누계접촉']),serial:find(['No','NO','번호','연번']),roles:[],notes:[],months:[],categories:[]};
+ s.birth=find(['생년월일','생년월일(주민번호)','생년월일/주민번호','주민번호','주민등록번호','주민번호(생년월일)']);
  headers.forEach((v,c)=>{const h=norm(v);if(/^\d{1,2}월날짜$/.test(h))s.months.push({c,month:parseInt(h)});if(/^(임대의원|정사위원?|동대표|통장|통반장|직책|어머니회|노인정|그외|추진위|재준위원|비대위|BM|20기동대표)$/.test(h))s.roles.push(c);if(/(비고|상담내용|특이사항)/.test(h))s.notes.push(c)});
  const group=headers.findIndex(v=>/접촉내역|접촉여부|금일접촉/.test(norm(v)));
  if(group>=0){for(let c=group;c<Math.min(group+9,headers.length);c++){if(c>group&&norm(headers[c]))break;const h=[rows[hr+1]?.[c],rows[hr+2]?.[c]].map(method).find(Boolean);if(h)s.categories.push({c,method:h})}}
@@ -9634,6 +9658,8 @@ function parseRows(candidate,options={}){
   const contactMethod=s.status>=0?(explicit||(rawStatus?'미분류':'미접촉')):(marks.find(c=>success(c.method))?.method||marks[0]?.method||'미접촉');
   if(s.status>=0&&rawStatus&&!explicit)warn(i+1,s.labels[s.status],rawStatus,'현재 접촉상태 확인 필요');
   const p={personId,name,manager:safe(r[s.manager]),unit,dong,parcel,role,roleFlag:!!role,memberFlag:text(r[s.member]),contactMethod,contacted:success(contactMethod),todayContactMethod:'',sourceRow:i+1,noteSources:s.notes.filter(c=>text(r[c])).map(c=>({header:text(candidate.rows[s.headerRow][c]),column:s.labels[c],text:text(r[c])})),note:s.notes.map(c=>text(r[c])?`${text(candidate.rows[s.headerRow][c])}: ${text(r[c])}`:'').filter(Boolean).join('\n')};
+  // Keep only the validated birth date, never the registration number.
+  if(s.birth>=0){const b=root.OwnerAge.birth(r[s.birth],/생년월일/.test(s.labels[s.birth]||'')?'date':'rrn');if(b)p.birthDate=b;}
   let pe=[];s.months.forEach(c=>{pe.push(...dates(r[c.c],c.month,'',i+1,s.labels[c.c]))});
   marks.forEach(c=>{pe.push(...dates(r[c.c],0,c.method,i+1,s.labels[c.c]))});
   const unique=new Map();pe.forEach(e=>unique.set(e.date+'|'+e.method,e));pe=[...unique.values()].sort((a,b)=>a.date.localeCompare(b.date));
@@ -19932,10 +19958,11 @@ function renderDetailPanel(site){
           const interestId='owner-interest-'+encodeURIComponent(String(site.id))+'-'+encodeURIComponent(String(r.personKey));
           const topics=ownerInterestPanel(r.interestLogs,interestId);
           const shortName=r.name.split(/[\[（(]/)[0].trim()||r.name;
+          const contactAge=ownerContactAge(site,r.personKey,r.name,r.unit);
           const embeddedRole=r.role&&r.name.includes(r.role);
           const fullIdentity=r.name+(r.role&&!embeddedRole?' · '+r.role:'');
           const hasMore=shortName!==r.name||shortName.length>12;
-          return `<tr data-owner-row="${escapeHtml(r.name)}"><td class="mgr-contact-cell"><div class="mgr-contact-heading"><button type="button" class="mgr-contact-journal-btn" data-person="${escapeHtml(r.personKey)}" data-contact="${escapeHtml(r.name)}">${escapeHtml(shortName)}</button><button type="button" class="mgr-interest-toggle" aria-label="${escapeHtml(r.name)} 관심사항 펼치기" aria-expanded="false" aria-controls="${interestId}" data-interest-target="${interestId}">▸</button></div>${r.role?`<div class="mgr-contact-role">${escapeHtml(r.role)}</div>`:''}</td><td>${escapeHtml(r.manager||'-')}</td><td>${escapeHtml(r.unit||'-')}</td><td>${r.dates.size}</td><td>${r.count}</td><td><span class="contact-date-full">${escapeHtml(r.last||'-')}</span><span class="contact-date-short" title="${escapeHtml(r.last||'')}">${escapeHtml(r.last?Number(r.last.slice(5,7))+'. '+Number(r.last.slice(8,10)):'-')}</span></td><td class="contact-method-compact">${escapeHtml(meth||'-')}</td></tr><tr id="${interestId}" class="mgr-interest-row" hidden><td colspan="7"><div class="mgr-interest-content">${hasMore?`<div class="mgr-contact-full-identity">${escapeHtml(fullIdentity)}</div>`:''}${topics}</div></td></tr>`;
+          return `<tr data-owner-row="${escapeHtml(r.name)}"><td class="mgr-contact-cell"><div class="mgr-contact-heading"><button type="button" class="mgr-contact-journal-btn${contactAge!==null?' has-contact-age':''}" data-person="${escapeHtml(r.personKey)}" data-contact="${escapeHtml(r.name)}">${escapeHtml(shortName)}${contactAge!==null?` <span class="mgr-contact-age">(${contactAge}세)</span>`:''}</button><button type="button" class="mgr-interest-toggle" aria-label="${escapeHtml(r.name)} 관심사항 펼치기" aria-expanded="false" aria-controls="${interestId}" data-interest-target="${interestId}">▸</button></div>${r.role?`<div class="mgr-contact-role">${escapeHtml(r.role)}</div>`:''}</td><td>${escapeHtml(r.manager||'-')}</td><td>${escapeHtml(r.unit||'-')}</td><td>${r.dates.size}</td><td>${r.count}</td><td><span class="contact-date-full">${escapeHtml(r.last||'-')}</span><span class="contact-date-short" title="${escapeHtml(r.last||'')}">${escapeHtml(r.last?Number(r.last.slice(5,7))+'. '+Number(r.last.slice(8,10)):'-')}</span></td><td class="contact-method-compact">${escapeHtml(meth||'-')}</td></tr><tr id="${interestId}" class="mgr-interest-row" hidden><td colspan="7"><div class="mgr-interest-content">${hasMore?`<div class="mgr-contact-full-identity">${escapeHtml(fullIdentity)}</div>`:''}${topics}</div></td></tr>`;
         }).join('')}</tbody>
       </table></div>`;
     }
@@ -24243,6 +24270,15 @@ const miParser=window.MemberExcelImport;
 const miPrefsKey='hocco-member-excel-mappings-v1';
 function miPairs(){return OFFICES.flatMap(office=>(allOfficesData[office]||[]).map(site=>({office,site})));}
 function miPersonKey(p){return p.personId||String(p.name||'').trim();}
+function ownerContactAge(site,personKey,name,unit){
+ const stats=smExcel(site),pool=(Array.isArray(site.ownerBirthDates)?site.ownerBirthDates:[...(stats?.people||[]),...(stats?.nonMembers?.people||[]),...(site.ownerRoster||[])]).filter(p=>p&&typeof p==='object');
+ const norm=v=>String(v||'').replace(/\s+/g,'').trim();
+ let matches=personKey?pool.filter(p=>p.personId&&String(p.personId)===String(personKey)):[];
+ if(!matches.length)matches=pool.filter(p=>norm(p.name)===norm(name)&&(!unit||norm(p.unit||p.parcel)===norm(unit)));
+ const dates=[...new Set(matches.map(p=>p.birthDate).filter(Boolean))];
+ return dates.length===1?OwnerAge.age(dates[0]):null;
+}
+
 function miSuggested(c,pairs,prefs){
  const saved=prefs[c.sheetName+'|'+miParser.siteKey(c.title)];
  if(saved&&pairs.some(p=>p.office===saved.office&&String(p.site.id)===String(saved.id)))return pairs.findIndex(p=>p.office===saved.office&&String(p.site.id)===String(saved.id));
@@ -24276,8 +24312,8 @@ async function miOpen(){
  function detail(c){const x=c.stats;if(!x)return `<p class="mi-error">${esc(c.error)}</p>`;const old=pairs[c.target]?.site.excelStats;
  return `<div class="mi-metrics"><span>집계 대상 <b>${x.totalOwners.toLocaleString()}</b>행</span><span>누계 접촉 <b>${x.contactedOwners.toLocaleString()}</b>명</span><span>미접촉 <b>${x.uncontactedOwners.toLocaleString()}</b>명</span><span>접촉률 <b>${x.contactRate.toFixed(1)}%</b></span></div>
  <p class="mi-help"><b>비조합원 별도 ${x.nonMembers?.totalOwners||0}명 · 접촉 ${x.nonMembers?.contactedOwners||0}명</b><br>명부 전체 ${(x.importInfo.namedRows||0)+(x.nonMembers?.importInfo?.namedRows||0)}행 · 선택 기준 제외 ${x.importInfo.excludedRows}행 · 날짜 확인된 상담·단순·TM 이력 ${x.contactEvents.length}건${old?`<br>기존 집계 ${Number(old.totalOwners||0).toLocaleString()}행 / 접촉 ${Number(old.contactedOwners||0).toLocaleString()}명 → 위 숫자로 교체`:''}</p>
- <details><summary>명부 미리보기 · 읽은 열 · 확인사항 ${x.importInfo.unresolved.length}건</summary><div class="mi-table-wrap"><table><thead><tr><th>원본 행</th><th>성명</th><th>동·호수 / 지번</th><th>담당</th><th>현재 접촉</th></tr></thead><tbody>${x.people.slice(0,8).map(p=>`<tr><td>${p.sourceRow}</td><td>${esc(p.name)}</td><td>${esc(p.unit||p.parcel)}</td><td>${esc(p.manager||'미지정')}</td><td>${esc(p.contactMethod)}</td></tr>`).join('')}</tbody></table></div>
- <p class="mi-help">미리보기는 앞 8행입니다. 전체 ${x.people.length}행이 집계됩니다.</p>
+ <details><summary>명부 미리보기 · 읽은 열 · 확인사항 ${x.importInfo.unresolved.length}건</summary><div class="mi-table-wrap"><table><thead><tr><th>원본 행</th><th>성명</th><th>만 나이</th><th>동·호수 / 지번</th><th>담당</th><th>현재 접촉</th></tr></thead><tbody>${x.people.slice(0,8).map(p=>`<tr><td>${p.sourceRow}</td><td>${esc(p.name)}</td><td>${p.birthDate?OwnerAge.age(p.birthDate)+'세':''}</td><td>${esc(p.unit||p.parcel)}</td><td>${esc(p.manager||'미지정')}</td><td>${esc(p.contactMethod)}</td></tr>`).join('')}</tbody></table></div>
+ <p class="mi-help">나이 표시 가능 ${x.people.filter(p=>p.birthDate).length}명 · 주민번호 원문은 저장하지 않습니다.<br>미리보기는 앞 8행입니다. 전체 ${x.people.length}행이 집계됩니다.</p>
  ${x.importInfo.warnings.map(w=>`<p class="mi-warning">${esc(w)}</p>`).join('')}
  ${x.importInfo.unresolved.length?`<div class="mi-table-wrap"><table><thead><tr><th>행</th><th>열</th><th>원본 값</th><th>사유</th></tr></thead><tbody>${x.importInfo.unresolved.slice(0,100).map(u=>`<tr><td>${u.row}</td><td>${esc(u.column)}</td><td>${esc(u.value)}</td><td>${esc(u.reason)}</td></tr>`).join('')}</tbody></table></div>`:''}
  <p class="mi-help">비고·상담내용 열: ${esc(c.schema.notes.map(k=>c.schema.labels[k]).join(' / ')||'없음')}<br>월별 이력 열: ${esc(c.schema.months.map(m=>c.schema.labels[m.c]).join(' / ')||'없음')}<br>누계는 현재 접촉상태 열 우선, 해당 열이 없으면 접촉내역 표시를 사용합니다.</p>
@@ -24289,7 +24325,7 @@ async function miOpen(){
    const card=document.createElement('article');card.className='mi-card';
    card.innerHTML=`<div class="mi-card-title"><label><input class="mi-check" type="checkbox" ${c.checked?'checked':''}> ${esc(c.title)}</label><span>${c.duplicate?'사본·보조명부 · 기본 제외':'명부 인식'}</span></div><div class="mi-source">${esc(c.fileName)} › ${esc(c.sheetName)}</div>
     <div class="mi-controls"><label>연결할 현장 <select class="mi-target" aria-label="${esc(c.sheetName)} 연결 현장"><option value="-1">현장을 선택하세요</option>${pairs.map((p,j)=>`<option value="${j}">${esc(p.site.name)} · ${esc(p.office)}</option>`).join('')}</select></label><label>집계 대상 <select class="mi-scope"><option value="members" ${c.members?'':'disabled'}>조합원·소유주 표시 1만</option><option value="all">이름 있는 행 (비 표시는 별도)</option></select></label></div><div class="mi-result">${detail(c)}</div>
-    <details class="mi-column-settings"><summary>열 연결 수정</summary><p class="mi-help">이름·담당·현재 접촉상태 등의 위치가 바뀌었을 때 수정하세요. 월별 이력은 ‘9월 날짜’처럼 월이 있는 제목으로 인식합니다.</p><div class="mi-controls">${[['name','성명'],['manager','담당'],['member','조합원 표시'],['unit','동·호수'],['dong','동'],['parcel','지번'],['status','현재 접촉상태']].map(([key,label])=>`<label>${label}<select data-column="${key}"><option value="-1">없음</option>${c.schema.labels.map((v,j)=>`<option value="${j}" ${c.schema[key]===j?'selected':''}>${esc(v)}</option>`).join('')}</select></label>`).join('')}<label>첫 데이터 행 <input class="mi-start" type="number" min="1" value="${c.schema.startRow+1}"></label></div></details>`;
+    <details class="mi-column-settings"><summary>열 연결 수정</summary><p class="mi-help">이름·담당·현재 접촉상태 등의 위치가 바뀌었을 때 수정하세요. 월별 이력은 ‘9월 날짜’처럼 월이 있는 제목으로 인식합니다.</p><div class="mi-controls">${[['name','성명'],['manager','담당'],['member','조합원 표시'],['unit','동·호수'],['dong','동'],['parcel','지번'],['birth','생년월일 / 주민번호'],['status','현재 접촉상태']].map(([key,label])=>`<label>${label}<select data-column="${key}"><option value="-1">없음</option>${c.schema.labels.map((v,j)=>`<option value="${j}" ${c.schema[key]===j?'selected':''}>${esc(v)}</option>`).join('')}</select></label>`).join('')}<label>첫 데이터 행 <input class="mi-start" type="number" min="1" value="${c.schema.startRow+1}"></label></div></details>`;
    card.querySelector('.mi-target').value=String(c.target);card.querySelector('.mi-scope').value=c.scope;
    card.querySelector('.mi-check').onchange=e=>{c.checked=e.target.checked;validate()};
    const repaint=()=>{calculate(c);card.querySelector('.mi-result').innerHTML=detail(c);validate()};
@@ -24357,6 +24393,7 @@ async function miOpen(){
     if(!remote||remote.name!==p.site.name)throw Error(`${p.site.name}: 서버 현장이 변경되었습니다. 닫고 파일을 다시 선택해 주세요.`);
     if(JSON.stringify(remote.excelStats||null)!==c.baseline)throw Error(`${p.site.name}: 다른 곳에서 엑셀 집계를 변경했습니다. 닫고 새로고침한 뒤 다시 확인해 주세요.`);
     remote.excelStats={...c.stats,syncedAt:new Date().toISOString(),importInfo:{...c.stats.importInfo,importId}};
+    remote.ownerBirthDates=[...(c.stats.people||[]),...(c.stats.nonMembers?.people||[])].filter(p=>p.birthDate).map(p=>({personId:p.personId,name:p.name,unit:p.unit||p.parcel||'',birthDate:p.birthDate}));
    }
    fresh.dataVersion=importId;
    fresh.changeLog=[{at:new Date().toISOString(),who:'관리자',site:chosen.map(c=>pairs[c.target].site.name).join(', '),note:`조합원 엑셀 ${chosen.length}개 명부 반영`} ,...(fresh.changeLog||[])].slice(0,300);
@@ -39809,5 +39846,16 @@ body.ux383 #contactReportBody .report-contact-card .report-contact-count{
  flex:0 0 auto!important;width:auto!important;min-width:max-content!important;
  white-space:nowrap!important;word-break:normal!important;overflow-wrap:normal!important;
  line-height:1.5!important;
+}
+</style>
+
+<style id="contact-age-display-20261014">
+body.ux383 .mgr-contact-age{white-space:nowrap;font-size:.92em;font-weight:400;color:var(--text-dim);}
+body.ux383 .mgr-contact-journal-btn .mgr-contact-age{display:inline!important;}
+</style>
+
+<style id="contact-name-age-no-clipping-20261014">
+body.ux383 #mgrOwnerTable .mgr-contact-heading .mgr-contact-journal-btn.has-contact-age{
+ display:block!important;-webkit-line-clamp:unset!important;overflow:visible!important;
 }
 </style>
