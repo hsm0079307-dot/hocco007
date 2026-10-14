@@ -23849,6 +23849,11 @@ ead><body>
     const history=smNewContactHistory(events),contacted=history.people.size,total=Number(smStats(site).totalOwners||0);
     return {events,history,cutoff,metrics:{total,contacted,uncontacted:Math.max(0,total-contacted),rate:total?contacted/total*100:0}};
   }
+  function smNewContactScale(peak){
+    if(!Number.isFinite(peak)||peak<=0)return 10;
+    const base=10**Math.floor(Math.log10(peak)),ratio=peak/base;
+    return ([1,1.5,2,3,5,7.5,10].find(n=>n>=ratio)||10)*base;
+  }
   function smNewContactSection(site,range){
     const x=smExcel(site),raw=x?(Array.isArray(x.contactEvents)?x.contactEvents:[]):smEvents(site,{start:'0000-01-01',end:'9999-12-31'});
     const history=smNewContactHistory(raw),y=siteMgmtDate.getFullYear(),m=siteMgmtDate.getMonth();
@@ -23856,12 +23861,12 @@ ead><body>
     const end=siteMgmtPeriod==='all'?smDateKey(new Date(y,m+1,0)):range.end;
     const count=smNewContactCount(history,start,end),period=siteMgmtPeriod==='all'?`${y}년 ${m+1}월`:range.label;
     const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-    const bins=smNewContactBins(history,y,m,smNewContactChartMode,today),max=Math.max(1,Number(smStats(site).totalOwners||0),...bins.filter(b=>b.observed).map(b=>b.cumulative));
+    const bins=smNewContactBins(history,y,m,smNewContactChartMode,today),max=smNewContactScale(Math.max(0,...bins.filter(b=>b.observed).map(b=>b.cumulative)));
     const bars=bins.map(b=>{
       const label=b.label+' · '+b.start.slice(5).replace('-','/')+'~'+b.end.slice(5).replace('-','/');
       return `<button type="button" class="nc-bar" data-nc-start="${b.start}" data-nc-end="${b.end}" data-nc-label="${escapeHtml(label)}" ${b.observed?'':'disabled'} aria-label="${escapeHtml(label)}${b.observed?`: 누계 ${b.cumulative}명, 신규 ${b.newCount}명`:': 기록 범위 밖'}"><span class="nc-number">${b.observed?b.cumulative:'—'}</span><span class="nc-bar-track"><span class="nc-fresh" style="height:${b.observed?b.newCount/max*100:0}%"></span><span class="nc-return" style="height:${b.observed?b.previous/max*100:0}%"></span></span><span>${b.label}</span>${smNewContactChartMode==='week'?`<small>${b.start.slice(8)*1}~${b.end.slice(8)*1}일</small>`:''}</button>`;
     }).join('');
-    return `<section class="nc-section" aria-label="접촉 누계 추이"><div class="nc-heading"><strong>접촉 누계 추이</strong><span>${escapeHtml(period)}</span></div><div class="nc-kpis"><div>누계접촉<strong>${smNewContactSnapshot(site,range).metrics.contacted}<small>명</small></strong></div><div>기간 접촉<strong>${count.total}<small>명</small></strong></div><div>신규<strong>${count.newCount}<small>명</small></strong></div></div><div class="nc-toolbar"><div><button type="button" data-nc-mode="week" class="${smNewContactChartMode==='week'?'active':''}">주별</button><button type="button" data-nc-mode="month" class="${smNewContactChartMode==='month'?'active':''}">월별</button></div><span>${smNewContactChartMode==='week'?`${y}년 ${m+1}월`:`${y}년`} · <i class="nc-dot"></i> 신규 <i class="nc-dot nc-light"></i> 이전 누계</span></div><div class="nc-chart" style="--nc-columns:${bins.length}">${bars}</div><details class="nc-list" open><summary data-nc-list-title>${escapeHtml(period)} 신규 접촉자 · ${count.newCount}명</summary><div data-nc-list-body>${smNewContactNames(count.people)}</div></details></section>`;
+    return `<section class="nc-section" aria-label="접촉 누계 추이"><div class="nc-heading"><strong>접촉 누계 추이</strong><span>${escapeHtml(period)}</span></div><div class="nc-kpis"><div>누계접촉<strong>${smNewContactSnapshot(site,range).metrics.contacted}<small>명</small></strong></div><div>기간 접촉<strong>${count.total}<small>명</small></strong></div><div>신규<strong>${count.newCount}<small>명</small></strong></div></div><div class="nc-toolbar"><div><button type="button" data-nc-mode="week" class="${smNewContactChartMode==='week'?'active':''}">주별</button><button type="button" data-nc-mode="month" class="${smNewContactChartMode==='month'?'active':''}">월별</button></div><span>${smNewContactChartMode==='week'?`${y}년 ${m+1}월`:`${y}년`} · <i class="nc-dot"></i> 신규 <i class="nc-dot nc-light"></i> 이전 누계</span></div><div class="nc-axis"><span>0명</span><span>${max}명</span></div><div class="nc-chart" style="--nc-columns:${bins.length}">${bars}</div><details class="nc-list" open><summary data-nc-list-title>${escapeHtml(period)} 신규 접촉자 · ${count.newCount}명</summary><div data-nc-list-body>${smNewContactNames(count.people)}</div></details></section>`;
   }
   function smNewContactNames(people){
     return people.length?`<div class="nc-names">${people.map(p=>`<div><strong>${escapeHtml(p.name)}</strong><span>${escapeHtml(p.first.slice(5).replace('-','/'))}${p.manager?' · '+escapeHtml(p.manager):''}</span></div>`).join('')}</div>`:'<p class="nc-empty">이 기간의 신규 접촉자가 없습니다.</p>';
@@ -23910,6 +23915,31 @@ ead><body>
     }
     return counts;
   }
+  function smCompactFailureParts(kind,label,context){
+    if(!context?.site)return [null,null,null];
+    const stats=context.stats||smStats(context.site),types=['거부','부재','불명'];
+    if(kind==='dong'&&!context.range&&stats.byDong?.[label]?.methods)return types.map(m=>Number(stats.byDong[label].methods[m]||0));
+    const source=kind==='nonmember'?smExcel(context.site)?.nonMembers:stats;
+    if(!source)return [null,null,null];
+    const matches=p=>kind==='nonmember'?String(p.manager||'미지정')===label:String(p.dong||'')===label;
+    const key=p=>String(miPersonKey(p)||''),roster=new Map((source.people||[]).map(p=>[key(p),p]));
+    const counts=[0,0,0];
+    if(!context.range){
+      if(!Array.isArray(source.people))return [null,null,null];
+      for(const p of source.people)if(matches(p)&&!p.contacted&&!smIsSuccessMethod(p.contactMethod)){const i=types.indexOf(p.contactMethod);if(i>=0)counts[i]++;}
+      return counts;
+    }
+    if(!Array.isArray(source.reportEvents))return [null,null,null];
+    const groups=new Map();
+    for(const e of source.reportEvents){
+      if(!key(e)||e.date<context.range.start||e.date>context.range.end)continue;
+      const p={...roster.get(key(e)),...e};if(!matches(p))continue;
+      const prev=groups.get(key(e));
+      if(!prev||smIsSuccessMethod(e.method)||(!smIsSuccessMethod(prev.method)&&e.date>=prev.date))groups.set(key(e),e);
+    }
+    for(const e of groups.values()){const i=types.indexOf(e.method);if(i>=0)counts[i]++;}
+    return counts;
+  }
   function smCompactContactGraphs(root,context={}){
     const specs=[['table.pdf-manager','manager'],['table.rf-nonmember-summary-table-v69','nonmember'],['table.pdf-dong','dong'],['table.pdf-week','week']];
     for(const [selector,kind] of specs)for(const table of root.querySelectorAll(selector)){
@@ -23919,9 +23949,9 @@ ead><body>
       const number=c=>{const n=Number(String(c?.textContent||'').replace(/[^\d.]/g,''));return Number.isFinite(n)?n:0;};
       rows.forEach((row,ri)=>{
         const cells=[...row.children];if(!cells.length)return;
-        if(kind==='manager'&&cells.length>=13)entries.push({label:cells[1].textContent.trim(),total:number(cells[2]),value:number(cells[3]),parts:[number(cells[6]),number(cells[7]),number(cells[8])],methodCols:[6,7,8],col:3,row:ri,extra:number(cells[4])+'%'});
-        if(kind==='nonmember'&&cells.length===6&&!cells[0].textContent.includes('합계'))entries.push({label:cells[0].textContent.trim(),total:number(cells[1]),value:number(cells[2]),col:2,row:ri,extra:number(cells[4])+'%'});
-        if(kind==='dong')for(let offset=0;offset+4<cells.length;offset+=5){const label=cells[offset].textContent.trim();if(label)entries.push({label,total:number(cells[offset+1]),value:number(cells[offset+2]),col:offset+2,row:ri,extra:number(cells[offset+4])+'%'});}
+        if(kind==='manager'&&cells.length>=13)entries.push({label:cells[1].textContent.trim(),total:number(cells[2]),value:number(cells[3]),parts:[number(cells[6]),number(cells[7]),number(cells[8])],failures:[number(cells[10]),number(cells[11]),number(cells[12])],missing:number(cells[9]),methodCols:[6,7,8,10,11,12,9],col:3,row:ri,extra:number(cells[4])+'%'});
+        if(kind==='nonmember'&&cells.length===6&&!cells[0].textContent.includes('합계'))entries.push({label:cells[0].textContent.trim(),total:number(cells[1]),value:number(cells[2]),missing:number(cells[3]),missingCol:3,col:2,row:ri,extra:number(cells[4])+'%'});
+        if(kind==='dong')for(let offset=0;offset+4<cells.length;offset+=5){const label=cells[offset].textContent.trim();if(label)entries.push({label,total:number(cells[offset+1]),value:number(cells[offset+2]),missing:number(cells[offset+3]),missingCol:offset+3,col:offset+2,row:ri,extra:number(cells[offset+4])+'%'});}
         if(kind==='week'&&cells.length===6)entries.push({label:cells[1].textContent.trim(),value:number(cells[5]),parts:[number(cells[2]),number(cells[3]),number(cells[4])],methodCols:[2,3,4],col:5,row:ri});
       });
       if(!entries.length){delete table.dataset.scConverted;continue;}
@@ -23930,6 +23960,27 @@ ead><body>
       const max=Math.max(1,...entries.map(r=>kind==='week'?r.value:r.total));
       const chart=document.createElement('div');chart.className='sc-contact-graph sc-'+kind;
       chart.setAttribute('aria-label',kind==='week'?'접촉방법별 건수 그래프':'접촉 인원 그래프');
+      if(kind!=='week'){
+        chart.classList.add('sc-at-a-glance');
+        const renderEntry=r=>{
+          const attrs=col=>`data-sc-source="${id}" data-sc-row="${r.row}" data-sc-col="${col}"`;
+          const unknown=Math.max(0,r.value-r.parts.reduce((a,b)=>a+b,0));
+          const values=[...r.parts,r.missing],labels=['상담','단순','TM','미접촉'];
+          const cols=[...(r.methodCols||[null,null,null]).slice(0,3),r.methodCols?.[6]??r.missingCol??null];
+          const colors=['consult','simple','tm','missing'];
+          const failures=r.failures||smCompactFailureParts(kind,r.label,context);
+          const cell=(content,col,css)=>col===null||col===undefined?`<span class="${css}">${content}</span>`:`<button type="button" class="${css}" ${attrs(col)}>${content}</button>`;
+          const bars=values.map((n,i)=>`<i class="sc-segment sc-${colors[i]}" style="width:${r.total?n/r.total*100:0}%"></i>`).join('')+(unknown?`<i class="sc-segment sc-unclassified" style="width:${r.total?unknown/r.total*100:0}%"></i>`:'');
+          const numbers=values.map((n,i)=>cell(`<i class="sc-key sc-${colors[i]}"></i><span>${labels[i]}</span><b>${n}</b>`,cols[i],'sc-primary-count')).join('');
+          const failureNumbers=failures.map((n,i)=>cell(`${['거부','부재','불명'][i]} <b>${n===null?'—':n}</b>`,r.methodCols?.[i+3]??null,'sc-failure-count')).join('');
+          return `<article class="sc-glance-entry"><div class="sc-glance-heading"><button type="button" class="sc-chart-row sc-glance-name" ${attrs(r.col)}>${escapeHtml(r.label)}${kind==='dong'&&!/동$/.test(r.label)?'동':''}</button><strong>접촉 ${r.value}<small> / ${r.total}</small><em>${r.extra}</em></strong></div><div class="sc-stacked-track" aria-label="상담 ${r.parts[0]}명, 단순 ${r.parts[1]}명, TM ${r.parts[2]}명, 미접촉 ${r.missing}명">${bars}</div><div class="sc-primary-values">${numbers}</div>${unknown?`<span class="sc-unclassified-label">접촉 미분류 ${unknown}</span>`:''}<details class="sc-failure-details"><summary>미접촉 세부</summary><div>${failureNumbers}</div></details></article>`;
+        };
+        if(kind==='dong'){
+          const active=entries.filter(r=>r.value>0),inactive=entries.filter(r=>r.value===0);
+          chart.innerHTML=active.map(renderEntry).join('')+(inactive.length?`<details class="sc-inactive-dongs"><summary>접촉 없는 동 ${inactive.length}개</summary>${inactive.map(renderEntry).join('')}</details>`:'');
+        }else chart.innerHTML=entries.map(renderEntry).join('');
+        table.parentNode.insertBefore(chart,table);table.classList.add('sc-original-table');continue;
+      }
       chart.innerHTML=entries.map(r=>{
         const attrs=col=>`data-sc-source="${id}" data-sc-row="${r.row}" data-sc-col="${col}"`;
         const methods=r.parts.map((n,i)=>{
@@ -40343,4 +40394,52 @@ body.ux383 #globalStatsBody .sc-dong .sc-method-values i{display:none!important}
 body.ux383 #globalStatsBody .sc-dong .sc-method-values .sc-unknown{grid-column:1/-1!important}
 @media(min-width:821px){body.ux383 #globalStatsBody .sc-contact-graph.sc-dong{grid-template-columns:repeat(5,minmax(0,1fr))!important}}
 @media(max-width:360px){body.ux383 #globalStatsBody .sc-dong .sc-entry{padding:5px!important}body.ux383 #globalStatsBody .sc-dong .sc-method-values>span{font-size:7px!important}}
+</style>
+
+<style id="contact-adaptive-scale-status-matrix-20261015">
+body.ux383 #globalStatsBody .nc-section .nc-bar-track{height:48px!important;width:10px!important}
+body.ux383 #globalStatsBody .nc-section .nc-axis{display:flex;justify-content:space-between;color:var(--text-dim,#71847c);font-size:9px;margin-top:8px}
+body.ux383 #globalStatsBody .sc-status-matrix.sc-contact-graph{display:block!important;padding:4px 0!important}
+body.ux383 #globalStatsBody .sc-status-matrix .sc-status-header,body.ux383 #globalStatsBody .sc-status-matrix .sc-status-row{display:grid!important;grid-template-columns:54px repeat(6,minmax(0,1fr)) 38px!important;gap:2px!important;align-items:center!important}
+body.ux383 #globalStatsBody .sc-status-matrix .sc-status-header{padding:6px 0!important;border-bottom:1px solid var(--line,#d8e3e7)!important;font-size:10px!important;color:var(--text-dim,#71847c)!important;line-height:1.3!important;text-align:center!important;white-space:nowrap!important}
+body.ux383 #globalStatsBody .sc-status-matrix .sc-status-row{padding:7px 0!important;border-bottom:1px solid var(--line,#e6eeea)!important}
+body.ux383 #globalStatsBody .sc-status-matrix .sc-status-row:last-child{border-bottom:0!important}
+body.ux383 #globalStatsBody .sc-status-matrix button.sc-status-name{display:flex!important;flex-direction:column!important;align-items:flex-start!important;justify-content:center!important;gap:2px!important;height:32px!important;min-height:0!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important;min-width:0!important;width:100%!important;color:var(--text,#19332c)!important;line-height:1.3!important}
+body.ux383 #globalStatsBody .sc-status-name strong{font-size:10px!important;max-width:100%!important;overflow-wrap:anywhere!important}
+body.ux383 #globalStatsBody .sc-status-name small{font-size:9px!important;color:var(--text-dim,#71847c)!important;white-space:nowrap!important}
+body.ux383 #globalStatsBody .sc-status-matrix .sc-status-cell{position:relative!important;display:flex!important;align-items:center!important;justify-content:center!important;height:30px!important;min-height:0!important;min-width:0!important;width:100%!important;padding:0!important;border:0!important;border-radius:3px!important;background:transparent!important;box-shadow:none!important;color:var(--text,#19332c)!important;font-size:11px!important;line-height:1.3!important;overflow:hidden!important}
+body.ux383 #globalStatsBody .sc-status-cell b{position:relative!important;font-size:11px!important;font-weight:600!important;z-index:1!important}
+body.ux383 #globalStatsBody .sc-status-cell .sc-status-bar{position:absolute!important;left:0!important;bottom:1px!important;height:4px!important;background:#3a8269!important;border-radius:2px!important;opacity:.75!important}
+body.ux383 #globalStatsBody .sc-status-cell .sc-status-1{background:#72a791!important}
+body.ux383 #globalStatsBody .sc-status-cell .sc-status-2{background:#a7cbbc!important}
+body.ux383 #globalStatsBody .sc-status-cell .sc-status-3{background:#cb9b83!important}
+body.ux383 #globalStatsBody .sc-status-cell .sc-status-4{background:#b6a46f!important}
+body.ux383 #globalStatsBody .sc-status-cell .sc-status-5{background:#9da8a2!important}
+body.ux383 #globalStatsBody .sc-status-cell .sc-status-6{background:#c6d0cb!important}
+@media(max-width:360px){body.ux383 #globalStatsBody .sc-status-matrix .sc-status-header,body.ux383 #globalStatsBody .sc-status-matrix .sc-status-row{grid-template-columns:46px repeat(6,minmax(0,1fr)) 34px!important;gap:1px!important}body.ux383 #globalStatsBody .sc-status-matrix .sc-status-header{font-size:9px!important}}
+</style>
+
+<style id="contact-one-glance-stacked-20261015">
+body.ux383 #globalStatsBody .sc-contact-graph.sc-at-a-glance{display:block!important;padding:0!important}
+body.ux383 #globalStatsBody .sc-glance-entry{padding:10px 0!important;border-bottom:1px solid var(--line,#e2eae6)!important}
+body.ux383 #globalStatsBody .sc-glance-entry:last-child{border-bottom:0!important}
+body.ux383 #globalStatsBody .sc-glance-heading{display:flex!important;justify-content:space-between!important;align-items:center!important;gap:8px!important;margin-bottom:6px!important}
+body.ux383 #globalStatsBody .sc-glance-heading button.sc-glance-name{display:block!important;width:auto!important;min-width:0!important;height:22px!important;padding:0!important;background:transparent!important;border:0!important;box-shadow:none!important;font-size:12px!important;line-height:1.3!important;font-weight:600!important;color:var(--text,#19332c)!important}
+body.ux383 #globalStatsBody .sc-glance-heading>strong{font-size:12px!important;white-space:nowrap!important;color:var(--accent,#3a8269)!important}
+body.ux383 #globalStatsBody .sc-glance-heading small{font-size:10px!important;color:var(--text-dim,#71847c)!important;font-weight:400!important}
+body.ux383 #globalStatsBody .sc-glance-heading em{font-size:10px!important;color:var(--text-dim,#71847c)!important;font-weight:400!important;font-style:normal!important;margin-left:7px!important}
+body.ux383 #globalStatsBody .sc-stacked-track{display:flex!important;width:100%!important;height:10px!important;border-radius:4px!important;overflow:hidden!important;background:#e5e9e7!important}
+body.ux383 #globalStatsBody .sc-segment{display:block!important;height:100%!important;flex-shrink:0!important}
+body.ux383 #globalStatsBody .sc-consult{background:#2e7760!important}body.ux383 #globalStatsBody .sc-simple{background:#78a9ca!important}body.ux383 #globalStatsBody .sc-tm{background:#d0aa60!important}body.ux383 #globalStatsBody .sc-missing{background:#e5e9e7!important}body.ux383 #globalStatsBody .sc-unclassified{background:#9bbfae!important}
+body.ux383 #globalStatsBody .sc-primary-values{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:4px!important;margin-top:5px!important}
+body.ux383 #globalStatsBody .sc-primary-values .sc-primary-count{display:flex!important;align-items:center!important;justify-content:center!important;gap:3px!important;width:100%!important;min-width:0!important;height:24px!important;min-height:0!important;padding:0!important;background:transparent!important;border:0!important;box-shadow:none!important;color:var(--text-dim,#71847c)!important;font-size:10px!important;line-height:1.3!important;white-space:nowrap!important}
+body.ux383 #globalStatsBody .sc-primary-count b{font-size:11px!important;color:var(--text,#19332c)!important;font-weight:600!important}
+body.ux383 #globalStatsBody .sc-key{display:inline-block!important;width:6px!important;height:6px!important;flex-shrink:0!important;border-radius:1px!important}
+body.ux383 #globalStatsBody .sc-failure-details{font-size:9px!important;color:var(--text-dim,#71847c)!important;margin-top:2px!important}
+body.ux383 #globalStatsBody .sc-failure-details summary{font-size:9px!important;text-align:right!important;cursor:pointer!important;line-height:1.5!important}
+body.ux383 #globalStatsBody .sc-failure-details>div{display:flex!important;justify-content:flex-end!important;gap:14px!important}
+body.ux383 #globalStatsBody .sc-failure-details .sc-failure-count{display:inline-block!important;height:22px!important;min-height:0!important;min-width:0!important;width:auto!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important;font-size:10px!important;color:var(--text-dim,#71847c)!important;line-height:1.5!important}
+body.ux383 #globalStatsBody .sc-inactive-dongs{margin-top:8px!important;border-top:1px solid var(--line,#d8e3e7)!important;padding-top:8px!important}
+body.ux383 #globalStatsBody .sc-inactive-dongs>summary{font-size:11px!important;color:var(--text-dim,#71847c)!important;cursor:pointer!important}
+body.ux383 #globalStatsBody .sc-unclassified-label{font-size:10px!important;color:var(--text-dim,#71847c)!important}
 </style>
