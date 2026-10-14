@@ -24852,6 +24852,31 @@ function uiSetPeriodLabel(el,label){
  el.textContent=window.innerWidth<=820?uiCompactPeriodLabel(full):full;
 }
 
+function uiAlignMobilePeriodControls(){
+ if(window.innerWidth>820)return;
+ function group(host,modeSelectors,navSelectors,actionSelectors){
+  if(!host||host.classList.contains('mobile-period-grouped'))return;
+  const modes=document.createElement('div');modes.className='ui-period-modes';
+  const actions=document.createElement('div');actions.className='ui-period-actions';
+  const nav=document.createElement('div');nav.className='ui-period-navigation';
+  for(const selector of modeSelectors){const el=host.querySelector(selector);if(el)modes.append(el);}
+  for(const selector of actionSelectors){const el=host.querySelector(selector);if(el){el.setAttribute('aria-label',selector.includes('Refresh')||selector.includes('refresh')?'새로고침':'닫기');el.textContent=selector.includes('Refresh')||selector.includes('refresh')?'↻':'닫기';actions.append(el);}}
+  for(const selector of navSelectors){const el=host.querySelector(selector);if(el)nav.append(el);}
+  host.classList.add('mobile-period-grouped');host.append(modes,actions,nav);
+ }
+ group(document.querySelector('#globalStatsModalBox .sm-controls-period'),['#siteMgmtAllBtn','#siteMgmtMonthBtn','#siteMgmtWeekBtn','#siteMgmtDayBtn'],['#siteMgmtPrevBtn','#siteMgmtPeriodLabel','#siteMgmtNextBtn','.ui-period-today'],['#globalStatsRefreshBtn','#globalStatsCloseBtn']);
+ const toolbar=document.querySelector('#contactReportBody .cis-toolbar.aligned-period-toolbar');
+ if(toolbar&&!toolbar.classList.contains('mobile-period-grouped')){
+  const filter=toolbar.querySelector('.cis-controls-filter'),nav=toolbar.querySelector('.cis-controls-nav');
+  const modes=document.createElement('div');modes.className='ui-period-modes';
+  const actions=document.createElement('div');actions.className='ui-period-actions';
+  for(const value of ['all','month','week','day']){const el=toolbar.querySelector('[data-cis-mode="'+value+'"]');if(el)modes.append(el);}
+  for(const value of ['refresh','close']){const el=toolbar.querySelector('[data-summary-action="'+value+'"]');if(el)actions.append(el);}
+  const row=document.createElement('div');row.className='ui-period-choice-row';row.append(modes,actions);
+  nav?.classList.add('ui-period-navigation');toolbar.classList.add('mobile-period-grouped');filter?.after(row);
+ }
+}
+
 function uiDecorateBrowsing(){
  document.querySelectorAll('#masterList .name-item-text,#masterList .name-item-meta').forEach(el=>uiHighlightText(el,searchText));
  const ownerQuery=document.getElementById('mgrOwnerSearchInput')?.value||'';document.querySelectorAll('#mgrOwnerTable tr[data-owner-row]').forEach(row=>uiHighlightText(row,ownerQuery));
@@ -24873,10 +24898,11 @@ function uiDecorateBrowsing(){
  if(window.innerWidth>820){
   const head=document.querySelector('#globalStatsModalBox .sm-head');
   const row=head?.querySelector('.sm-controls-period');
-  if(row){for(const control of [...row.children])head.append(control);row.remove();head.classList.remove('aligned-period-head');}
+  if(row){for(const selector of ['#siteMgmtAllBtn','#siteMgmtMonthBtn','#siteMgmtWeekBtn','#siteMgmtDayBtn','#siteMgmtPrevBtn','#siteMgmtPeriodLabel','#siteMgmtNextBtn','.ui-period-today','#globalStatsRefreshBtn','#globalStatsCloseBtn']){const el=row.querySelector(selector);if(el)head.append(el);}row.remove();head.classList.remove('aligned-period-head');}
   const toolbar=document.querySelector('#contactReportBody .cis-toolbar');
   if(toolbar?.classList.contains('aligned-period-toolbar')){
-   for(const row of [...toolbar.querySelectorAll('.cis-controls-filter,.cis-controls-nav')]){for(const control of [...row.children])toolbar.append(control);row.remove();}
+   for(const selector of ['#cisOffice','[data-cis-mode="all"]','[data-cis-mode="month"]','[data-cis-mode="week"]','[data-cis-mode="day"]','#cisPrev','.cis-range','#cisNext','[data-ui-today="summary"]']){const el=toolbar.querySelector(selector);if(el)toolbar.append(el);}
+   toolbar.querySelectorAll('.cis-controls-filter,.cis-controls-nav,.ui-period-choice-row').forEach(el=>el.remove());toolbar.classList.remove('mobile-period-grouped');
    toolbar.querySelectorAll('[data-summary-action]').forEach(control=>control.remove());toolbar.classList.remove('aligned-period-toolbar');
   }
  }
@@ -24897,6 +24923,7 @@ function uiDecorateBrowsing(){
   for(const selector of ['#cisPrev','.cis-range','#cisNext','[data-ui-today="summary"]','[data-summary-action="refresh"]','[data-summary-action="close"]']){const control=summaryToolbar.querySelector(selector);if(control)nav.append(control);}
   summaryToolbar.classList.add('aligned-period-toolbar');summaryToolbar.append(filter,nav);
  }
+ uiAlignMobilePeriodControls();
  const site=sites.find(s=>s.id===currentDetailId),byPerson=new Map();if(site)miReportLogs(site).forEach(l=>{const key=String(l.personId||'');if(!byPerson.has(key))byPerson.set(key,[]);byPerson.get(key).push(l)});
  document.querySelectorAll('#mgrOwnerTable tr[data-owner-row]').forEach(row=>{
   const journal=row.querySelector('.mgr-contact-journal-btn'),contactCell=row.querySelector('.mgr-contact-cell');
@@ -35236,6 +35263,55 @@ body.ux383:is(.guest-readonly,.guest-viewer-readonly) #contactReportOverlay .mon
 }
 </style>
 
+
+<style id="mobile-period-arrangement-20261014-evening">
+@media screen and (max-width:820px){
+ body.ux383 #globalStatsModalBox .sm-head.aligned-period-head{padding:8px!important;}
+ body.ux383 #globalStatsModalBox .sm-controls-period.mobile-period-grouped{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;grid-template-rows:32px 32px!important;gap:6px!important;justify-content:stretch!important;}
+ body.ux383 #globalStatsModalBox .sm-controls-period.mobile-period-grouped>.ui-period-modes{grid-column:1!important;grid-row:1!important;}
+ body.ux383 #globalStatsModalBox .sm-controls-period.mobile-period-grouped>.ui-period-actions{grid-column:2!important;grid-row:1!important;}
+ body.ux383 #globalStatsModalBox .sm-controls-period.mobile-period-grouped>.ui-period-navigation{grid-column:1/-1!important;grid-row:2!important;}
+ body.ux383 :is(#globalStatsModalBox,#contactReportBody) .ui-period-modes{display:flex!important;align-items:center!important;justify-content:flex-start!important;gap:3px!important;min-width:0!important;width:auto!important;}
+ body.ux383 :is(#globalStatsModalBox,#contactReportBody) .ui-period-actions{display:flex!important;align-items:center!important;justify-content:flex-end!important;gap:4px!important;width:auto!important;}
+ body.ux383 #contactReportBody .cis-toolbar.aligned-period-toolbar.mobile-period-grouped{gap:6px!important;}
+ body.ux383 #contactReportBody .cis-toolbar.mobile-period-grouped .cis-controls-filter{display:block!important;}
+ body.ux383 #contactReportBody .cis-toolbar.mobile-period-grouped #cisOffice{width:100%!important;height:34px!important;min-width:0!important;}
+ body.ux383 #contactReportBody .cis-toolbar.mobile-period-grouped>.ui-period-choice-row{display:flex!important;align-items:center!important;justify-content:space-between!important;width:100%!important;gap:8px!important;}
+ body.ux383 #globalStatsModalBox .sm-controls-period.mobile-period-grouped .ui-period-modes>:is(#siteMgmtAllBtn,#siteMgmtMonthBtn,#siteMgmtWeekBtn,#siteMgmtDayBtn),
+ body.ux383 #contactReportBody .cis-toolbar.mobile-period-grouped .ui-period-modes>button[data-cis-mode]{position:static!important;inset:auto!important;display:flex!important;align-items:center!important;justify-content:center!important;flex:0 0 34px!important;width:34px!important;min-width:34px!important;max-width:34px!important;height:32px!important;min-height:32px!important;padding:0!important;margin:0!important;border-radius:7px!important;font-size:11px!important;line-height:1!important;}
+ body.ux383 #globalStatsModalBox .sm-controls-period.mobile-period-grouped .ui-period-actions>:is(#globalStatsRefreshBtn,#globalStatsCloseBtn),
+ body.ux383 #contactReportBody .cis-toolbar.mobile-period-grouped .ui-period-actions>button[data-summary-action]{position:static!important;inset:auto!important;display:flex!important;align-items:center!important;justify-content:center!important;flex:0 0 34px!important;width:34px!important;min-width:34px!important;max-width:34px!important;height:32px!important;min-height:32px!important;padding:0!important;margin:0!important;border:1px solid var(--line)!important;border-radius:7px!important;font-size:22px!important;line-height:1!important;background:var(--bg-card)!important;color:var(--text-main)!important;}
+ body.ux383 #globalStatsModalBox .sm-controls-period.mobile-period-grouped .ui-period-actions>#globalStatsCloseBtn,
+ body.ux383 #contactReportBody .cis-toolbar.mobile-period-grouped .ui-period-actions>[data-summary-action="close"]{flex-basis:42px!important;width:42px!important;min-width:42px!important;max-width:42px!important;font-size:11px!important;}
+ body.ux383 :is(#globalStatsModalBox,#contactReportBody) .ui-period-actions>button::before,
+ body.ux383 :is(#globalStatsModalBox,#contactReportBody) .ui-period-actions>button::after{content:none!important;display:none!important;}
+ body.ux383 #globalStatsModalBox .sm-controls-period.mobile-period-grouped>.ui-period-navigation,
+ body.ux383 #contactReportBody .cis-toolbar.mobile-period-grouped>.cis-controls-nav{display:grid!important;grid-template-columns:28px minmax(0,1fr) 28px 38px!important;align-items:center!important;gap:5px!important;width:100%!important;}
+ body.ux383 #globalStatsModalBox .ui-period-navigation>:is(#siteMgmtPrevBtn,#siteMgmtNextBtn,.ui-period-today),
+ body.ux383 #contactReportBody .cis-controls-nav>:is(#cisPrev,#cisNext,[data-ui-today="summary"]){position:static!important;inset:auto!important;grid-row:1!important;grid-column:auto!important;display:flex!important;align-items:center!important;justify-content:center!important;width:100%!important;max-width:none!important;min-width:0!important;flex:none!important;height:32px!important;min-height:32px!important;padding:0!important;margin:0!important;font-size:11px!important;line-height:1!important;border-radius:7px!important;}
+ body.ux383 #globalStatsModalBox .ui-period-navigation>#siteMgmtPeriodLabel,
+ body.ux383 #contactReportBody .cis-controls-nav>.cis-range{grid-column:2!important;grid-row:1!important;display:block!important;width:auto!important;min-width:0!important;max-width:none!important;flex:none!important;text-align:center!important;padding:0!important;margin:0!important;font-size:11px!important;line-height:32px!important;white-space:nowrap!important;}
+ body.ux383 #globalStatsModalBox .ui-period-navigation>#siteMgmtPrevBtn,
+ body.ux383 #contactReportBody .cis-controls-nav>#cisPrev{grid-column:1!important;}
+ body.ux383 #globalStatsModalBox .ui-period-navigation>#siteMgmtNextBtn,
+ body.ux383 #contactReportBody .cis-controls-nav>#cisNext{grid-column:3!important;}
+ body.ux383 #globalStatsModalBox .ui-period-navigation>.ui-period-today,
+ body.ux383 #contactReportBody .cis-controls-nav>[data-ui-today="summary"]{grid-column:4!important;}
+ body.ux383 #contactReportModalBox>.v20-report-head:not(.summary-period-in-body){display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;grid-template-rows:auto 32px 32px!important;gap:6px!important;}
+ body.ux383 #contactReportModalBox>.v20-report-head:not(.summary-period-in-body)>#contactReportTitle{grid-column:1/-1!important;grid-row:1!important;}
+ body.ux383 #contactReportModalBox>.v20-report-head:not(.summary-period-in-body)>#reportPeriodToggleWrap{grid-column:1!important;grid-row:2!important;width:auto!important;display:flex!important;justify-content:flex-start!important;gap:3px!important;}
+ body.ux383 #contactReportModalBox #reportPeriodToggleWrap .btn{flex:0 0 42px!important;width:42px!important;height:32px!important;min-height:32px!important;padding:0!important;border-radius:7px!important;font-size:11px!important;}
+ body.ux383 #contactReportModalBox>.v20-report-head:not(.summary-period-in-body)>.v20-report-actions{grid-column:2!important;grid-row:2!important;display:flex!important;position:static!important;inset:auto!important;align-items:center!important;justify-content:flex-end!important;width:auto!important;gap:4px!important;padding:0!important;margin:0!important;}
+ body.ux383 #contactReportModalBox .v20-report-actions>:is(#mobileReportRefreshV131,#contactReportCloseBtn){width:34px!important;min-width:34px!important;flex:0 0 34px!important;height:32px!important;min-height:32px!important;padding:0!important;border:1px solid var(--line)!important;border-radius:7px!important;}
+ body.ux383 #contactReportModalBox .v20-report-actions>#contactReportCloseBtn{width:42px!important;min-width:42px!important;flex-basis:42px!important;font-size:11px!important;}
+ body.ux383 #contactReportModalBox>.v20-report-head:not(.summary-period-in-body)>#reportDateNavWrap{grid-column:1/-1!important;grid-row:3!important;display:grid!important;grid-template-columns:28px minmax(0,1fr) 28px 38px!important;gap:5px!important;width:100%!important;min-width:0!important;margin:0!important;}
+ body.ux383 #contactReportModalBox #reportDateNavWrap>:is(#reportPrevBtn,#reportNextBtn,.ui-period-today){grid-row:1!important;position:static!important;inset:auto!important;display:flex!important;align-items:center!important;justify-content:center!important;flex:none!important;width:100%!important;min-width:0!important;max-width:none!important;height:32px!important;min-height:32px!important;margin:0!important;padding:0!important;line-height:1!important;border-radius:7px!important;}
+ body.ux383 #contactReportModalBox #reportDateNavWrap>#reportPrevBtn{grid-column:1!important;}
+ body.ux383 #contactReportModalBox #reportDateNavWrap>#reportRangeLabel{grid-column:2!important;grid-row:1!important;min-width:0!important;width:auto!important;padding:0!important;font-size:11px!important;text-align:center!important;line-height:32px!important;}
+ body.ux383 #contactReportModalBox #reportDateNavWrap>#reportNextBtn{grid-column:3!important;}
+ body.ux383 #contactReportModalBox #reportDateNavWrap>.ui-period-today{grid-column:4!important;font-size:11px!important;}
+}
+</style>
 </body>
 </html>
 
