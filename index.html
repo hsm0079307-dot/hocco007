@@ -20831,7 +20831,7 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
       <div class="relationship-interest-caption">전체 기간 · 현장별 접촉자 ${totalContacts}명 · ${records.reduce((n,r)=>n+r.visible.length,0)}명 표시 · 이름을 누르면 관심사 근거와 상담일지를 확인합니다.</div>
       ${records.map(r=>{
         const expanded=expandedContactSites.has(r.key)||!!relationshipInterestFilter;
-        return `<div class="report-site-toggle-row" data-toggle-site="${escapeHtml(r.key)}"><span>📍 ${escapeHtml(r.site.name)} <small>${escapeHtml(r.office)}</small></span><span>${r.visible.length}명</span><span class="report-site-toggle-arrow">${expanded?'▲':'▼'}</span></div>${expanded?`<div class="report-manager-cards">${r.visible.map(c=>`<button type="button" class="report-manager-card report-contact-card" data-site="${escapeHtml(r.key)}" data-person="${escapeHtml(c.key)}"><div class="report-manager-card-head"><span>${escapeHtml(c.name)}${c.role?` <small>(${escapeHtml(c.role)})</small>`:''}${c.unit?` <small>${escapeHtml(c.unit)}</small>`:''}</span><span>${c.logs.length}회</span></div>${relationshipInterestTags(c.logs)}</button>`).join('')}</div>`:''}`;
+        return `<div class="report-site-toggle-row" data-toggle-site="${escapeHtml(r.key)}"><span>📍 ${escapeHtml(r.site.name)} <small>${escapeHtml(r.office)}</small></span><span>${r.visible.length}명</span><span class="report-site-toggle-arrow">${expanded?'▲':'▼'}</span></div>${expanded?`<div class="report-manager-cards">${r.visible.map(c=>`<button type="button" class="report-manager-card report-contact-card" data-site="${escapeHtml(r.key)}" data-person="${escapeHtml(c.key)}"><div class="report-manager-card-head"><span>${escapeHtml(c.name)}${c.role?` <small>(${escapeHtml(c.role)})</small>`:''}${c.unit?` <small>${escapeHtml(c.unit)}</small>`:''}</span><span class="report-contact-count">${c.logs.length}회</span></div>${relationshipInterestTags(c.logs)}</button>`).join('')}</div>`:''}`;
       }).join('')||'<div class="relationship-interest-caption">조건에 맞는 접촉 기록이 없습니다.</div>'}<div id="reportContactDetailPanel" class="report-detail-panel" style="display:none"></div>`;
     body.querySelector('#relationshipInterestFilter').addEventListener('change',e=>{relationshipInterestFilter=e.target.value;renderContactsView();});
     body.querySelectorAll('[data-toggle-site]').forEach(row=>row.addEventListener('click',()=>{
@@ -39795,5 +39795,19 @@ body.ux383 .sidebar-overview-buttons>button.btn{
  height:30px!important;min-height:30px!important;box-sizing:border-box!important;
  padding:0 7px!important;line-height:1!important;margin:0!important;
  position:static!important;transform:none!important;vertical-align:middle!important;
+}
+</style>
+
+<style id="contact-card-count-nowrap-20261014">
+body.ux383 #contactReportBody .report-contact-card .report-manager-card-head{
+ display:flex!important;align-items:flex-start!important;gap:6px!important;min-width:0!important;
+}
+body.ux383 #contactReportBody .report-contact-card .report-manager-card-head>span:first-child{
+ flex:1 1 auto!important;min-width:0!important;overflow:hidden!important;
+}
+body.ux383 #contactReportBody .report-contact-card .report-contact-count{
+ flex:0 0 auto!important;width:auto!important;min-width:max-content!important;
+ white-space:nowrap!important;word-break:normal!important;overflow-wrap:normal!important;
+ line-height:1.5!important;
 }
 </style>
