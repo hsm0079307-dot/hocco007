@@ -2131,6 +2131,27 @@ function loadScheduleData(){
   TOUR_ROWS = JSON.parse(JSON.stringify(TOUR_ROWS_DEFAULT));
   GALLERY_CLOSED = JSON.parse(JSON.stringify(GALLERY_CLOSED_DEFAULT));
 }
+
+// 관리 메뉴의 수동 저장: 기존 자동 저장과 같은 저장소를 사용한다.
+function saveCalendarData(){
+  try{
+    persistScheduleData();
+    persistCheck();
+    persistMemos();
+    persistStaff();
+    persistCatLabel();
+    persistDateCapacity();
+    persistRange();
+    const expected=JSON.stringify({GALLERY_ROWS,TOUR_ROWS,GALLERY_CLOSED});
+    if(localStorage.getItem(SCHEDULE_DATA_KEY)!==expected) throw new Error('저장한 일정 데이터를 확인할 수 없습니다.');
+    alert('일정을 이 브라우저에 저장했습니다.');
+    return true;
+  }catch(error){
+    alert('일정을 저장하지 못했습니다. 브라우저 저장 공간과 저장 허용 설정을 확인해주세요.');
+    return false;
+  }
+}
+
 function persistScheduleData(){
   localStorage.setItem(SCHEDULE_DATA_KEY, JSON.stringify({GALLERY_ROWS, TOUR_ROWS, GALLERY_CLOSED}));
 }
@@ -6654,7 +6675,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
     const back=document.createElement('div');back.className='pro-tools-backdrop';back.id='proToolsBackdrop';back.onclick=closeUtility;
     const tools=document.createElement('section');tools.className='pro-tools-sheet';tools.id='proToolsSheet';
     tools.innerHTML='<div class="pro-tools-head"><strong>관리</strong><button class="pro-tools-close" type="button">×</button></div><div class="pro-tools-grid">'+
-      '<button class="pro-tool-btn primary" data-act="capacity">정원 설정</button><button class="pro-tool-btn" data-act="excel">엑셀 저장</button>'+
+      '<button class="pro-tool-btn primary" data-act="save">일정 저장</button><button class="pro-tool-btn" data-act="capacity">정원 설정</button><button class="pro-tool-btn" data-act="excel">엑셀 저장</button>'+
       '<button class="pro-tool-btn" data-act="print">현재 화면 인쇄</button><button class="pro-tool-btn" data-act="printall">날짜별 전체 인쇄</button>'+
       '<button class="pro-tool-btn" data-act="backup">일정 백업</button><button class="pro-tool-btn" data-act="restore">백업 불러오기</button>'+
       '<button class="pro-tool-btn" data-act="password">비밀번호 변경</button><button class="pro-tool-btn" data-act="home">홈화면 추가</button></div>';
@@ -6664,7 +6685,8 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
     qa('.pro-tools-close').forEach(b=>b.onclick=closeUtility);
     tools.addEventListener('click',function(e){const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act;closeUtility();setTimeout(function(){
       try{
-        if(a==='capacity'&&typeof openCapacitySettings==='function')openCapacitySettings();
+        if(a==='save')saveCalendarData();
+        else if(a==='capacity'&&typeof openCapacitySettings==='function')openCapacitySettings();
         else if(a==='excel'&&typeof exportExcel==='function')exportExcel();
         else if(a==='print')window.print();
         else if(a==='printall'&&typeof printAllDates==='function')printAllDates();
@@ -8121,7 +8143,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
         <div class="fd-search-wrap"><div class="fd-search">${icons.search}<input id="fdSearch" type="search" autocomplete="off" placeholder="검색하세요."></div><div class="fd-search-results" id="fdSearchResults"></div></div>
         <button type="button" class="fd-top-action" id="fdTodayTop">오늘</button>
         <div class="fd-admin-wrap"><button type="button" class="fd-top-action" id="fdAdminBtn">${icons.tune}<span>관리</span></button><div class="fd-admin-menu" id="fdAdminMenu">
-          <button data-admin="capacity">정원 설정</button><button data-admin="excel">엑셀 저장</button><button data-admin="print">인쇄</button><button data-admin="backup">일정 백업</button><button data-admin="restore">백업 불러오기</button><button data-admin="password">비밀번호 변경</button>
+          <button data-admin="save">일정 저장</button><button data-admin="capacity">정원 설정</button><button data-admin="excel">엑셀 저장</button><button data-admin="print">인쇄</button><button data-admin="backup">일정 백업</button><button data-admin="restore">백업 불러오기</button><button data-admin="password">비밀번호 변경</button>
         </div></div>
       </header>
       <main class="fd-content">
@@ -8206,7 +8228,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
     q('#fdPrev').onclick=()=>setMonth(new Date(viewDate.getFullYear(),viewDate.getMonth()-1,1));q('#fdNext').onclick=()=>setMonth(new Date(viewDate.getFullYear(),viewDate.getMonth()+1,1));q('#fdToday').onclick=today;q('#fdTodayTop').onclick=today;
     q('#fdSearch').addEventListener('input',renderSearch);q('#fdSearch').addEventListener('keydown',e=>{if(e.key==='Escape'){q('#fdSearchResults').classList.remove('on');e.target.blur()}});
     const fmenu=q('#fdFilterMenu');q('#fdFilterBtn').onclick=e=>{e.stopPropagation();fmenu.classList.toggle('on')};
-    const admin=q('#fdAdminMenu');q('#fdAdminBtn').onclick=e=>{e.stopPropagation();admin.classList.toggle('on')};admin.addEventListener('click',e=>{const b=e.target.closest('[data-admin]');if(!b)return;admin.classList.remove('on');const a=b.dataset.admin;try{if(a==='capacity')openCapacitySettings();else if(a==='excel')exportExcel();else if(a==='print')window.print();else if(a==='backup')backupScheduleData();else if(a==='restore')restoreScheduleDataPrompt();else if(a==='password')changePassword()}catch(err){}});document.addEventListener('click',e=>{if(!e.target.closest('.fd-admin-wrap'))admin.classList.remove('on');if(!e.target.closest('.fd-search-wrap'))q('#fdSearchResults')?.classList.remove('on');if(!e.target.closest('.fd-filter-wrap'))fmenu?.classList.remove('on')});
+    const admin=q('#fdAdminMenu');q('#fdAdminBtn').onclick=e=>{e.stopPropagation();admin.classList.toggle('on')};admin.addEventListener('click',e=>{const b=e.target.closest('[data-admin]');if(!b)return;admin.classList.remove('on');const a=b.dataset.admin;try{if(a==='save')saveCalendarData();else if(a==='capacity')openCapacitySettings();else if(a==='excel')exportExcel();else if(a==='print')window.print();else if(a==='backup')backupScheduleData();else if(a==='restore')restoreScheduleDataPrompt();else if(a==='password')changePassword()}catch(err){}});document.addEventListener('click',e=>{if(!e.target.closest('.fd-admin-wrap'))admin.classList.remove('on');if(!e.target.closest('.fd-search-wrap'))q('#fdSearchResults')?.classList.remove('on');if(!e.target.closest('.fd-filter-wrap'))fmenu?.classList.remove('on')});
   }
   function render(){if(!desktop())return;build();if(!viewDate)viewDate=monthFromHidden();q('#fdMonthTitle').textContent=`${viewDate.getFullYear()}년 ${viewDate.getMonth()+1}월`;const s=monthCount();q('#fdMonthHint').textContent=`전체 ${s.total}건 · 예상 ${s.head}명`;renderFilters();renderCalendar();renderDetail();renderSummary();try{if(selectedKey)selectDate(selectedKey,false)}catch(e){}}
   function init(){if(!desktop())return;build();viewDate=monthFromHidden();const now=new Date();let preferred='';if(now.getFullYear()===viewDate.getFullYear()&&now.getMonth()===viewDate.getMonth())preferred=key(now);if(!preferred){const ks=monthKeys(viewDate.getFullYear(),viewDate.getMonth());preferred=ks.find(k=>{const x=totalRawEvents(k);return x.total>0})||((viewDate.getMonth()+1)+'-1')}selectedKey=preferred;try{currentDateKey=selectedKey;previewKey=selectedKey}catch(e){};render();
@@ -8617,7 +8639,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
 #formOverlay .gallery-admin-actions button{display:flex!important;align-items:center!important;gap:10px!important;width:100%!important;min-height:42px!important;padding:9px 8px!important;border:0!important;border-radius:7px!important;background:transparent!important;box-shadow:none!important;color:#354c43!important;font:inherit!important;font-size:13px!important;font-weight:500!important;text-align:left!important;cursor:pointer}
 #formOverlay .gallery-admin-actions button:hover,#formOverlay .gallery-admin-actions button:focus-visible{background:#edf5f0!important;color:#235e43!important}
 #formOverlay .gallery-admin-actions button:focus-visible{outline:2px solid #9cc3ad!important;outline-offset:1px}
-#formOverlay .gallery-admin-actions button:nth-child(4){margin-top:8px!important;border-top:1px solid #e8eeea!important;border-top-left-radius:0!important;border-top-right-radius:0!important;padding-top:14px!important}
+#formOverlay .gallery-admin-actions button:nth-child(5){margin-top:8px!important;border-top:1px solid #e8eeea!important;border-top-left-radius:0!important;border-top-right-radius:0!important;padding-top:14px!important}
 #formOverlay .gallery-admin-icon{display:flex;align-items:center;justify-content:center;flex:0 0 24px;height:24px;color:#668d77}
 #formOverlay .gallery-admin-icon svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 #formOverlay .gallery-admin-label{flex:1;line-height:20px}
@@ -8629,8 +8651,8 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
     openForm('관리',[],()=>{});
     document.getElementById('formOverlay').classList.add('gallery-admin-open');
     const fields=document.getElementById('formFields');fields.classList.add('gallery-admin-actions');
-    const actions=[['정원 설정',()=>openCapacitySettings()],['엑셀 저장',()=>exportExcel()],['인쇄',()=>window.print()],['일정 백업',()=>backupScheduleData()],['백업 불러오기',()=>restoreScheduleDataPrompt()],['비밀번호 변경',()=>changePassword()]];
-    const paths=['<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M17 4a4 4 0 0 1 0 8m5 9v-2a4 4 0 0 0-3-3.9"/>','<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13l4 5m0-5-4 5"/>','<path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6zM18 12h.01"/>','<path d="M12 3v12m-4-4 4 4 4-4M4 16v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/>','<path d="M12 16V4m-4 4 4-4 4 4M4 16v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/>','<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V6a4 4 0 0 1 8 0v4M12 15v2"/>'];
+    const actions=[['일정 저장',()=>saveCalendarData()],['정원 설정',()=>openCapacitySettings()],['엑셀 저장',()=>exportExcel()],['인쇄',()=>window.print()],['일정 백업',()=>backupScheduleData()],['백업 불러오기',()=>restoreScheduleDataPrompt()],['비밀번호 변경',()=>changePassword()]];
+    const paths=['<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h12l4 4v12a2 2 0 0 1-2 2zM7 3v6h10V3M7 21v-8h10v8"/>','<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M17 4a4 4 0 0 1 0 8m5 9v-2a4 4 0 0 0-3-3.9"/>','<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13l4 5m0-5-4 5"/>','<path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6zM18 12h.01"/>','<path d="M12 3v12m-4-4 4 4 4-4M4 16v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/>','<path d="M12 16V4m-4 4 4-4 4 4M4 16v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/>','<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V6a4 4 0 0 1 8 0v4M12 15v2"/>'];
     actions.forEach(([label,run],index)=>{const button=document.createElement('button');button.type='button';
       const icon=document.createElement('span');icon.className='gallery-admin-icon';icon.setAttribute('aria-hidden','true');icon.innerHTML='<svg viewBox="0 0 24 24">'+paths[index]+'</svg>';
       const text=document.createElement('span');text.className='gallery-admin-label';text.textContent=label;
