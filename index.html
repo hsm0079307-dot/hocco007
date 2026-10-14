@@ -23856,7 +23856,7 @@ ead><body>
     const end=siteMgmtPeriod==='all'?smDateKey(new Date(y,m+1,0)):range.end;
     const count=smNewContactCount(history,start,end),period=siteMgmtPeriod==='all'?`${y}년 ${m+1}월`:range.label;
     const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-    const bins=smNewContactBins(history,y,m,smNewContactChartMode,today),max=Math.max(1,...bins.filter(b=>b.observed).map(b=>b.cumulative));
+    const bins=smNewContactBins(history,y,m,smNewContactChartMode,today),max=Math.max(1,Number(smStats(site).totalOwners||0),...bins.filter(b=>b.observed).map(b=>b.cumulative));
     const bars=bins.map(b=>{
       const label=b.label+' · '+b.start.slice(5).replace('-','/')+'~'+b.end.slice(5).replace('-','/');
       return `<button type="button" class="nc-bar" data-nc-start="${b.start}" data-nc-end="${b.end}" data-nc-label="${escapeHtml(label)}" ${b.observed?'':'disabled'} aria-label="${escapeHtml(label)}${b.observed?`: 누계 ${b.cumulative}명, 신규 ${b.newCount}명`:': 기록 범위 밖'}"><span class="nc-number">${b.observed?b.cumulative:'—'}</span><span class="nc-bar-track"><span class="nc-fresh" style="height:${b.observed?b.newCount/max*100:0}%"></span><span class="nc-return" style="height:${b.observed?b.previous/max*100:0}%"></span></span><span>${b.label}</span>${smNewContactChartMode==='week'?`<small>${b.start.slice(8)*1}~${b.end.slice(8)*1}일</small>`:''}</button>`;
@@ -23878,7 +23878,39 @@ ead><body>
     section.querySelectorAll('.nc-bar').forEach(b=>{b.classList.toggle('selected',b===bar);b.setAttribute('aria-pressed',String(b===bar));});
   });
 
-  function smCompactContactGraphs(root){
+  function smCompactMethodParts(kind,label,context){
+    const types=['상담','단순','TM'],counts=[0,0,0];
+    if(!context||!context.site)return counts;
+    const stats=context.stats||smStats(context.site);
+    if(kind==='dong'&&!context.range){
+      const methods=stats.byDong?.[label]?.methods;
+      if(methods)return types.map(m=>Number(methods[m]||0));
+    }
+    const nonmember=kind==='nonmember',source=nonmember?smExcel(context.site)?.nonMembers:stats;
+    if(!source)return counts;
+    const key=p=>String(miPersonKey(p)||'');
+    const matching=p=>nonmember?String(p.manager||'미지정')===label:String(p.dong||'')===label;
+    const latest=new Map();
+    const events=nonmember?(source.contactEvents||[]):(context.events||source.contactEvents||[]);
+    for(const e of events){
+      if(!smIsSuccessMethod(e.method)||!key(e))continue;
+      if(context.range&&(e.date<context.range.start||e.date>context.range.end))continue;
+      const prev=latest.get(key(e));if(!prev||e.date>=prev.date)latest.set(key(e),e);
+    }
+    if(context.range&&!nonmember){
+      for(const e of latest.values())if(matching(e))counts[types.indexOf(e.method)]++;
+    }else{
+      for(const p of source.people||[]){
+        if(!matching(p))continue;
+        const event=latest.get(key(p));
+        if(context.range?!event:!p.contacted)continue;
+        const method=context.range?event.method:(types.includes(p.contactMethod)?p.contactMethod:event?.method);
+        const i=types.indexOf(method);if(i>=0)counts[i]++;
+      }
+    }
+    return counts;
+  }
+  function smCompactContactGraphs(root,context={}){
     const specs=[['table.pdf-manager','manager'],['table.rf-nonmember-summary-table-v69','nonmember'],['table.pdf-dong','dong'],['table.pdf-week','week']];
     for(const [selector,kind] of specs)for(const table of root.querySelectorAll(selector)){
       if(table.dataset.scConverted)continue;
@@ -23887,16 +23919,26 @@ ead><body>
       const number=c=>{const n=Number(String(c?.textContent||'').replace(/[^\d.]/g,''));return Number.isFinite(n)?n:0;};
       rows.forEach((row,ri)=>{
         const cells=[...row.children];if(!cells.length)return;
-        if(kind==='manager'&&cells.length>=13)entries.push({label:cells[1].textContent.trim(),total:number(cells[2]),value:number(cells[3]),col:3,row:ri,extra:number(cells[4])+'%'});
+        if(kind==='manager'&&cells.length>=13)entries.push({label:cells[1].textContent.trim(),total:number(cells[2]),value:number(cells[3]),parts:[number(cells[6]),number(cells[7]),number(cells[8])],methodCols:[6,7,8],col:3,row:ri,extra:number(cells[4])+'%'});
         if(kind==='nonmember'&&cells.length===6&&!cells[0].textContent.includes('합계'))entries.push({label:cells[0].textContent.trim(),total:number(cells[1]),value:number(cells[2]),col:2,row:ri,extra:number(cells[4])+'%'});
         if(kind==='dong')for(let offset=0;offset+4<cells.length;offset+=5){const label=cells[offset].textContent.trim();if(label)entries.push({label,total:number(cells[offset+1]),value:number(cells[offset+2]),col:offset+2,row:ri,extra:number(cells[offset+4])+'%'});}
-        if(kind==='week'&&cells.length===6)entries.push({label:cells[1].textContent.trim(),value:number(cells[5]),parts:[number(cells[2]),number(cells[3]),number(cells[4])],col:5,row:ri});
+        if(kind==='week'&&cells.length===6)entries.push({label:cells[1].textContent.trim(),value:number(cells[5]),parts:[number(cells[2]),number(cells[3]),number(cells[4])],methodCols:[2,3,4],col:5,row:ri});
       });
       if(!entries.length){delete table.dataset.scConverted;continue;}
+      if(kind==='dong')entries.sort((a,b)=>a.label.localeCompare(b.label,'ko',{numeric:true}));
+      for(const entry of entries)if(!entry.parts)entry.parts=smCompactMethodParts(kind,entry.label,context);
       const max=Math.max(1,...entries.map(r=>kind==='week'?r.value:r.total));
       const chart=document.createElement('div');chart.className='sc-contact-graph sc-'+kind;
       chart.setAttribute('aria-label',kind==='week'?'접촉방법별 건수 그래프':'접촉 인원 그래프');
-      chart.innerHTML=(kind==='week'?'<div class="sc-legend"><span>상담</span><span>단순</span><span>TM</span></div>':'')+entries.map(r=>`<button type="button" class="sc-chart-row" data-sc-source="${id}" data-sc-row="${r.row}" data-sc-col="${r.col}" aria-label="${escapeHtml(r.label)} ${kind==='week'?r.value+'건':r.value+'명 / '+r.total+'명'}"><span class="sc-label">${escapeHtml(r.label)}</span><span class="sc-track">${kind==='week'?r.parts.map((n,i)=>`<i class="sc-method-${i}" style="width:${n/max*100}%"></i>`).join(''):`<i class="sc-capacity" style="width:${r.total/max*100}%"></i><i class="sc-contacted" style="width:${r.value/max*100}%"></i>`}</span><span class="sc-value">${r.value}${kind==='week'?'건':' / '+r.total}<small>${r.extra||''}</small></span></button>`).join('');
+      chart.innerHTML=entries.map(r=>{
+        const attrs=col=>`data-sc-source="${id}" data-sc-row="${r.row}" data-sc-col="${col}"`;
+        const methods=r.parts.map((n,i)=>{
+          const content=`<i class="sc-method-${i}"></i>${['상담','단순','TM'][i]} <b>${n}</b>`;
+          return r.methodCols?`<button type="button" ${attrs(r.methodCols[i])}>${content}</button>`:`<span>${content}</span>`;
+        }).join('');
+        const unknown=kind!=='week'?Math.max(0,r.value-r.parts.reduce((a,b)=>a+b,0)):0;
+        return `<div class="sc-entry"><button type="button" class="sc-chart-row" ${attrs(r.col)} aria-label="${escapeHtml(r.label)} ${kind==='week'?r.value+'건':r.value+'명 / '+r.total+'명'}"><span class="sc-label">${escapeHtml(r.label)}${kind==='dong'?'동':''}</span><span class="sc-track">${kind==='week'?r.parts.map((n,i)=>`<i class="sc-method-${i}" style="width:${n/max*100}%"></i>`).join(''):`<i class="sc-capacity" style="width:${kind==='dong'?100:r.total/max*100}%"></i><i class="sc-contacted" style="width:${kind==='dong'?(r.total?r.value/r.total*100:0):r.value/max*100}%"></i>`}</span><span class="sc-value">${r.value}${kind==='week'?'건':' / '+r.total}<small>${r.extra||''}</small></span></button><div class="sc-method-values">${methods}${unknown?`<span class="sc-unknown">미분류 ${unknown}</span>`:''}</div></div>`;
+      }).join('');
       table.parentNode.insertBefore(chart,table);table.classList.add('sc-original-table');
     }
   }
@@ -23963,7 +24005,7 @@ ead><body>
       </div>
       ${siteMgmtPeriod==='day'?'':smCharts(site,x,events,periodMode,mr.rows)}
       ${smTodaySection(site,periodMode?events:smEvents(site,smMonthRangeForCurrent()),periodMode)}
-    </div>`;    smCompactContactGraphs(body);
+    </div>`;    smCompactContactGraphs(body,{site,stats:x,events,range:periodMode?range:null});
   }
 
   const smDrillBodyRoot=document.getElementById('globalStatsBody');
@@ -40276,4 +40318,29 @@ body.ux383 #globalStatsBody .sc-legend{display:flex;gap:12px;justify-content:fle
 body.ux383 #globalStatsBody .sc-legend span:before{content:'';display:inline-block;width:7px;height:7px;margin-right:4px;background:#3a8269;border-radius:2px}
 body.ux383 #globalStatsBody .sc-legend span:nth-child(2):before{background:#85b6a2}body.ux383 #globalStatsBody .sc-legend span:nth-child(3):before{background:#c1d9cd}
 @media(min-width:821px){body.ux383 #globalStatsBody .sc-dong{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 24px}}
+</style>
+
+<style id="contact-method-values-and-dong-grid-20261015">
+body.ux383 #globalStatsBody .nc-section .nc-bar-track{height:36px!important;width:9px!important}
+body.ux383 #globalStatsBody .nc-section .nc-chart{margin-top:6px!important}
+body.ux383 #globalStatsBody .sc-contact-graph .sc-entry{min-width:0;padding:4px 0 6px!important}
+body.ux383 #globalStatsBody .sc-contact-graph button.sc-chart-row{height:28px!important;min-height:0!important}
+body.ux383 #globalStatsBody .sc-method-values{display:flex!important;justify-content:flex-end!important;gap:10px!important;flex-wrap:wrap!important;margin-top:1px!important;line-height:1.4!important}
+body.ux383 #globalStatsBody .sc-method-values>span,body.ux383 #globalStatsBody .sc-method-values>button{display:inline-flex!important;align-items:center!important;gap:3px!important;height:20px!important;min-height:0!important;min-width:0!important;width:auto!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important;border-radius:0!important;color:var(--text-dim,#71847c)!important;font-size:10px!important;font-weight:400!important;line-height:1.3!important;white-space:nowrap!important}
+body.ux383 #globalStatsBody .sc-method-values b{font-size:10px!important;color:var(--text,#19332c)!important;font-weight:600!important}
+body.ux383 #globalStatsBody .sc-method-values i{display:inline-block!important;width:5px!important;height:5px!important;border-radius:1px!important}
+body.ux383 #globalStatsBody .sc-contact-graph.sc-dong{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:7px!important;padding:6px 0!important}
+body.ux383 #globalStatsBody .sc-dong .sc-entry{padding:7px!important;border:1px solid var(--line,#d8e3e7)!important;border-radius:9px!important;background:var(--card,#fff)!important}
+body.ux383 #globalStatsBody .sc-dong button.sc-chart-row{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:4px!important;height:auto!important;padding:0!important;text-align:left!important}
+body.ux383 #globalStatsBody .sc-dong .sc-label{grid-column:1!important;font-size:11px!important}
+body.ux383 #globalStatsBody .sc-dong .sc-value{grid-column:2!important;grid-row:1!important;font-size:10px!important}
+body.ux383 #globalStatsBody .sc-dong .sc-value small{display:none!important}
+body.ux383 #globalStatsBody .sc-dong .sc-track{grid-column:1/-1!important;grid-row:2!important;height:4px!important;width:100%!important;margin:4px 0!important}
+body.ux383 #globalStatsBody .sc-dong .sc-method-values{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:1px!important;justify-content:initial!important}
+body.ux383 #globalStatsBody .sc-dong .sc-method-values>span{font-size:8px!important;gap:1px!important;height:14px!important;justify-content:center!important}
+body.ux383 #globalStatsBody .sc-dong .sc-method-values b{font-size:8px!important}
+body.ux383 #globalStatsBody .sc-dong .sc-method-values i{display:none!important}
+body.ux383 #globalStatsBody .sc-dong .sc-method-values .sc-unknown{grid-column:1/-1!important}
+@media(min-width:821px){body.ux383 #globalStatsBody .sc-contact-graph.sc-dong{grid-template-columns:repeat(5,minmax(0,1fr))!important}}
+@media(max-width:360px){body.ux383 #globalStatsBody .sc-dong .sc-entry{padding:5px!important}body.ux383 #globalStatsBody .sc-dong .sc-method-values>span{font-size:7px!important}}
 </style>
