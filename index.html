@@ -17849,6 +17849,8 @@ function renderDetailPanel(site){
 
   function focusMapOnSite(site){
     if(!map) return;
+    if(mapIsolationActive){mapIsolationSiteId=site.id;}
+    installMapIsolationControls();
     districtLayer.clearLayers();
     siteLayer.clearLayers();
     focusLayer.clearLayers();
@@ -17859,7 +17861,7 @@ function renderDetailPanel(site){
       const sidoName = (site.district||'').split(' ')[0];
       const guName = (site.district||'').split(' ').pop();
       const shape = shapeFor(sidoName, guName);
-      if(shape){
+      if(shape&&!mapIsolationActive){
         L.polygon(shape, {
           color:'#8a6239', weight:1.2, opacity:.7,
           fillColor:'#d3a45f', fillOpacity:.32,
@@ -18207,7 +18209,33 @@ function renderDetailPanel(site){
     }catch(e){ console.error('의제처리구역 숨김 실패', e); }
   }
 
+  let mapIsolationActive=false,mapIsolationSiteId='';
+  function installMapIsolationControls(){
+    const wrap=document.querySelector('.map-wrap');if(!wrap)return;
+    let bar=document.getElementById('mapIsolationControls');
+    if(!bar){
+      bar=document.createElement('div');bar.id='mapIsolationControls';bar.innerHTML='<select aria-label="지도에 남길 현장"></select><button type="button" aria-pressed="false">나머지 숨기기</button>';
+      wrap.appendChild(bar);
+      bar.querySelector('select').addEventListener('change',e=>{mapIsolationSiteId=e.target.value;if(mapIsolationActive){currentView='list';renderAll();renderSeoulShapes();}else installMapIsolationControls();});
+      bar.querySelector('button').addEventListener('click',()=>{
+        if(!mapIsolationSiteId)return;
+        mapIsolationActive=!mapIsolationActive;
+        if(mapIsolationActive){currentView='list';renderAll();renderSeoulShapes();}
+        else{renderAll();renderSeoulShapes();}
+        installMapIsolationControls();
+      });
+    }
+    const rows=filteredSites(),select=bar.querySelector('select');
+    if(!mapIsolationActive&&currentView==='detail'&&rows.some(s=>s.id===currentDetailId))mapIsolationSiteId=currentDetailId;
+    if(!rows.some(s=>s.id===mapIsolationSiteId)){mapIsolationSiteId='';mapIsolationActive=false;}
+    const html='<option value="">현장 선택</option>'+rows.map(s=>'<option value="'+escapeHtml(String(s.id))+'">'+escapeHtml(s.name)+'</option>').join('');
+    if(select.innerHTML!==html)select.innerHTML=html;select.value=mapIsolationSiteId;
+    const btn=bar.querySelector('button');btn.disabled=!mapIsolationSiteId;btn.textContent=mapIsolationActive?'전체 표시':'나머지 숨기기';btn.setAttribute('aria-pressed',String(mapIsolationActive));
+  }
   function renderMap(){
+    installMapIsolationControls();
+    if(mapIsolationActive){const s=filteredSites().find(s=>s.id===mapIsolationSiteId);if(s){focusMapOnSite(s);return;}}
+
     closeAgendaZonePopup();
     const mapEl=document.getElementById('map');
     if(mapEl){ let hint=mapEl.querySelector('.v235-map-hint'); if(!hint){ hint=document.createElement('div'); hint.className='v235-map-hint'; hint.textContent='현장 목록 ↔ 지도 연동 · 현장을 클릭하면 상세로 이동'; mapEl.appendChild(hint); } }
@@ -18655,6 +18683,7 @@ function renderDetailPanel(site){
   // ---------- render all ----------
   function renderSeoulShapes(){
     if(!seoulShapeLayer) return;
+    if(mapIsolationActive){seoulShapeLayer.clearLayers();return;}
     if(currentView==='detail') return; // 상세보기에선 focusMapOnSite가 그린 단일 구 강조를 그대로 둠
     seoulShapeLayer.clearLayers();
     if(regionFocusMode && selectedDistrict){
@@ -40900,4 +40929,13 @@ body.ux383 #globalStatsBody .sc-dong-totals b{margin-left:3px;color:var(--sc-ink
 <style id="align-circled-nonmember-label-20261015">
 body.ux383 .section-heading-text:has(>.sc-nonmember-symbol){display:inline-flex!important;align-items:center!important;gap:5px!important;vertical-align:middle!important;line-height:20px!important}
 body.ux383 .section-heading-text>.sc-nonmember-symbol{display:inline-grid!important;place-items:center!important;flex:0 0 14px!important;align-self:center!important;vertical-align:middle!important;margin:0!important;line-height:14px!important;letter-spacing:0!important;text-indent:0!important;transform:none!important;position:static!important}
+</style>
+
+<style id="map-single-site-isolation-20261015">
+body.ux383 #mapIsolationControls{position:absolute;left:10px;bottom:42px;z-index:40;display:flex;gap:5px;max-width:calc(100% - 66px);padding:5px;border:1px solid var(--line,#ccd9d1);border-radius:8px;background:var(--card,#fff);box-shadow:0 2px 8px #0001}
+body.ux383 #mapIsolationControls select{width:145px;max-width:45vw;height:28px;min-height:28px;font-size:11px;border:0;background:var(--card,#fff);color:var(--text-main,#243d34)}
+body.ux383 #mapIsolationControls button{white-space:nowrap;height:28px;padding:0 9px;font-size:11px;border:1px solid var(--accent-border,#9ebdaf);border-radius:5px;background:var(--card,#fff);color:var(--text-main,#243d34);cursor:pointer}
+body.ux383 #mapIsolationControls button[aria-pressed="true"]{background:var(--accent,#3f7966);color:var(--accent-ink,#fff)}
+body.ux383 #mapIsolationControls button:disabled{opacity:.45;cursor:default}
+@media print{#mapIsolationControls{display:none!important}}
 </style>
