@@ -24145,6 +24145,19 @@ ead><body>
     const totals=period?methodTotals+`<td>${n(contact)}</td>`:`<td>${n(total)}</td><td>${n(contact)}</td>${methodTotals}<td>${n(missing)}</td><td>${total>0&&contact<=total?String(Math.round(contact/total*1000)/10)+'%':''}</td>`;
     return `<div class="sc-table-scroll"><table class="sc-readable-table"><thead><tr>${headings.map(h=>`<th scope="col">${h}</th>`).join('')}</tr></thead><tbody>${rows}</tbody><tfoot><tr><th scope="row">합계</th>${totals}</tr></tfoot></table></div>`;
   }
+  function smRenderContactTable(entries,kind,id,width=0,meta={}){
+    const html=smApprovedContactTable(entries,kind,id,width,meta);
+    if(kind==='week')return html;
+    const host=document.createElement('div');host.innerHTML=html;
+    host.querySelectorAll('table.sc-readable-table').forEach(table=>{
+      table.classList.add('sc-split-table');
+      table.querySelectorAll('tr').forEach(row=>{
+        if(row.children.length<4)return;
+        const gap=document.createElement(row.closest('thead')?'th':'td');gap.className='sc-table-group-gap';gap.setAttribute('aria-hidden','true');row.insertBefore(gap,row.children[3]);
+      });
+    });
+    return host.innerHTML;
+  }
   function smCompactContactGraphs(root,context={}){
     const specs=[['table.pdf-manager','manager'],['table.rf-nonmember-summary-table-v69','nonmember'],['table.pdf-dong','dong'],['table.pdf-week','week']];
     for(const [selector,kind] of specs)for(const table of root.querySelectorAll(selector)){
@@ -24174,7 +24187,7 @@ ead><body>
       const chart=document.createElement('div');chart.className='sc-contact-graph sc-approved-vertical sc-'+kind;
       let periodPeople=0;
       if(kind==='week'&&context.cohort){const selected=siteMgmtPeriod==='all'?smMonthRangeForCurrent():context.selectedRange||context.range;if(selected)periodPeople=smNewContactCount(smNewContactSnapshot(context.site,selected).history,selected.start,selected.end).total;}
-      chart.__scMeta={cohort:canonical,periodPeople};chart.innerHTML=smApprovedContactTable(entries,kind,id,0,chart.__scMeta);
+      chart.__scMeta={cohort:canonical,periodPeople};chart.innerHTML=smRenderContactTable(entries,kind,id,0,chart.__scMeta);
       const card=table.closest('.pdf-section,.rf-nonmember');
       if(card){let anchor=table;while(anchor.parentNode!==card)anchor=anchor.parentNode;card.insertBefore(chart,anchor);card.classList.add('sc-approved-card');}
       else table.parentNode.insertBefore(chart,table);
@@ -24186,7 +24199,7 @@ ead><body>
     if(root.__scResizeObserver)root.__scResizeObserver.disconnect();
     const fit=chart=>{
       const w=Math.floor(chart.getBoundingClientRect?.().width||0);
-      if(w>0&&w!==chart.__scFitWidth){chart.__scFitWidth=w;chart.innerHTML=smApprovedContactTable(chart.__scEntries,chart.__scKind,chart.__scId,w,chart.__scMeta);}
+      if(w>0&&w!==chart.__scFitWidth){chart.__scFitWidth=w;chart.innerHTML=smRenderContactTable(chart.__scEntries,chart.__scKind,chart.__scId,w,chart.__scMeta);}
     };
     const charts=[...root.querySelectorAll('.sc-approved-vertical')];charts.forEach(fit);
     const alignPlots=()=>{
@@ -40944,7 +40957,18 @@ body.ux383 #mapIsolationControls button:disabled{opacity:.45;cursor:default}
 @media print{#mapIsolationControls{display:none!important}}
 </style>
 
-<style id="contact-count-method-divider-20261016">
-body.ux383 #globalStatsBody :is(.sc-manager,.sc-nonmember,.sc-dong) .sc-readable-table tr>:nth-child(3){border-right:2px solid #b4cbbf!important}
-body.ux383.theme-dark #globalStatsBody :is(.sc-manager,.sc-nonmember,.sc-dong) .sc-readable-table tr>:nth-child(3){border-right-color:#6d9983!important}
+
+
+<style id="separate-contact-table-groups-20261016">
+body.ux383 #globalStatsBody :is(.sc-manager,.sc-nonmember,.sc-dong) .sc-table-scroll{border:0!important;border-radius:0!important;background:transparent!important}
+body.ux383 #globalStatsBody :is(.sc-manager,.sc-nonmember,.sc-dong) .sc-split-table{border-collapse:separate!important;border-spacing:0!important}
+body.ux383 #globalStatsBody :is(.sc-manager,.sc-nonmember,.sc-dong) .sc-split-table tr>:nth-child(3){border-right:1px solid var(--sc-rule,#dfe7e4)!important}
+body.ux383 #globalStatsBody :is(.sc-manager,.sc-nonmember,.sc-dong) .sc-split-table tr>:is(:first-child,:nth-child(5)){border-left:1px solid var(--sc-rule,#dfe7e4)!important}
+body.ux383 #globalStatsBody :is(.sc-manager,.sc-nonmember,.sc-dong) .sc-split-table tr>:last-child{border-right:1px solid var(--sc-rule,#dfe7e4)!important}
+body.ux383 #globalStatsBody :is(.sc-manager,.sc-nonmember,.sc-dong) .sc-split-table .sc-table-group-gap{width:6px!important;min-width:6px!important;padding:0!important;border:0!important;box-shadow:none!important;background:var(--card,#fff)!important}
+body.ux383 #globalStatsBody .sc-split-table thead th:not(.sc-table-group-gap){border-top:1px solid var(--sc-rule,#dfe7e4)!important}
+body.ux383 #globalStatsBody .sc-split-table thead th:is(:first-child,:nth-child(5)){border-top-left-radius:8px!important}
+body.ux383 #globalStatsBody .sc-split-table thead th:is(:nth-child(3),:last-child){border-top-right-radius:8px!important}
+body.ux383 #globalStatsBody .sc-split-table tfoot th:first-child,body.ux383 #globalStatsBody .sc-split-table tfoot td:nth-child(5),body.ux383 #globalStatsBody .sc-dong-compact tbody tr:last-child>:is(:first-child,:nth-child(5)){border-bottom-left-radius:8px!important}
+body.ux383 #globalStatsBody .sc-split-table tfoot td:is(:nth-child(3),:last-child),body.ux383 #globalStatsBody .sc-dong-compact tbody tr:last-child>:is(:nth-child(3),:last-child){border-bottom-right-radius:8px!important}
 </style>
