@@ -23613,6 +23613,7 @@ ead><body>
   }
 
   function smFilterDrill(site,type,d){
+    if(d.basis==='cohort')return smCanonicalDrill(site,type,d);
     if(d.basis==='cumulative'&&['site_contacted','site_rate','site_uncontacted'].includes(type)){
       const snapshot=smNewContactSnapshot(site,smRange());
       const rows=type==='site_uncontacted'?smPersonRows(site).filter(p=>!snapshot.history.people.has(String(miPersonKey(p)))):smGroupEventRows(site,snapshot.events);
@@ -23851,9 +23852,9 @@ ead><body>
     const bins=smNewContactBins(history,y,m,smNewContactChartMode,today),max=smNewContactScale(Math.max(0,...bins.filter(b=>b.observed).map(b=>b.cumulative)));
     const bars=bins.map(b=>{
       const label=b.label+' · '+b.start.slice(5).replace('-','/')+'~'+b.end.slice(5).replace('-','/');
-      return `<button type="button" class="nc-bar" data-nc-start="${b.start}" data-nc-end="${b.end}" data-nc-label="${escapeHtml(label)}" ${b.observed?'':'disabled'} aria-label="${escapeHtml(label)}${b.observed?`: 누계 ${b.cumulative}명, 신규 ${b.newCount}명`:': 기록 범위 밖'}"><span class="nc-number">${b.observed&&b.cumulative?b.cumulative:''}</span><span class="nc-bar-track"><span class="nc-fresh" style="height:${b.observed?b.newCount/max*100:0}%"></span><span class="nc-return" style="height:${b.observed?b.previous/max*100:0}%"></span></span><span>${b.label}</span>${smNewContactChartMode==='week'?`<small>${b.start.slice(8)*1}~${b.end.slice(8)*1}일</small>`:''}</button>`;
+      return `<button type="button" class="nc-bar" data-nc-start="${b.start}" data-nc-end="${b.end}" data-nc-label="${escapeHtml(label)}" ${b.observed?'':'disabled'} aria-label="${escapeHtml(label)}${b.observed?`: 누계 ${b.cumulative}명, 신규 ${b.newCount}명`:': 기록 범위 밖'}"><span class="nc-number">${b.observed&&b.cumulative?b.cumulative:''}${b.observed&&b.newCount>0?`<em class="nc-increase">+${b.newCount}</em>`:''}</span><span class="nc-bar-track"><span class="nc-fresh" style="height:${b.observed?b.newCount/max*100:0}%"></span><span class="nc-return" style="height:${b.observed?b.previous/max*100:0}%"></span></span><span>${b.label}</span>${smNewContactChartMode==='week'?`<small>${b.start.slice(8)*1}~${b.end.slice(8)*1}일</small>`:''}</button>`;
     }).join('');
-    return `<section class="nc-section" aria-label="접촉 누계 추이"><div class="nc-heading"><strong>접촉 누계 추이</strong><span>${escapeHtml(period)}</span></div><div class="nc-kpis"><div>누계접촉<strong>${smNewContactSnapshot(site,range).metrics.contacted}<small>명</small></strong></div><div>기간 접촉<strong>${count.total}<small>명</small></strong></div><div>신규<strong>${count.newCount}<small>명</small></strong></div></div><div class="nc-toolbar"><div><button type="button" data-nc-mode="week" class="${smNewContactChartMode==='week'?'active':''}">주별</button><button type="button" data-nc-mode="month" class="${smNewContactChartMode==='month'?'active':''}">월별</button></div><span>${smNewContactChartMode==='week'?`${y}년 ${m+1}월`:`${y}년`} · <i class="nc-dot"></i> 신규 <i class="nc-dot nc-light"></i> 이전 누계</span></div><div class="nc-axis"><span>0명</span><span>${max}명</span></div><div class="nc-chart" style="--nc-columns:${bins.length}">${bars}</div><details class="nc-list" open><summary data-nc-list-title>${escapeHtml(period)} 신규 접촉자 · ${count.newCount}명</summary><div data-nc-list-body>${smNewContactNames(count.people)}</div></details></section>`;
+    return `<section class="nc-section" aria-label="접촉 누계 추이"><div class="nc-heading"><strong>접촉 누계 추이</strong><span>${escapeHtml(period)}</span></div><div class="nc-kpis"><div>누계접촉<strong>${smNewContactSnapshot(site,range).metrics.contacted||''}${smNewContactSnapshot(site,range).metrics.contacted?'<small>명</small>':''}</strong></div><div>기간 접촉<strong>${count.total||''}${count.total?'<small>명</small>':''}</strong></div><div>신규<strong>${count.newCount||''}${count.newCount?'<small>명</small>':''}</strong></div></div><div class="nc-toolbar"><div><button type="button" data-nc-mode="week" class="${smNewContactChartMode==='week'?'active':''}">주별</button><button type="button" data-nc-mode="month" class="${smNewContactChartMode==='month'?'active':''}">월별</button></div><span>${smNewContactChartMode==='week'?`${y}년 ${m+1}월`:`${y}년`} · <i class="nc-dot"></i> 신규 <i class="nc-dot nc-light"></i> 이전 누계</span></div><div class="nc-axis"><span>0명</span><span>${max}명</span></div><div class="nc-chart" style="--nc-columns:${bins.length}">${bars}</div><details class="nc-list"><summary data-nc-list-title>${escapeHtml(period)} 신규 접촉자${count.newCount?' · '+count.newCount+'명':''}</summary><div data-nc-list-body>${smNewContactNames(count.people)}</div></details></section>`;
   }
   function smNewContactNames(people){
     return people.length?`<div class="nc-names">${people.map(p=>`<div><strong>${escapeHtml(p.name)}</strong><span>${escapeHtml(p.first.slice(5).replace('-','/'))}${p.manager?' · '+escapeHtml(p.manager):''}</span></div>`).join('')}</div>`:'<p class="nc-empty">이 기간의 신규 접촉자가 없습니다.</p>';
@@ -23865,10 +23866,76 @@ ead><body>
     const pick=smSelected();if(!pick)return;const x=smExcel(pick.site);
     const history=smNewContactHistory(x?(x.contactEvents||[]):smEvents(pick.site,{start:'0000-01-01',end:'9999-12-31'}));
     const count=smNewContactCount(history,bar.dataset.ncStart,bar.dataset.ncEnd),section=bar.closest('.nc-section');
-    section.querySelector('[data-nc-list-title]').textContent=bar.dataset.ncLabel+' 신규 접촉자 · '+count.newCount+'명';
+    section.querySelector('[data-nc-list-title]').textContent=bar.dataset.ncLabel+' 신규 접촉자'+(count.newCount?' · '+count.newCount+'명':'');
     section.querySelector('[data-nc-list-body]').innerHTML=smNewContactNames(count.people);section.querySelector('.nc-list').open=true;
     section.querySelectorAll('.nc-bar').forEach(b=>{b.classList.toggle('selected',b===bar);b.setAttribute('aria-pressed',String(b===bar));});
   });
+
+
+  function smCanonicalCohort(site,range,nonmember=false){
+    const excel=smExcel(site),owner=excel||smStats(site),source=nonmember?(owner.nonMembers||{}):owner;
+    const cutoff=smNewContactSnapshot(site,range).cutoff;
+    const key=p=>String(miPersonKey(p)||'').trim();
+    const roster=(Array.isArray(source.people)?source.people:nonmember?[]:smRoster(site)).filter(p=>p&&key(p));
+    const raw=nonmember||excel?(Array.isArray(source.contactEvents)?source.contactEvents:[]):smEvents(site,{start:'0000-01-01',end:cutoff});
+    const reports=Array.isArray(source.reportEvents)?source.reportEvents:raw;
+    const events=raw.filter(e=>smNewValidDate(e.date)&&e.date<=cutoff&&smIsSuccessMethod(e.method)&&key(e));
+    const aliases=smManagerAliasMap(roster.map(p=>p.manager).concat(events.map(e=>e.manager)));
+    const manager=m=>smManagerKey(smManagerAlias(m,aliases));
+    const people=new Map(),latest=new Map(),success=new Map(),counts=new Map();
+    roster.forEach(p=>{if(key(p))people.set(key(p),{...p,fromRoster:true,key:key(p),personId:p.personId||'',manager:manager(p.manager),role:smPrimaryRoleOnly(p.primaryRole||p.role||''),dong:String(p.dong||'').trim()});});
+    for(const e of reports.concat(events)){
+      if(!key(e)||!smNewValidDate(e.date)||e.date>cutoff)continue;
+      if(!people.has(key(e)))people.set(key(e),{...e,fromRoster:false,key:key(e),personId:e.personId||'',manager:'(미지정)',role:smPrimaryRoleOnly(e.role||''),dong:String(e.dong||'').trim()});
+      if(!latest.has(key(e))||e.date>=latest.get(key(e)).date)latest.set(key(e),e);
+    }
+    for(const e of events){counts.set(key(e),(counts.get(key(e))||0)+1);if(!success.has(key(e))||e.date>=success.get(key(e)).date)success.set(key(e),e);}
+    const rows=[...people.values()].map(p=>{
+      const e=success.get(p.key),last=latest.get(p.key)||{};
+      return {...p,manager:p.manager,dong:p.dong||String(e?.dong||last.dong||'').trim(),role:p.role||smPrimaryRoleOnly(e?.role||last.role||''),contacted:!!e,method:e?.method||last.method||'',contactMethod:e?.method||last.method||'',last:last.date||e?.date||'',count:counts.get(p.key)||0,note:p.note||last.text||''};
+    });
+    const total=Math.max(nonmember?roster.length:Number(source.totalOwners||0),rows.length),contacted=rows.filter(p=>p.contacted).length;
+    const assigned=p=>!!p.manager&&!['(미지정)','미지정','-'].includes(p.manager);
+    const managed=rows.filter(p=>p.fromRoster&&assigned(p)).length;
+    const methods=()=>Object.fromEntries(SM_GRAPH_METHODS.map(m=>[m,0]));
+    const groupBy=field=>{
+      const groups=new Map();
+      for(const p of rows){
+        const label=field==='manager'?p.manager:field==='dong'?(p.dong||'동 미확인'):p.role;
+        if(!label)continue;
+        if(!groups.has(label))groups.set(label,{name:label,total:0,contacted:0,uncontacted:0,methods:methods(),people:[]});
+        const g=groups.get(label);g.total++;g.people.push(p);if(p.contacted)g.contacted++;
+        if(SM_GRAPH_METHODS.includes(p.method))g.methods[p.method]++;
+      }
+      if(field==='dong'&&total>rows.length){
+        if(!groups.has('동 미확인'))groups.set('동 미확인',{name:'동 미확인',total:0,contacted:0,uncontacted:0,methods:methods(),people:[]});
+        groups.get('동 미확인').total+=total-rows.length;
+      }
+      return [...groups.values()].map(g=>({...g,uncontacted:g.total-g.contacted,rate:g.total?g.contacted/g.total*100:0,today:0})).sort((a,b)=>a.name.localeCompare(b.name,'ko',{numeric:true}));
+    };
+        const allManagers=groupBy('manager'),managers=nonmember?allManagers:allManagers.filter(g=>!['(미지정)','미지정','-'].includes(g.name)||g.contacted>0).map(g=>{
+      if(!['(미지정)','미지정','-'].includes(g.name))return g;
+      const m=methods();for(const p of g.people)if(p.contacted&&m[p.method]!==undefined)m[p.method]++;
+      return {...g,total:0,uncontacted:0,methods:m,people:g.people.filter(p=>p.contacted)};
+    });
+    return {rows,total,contacted,uncontacted:total-contacted,managed,unmanaged:total-managed,managedUncontacted:rows.filter(p=>assigned(p)&&!p.contacted).length,managers,dongs:groupBy('dong'),roles:groupBy('role'),cutoff,nonmember};
+  }
+  function smCanonicalDrill(site,type,d){
+    const c=smCanonicalCohort(site,smRange(),d.cohort==='nonmember'),manager=d.manager?smManagerKey(d.manager):'',dong=d.dong||'',role=d.role||'';
+    const sourceRole=site.roleView?.items?.find(i=>i.name===role)?.source||role;
+    let rows=c.rows.filter(p=>(!manager||p.manager===manager)&&(!dong||(p.dong||'동 미확인')===dong)&&(!role||p.role===sourceRole));
+    if(type.endsWith('_uncontacted'))rows=rows.filter(p=>!p.contacted);
+    else if(type.endsWith('_contacted')||type.endsWith('_rate'))rows=rows.filter(p=>p.contacted);
+    else if(type==='canonical_method')rows=rows.filter(p=>p.method===d.method);
+    const label=d.method|| (type.endsWith('_uncontacted')?'미접촉':type.endsWith('_contacted')||type.endsWith('_rate')?'누계접촉':'전체');
+    let expected=rows.length;
+    if(type==='site_total')expected=c.total;
+    else if(type==='site_uncontacted')expected=c.uncontacted;
+    else if(type==='site_contacted'||type==='site_rate')expected=c.contacted;
+    else if(dong&&type==='dong_total')expected=c.dongs.find(g=>g.name===dong)?.total||rows.length;
+    else if(dong&&type==='dong_uncontacted')expected=c.dongs.find(g=>g.name===dong)?.uncontacted||rows.length;
+    return {title:[manager||dong||role,d.cohort==='nonmember'?'비조합원':'',label].filter(Boolean).join(' · '),sub:expected===rows.length?rows.length+'명':'대상 '+expected+'명 · 명부 확인 '+rows.length+'명',rows};
+  }
 
   function smCompactMethodParts(kind,label,context){
     const types=['상담','단순','TM'],counts=[0,0,0];
@@ -23947,14 +24014,15 @@ ead><body>
   function smApprovedPeriodRows(site,range,mode){
     const effective=mode==='week'||mode==='day'?range:smMonthRangeForCurrent();
     const events=smGraphReportEvents(site).filter(e=>smNewValidDate(e.date)&&smInRangeDate(e.date,effective)&&SM_GRAPH_METHODS.includes(e.method));
-    const map=new Map();
+    const map=new Map(),daily=mode==='week'||mode==='day';
+    const y=Number(effective.start.slice(0,4)),m=Number(effective.start.slice(5,7))-1;
+    const boundaries=daily?[]:smNewContactBins(smNewContactHistory([]),y,m,'week',effective.end);
     const bucketFor=date=>{
-      if(mode==='week'||mode==='day')return {key:date,label:date.slice(5).replace('-','/'),start:date,end:date};
-      const n=smWeekNo(date),start=effective.start.slice(0,8)+String((n-1)*7+1).padStart(2,'0');
-      const last=new Date(Number(date.slice(0,4)),Number(date.slice(5,7)),0).getDate();
-      return {key:String(n),label:n+'주',start,end:effective.start.slice(0,8)+String(Math.min(n*7,last)).padStart(2,'0')};
+      if(daily)return {key:date,label:date.slice(5).replace('-','/'),start:date,end:date};
+      const i=boundaries.findIndex(b=>date>=b.start&&date<=b.end),b=boundaries[i];
+      return {key:String(i+1),label:(i+1)+'주',start:b.start,end:b.end};
     };
-    if(mode!=='week'&&mode!=='day')for(let n=1;n<=Math.ceil(new Date(Number(effective.start.slice(0,4)),Number(effective.start.slice(5,7)),0).getDate()/7);n++){const b=bucketFor(effective.start.slice(0,8)+String((n-1)*7+1).padStart(2,'0'));map.set(b.key,{...b,parts:[0,0,0,0,0,0]});}
+    if(!daily)for(const b of boundaries){const z=bucketFor(b.start);map.set(z.key,{...z,parts:[0,0,0,0,0,0]});}
     for(const e of events){const b=bucketFor(e.date);if(!map.has(b.key))map.set(b.key,{...b,parts:[0,0,0,0,0,0]});map.get(b.key).parts[SM_GRAPH_METHODS.indexOf(e.method)]++;}
     return [...map.values()].sort((a,b)=>a.start.localeCompare(b.start));
   }
@@ -23963,32 +24031,86 @@ ead><body>
     const body=rows.map((r,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(r.label)}</td>${r.parts.map((n,j)=>`<td ${n?smDrillAttr('period_method',{method:SM_GRAPH_METHODS[j],start:r.start,end:r.end,label:r.label}):''}>${n||''}</td>`).join('')}<td ${r.parts.some(Boolean)?smDrillAttr('period_total',{start:r.start,end:r.end,label:r.label}):''}>${r.parts.reduce((a,b)=>a+b,0)||''}</td></tr>`).join('');
     return `<div class="pdf-section pdf-period-card"><div class="pdf-section-title"><span class="section-heading-text">④ ${daily?'일자별':'주별'} 접촉현황</span></div><table class="pdf-table pdf-week"><thead><tr><th>No</th><th>${daily?'일자':'주별'}</th>${SM_GRAPH_METHODS.map(m=>`<th>${m}</th>`).join('')}<th>합계</th></tr></thead><tbody>${body}</tbody></table></div>`;
   }
-  function smApprovedGroupedChart(entries,kind,id){
-    const peak=Math.max(2,...entries.flatMap(r=>r.parts.filter(n=>Number.isFinite(n))));
-    const max=smNewContactScale(peak),height=184,width=Math.max(280,entries.length*96+30),left=25,right=8,top=22,baseline=122,plotHeight=100;
-    const groupWidth=(width-left-right)/Math.max(1,entries.length),barWidth=Math.min(6,groupWidth/10),gap=3;
-    const proxy=(row,col)=>col===null||col===undefined?'':`data-sc-source="${id}" data-sc-row="${row}" data-sc-col="${col}" tabindex="0" role="button"`;
-    const ticks=[0,Math.floor(max/2),max];
+  function smApprovedGroupedChart(entries,kind,id,availableWidth=0,meta={}){
+    const desktop=typeof window!=='undefined'&&typeof window.matchMedia==='function'&&window.matchMedia('(min-width:900px)').matches;
+    const barSize=desktop?12:6;
+    const population=kind!=='week',dong=kind==='dong',labels=population?[kind==='dong'?'전체':'관리',...SM_GRAPH_METHODS,'미접촉']:SM_GRAPH_METHODS;
+    const colors=population?['#a6b7cd',...SM_GRAPH_COLORS,'#cdd7d2']:SM_GRAPH_COLORS;
+    const values=r=>population?[r.total,...r.parts,r.missing]:r.parts;
+    const columns=r=>population?[r.totalCol,...(r.methodCols||Array(6).fill(null)),r.missingCol]:r.methodCols||[];
+    const failStart=population?4:3,failEnd=failStart+3;
+    const failureTotal=r=>r.parts.slice(3,6).reduce((n,v)=>n+(Number(v)||0),0);
+    const peak=Math.max(2,...entries.flatMap(r=>values(r).filter((n,j)=>Number.isFinite(n)&&(!dong||(j!==0&&j!==7)))),...entries.map(r=>failureTotal(r)*1.5));
+    const activeMethods=labels.map((_,j)=>j).filter(j=>dong&&(j===0||j===7)?false:j===failStart?entries.some(r=>failureTotal(r)>0):(j<failStart||j>=failEnd)&&entries.some(r=>Number(values(r)[j])>0));
+    const slotWidth=j=>j===failStart?44:labels[j]==='미접촉'?42:32;
+    const methodGap=Math.max(7,String(peak).length*8-5),groupMin=Math.max(desktop?166:100,activeMethods.reduce((n,j)=>n+slotWidth(j),0)+Math.max(0,activeMethods.length-1)*methodGap+28);
+    const max=smNewContactScale(peak),height=population&&!dong?190:216,width=Math.max(220,entries.length*groupMin+40,Math.min(entries.length*(desktop?180:110)+40,Math.floor(availableWidth))),left=10,right=10,top=18,baseline=108,plotHeight=84;
+    const groupWidth=(width-left-right)/Math.max(1,entries.length),barWidth=barSize,gap=methodGap;
+    const proxy=(row,col,method='')=>(col===null||col===undefined)&&!method?'':`data-sc-source="${id}" data-sc-row="${row}" data-sc-col="${col??''}" data-sc-method="${escapeHtml(method)}" tabindex="0" role="button"`;
+    const ticks=[...new Set([0,Math.floor(max/2),max])];
     const grid=ticks.map(n=>{const y=baseline-n/max*plotHeight;return `<line x1="${left}" y1="${y}" x2="${width-right}" y2="${y}" class="sc-v-grid"/><text x="${left-6}" y="${y+3}" text-anchor="end" class="sc-v-axis">${n}</text>`;}).join('');
     const groups=entries.map((r,i)=>{
-      const center=left+(i+.5)*groupWidth,span=6*barWidth+5*gap,x0=center-span/2;
-      const bars=r.parts.map((n,j)=>{
+      const center=left+(i+.5)*groupWidth,slot=slotWidth,span=activeMethods.reduce((n,j)=>n+slot(j),0)+Math.max(0,activeMethods.length-1)*gap,x0=center-span/2;
+      const barX=j=>x0+activeMethods.slice(0,activeMethods.indexOf(j)).reduce((n,k)=>n+slot(k)+gap,0)+(slot(j)-barWidth)/2;
+      const bars=values(r).map((n,j)=>{
+        if(dong&&(j===0||j===7))return '';
+        if(j>=failStart&&j<failEnd){
+          if(j!==failStart||!failureTotal(r))return '';
+          const x=barX(j),parts=r.parts.slice(3,6),sum=failureTotal(r),h=Math.max(2,sum/max*plotHeight),y=baseline-h;
+          let offset=0;
+          const segments=parts.map((v,k)=>{if(!(v>0))return '';const sh=v/sum*h,sy=baseline-offset-sh;offset+=sh;return `<g ${proxy(r.row,(r.methodCols||[])[k+3],SM_GRAPH_METHODS[k+3])} class="sc-v-datum"><title>${escapeHtml(r.label)} · ${SM_GRAPH_METHODS[k+3]} ${v}</title><rect x="${x}" y="${sy}" width="${barWidth}" height="${sh}" fill="${SM_GRAPH_COLORS[k+3]}"/></g>`;}).join('');
+          const visible=parts.map((v,k)=>({v,k})).filter(z=>z.v>0);
+          const captions=visible.map((z,k)=>`<text ${proxy(r.row,(r.methodCols||[])[z.k+3],SM_GRAPH_METHODS[z.k+3])} x="${x+barWidth/2}" y="${y-7-(visible.length-1-k)*12}" text-anchor="middle" class="sc-v-value sc-failure-label" style="fill:${SM_GRAPH_COLORS[z.k+3]}">${SM_GRAPH_METHODS[z.k+3]}${z.v}</text>`).join('');
+          const below=visible.map((z,k)=>`<text x="${x+barWidth/2}" y="${124+k*11}" text-anchor="middle" class="sc-bar-label" style="fill:${SM_GRAPH_COLORS[z.k+3]}">${SM_GRAPH_METHODS[z.k+3]}</text>`).join('');
+          const clip=id+'-failure-'+i;
+          return `<g class="sc-failure-stack"><defs><clipPath id="${clip}"><rect x="${x}" y="${y}" width="${barWidth}" height="${h}" rx="${Math.min(barWidth/2,h/2)}"/></clipPath></defs><g clip-path="url(#${clip})">${segments}</g>${captions}${below}</g>`;
+        }
         if(!Number.isFinite(n)||n<=0)return '';
-        const h=n/max*plotHeight,y=baseline-h,x=x0+j*(barWidth+gap),radius=Math.min(barWidth/2,h/2);
+        const h=Math.max(2,n/max*plotHeight),y=baseline-h,x=barX(j),radius=Math.min(barWidth/2,h/2);
         const d=`M${x} ${baseline}V${y+radius}Q${x} ${y} ${x+radius} ${y}H${x+barWidth-radius}Q${x+barWidth} ${y} ${x+barWidth} ${y+radius}V${baseline}Z`;
-        return `<g ${proxy(r.row,r.methodCols?.[j])} class="sc-v-datum"><title>${escapeHtml(r.label)} · ${SM_GRAPH_METHODS[j]} ${n}${kind==='week'?'건':'명'}</title><path d="${d}" fill="${SM_GRAPH_COLORS[j]}"/><text x="${x+barWidth/2}" y="${y-5}" text-anchor="middle" class="sc-v-value">${n}</text></g>`;
+        return `<g ${proxy(r.row,columns(r)[j],labels[j])} class="sc-v-datum"><title>${escapeHtml(r.label)} · ${labels[j]} ${n}${kind==='week'?'건':'명'}</title><path d="${d}" fill="${colors[j]}"/><text x="${x+barWidth/2}" y="${y-5}" text-anchor="middle" class="sc-v-value">${n}</text><text x="${x+barWidth/2}" y="124" text-anchor="middle" class="sc-bar-label">${labels[j]}</text></g>`;
       }).join('');
-      const name=escapeHtml(r.label)+(kind==='dong'&&!/동$/.test(r.label)?'동':'');
+      const name=escapeHtml(r.label)+(kind==='dong'&&/^\d+$/.test(r.label)?'동':'');
       let info='';
-      if(kind==='week')info=r.value>0?`<text x="${center}" y="165" text-anchor="middle" class="sc-v-meta" ${proxy(r.row,r.col)}>합계 ${r.value}건</text>`:'';
-      else{
-        if(r.total>0)info+=`<text x="${center}" y="162" text-anchor="middle" class="sc-v-meta" ${proxy(r.row,r.totalCol)}>${kind==='dong'?'전체':'관리'} ${r.total}명</text>`;
-        if(r.missing>0)info+=`<text x="${center}" y="176" text-anchor="middle" class="sc-v-meta" ${proxy(r.row,r.missingCol)}>미접촉 ${r.missing}명</text>`;
-      }
-      return `<g class="sc-v-entity">${bars}<text x="${center}" y="145" text-anchor="middle" class="sc-v-name" ${proxy(r.row,r.totalCol??r.col)}>${name}</text>${info}</g>`;
+      if(dong)info=`<text x="${center}" y="190" text-anchor="middle" class="sc-v-meta"><tspan ${proxy(r.row,r.totalCol,'전체')}>전체 ${r.total}명</tspan>${r.missing>0?`<tspan ${proxy(r.row,r.missingCol,'미접촉')}> · 미접촉 ${r.missing}명</tspan>`:''}</text>`;
+      if(kind==='week')info=r.value>0?`<text x="${center}" y="190" text-anchor="middle" class="sc-v-meta" ${proxy(r.row,r.col)}>합계 ${r.value}건</text>`:'';
+      const groupLeft=left+i*groupWidth,band=i%2===0?'#f2f7f4':'#ffffff';
+      const separation=`<rect x="${groupLeft+3}" y="8" width="${groupWidth-6}" height="${height-16}" fill="${band}" class="sc-group-band" pointer-events="none"/>${i>0?`<line x1="${groupLeft}" x2="${groupLeft}" y1="16" y2="${height-12}" stroke="#d5e3dc" stroke-width="1" class="sc-group-separator" pointer-events="none"/>`:""}`;
+      return `<g class="sc-v-entity" data-sc-entry="${i}">${separation}${bars}<text x="${center}" y="166" text-anchor="middle" class="sc-v-name" ${proxy(r.row,r.totalCol??r.col)}>${name}${desktop&&kind!=='week'&&r.value>0?`<tspan class="sc-v-entity-contact" ${proxy(r.row,r.col)}> · 접촉 ${r.value}명</tspan>`:''}</text>${info}</g>`;
     }).join('');
-    const chart=`<div class="sc-v-scroll" tabindex="0" role="region" aria-label="${kind==='dong'?'동별':kind==='week'?'기간별':'담당별'} 접촉방법 비교"><svg xmlns="http://www.w3.org/2000/svg" class="sc-grouped-svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" style="width:${width}px" preserveAspectRatio="none">${grid}<line x1="${left}" y1="${baseline}" x2="${width-right}" y2="${baseline}" class="sc-v-baseline"/>${groups}</svg></div>`;
+    const sum=fn=>entries.reduce((n,r)=>n+(Number(fn(r))||0),0),unit=kind==='week'?'건':'명';
+    const total=sum(r=>r.total),contacted=sum(r=>r.value),missing=sum(r=>r.missing);
+    const metric=(label,n)=>n>0?`<span>${label} <strong>${n.toLocaleString('ko-KR')}<small>${unit}</small></strong></span>`:'';
+    const c=meta.cohort;
+    const overall=c&&kind==='manager'?metric('전체',c.total)+metric('관리',c.managed)+metric('접촉',c.contacted)+metric('관리 미접촉',c.managedUncontacted)+metric('미관리',c.unmanaged):kind==='week'?metric('활동',contacted)+(meta.periodPeople>0?`<span>접촉 인원 <strong>${meta.periodPeople}<small>명</small></strong></span>`:''):metric('전체',total)+metric('접촉',contacted)+metric('미접촉',missing);
+    const summary=kind==='manager'?'':`<div class="sc-panel-summary" aria-label="전체 합계">${overall}</div>`;
+    const legend=`<div class="sc-method-legend" aria-label="접촉방법 색상과 합계">${labels.map((m,j)=>{if(dong&&(j===0||j===7))return '';const n=sum(r=>values(r)[j]);return `<span><i style="background:${colors[j]}"></i>${m}</span>`}).join('')}</div>`;
+    const chart=summary+legend+`<div class="sc-v-scroll" tabindex="0" role="region" aria-label="${kind==='dong'?'동별':kind==='week'?'기간별':'담당별'} 접촉방법 비교"><svg xmlns="http://www.w3.org/2000/svg" class="sc-grouped-svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" style="width:${width}px" preserveAspectRatio="xMinYMin meet">${grid}<line x1="${left}" y1="${baseline}" x2="${width-right}" y2="${baseline}" class="sc-v-baseline"/>${groups}</svg></div>`;
     return chart;
+  }
+  function smApprovedContactTable(entries,kind,id,availableWidth=0,meta={}){
+    const period=kind==='week',dong=kind==='dong';
+    const headings=period?['일자 / 주차',...SM_GRAPH_METHODS,'합계']:[dong?'동':'담당',dong?'전체':'관리','접촉',...SM_GRAPH_METHODS,'미접촉','접촉률'];
+    const cell=(r,n,col,method='',text='')=>{const link=n>0?` data-sc-source="${id}" data-sc-row="${r.row}" data-sc-col="${col??''}" data-sc-method="${escapeHtml(method)}" tabindex="0" role="button"`:'';return `<td${link}>${text||n||''}</td>`;};
+    if(dong){
+      const headers=['동','전체','접촉','상담','단순','TM'];
+      const half=Math.ceil(entries.length/2);
+      const row=(r,i)=>`<tr class="sc-v-entity" data-sc-entry="${i}"><th scope="row">${escapeHtml(r.label)}${/^\d+$/.test(r.label)?'동':''}</th>${cell(r,r.total,r.totalCol,'전체')}${cell(r,r.value,r.col)}${SM_GRAPH_METHODS.slice(0,3).map((m,j)=>cell(r,Number(r.parts?.[j])||0,r.methodCols?.[j],m)).join('')}</tr>`;
+      const table=(part,start)=>`<div class="sc-table-scroll"><table class="sc-readable-table sc-dong-compact"><thead><tr>${headers.map(h=>`<th scope="col">${h}</th>`).join('')}</tr></thead><tbody>${part.map((r,i)=>row(r,start+i)).join('')}</tbody></table></div>`;
+      const sums=[entries.reduce((n,r)=>n+r.total,0),entries.reduce((n,r)=>n+r.value,0),...Array.from({length:3},(_,j)=>entries.reduce((n,r)=>n+(Number(r.parts?.[j])||0),0))];
+      return `<div class="sc-dong-two-columns">${table(entries.slice(0,half),0)}${entries.length>half?table(entries.slice(half),half):''}<div class="sc-dong-totals"><strong>합계</strong>${headers.slice(1).map((h,j)=>`<span>${h} <b>${sums[j]?sums[j].toLocaleString('ko-KR'):''}</b></span>`).join('')}</div></div>`;
+    }
+    const rows=entries.map((r,i)=>{
+      const name=escapeHtml(r.label)+(dong&&/^\d+$/.test(r.label)?'동':'');
+      const methods=SM_GRAPH_METHODS.map((m,j)=>cell(r,Number(r.parts?.[j])||0,r.methodCols?.[j],m)).join('');
+      const data=period?methods+cell(r,r.value,r.col):cell(r,r.total,r.totalCol,dong?'전체':'관리')+cell(r,r.value,r.col)+methods+cell(r,r.missing,r.missingCol,'미접촉')+`<td>${r.total>0?String(Math.round(r.value/r.total*1000)/10)+'%':''}</td>`;
+      return `<tr class="sc-v-entity" data-sc-entry="${i}"><th scope="row">${name}</th>${data}</tr>`;
+    }).join('');
+    const sum=fn=>entries.reduce((n,r)=>n+(Number(fn(r))||0),0),total=sum(r=>r.total),contact=sum(r=>r.value),missing=sum(r=>r.missing);
+    const n=v=>v?v.toLocaleString('ko-KR'):'';
+    const methodTotals=SM_GRAPH_METHODS.map((_,j)=>`<td>${n(sum(r=>r.parts?.[j]))}</td>`).join('');
+    const totals=period?methodTotals+`<td>${n(contact)}</td>`:`<td>${n(total)}</td><td>${n(contact)}</td>${methodTotals}<td>${n(missing)}</td><td>${total>0&&contact<=total?String(Math.round(contact/total*1000)/10)+'%':''}</td>`;
+    return `<div class="sc-table-scroll"><table class="sc-readable-table"><thead><tr>${headings.map(h=>`<th scope="col">${h}</th>`).join('')}</tr></thead><tbody>${rows}</tbody><tfoot><tr><th scope="row">합계</th>${totals}</tr></tfoot></table></div>`;
   }
   function smCompactContactGraphs(root,context={}){
     const specs=[['table.pdf-manager','manager'],['table.rf-nonmember-summary-table-v69','nonmember'],['table.pdf-dong','dong'],['table.pdf-week','week']];
@@ -24005,18 +24127,70 @@ ead><body>
         if(kind==='week'&&(c.length===9||c.length===6))entries.push({label:c[1].textContent.trim(),value:number(c[c.length-1]),parts:(c.length===9?[2,3,4,5,6,7]:[2,3,4]).map(i=>number(c[i])).concat(c.length===6?[null,null,null]:[]),methodCols:c.length===9?[2,3,4,5,6,7]:[2,3,4],col:c.length-1,row:ri});
       });
       if(!entries.length){delete table.dataset.scConverted;continue;}
+      if(kind==='manager'||kind==='nonmember'){const unassigned=s=>['미지정','미배정','담당미지정','담당자미지정','없음','-',''].includes(String(s||'').replace(/[()\[\]\s]/g,''));entries.sort((a,b)=>Number(unassigned(a.label))-Number(unassigned(b.label)));}
       if(kind==='dong')entries.sort((a,b)=>a.label.localeCompare(b.label,'ko',{numeric:true}));
+      let canonical=null;
+      if(context.cohort&&kind!=='week'){
+        canonical=kind==='nonmember'?smCanonicalCohort(context.site,context.selectedRange||smRange(),true):context.cohort;
+        const groups=kind==='dong'?canonical.dongs:canonical.managers;
+        for(const entry of entries){const g=groups.find(g=>kind==='dong'?g.name===entry.label:smManagerKey(g.name)===smManagerKey(entry.label));if(g)Object.assign(entry,{total:g.total,value:g.contacted,missing:g.uncontacted,parts:SM_GRAPH_METHODS.map(m=>g.methods[m]||0)});}
+        table.dataset.scCanonical=kind==='nonmember'?'nonmember':'owner';table.dataset.scKind=kind;
+        table.closest('.rf-nonmember')?.setAttribute('data-sc-canonical','nonmember');
+      }
       for(const entry of entries)if(!entry.parts)entry.parts=[...smCompactMethodParts(kind,entry.label,context),...smCompactFailureParts(kind,entry.label,context)];
       const chart=document.createElement('div');chart.className='sc-contact-graph sc-approved-vertical sc-'+kind;
-      chart.innerHTML=smApprovedGroupedChart(entries,kind,id);
-      table.parentNode.insertBefore(chart,table);table.classList.add('sc-original-table');
-      table.closest('.pdf-section,.rf-nonmember')?.classList.add('sc-approved-card');
+      let periodPeople=0;
+      if(kind==='week'&&context.cohort){const selected=siteMgmtPeriod==='all'?smMonthRangeForCurrent():context.selectedRange||context.range;if(selected)periodPeople=smNewContactCount(smNewContactSnapshot(context.site,selected).history,selected.start,selected.end).total;}
+      chart.__scMeta={cohort:canonical,periodPeople};chart.innerHTML=smApprovedContactTable(entries,kind,id,0,chart.__scMeta);
+      const card=table.closest('.pdf-section,.rf-nonmember');
+      if(card){let anchor=table;while(anchor.parentNode!==card)anchor=anchor.parentNode;card.insertBefore(chart,anchor);card.classList.add('sc-approved-card');}
+      else table.parentNode.insertBefore(chart,table);
+      table.classList.add('sc-original-table');
+      chart.__scEntries=entries;chart.__scKind=kind;chart.__scId=id;
+
+    }
+    // Match the viewBox to the rendered pixel width: text and bars never stretch.
+    if(root.__scResizeObserver)root.__scResizeObserver.disconnect();
+    const fit=chart=>{
+      const w=Math.floor(chart.getBoundingClientRect?.().width||0);
+      if(w>0&&w!==chart.__scFitWidth){chart.__scFitWidth=w;chart.innerHTML=smApprovedContactTable(chart.__scEntries,chart.__scKind,chart.__scId,w,chart.__scMeta);}
+    };
+    const charts=[...root.querySelectorAll('.sc-approved-vertical')];charts.forEach(fit);
+    const alignPlots=()=>{
+      const manager=root.querySelector('.sc-manager'),nc=root.querySelector('.nc-section'),track=nc?.querySelector('.nc-bar-track'),svg=manager?.querySelector('svg');
+      if(!manager||!track||!svg)return;
+      const desktop=typeof window.matchMedia==='function'&&window.matchMedia('(min-width:900px)').matches;
+      const paired=desktop&&Math.abs(nc.getBoundingClientRect().top-manager.closest('.pdf-section').getBoundingClientRect().top)<4;
+      const old=parseFloat(manager.style.getPropertyValue('--sc-plot-offset'))||0;
+      const naturalBaseline=svg.getBoundingClientRect().top+108-old;
+      const offset=paired?Math.max(0,Math.round(track.getBoundingClientRect().bottom-naturalBaseline)):0;
+      if(offset!==old)manager.style.setProperty('--sc-plot-offset',offset+'px');
+    };
+    if(typeof window.requestAnimationFrame==='function')window.requestAnimationFrame(alignPlots);
+    if(typeof ResizeObserver!=='undefined'){
+      root.__scResizeObserver=new ResizeObserver(items=>{items.forEach(item=>{if(item.target.__scEntries)fit(item.target)});alignPlots();});
+      charts.forEach(chart=>root.__scResizeObserver.observe(chart));
+      root.querySelectorAll('.nc-section,.nc-chart').forEach(n=>root.__scResizeObserver.observe(n));
     }
   }
   function smApprovedProxyClick(e){
     if(e.type==='keydown'&&!['Enter',' '].includes(e.key))return;
+    const nm=e.target.closest('.rf-nonmember[data-sc-canonical]');
+    if(nm&&e.target.closest('.pdf-section-title')&&typeof window.__smOpenDrill==='function'){
+      const el=document.createElement('button');Object.assign(el.dataset,{basis:'cohort',cohort:'nonmember',drill:'nonmember_total'});e.preventDefault();e.stopImmediatePropagation();window.__smOpenDrill(el);return;
+    }
     const b=e.target.closest('[data-sc-source]');if(!b)return;
     const root=document.getElementById('globalStatsBody'),table=[...root.querySelectorAll('[data-sc-converted]')].find(t=>t.dataset.scConverted===b.dataset.scSource);
+    if(table?.dataset.scCanonical&&typeof window.__smOpenDrill==='function'){
+      const chart=root.querySelector('.'+('sc-'+table.dataset.scKind)),entry=chart?.__scEntries?.[Number(b.closest('.sc-v-entity')?.dataset.scEntry)];
+      if(entry){
+        const m=b.dataset.scMethod||'',col=Number(b.dataset.scCol),suffix=['관리','전체'].includes(m)||(!m&&col===entry.totalCol)?'total':m==='미접촉'||(!m&&col===entry.missingCol)?'uncontacted':'contacted';
+        const prefix=table.dataset.scKind==='nonmember'?'nonmember':table.dataset.scKind==='dong'?'dong':'manager';
+        const el=document.createElement('button');Object.assign(el.dataset,{basis:'cohort',cohort:table.dataset.scCanonical,drill:m&&SM_GRAPH_METHODS.includes(m)?'canonical_method':prefix+'_'+suffix});
+        el.dataset[prefix==='dong'?'dong':'manager']=entry.label;if(SM_GRAPH_METHODS.includes(m))el.dataset.method=m;
+        e.preventDefault();e.stopImmediatePropagation();window.__smOpenDrill(el);return;
+      }
+    }
     const cell=table?.querySelectorAll('tbody tr')[Number(b.dataset.scRow)]?.children[Number(b.dataset.scCol)];
     if(cell){e.preventDefault();e.stopImmediatePropagation();cell.click();}
   }
@@ -24027,7 +24201,7 @@ ead><body>
     const body=document.getElementById('globalStatsBody');if(!body)return;
     const pick=smSelected();if(!pick){body.innerHTML='<div class="pdfsheet"><div class="pdf-empty">표시할 현장이 없습니다.</div></div>';return;}
     const{site,office}=pick,range=smRange(),x=smStats(site),periodMode=siteMgmtPeriod!=='all',events=periodMode?smEvents(site,range):smEvents(site,{start:'0000-01-01',end:'9999-12-31'});
-    const metrics=smNewContactSnapshot(site,range).metrics,mr=smManagerRows(x,smGraphManagerEvents(site,periodMode?range:null),periodMode),roles=bfRoleRows(site,smRoleRows(site,x,events,periodMode)),dongs=smDongRows(site,x,events,periodMode);
+    const cohort=smCanonicalCohort(site,range),metrics={total:cohort.total,contacted:cohort.contacted,uncontacted:cohort.uncontacted,rate:cohort.total?cohort.contacted/cohort.total*100:0},mr={rows:cohort.managers,unassigned:0},roles=bfRoleRows(site,cohort.roles),dongs=cohort.dongs;
     const now=siteMgmtDate,dayNames=['일','월','화','수','목','금','토'];
     const titleDate=siteMgmtPeriod==='day'?`${now.getFullYear()}년 ${now.getMonth()+1}월 ${now.getDate()}일 ${dayNames[now.getDay()]}요일`:range.label;
     const lbl=document.getElementById('siteMgmtPeriodLabel');if(lbl){lbl.textContent=mobileStatsPeriodLabel(range.label);lbl.title=range.label;}
@@ -24062,25 +24236,23 @@ ead><body>
     body.innerHTML=`<div class="pdfsheet">
       <div class="pdf-titlebar"><span>▣ ${escapeHtml(site.name)} 접촉현황</span><small>${escapeHtml(titleDate)}</small></div>
       <div class="pdf-summary">
-        <div class="pdf-summary-cell sm-drill" data-drill="site_total"><div class="h">소유주</div><div class="n">${metrics.total}명</div></div>
-        <div class="pdf-summary-cell sm-drill" data-drill="site_contacted" data-basis="cumulative"><div class="h">누계접촉</div><div class="n">${metrics.contacted}명</div></div>
-        <div class="pdf-summary-cell sm-drill" data-drill="site_uncontacted" data-basis="cumulative"><div class="h">미접촉</div><div class="n">${metrics.uncontacted}명</div></div>
-        <div class="pdf-summary-cell sm-drill" data-drill="site_rate" data-basis="cumulative"><div class="h">접촉률</div><div class="n">${metrics.rate.toFixed(1)}%</div></div>
+        <div class="pdf-summary-cell sm-drill" data-drill="site_total" data-basis="cohort"><div class="h">소유주</div><div class="n">${metrics.total}명</div></div>
+        <div class="pdf-summary-cell sm-drill" data-drill="site_contacted" data-basis="cohort"><div class="h">누계접촉</div><div class="n">${metrics.contacted}명</div></div>
+        <div class="pdf-summary-cell sm-drill" data-drill="site_uncontacted" data-basis="cohort"><div class="h">미접촉</div><div class="n">${metrics.uncontacted}명</div></div>
+        <div class="pdf-summary-cell sm-drill" data-drill="site_rate" data-basis="cohort"><div class="h">접촉률</div><div class="n">${metrics.rate.toFixed(1)}%</div></div>
       </div>
-      ${smNewContactSection(site,range)}
       ${smApprovedGraphHeading(site,range)}
-      <div class="pdf-manager-row">${managerTable}</div>${rfNonMemberBlock(site,periodMode?range:null)}
-      <div class="pdf-middle-grid">
+      <div class="sc-analysis-grid">
+        ${smNewContactSection(site,range)}
+        <div class="pdf-manager-row">${managerTable}</div>
+        ${rfNonMemberBlock(site,null)}
         ${roleTable}
         <div class="pdf-section pdf-dong-card"><div class="pdf-section-title"><span class="section-heading-text">③ 동별 접촉현황</span></div>${smDongSection(dongs)}</div>
-      </div>
-      <div class="pdf-bottom-grid">
         ${smTrendSection(site,range)}
         ${smIssuesSection(site,range)}
       </div>
-      ${siteMgmtPeriod==='day'?'':smCharts(site,x,events,periodMode,mr.rows)}
       ${smTodaySection(site,periodMode?events:smEvents(site,smMonthRangeForCurrent()),periodMode)}
-    </div>`;    smCompactContactGraphs(body,{site,stats:x,events,range:periodMode?range:null});
+    </div>`;    smCompactContactGraphs(body,{site,stats:x,events,range:periodMode?range:null,selectedRange:range,cohort});body.querySelectorAll('.pdf-role [data-drill],.mobile-role-card [data-drill]').forEach(el=>el.dataset.basis='cohort');
   }
 
   const smDrillBodyRoot=document.getElementById('globalStatsBody');
@@ -24757,7 +24929,7 @@ function rfNonMemberBlock(site,range,manager){
    </tr>`).join('');
 
  return `<section class="rf-nonmember rf-nonmember-v69 rf-nm-direct-v122" data-rf-nm-range="${range?'1':'0'}">
-   <h3 class="rf-nm-open-zone-v122 pdf-section-title"><span class="section-heading-text">1-1 비조합원 접촉현황</span><span class="rf-nm-open-hint-v122">명단 보기 ›</span></h3>
+   <h3 class="rf-nm-open-zone-v122 pdf-section-title"><span class="section-heading-text"><span class="sc-nonmember-symbol" aria-hidden="true">비</span> 비조합원 접촉현황</span><span class="rf-nm-open-hint-v122">명단 보기 ›</span></h3>
    <div class="ux-scroll rf-nm-open-zone-v122">
      <table class="rf-nonmember-summary-table-v69">
        <thead><tr><th>담당자</th><th>대상</th><th>접촉</th><th>미접촉</th><th>접촉률</th><th>${range?'기간':'이력'} 접촉건수</th></tr></thead>
@@ -33344,7 +33516,7 @@ body.ux383.theme-dark .rf-nonmember-note-body-v69{
 
       return `
         <section class="rf-nonmember rf-nonmember-v69 rf-nm-direct-v122" data-rf-nm-range="${range?'1':'0'}">
-          <h3 class="rf-nm-open-zone-v122 pdf-section-title"><button type="button" class="rf-nm-title-btn-v121" data-nm-mode="total"><span class="section-heading-text">1-1 비조합원 접촉현황</span><span class="rf-nm-open-hint-v122">명단 보기 ›</span></button></h3>
+          <h3 class="rf-nm-open-zone-v122 pdf-section-title"><button type="button" class="rf-nm-title-btn-v121" data-nm-mode="total"><span class="section-heading-text"><span class="sc-nonmember-symbol" aria-hidden="true">비</span> 비조합원 접촉현황</span><span class="rf-nm-open-hint-v122">명단 보기 ›</span></button></h3>
 
           <div class="ux-scroll rf-nonmember-summary-scroll-v69 rf-nm-open-zone-v122">
             <table class="rf-nonmember-summary-table-v69">
@@ -40494,4 +40666,238 @@ body.ux383 #globalStatsBody .sc-grouped-svg .sc-v-meta{font-size:8.5px!important
 body.ux383 #globalStatsBody .sc-grouped-svg [data-sc-source]{cursor:pointer!important}
 body.ux383 #globalStatsBody .sc-grouped-svg [data-sc-source]:focus{outline:1px solid var(--accent,#31866b)!important;outline-offset:2px!important}
 body.ux383 #globalStatsBody .sc-approved-card .sc-original-table{display:none!important}
+</style>
+
+<style id="approved-responsive-graphs-20261015">
+/* Pixel-matched SVG sizing; grouped graphs keep their text proportions. */
+body.ux383 #globalStatsBody .sc-approved-people-grid{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:14px!important;margin:0 0 14px!important}
+body.ux383 #globalStatsBody .sc-approved-people-grid>.pdf-manager-row{margin:0!important;min-width:0!important}
+body.ux383 #globalStatsBody .sc-approved-people-grid .sc-approved-card{margin:0!important;height:100%!important;box-sizing:border-box!important}
+body.ux383 #globalStatsBody .sc-approved-card{min-width:0!important;padding:16px!important}
+body.ux383 #globalStatsBody .sc-approved-card>.ux-scroll:has(>.sc-original-table){display:none!important}
+body.ux383 #globalStatsBody .sc-approved-card .sc-contact-graph.sc-approved-vertical{width:100%!important;max-width:760px!important;margin:4px auto 0!important;float:none!important;min-width:0!important}
+body.ux383 #globalStatsBody svg.sc-grouped-svg{min-width:0!important;max-width:none!important;height:214px!important;margin:0 auto!important;flex:none!important}
+body.ux383 #globalStatsBody .sc-grouped-svg .sc-v-axis{font-size:10px!important}
+body.ux383 #globalStatsBody .sc-grouped-svg .sc-v-value{font-size:11px!important}
+body.ux383 #globalStatsBody .sc-grouped-svg .sc-v-name{font-size:12px!important}
+body.ux383 #globalStatsBody .sc-grouped-svg .sc-v-meta{font-size:10.5px!important}
+body.ux383 #globalStatsBody .sc-approved-context-main{justify-content:flex-start!important;gap:12px!important}
+body.ux383 #globalStatsBody .sc-approved-context-main>strong{font-size:14px!important}
+body.ux383 #globalStatsBody .sc-approved-context-main small{font-size:12px!important}
+body.ux383 #globalStatsBody .sc-approved-legend>span{font-size:12px!important}
+body.ux383 #globalStatsBody .sc-approved-legend-fail{justify-content:flex-start!important}
+body.ux383 #globalStatsBody .nc-section .nc-chart,body.ux383 #globalStatsBody .nc-section .nc-axis{max-width:700px!important;margin-left:auto!important;margin-right:auto!important}
+body.ux383 #globalStatsBody .nc-section .nc-bar-track{height:72px!important;width:10px!important;border-radius:4px 4px 0 0!important;overflow:hidden!important}
+body.ux383 #globalStatsBody .nc-section .nc-kpis{max-width:700px!important;margin-left:auto!important;margin-right:auto!important}
+body.ux383 #globalStatsBody .nc-section .nc-toolbar{max-width:700px!important;margin-left:auto!important;margin-right:auto!important}
+@media(min-width:900px){
+ body.ux383 #globalStatsBody .sc-approved-people-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;align-items:stretch!important}
+ body.ux383 #globalStatsBody .sc-approved-people-grid>.pdf-manager-row:only-child{grid-column:1/-1!important}
+ body.ux383 #globalStatsBody .nc-section .nc-names{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+}
+@media(max-width:480px){
+ body.ux383 #globalStatsBody .sc-approved-card{padding:12px!important}
+ body.ux383 #globalStatsBody .sc-approved-context-main>strong{font-size:12px!important}
+ body.ux383 #globalStatsBody .sc-approved-context-main small,body.ux383 #globalStatsBody .sc-approved-legend>span{font-size:10px!important}
+ body.ux383 #globalStatsBody .nc-section .nc-bar-track{height:58px!important;width:9px!important}
+}
+
+
+body.ux383 #globalStatsBody .sc-approved-context{display:flex!important;align-items:center!important;gap:8px 12px!important;flex-wrap:wrap!important}
+body.ux383 #globalStatsBody .sc-approved-context-main{display:contents!important}
+body.ux383 #globalStatsBody .sc-approved-legend-fail{margin-top:0!important}
+</style>
+
+<style id="compact-uniform-contact-graphs-20261015">
+/* Uniform compact charts and summary figures. */
+body.ux383 #globalStatsBody .sc-analysis-grid{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:12px!important;align-items:start!important}
+body.ux383 #globalStatsBody .sc-analysis-grid>*{min-width:0!important;margin:0!important;box-sizing:border-box!important}
+body.ux383 #globalStatsBody .sc-analysis-grid .pdf-manager-row{margin:0!important}
+body.ux383 #globalStatsBody .sc-analysis-grid .sc-approved-card{padding:12px!important;margin:0!important;height:auto!important;min-height:0!important}
+body.ux383 #globalStatsBody .sc-approved-card .pdf-section-title{padding-bottom:4px!important;margin:0!important}
+body.ux383 #globalStatsBody .sc-approved-card .sc-approved-vertical{margin:0!important;max-width:100%!important}
+body.ux383 #globalStatsBody svg.sc-grouped-svg{height:178px!important;margin:0!important}
+body.ux383 #globalStatsBody .sc-v-scroll{padding-bottom:2px!important}
+body.ux383 #globalStatsBody .nc-section{padding:12px!important;margin:10px 0!important}
+body.ux383 #globalStatsBody .nc-section .nc-kpis{display:flex!important;gap:0!important;justify-content:flex-start!important;max-width:none!important;margin:8px 0!important}
+body.ux383 #globalStatsBody .nc-section .nc-kpis>div{display:flex!important;align-items:center!important;gap:7px!important;background:transparent!important;border:0!important;border-right:1px solid var(--line,#d8e3e7)!important;border-radius:0!important;padding:0 12px!important;min-height:26px!important;font-size:12px!important;text-align:left!important}
+body.ux383 #globalStatsBody .nc-section .nc-kpis>div:first-child{padding-left:0!important}
+body.ux383 #globalStatsBody .nc-section .nc-kpis>div:last-child{border-right:0!important}
+body.ux383 #globalStatsBody .nc-section .nc-kpis strong{font-size:16px!important;line-height:1.3!important;white-space:nowrap!important}
+body.ux383 #globalStatsBody .nc-section .nc-kpis small{font-size:10px!important;margin-left:2px!important}
+body.ux383 #globalStatsBody .nc-section .nc-chart,body.ux383 #globalStatsBody .nc-section .nc-toolbar,body.ux383 #globalStatsBody .nc-section .nc-axis{max-width:600px!important;margin-left:0!important;margin-right:0!important}
+body.ux383 #globalStatsBody .nc-section .nc-bar-track{height:84px!important;width:6px!important;border-radius:3px 3px 0 0!important}
+body.ux383 #globalStatsBody .nc-section .nc-list{margin-top:8px!important;padding-top:8px!important}
+body.ux383 #globalStatsBody .nc-section .nc-list:not([open])>[data-nc-list-body]{display:none!important}
+@media(min-width:900px){
+ body.ux383 #globalStatsBody .sc-analysis-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ body.ux383 #globalStatsBody .nc-section .nc-names{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+@media(max-width:480px){
+ body.ux383 #globalStatsBody .nc-section .nc-kpis>div{font-size:11px!important;padding:0 8px!important;gap:4px!important}
+ body.ux383 #globalStatsBody .nc-section .nc-kpis strong{font-size:15px!important}
+}
+
+body.ux383 #globalStatsBody .sc-analysis-grid>.nc-section{margin:0!important;min-width:0!important}
+body.ux383 #globalStatsBody .sc-analysis-grid .nc-list{max-height:160px!important;overflow:auto!important}
+
+
+body.ux383 #globalStatsBody svg.sc-grouped-svg{margin:0 auto!important}
+body.ux383 #globalStatsBody .nc-section .nc-fresh{background:#31866b!important;border-radius:3px 3px 0 0!important}
+body.ux383 #globalStatsBody .nc-section .nc-return{border-radius:0!important}
+body.ux383 #globalStatsBody .nc-section .nc-fresh[style="height:0%"]+.nc-return{border-radius:3px 3px 0 0!important}
+</style>
+
+<style id="desktop-contact-polish-20261015">
+/* One header treatment across every contact-analysis panel. */
+body.ux383 #globalStatsBody .sc-analysis-grid>.pdf-section,body.ux383 #globalStatsBody .sc-analysis-grid>.rf-nonmember,body.ux383 #globalStatsBody .sc-analysis-grid>.nc-section,body.ux383 #globalStatsBody .sc-analysis-grid>.pdf-manager-row>.pdf-section{padding:12px!important;border:1px solid var(--line,#d8e6df)!important;border-radius:14px!important;background:var(--card,#fff)!important;box-sizing:border-box!important}
+body.ux383 #globalStatsBody .sc-analysis-grid .pdf-section-title,body.ux383 #globalStatsBody .sc-analysis-grid .nc-heading{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important;min-height:40px!important;height:auto!important;box-sizing:border-box!important;padding:8px 10px!important;margin:0 0 10px!important;background:var(--bg,#eef5f1)!important;border:0!important;border-radius:6px!important;box-shadow:none!important;color:var(--text,#173e32)!important;font-size:13px!important;font-weight:600!important;line-height:1.4!important}
+body.ux383 #globalStatsBody .sc-analysis-grid .pdf-section-title::before,body.ux383 #globalStatsBody .sc-analysis-grid .section-heading-text::before{display:none!important}
+body.ux383 #globalStatsBody .sc-analysis-grid .section-heading-text,body.ux383 #globalStatsBody .sc-analysis-grid .nc-heading>strong{font-size:13px!important;font-weight:600!important;line-height:1.4!important;padding:0!important;margin:0!important;background:transparent!important}
+body.ux383 #globalStatsBody .sc-analysis-grid .nc-heading>span{font-size:11px!important;font-weight:400!important}
+@media(min-width:900px){
+ body.ux383 #globalStatsBody .nc-section .nc-bar-track{width:12px!important;border-radius:4px 4px 0 0!important}
+ body.ux383 #globalStatsBody .nc-section .nc-fresh,body.ux383 #globalStatsBody .nc-section .nc-fresh[style="height:0%"]+.nc-return{border-radius:4px 4px 0 0!important}
+ body.ux383 #globalStatsBody .sc-grouped-svg .sc-v-name{font-size:13px!important}
+ body.ux383 #globalStatsBody .sc-grouped-svg .sc-v-inline-meta{font-size:11px!important}
+ body.ux383 #globalStatsBody .sc-grouped-svg .sc-v-total-number{font-weight:600!important;fill:var(--accent,#31866b)!important}
+ body.ux383 #globalStatsBody .sc-grouped-svg .sc-v-missing-number{font-weight:600!important;fill:var(--text,#344f45)!important}
+ body.ux383 #globalStatsBody .sc-grouped-svg .sc-v-divider{fill:var(--text-dim,#82958c)!important}
+}
+
+
+body.ux383 #globalStatsBody .sc-analysis-grid .pdf-section-title .btn{height:24px!important;min-height:24px!important;padding:2px 8px!important;font-size:10px!important;line-height:18px!important;box-sizing:border-box!important}
+
+body.ux383 #globalStatsBody .sc-analysis-grid .section-heading-text{height:auto!important;min-height:0!important;max-height:none!important}
+
+body.ux383 #globalStatsBody .sc-analysis-grid .pdf-section-title,body.ux383 #globalStatsBody .sc-analysis-grid .nc-heading{height:40px!important;max-height:40px!important}
+</style>
+
+<style id="contact-charts-left-no-grid-20261015">
+body.ux383 #globalStatsBody .sc-grouped-svg .sc-v-grid,body.ux383 #globalStatsBody .sc-grouped-svg .sc-v-baseline,body.ux383 #globalStatsBody .sc-grouped-svg .sc-v-axis{display:none!important}
+body.ux383 #globalStatsBody svg.sc-grouped-svg{margin:0!important}
+body.ux383 #globalStatsBody .sc-approved-card .sc-approved-vertical{margin-left:0!important;margin-right:0!important}
+@media(min-width:900px){
+ body.ux383 #globalStatsBody .sc-analysis-grid{align-items:stretch!important}
+ body.ux383 #globalStatsBody .sc-analysis-grid>*{height:auto!important;min-height:0!important;max-height:none!important;align-self:stretch!important}
+ body.ux383 #globalStatsBody .sc-analysis-grid>.pdf-manager-row{display:flex!important}
+ body.ux383 #globalStatsBody .sc-analysis-grid>.pdf-manager-row>.pdf-section{flex:1 1 auto!important;width:100%!important;height:auto!important;margin:0!important;align-self:stretch!important}
+ body.ux383 #globalStatsBody .sc-analysis-grid>.pdf-issues-card>.pdf-issues{max-height:240px!important;overflow-y:auto!important}
+}
+</style>
+
+<style id="panel-legends-role-grid-20261015">
+body.ux383 #globalStatsBody .sc-method-legend{display:flex!important;align-items:center!important;flex-wrap:wrap!important;gap:5px 12px!important;min-height:20px!important;margin:0 0 6px!important;font-size:11px!important;line-height:1.4!important;color:var(--text-dim,#71867c)!important}
+body.ux383 #globalStatsBody .sc-method-legend>span{display:inline-flex!important;align-items:center!important;gap:4px!important;white-space:nowrap!important}
+body.ux383 #globalStatsBody .sc-method-legend i{display:inline-block!important;width:8px!important;height:8px!important;border-radius:2px!important;flex-shrink:0!important}
+body.ux383 #globalStatsBody .sc-approved-card .sc-manager .sc-v-scroll{padding-top:var(--sc-plot-offset,0px)!important}
+body.ux383 #globalStatsBody .sc-analysis-grid .pdf-role{border-collapse:collapse!important;empty-cells:show!important;border-spacing:0!important}
+body.ux383 #globalStatsBody .sc-analysis-grid .pdf-role th,body.ux383 #globalStatsBody .sc-analysis-grid .pdf-role td{display:table-cell!important;border:1px solid var(--line,#dfe7e4)!important;box-sizing:border-box!important;background-clip:padding-box!important}
+body.ux383 #globalStatsBody .sc-analysis-grid .rf-nonmember h3.pdf-section-title{background:var(--bg,#eef5f1)!important;border:0!important;border-radius:6px!important;height:40px!important;min-height:40px!important;max-height:40px!important;padding:8px 10px!important;margin:0 0 10px!important}
+</style>
+
+<style id="contact-panel-total-counts-20261015">
+body.ux383 #globalStatsBody .sc-panel-summary{display:flex!important;align-items:center!important;flex-wrap:wrap!important;gap:5px 16px!important;min-height:24px!important;margin:0 0 7px!important;font-size:12px!important;line-height:1.4!important;color:var(--text-dim,#71867c)!important}
+body.ux383 #globalStatsBody .sc-panel-summary>span{display:inline-flex!important;align-items:center!important;gap:5px!important;white-space:nowrap!important}
+body.ux383 #globalStatsBody .sc-panel-summary strong{font-size:14px!important;font-weight:600!important;color:var(--text,#193e32)!important}
+body.ux383 #globalStatsBody .sc-panel-summary>span:nth-child(2) strong{color:var(--accent,#31866b)!important}
+body.ux383 #globalStatsBody .sc-panel-summary small{font-size:10px!important;font-weight:400!important;margin-left:2px!important}
+body.ux383 #globalStatsBody .sc-method-legend b{font-size:11px!important;font-weight:600!important;color:var(--text,#193e32)!important}
+
+body.ux383 #globalStatsBody .sc-grouped-svg .sc-v-entity-contact{font-size:11px!important;font-weight:600!important;fill:var(--accent,#31866b)!important}
+</style>
+
+<style id="circled-nonmember-heading-20261015">
+body.ux383 .section-heading-text .sc-nonmember-symbol{display:inline-flex!important;align-items:center!important;justify-content:center!important;box-sizing:border-box!important;width:14px!important;height:14px!important;min-width:14px!important;min-height:14px!important;border:1px solid currentColor!important;border-radius:50%!important;background:transparent!important;color:inherit!important;font-size:9px!important;font-weight:500!important;line-height:1!important;vertical-align:1px!important;margin:0 2px 0 0!important;padding:0!important}
+</style>
+
+<style id="cumulative-cohort-population-bars-20261015">
+body.ux383 #globalStatsBody .sc-approved-vertical:not(.sc-week) svg.sc-grouped-svg{height:150px!important}
+body.ux383 #globalStatsBody .nc-section .nc-number{display:flex!important;align-items:baseline!important;justify-content:center!important;gap:4px!important;white-space:nowrap!important}
+body.ux383 #globalStatsBody .nc-section .nc-increase{font-size:10px!important;font-weight:600!important;font-style:normal!important;color:#cf3e3e!important}
+body.ux383 #globalStatsBody .sc-method-legend{gap:5px 10px!important}
+</style>
+
+<style id="mobile-cumulative-increase-labels-20261015">
+@media(max-width:480px){body.ux383 #globalStatsBody .nc-section .nc-number{height:32px!important;flex-direction:column!important;align-items:center!important;justify-content:flex-start!important;gap:0!important;line-height:14px!important}}
+</style>
+
+<style id="compact-failure-stack-20261015">.sc-failure-label{font-size:9px!important;font-weight:600}.sc-failure-stack rect{cursor:pointer}</style>
+
+<style id="readable-dong-comparison-20261015">#globalStatsBody .sc-dong .sc-grouped-svg{height:178px!important}#globalStatsBody .sc-dong .sc-v-meta{font-size:10px!important;fill:#60756d!important}#globalStatsBody .sc-dong .sc-v-name{font-weight:700}</style>
+
+<style id="direct-bar-category-labels-20261015">#globalStatsBody .sc-approved-vertical .sc-grouped-svg{height:190px!important}#globalStatsBody .sc-dong .sc-grouped-svg,#globalStatsBody .sc-week .sc-grouped-svg{height:216px!important}#globalStatsBody .sc-bar-label{font-size:10px!important;font-weight:500;fill:#536960}</style>
+
+<style id="distinct-contact-groups-20261015">#globalStatsBody .sc-approved-vertical .sc-v-name{font-size:12px!important;font-weight:750!important;fill:#173e32!important}#globalStatsBody .sc-approved-vertical .sc-v-entity-contact{font-size:10px!important;font-weight:500!important}#globalStatsBody .sc-group-band{pointer-events:none}#globalStatsBody .sc-group-separator{display:block!important;opacity:1!important}</style>
+
+<style id="restore-readable-contact-tables-20261015">
+body.ux383 #globalStatsBody .sc-approved-vertical{min-height:0!important;height:auto!important;padding:0!important;margin:10px 0 0!important}
+body.ux383 #globalStatsBody .sc-table-scroll{width:100%;overflow-x:auto}
+body.ux383 #globalStatsBody .sc-readable-table{width:100%;min-width:510px;table-layout:fixed;border-collapse:collapse;font-size:11px;color:var(--text,#203b32)}
+body.ux383 #globalStatsBody .sc-readable-table :is(th,td){padding:9px 3px;text-align:center;border:1px solid var(--line,#dfe7e4);white-space:nowrap;box-sizing:border-box}
+body.ux383 #globalStatsBody .sc-readable-table thead th{background:var(--soft,#eff5f2);font-weight:700}
+body.ux383 #globalStatsBody .sc-readable-table :is(tbody,tfoot) th{width:66px;font-weight:650}
+body.ux383 #globalStatsBody .sc-readable-table tr>:first-child{width:66px}
+body.ux383 #globalStatsBody .sc-readable-table tbody tr:nth-child(even){background:rgba(115,160,139,.035)}
+body.ux383 #globalStatsBody .sc-readable-table tfoot{font-weight:700;background:var(--soft,#f2f6f4)}
+body.ux383 #globalStatsBody .sc-readable-table [data-sc-source]{cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px}
+body.ux383 #globalStatsBody .sc-week .sc-readable-table{min-width:390px}
+body.ux383 #globalStatsBody .pdf-role{width:100%!important;min-width:0!important;table-layout:fixed!important}
+body.ux383 #globalStatsBody .pdf-role col:nth-child(1){width:7%!important}
+body.ux383 #globalStatsBody .pdf-role col:nth-child(2){width:21%!important}
+body.ux383 #globalStatsBody .pdf-role col:nth-child(n+3){width:18%!important}
+body.ux383 #globalStatsBody .pdf-role :is(th,td):nth-child(1){width:7%!important}
+body.ux383 #globalStatsBody .pdf-role :is(th,td):nth-child(2){width:21%!important}
+body.ux383 #globalStatsBody .pdf-role :is(th,td):nth-child(n+3){width:18%!important}
+</style>
+
+<style id="contact-table-theme-polish-20261015">
+/* Contact tables and cumulative chart share the active application palette. */
+body.ux383 #globalStatsBody{--sc-ink:#243d34;--sc-muted:#73847b;--sc-head:#edf4f0;--sc-row:#f7faf8;--sc-rule:#e1e9e4;--sc-accent:#347d60;--text:var(--sc-ink);--soft:var(--sc-head);--bg:var(--sc-head)}
+body.ux383.theme-dark #globalStatsBody{--sc-ink:#e5f0eb;--sc-muted:#adc3b8;--sc-head:#2b4438;--sc-row:#253c31;--sc-rule:#3b5346;--sc-accent:#99d9b7;--text:var(--sc-ink);--soft:var(--sc-head);--bg:var(--sc-head)}
+body.ux383 #globalStatsBody .sc-table-scroll{border:1px solid var(--sc-rule);border-radius:9px;overflow:auto;background:var(--card,#fff)}
+body.ux383 #globalStatsBody .sc-readable-table{min-width:540px;border-collapse:separate;border-spacing:0;color:var(--sc-ink)!important;font-size:12px!important;font-variant-numeric:tabular-nums}
+body.ux383 #globalStatsBody .sc-readable-table :is(th,td){color:var(--sc-ink)!important;border:0!important;border-bottom:1px solid var(--sc-rule)!important;padding:10px 4px!important;line-height:1.3!important;background:transparent!important}
+body.ux383 #globalStatsBody .sc-readable-table thead th{background:var(--sc-head)!important;color:var(--sc-muted)!important;font-size:10.5px!important;font-weight:650!important;letter-spacing:0!important;padding:11px 3px!important}
+body.ux383 #globalStatsBody .sc-readable-table tbody th{font-size:12px!important;font-weight:650!important;background:transparent!important}
+body.ux383 #globalStatsBody .sc-readable-table tbody tr:nth-child(even){background:var(--sc-row)!important}
+body.ux383 #globalStatsBody .sc-readable-table tbody tr:hover{background:var(--sc-head)!important}
+body.ux383 #globalStatsBody .sc-readable-table tbody tr>:nth-child(3),body.ux383 #globalStatsBody .sc-readable-table tbody tr>:last-child{font-weight:700!important;color:var(--sc-accent)!important}
+body.ux383 #globalStatsBody .sc-readable-table [data-sc-source]{text-decoration:none!important}
+body.ux383 #globalStatsBody .sc-readable-table [data-sc-source]:hover{color:var(--sc-accent)!important;text-decoration:underline!important;text-underline-offset:3px}
+body.ux383 #globalStatsBody .sc-readable-table [data-sc-source]:focus-visible{outline:2px solid var(--sc-accent);outline-offset:-3px}
+body.ux383 #globalStatsBody .sc-readable-table tfoot :is(th,td){background:var(--sc-head)!important;border-top:1px solid var(--sc-rule)!important;border-bottom:0!important;color:var(--sc-ink)!important;font-weight:700!important}
+body.ux383 #globalStatsBody .sc-readable-table tfoot td:nth-child(3){color:var(--sc-accent)!important}
+body.ux383 #globalStatsBody .sc-analysis-grid :is(.pdf-section-title,.nc-heading){background:var(--sc-head)!important;color:var(--sc-ink)!important}
+body.ux383 #globalStatsBody .sc-analysis-grid :is(.section-heading-text,.nc-heading>strong,.sc-nonmember-symbol){color:var(--sc-ink)!important}
+body.ux383 #globalStatsBody .nc-section,body.ux383 #globalStatsBody .sc-approved-context{color:var(--sc-ink)!important}
+body.ux383 #globalStatsBody .nc-section :is(.nc-kpis,.nc-kpis strong,.nc-bar,.nc-list summary){color:var(--sc-ink)!important}
+body.ux383 #globalStatsBody .nc-section :is(.nc-toolbar,.nc-heading>span,.nc-axis,.nc-bar small,.nc-kpis small){color:var(--sc-muted)!important}
+body.ux383 #globalStatsBody .nc-section .nc-number{color:var(--sc-accent)!important}
+body.ux383.theme-dark #globalStatsBody .nc-section .nc-increase{color:#ff9993!important}
+body.ux383 #globalStatsBody .nc-toolbar button{color:var(--sc-ink)!important;border-color:var(--sc-rule)!important;background:var(--card)!important}
+body.ux383 #globalStatsBody .nc-toolbar button.active{background:var(--sc-accent)!important;color:var(--card,#fff)!important}
+body.ux383 #globalStatsBody .pdf-role :is(th,td){color:var(--sc-ink)!important;border-color:var(--sc-rule)!important;padding:10px 5px!important;font-size:12px!important}
+body.ux383 #globalStatsBody .pdf-role thead th{background:var(--sc-head)!important;color:var(--sc-muted)!important;font-size:11px!important}
+body.ux383 #globalStatsBody .pdf-role tbody tr:nth-child(even){background:var(--sc-row)!important}
+
+</style>
+
+<style id="plain-table-rows-two-column-dong-20261015">
+body.ux383 #globalStatsBody :is(.sc-readable-table,.pdf-role) tbody tr,body.ux383 #globalStatsBody :is(.sc-readable-table,.pdf-role) tbody tr:nth-child(even),body.ux383 #globalStatsBody :is(.sc-readable-table,.pdf-role) tbody tr:hover{background:transparent!important}
+body.ux383 #globalStatsBody :is(.sc-readable-table,.pdf-role) tbody :is(th,td){background:transparent!important}
+body.ux383 #globalStatsBody .sc-dong-two-columns{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:start}
+body.ux383 #globalStatsBody .sc-dong-two-columns .sc-readable-table{min-width:0!important;font-size:11px!important}
+body.ux383 #globalStatsBody .sc-dong-two-columns .sc-readable-table tr>:first-child{width:23%!important}
+body.ux383 #globalStatsBody .sc-dong-two-columns .sc-readable-table :is(th,td){padding:10px 2px!important}
+body.ux383 #globalStatsBody .sc-dong-two-columns .sc-readable-table thead th{font-size:10px!important}
+body.ux383 #globalStatsBody .sc-dong-totals{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:10px 8px;border-top:1px solid var(--sc-rule);font-size:11px;color:var(--sc-ink)}
+body.ux383 #globalStatsBody .sc-dong-totals span{color:var(--sc-muted)}
+body.ux383 #globalStatsBody .sc-dong-totals b{margin-left:3px;color:var(--sc-ink)}
+@media(max-width:480px){body.ux383 #globalStatsBody .sc-dong-two-columns{gap:6px}body.ux383 #globalStatsBody .sc-dong-two-columns .sc-readable-table :is(th,td){font-size:9px!important;padding:9px 1px!important}body.ux383 #globalStatsBody .sc-dong-two-columns .sc-readable-table tr>:first-child{width:25%!important}}
+</style>
+
+<style id="align-circled-nonmember-label-20261015">
+body.ux383 .section-heading-text:has(>.sc-nonmember-symbol){display:inline-flex!important;align-items:center!important;gap:5px!important;vertical-align:middle!important;line-height:20px!important}
+body.ux383 .section-heading-text>.sc-nonmember-symbol{display:inline-grid!important;place-items:center!important;flex:0 0 14px!important;align-self:center!important;vertical-align:middle!important;margin:0!important;line-height:14px!important;letter-spacing:0!important;text-indent:0!important;transform:none!important;position:static!important}
 </style>
