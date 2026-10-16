@@ -9345,7 +9345,7 @@ function events(ex){
  if(!ex)return[];const cached=cache.get(ex);if(cached&&cached.people===ex.people&&cached.contacts===ex.contactEvents&&cached.reports===ex.reportEvents&&cached.stamp===ex.syncedAt)return cached.value;const info=ex.importInfo||{},people=Array.isArray(ex.people)?ex.people:[],byId=new Map(people.map(p=>[pid(p),p])),map=new Map();
  const end=info.asOfDate||'9999-12-31';
  const getPerson=e=>{if(e.personId&&byId.has(str(e.personId)))return byId.get(str(e.personId));const found=people.filter(p=>norm(p.name)===norm(e.name)&&(!e.unit||norm(p.unit)===norm(e.unit)));return found.length===1?found[0]:null};
- function put(e){if(!/^\d{4}-\d{2}-\d{2}$/.test(str(e.date))||e.date>end)return;const p=getPerson(e);const item={...e,personId:e.personId||(p?pid(p):pid(e)),name:e.name||p?.name||'',manager:e.manager||p?.manager||'',unit:e.unit||p?.unit||'',parcel:e.parcel||p?.parcel||'',role:e.role||p?.role||'',method:e.method||'미분류',sourceRow:e.sourceRow||p?.sourceRow||'',memberFlag:e.memberFlag||p?.memberFlag||'',text:str(e.text)};const k=item.personId+'|'+item.date+'|'+item.method;const old=map.get(k);if(old){if(item.text&&!old.text)old.text=item.text}else map.set(k,item)}
+ function put(e){if(!/^\d{4}-\d{2}-\d{2}$/.test(str(e.date))||e.date>end)return;const p=getPerson(e);if(ex.snapshotPolicy==='latest-workbook-only-v1'&&!p)return;const item={...e,personId:e.personId||(p?pid(p):pid(e)),name:e.name||p?.name||'',manager:e.manager||p?.manager||'',unit:e.unit||p?.unit||'',parcel:e.parcel||p?.parcel||'',role:e.role||p?.role||'',method:e.method||'미분류',sourceRow:e.sourceRow||p?.sourceRow||'',memberFlag:e.memberFlag||p?.memberFlag||'',text:str(e.text)};const k=item.personId+'|'+item.date+'|'+item.method;const old=map.get(k);if(old){if(item.text&&!old.text)old.text=item.text}else map.set(k,item)}
  const raw=[...(Array.isArray(ex.contactEvents)?ex.contactEvents:[]),...(Array.isArray(ex.reportEvents)?ex.reportEvents:[])];raw.forEach(put);
  // Recover date-only cells from previously uploaded version-1 ledgers without another upload.
  (info.unresolved||[]).filter(u=>u.reason==='접촉방법 미표기').forEach(u=>{const month=str(u.column).match(/(\d{1,2})월/),p=people.find(p=>Number(p.sourceRow)===Number(u.row));if(!month||!p||!info.year)return;for(const m of str(u.value).matchAll(/(\d{1,2})\s*일(?!\s*[(（])/g)){const d=date(+info.year,+month[1],+m[1]);if(d)put({...p,date:d,method:'미분류',sourceColumn:u.column})}});
@@ -9617,6 +9617,8 @@ function schema(rows,X){
    s.roles=[primary];
    s.roleLabels[primary]=text(rows[hr+1]?.[primary])||text(headers[primary])||'직책';
  }
+ s.noteCol=headers.findIndex(v=>/상담내용/.test(norm(v)));
+ if(s.noteCol<0)s.noteCol=headers.findIndex(v=>/비고/.test(norm(v)));
  s.labels=Array.from({length:Math.max(...rows.slice(hr,hr+3).map(r=>r.length))},(_,c)=>`${X.utils.encode_col(c)} · ${text(headers[c])||text(rows[hr+1]?.[c])||'열'}`);
  return s;
 }
@@ -9626,7 +9628,7 @@ function inspect(wb,fileName,X){
  let title=rows.slice(0,s.headerRow).flat().find(v=>typeof v==='string'&&/[■▣]/.test(v))||sheetName;
  title=text(title).replace(/^[\s■▣□◆]+/,'').replace(/\s*명부.*$/,'').trim()||sheetName;
  const data=rows.slice(s.startRow).filter(r=>text(r[s.name])&&!/^#|^성명$|^합\s*계$|^총\s*계$/.test(text(r[s.name])));
- if(s.status>=0){const values=data.map(r=>text(r[s.status])).filter(Boolean);if(values.length&&values.every(v=>/\d+\s*일/.test(v)&&!method(v))){s.statusNote='접촉 열에 방법 대신 날짜가 있어 상담·단순·TM 표시 열을 누계 기준으로 사용합니다.';s.status=-1}}
+ // Exact contact header only; no history fallback.
  const members=data.filter(r=>norm(r[s.member])==='1').length;
  candidates.push({fileName,sheetName,title,rows,schema:s,named:data.length,members,scope:members?'members':'all',selected:s.manager>=0&&data.length>0&&!/\(\d+\)|접촉명부/.test(sheetName),duplicate:/\(\d+\)|접촉명부/.test(sheetName),ignored});
  }
@@ -9637,6 +9639,8 @@ function parseRows(candidate,options={}){
  if(!Number.isInteger(year)||year<2000||year>2100)throw Error('이력 연도는 2000~2100년으로 입력하세요.');
  if(!/^\d{4}-\d{2}-\d{2}$/.test(asOfDate||'')||!validDate(...asOfDate.split('-').map(Number)))throw Error('유효한 기준일을 선택하세요.');
  if(s.name<0||s.manager<0)throw Error('성명·담당 열을 확인하세요.');
+ if(s.status<0)throw Error('접촉 상태 열을 찾지 못했습니다. 열 연결에서 명부의 접촉 열을 선택하세요. 과거 이력으로 대신 집계하지 않습니다.');
+ const noteCol=Number.isInteger(s.noteCol)?s.noteCol:(s.notes||[]).find(c=>/상담내용|비고/.test(text(candidate.rows[s.headerRow]?.[c])))??-1;
  const people=[],events=[],dailyContactEvents=[],unresolved=[],warnings=[],ids=new Set();let named=0,excluded=0,duplicateRows=0;
  const warn=(row,column,value,reason)=>unresolved.push({row,column,value:text(value).slice(0,150),reason});
  function dates(value,month,knownMethod,row,column){
@@ -9659,9 +9663,9 @@ function parseRows(candidate,options={}){
   const marks=s.categories.filter(c=>text(r[c.c])&&!['0','-'].includes(text(r[c.c])));
   const rawStatus=text(r[s.status]);const explicit=method(rawStatus);
   // A supplied current-status column is authoritative, including a blank. Historical contact is separate.
-  const contactMethod=s.status>=0?(explicit||(rawStatus?'미분류':'미접촉')):(marks.find(c=>success(c.method))?.method||marks[0]?.method||'미접촉');
+  const contactMethod=explicit||(rawStatus?'미분류':'미접촉');
   if(s.status>=0&&rawStatus&&!explicit)warn(i+1,s.labels[s.status],rawStatus,'현재 접촉상태 확인 필요');
-  const p={personId,name,manager:safe(r[s.manager]),unit,dong,parcel,role,roleFlag:!!role,memberFlag:text(r[s.member]),contactMethod,contacted:success(contactMethod),todayContactMethod:'',sourceRow:i+1,noteSources:s.notes.filter(c=>text(r[c])).map(c=>({header:text(candidate.rows[s.headerRow][c]),column:s.labels[c],text:text(r[c])})),note:s.notes.map(c=>text(r[c])?`${text(candidate.rows[s.headerRow][c])}: ${text(r[c])}`:'').filter(Boolean).join('\n')};
+  const p={personId,name,manager:safe(r[s.manager]),unit,dong,parcel,role,roleFlag:!!role,memberFlag:text(r[s.member]),contactMethod,contacted:success(contactMethod),todayContactMethod:'',sourceRow:i+1,sourceContact:{column:s.labels[s.status],value:rawStatus},noteSources:noteCol>=0?[{header:text(candidate.rows[s.headerRow][noteCol]),column:s.labels[noteCol],text:r[noteCol]==null?'':String(r[noteCol])}]:[],note:noteCol>=0&&r[noteCol]!=null?String(r[noteCol]):'',specialNote:s.notes.filter(c=>/특이사항/.test(text(candidate.rows[s.headerRow][c]))).map(c=>r[c]==null?'':String(r[c])).filter(Boolean).join('\n')};
   // Keep only the validated birth date, never the registration number.
   if(s.birth>=0){
    const raw=r[s.birth],kind=/생년월일/.test(s.labels[s.birth]||'')?'date':'rrn';
@@ -9697,7 +9701,7 @@ function parseRows(candidate,options={}){
  people.forEach(p=>{group(byManager,p.manager||'(미지정)',p);if(p.role)group(byRole,p.role,p);if(p.dong)group(byDong,p.dong,p)});
  [byManager,byRole,byDong].forEach(map=>Object.values(map).forEach(g=>{g.uncontacted=g.total-g.contacted;g.contactRate=g.total?g.contacted/g.total*100:0}));
  const total=people.length,contacted=people.filter(p=>p.contacted).length;
- return{source:'excel-master',syncedAt:options.syncedAt||new Date().toISOString(),totalOwners:total,contactedOwners:contacted,uncontactedOwners:total-contacted,contactRate:total?contacted/total*100:0,todayContactedOwners:people.filter(p=>success(p.todayContactMethod)).length,roleOwners:people.filter(p=>p.role).length,people,byManager,byRole,byDong,contactEvents:events.filter(e=>success(e.method)),reportEvents:events,dailyContactEvents,contactBasis:'status-column-and-daily-columns-v1',monthDateColumns:Object.fromEntries(s.months.map(c=>[String(c.month),s.labels[c.c]])),importInfo:{version:2,fileName:candidate.fileName,sheetName:candidate.sheetName,title:candidate.title,fileHash:candidate.fileHash||'',year,asOfDate,scope,namedRows:named,excludedRows:excluded,duplicateRows,warnings,unresolved,schema:s,history:'dated-reports-and-contact-events'}};
+ return{source:'excel-master',syncedAt:options.syncedAt||new Date().toISOString(),totalOwners:total,contactedOwners:contacted,uncontactedOwners:total-contacted,contactRate:total?contacted/total*100:0,todayContactedOwners:people.filter(p=>success(p.todayContactMethod)).length,roleOwners:people.filter(p=>p.role).length,people,byManager,byRole,byDong,contactEvents:events.filter(e=>success(e.method)),reportEvents:events,dailyContactEvents,contactBasis:'status-column-and-daily-columns-v1',snapshotPolicy:'latest-workbook-only-v1',monthDateColumns:Object.fromEntries(s.months.map(c=>[String(c.month),s.labels[c.c]])),importInfo:{version:2,fileName:candidate.fileName,sheetName:candidate.sheetName,title:candidate.title,fileHash:candidate.fileHash||'',year,asOfDate,scope,namedRows:named,excludedRows:excluded,duplicateRows,warnings,unresolved,schema:s,history:'dated-reports-and-contact-events'}};
 }
 function parse(candidate,options={}){
  const s=options.schema||candidate.schema;
@@ -10019,7 +10023,7 @@ const L = (function(){
 
         // Excel-master 동기화 결과도 targeted 경로에서 같이 가져온다.
         // 예전엔 logs만 합쳐서 현장별 접촉현황가 계속 '대시보드 명단 기준'으로 남는 문제가 있었다.
-        if(freshSite.excelStats && typeof freshSite.excelStats==='object' && (!site.excelStats?.importInfo || (freshSite.excelStats.importInfo && String(freshSite.excelStats.syncedAt||'')>String(site.excelStats.syncedAt||'')))) site.excelStats=freshSite.excelStats;
+        if(managementAcceptExcelSnapshot(site.excelStats,freshSite.excelStats))site.excelStats=freshSite.excelStats;
         if(Array.isArray(freshSite.ownerRoster) && freshSite.ownerRoster.length) site.ownerRoster=freshSite.ownerRoster;
         const localIds=new Set((site.logs||[]).map(l=>l.id));
         const newFromServer=freshLogs.filter(l=>l && !localIds.has(l.id) && !deletedLogIds.has(l.id));
@@ -14372,6 +14376,16 @@ window.addEventListener('resize', ()=>{
     }
     return value;
   }
+  function managementAcceptExcelSnapshot(current,incoming){
+    if(!incoming||typeof incoming!=='object')return false;
+    if(!current)return true;
+    if(current.snapshotPolicy==='latest-workbook-only-v1'){
+      if(incoming.snapshotPolicy!=='latest-workbook-only-v1')return false;
+      const a=String(current.importInfo?.asOfDate||''),b=String(incoming.importInfo?.asOfDate||'');
+      if(a&&(!b||b<a))return false;
+    }
+    return !!incoming.syncedAt&&String(incoming.syncedAt)>String(current.syncedAt||'');
+  }
   function managementMergeExcelSource(canonical,excelOffices){
     for(const [office,rows] of Object.entries(canonical)){
       const secondary=excelOffices?.[office];if(!Array.isArray(secondary))continue;
@@ -14379,7 +14393,7 @@ window.addEventListener('resize', ()=>{
         const matches=secondary.filter(s=>String(s.id)===String(site.id)&&s.name===site.name);
         if(matches.length!==1)continue;
         const extra=matches[0],incoming=extra.excelStats;
-        if(!incoming?.syncedAt||String(incoming.syncedAt)<=String(site.excelStats?.syncedAt||''))continue;
+        if(!managementAcceptExcelSnapshot(site.excelStats,incoming))continue;
         site.excelStats=incoming;
         if(Array.isArray(extra.ownerRoster))site.ownerRoster=extra.ownerRoster;
       }
@@ -23372,7 +23386,7 @@ ead><body>
       if(!name)return;
       if(!totals[name])totals[name]={total:0,contacted:0};
       totals[name].total++;
-      if(r.contacted||['상담','단순','TM'].includes(String(r.contactMethod||'')))totals[name].contacted++;
+      if(smIsSuccessMethod(r.contactMethod))totals[name].contacted++;
     });
     if(!periodMode){
       return Object.entries(totals).map(([name,d])=>({name,total:d.total,contacted:d.contacted,uncontacted:Math.max(0,d.total-d.contacted),rate:d.total?d.contacted/d.total*100:0}));
@@ -23393,6 +23407,7 @@ ead><body>
     return miReportLogs(site).filter(l=>!isTourBookingLog(l)&&smInRangeDate(String(l.date||''),effective)&&String(l.text||'').trim()).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
   }
   function smLogTextForPerson(site,date,name){
+    if(smExcel(site))return '';
     const k=smCore(name);
     const hits=(site.logs||[]).filter(l=>!isTourBookingLog(l)&&String(l.date||'')===date&&smSplit(l.contactName||l.owner).some(n=>smCore(n)===k));
     return hits.map(l=>String(l.text||'').trim()).filter(Boolean).join(' / ');
@@ -23424,7 +23439,7 @@ ead><body>
         let method=String(p.contactMethod||'').trim();
 
         // 원장 snapshot의 방법이 명확하지 않으면 실제 이벤트의 성공방법으로 보완
-        if(!smIsKnownMethod(method) && evp){
+        if(!x?.source?.includes('excel')&&!smIsKnownMethod(method) && evp){
           method=evp.successMethod||evp.failMethod||'';
         }
         const contacted=smIsSuccessMethod(method);
@@ -23555,6 +23570,7 @@ ead><body>
   }
 
   function smLatestLogForPerson(site,name){
+    if(smExcel(site))return null;
     const key=smCore(name);
     const hits=(site.logs||[]).filter(l=>!isTourBookingLog(l)&&smSplit(l.contactName||l.owner).some(n=>smCore(n)===key));
     hits.sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
@@ -23575,13 +23591,13 @@ ead><body>
       const ev=(byName[miPersonKey(r)]||[]).slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
       const latest=ev[0]||{};
       const log=smLatestLogForPerson(site,r.name);
-      const method=r.contactMethod||latest.method||'';
+      const method=excelMaster?String(r.contactMethod||''):(r.contactMethod||latest.method||'');
       const contacted=excelMaster
-        ? (r.contacted||['상담','단순','TM'].includes(r.contactMethod))
+        ? smIsSuccessMethod(r.contactMethod)
         : (r.contactMethod?['상담','단순','TM'].includes(r.contactMethod):(r.contacted||['상담','단순','TM'].includes(method)));
       return{
         personId:r.personId||'',name:r.name,manager:smManagerAlias(r.manager,managerAliases),unit:r.unit||latest.unit||'',dong:r.dong||latest.dong||'',
-        role:smPrimaryRoleOnly(r.role||latest.role||''),method,contacted,todayMethod:r.todayContactMethod||'',
+        role:smPrimaryRoleOnly(excelMaster?r.role:(r.role||latest.role||'')),method,contacted,todayMethod:r.todayContactMethod||'',
         count:ev.length,last:latest.date||'',note:excelMaster?r.note:(log?String(log.text||''):'')
       };
     });
@@ -23637,11 +23653,11 @@ ead><body>
         unit:p.unit||p.parcel||'-',
         dong:p.dong||'',
         role:p.role||'비조합원',
-        method:range ? (latest.method||p.contactMethod||'-') : (p.contactMethod||latest.method||'-'),
+        method:range ? (latest.method||'-') : (p.contactMethod||'-'),
         contacted,
         count:ev.length,
         last:latest.date||p.lastContactDate||'',
-        note:p.note||latest.text||'기록 없음'
+        note:String(p.note??'')
       };
     });
   }
@@ -23948,7 +23964,7 @@ ead><body>
     const rows=[...people.values()].map(p=>{
       const e=success.get(p.key),last=latest.get(p.key)||{};
       const method=excel&&!period?smExcelStatusMethod(p.contactMethod):(e?.method||last.method||'');
-      return {...p,manager:p.manager,dong:p.dong||String(e?.dong||last.dong||'').trim(),role:p.role||smPrimaryRoleOnly(e?.role||last.role||''),contacted:smIsSuccessMethod(method),method,contactMethod:method,last:last.date||e?.date||'',count:counts.get(p.key)||0,note:p.note||last.text||''};
+      return {...p,manager:p.manager,dong:excel?p.dong:(p.dong||String(e?.dong||last.dong||'').trim()),role:excel?p.role:(p.role||smPrimaryRoleOnly(e?.role||last.role||'')),contacted:smIsSuccessMethod(method),method,contactMethod:method,last:last.date||e?.date||'',count:counts.get(p.key)||0,note:excel?String(p.note??''):(p.note||last.text||'')};
     });
     const total=Math.max(nonmember?roster.length:Number(source.totalOwners||0),rows.length),contacted=rows.filter(p=>p.contacted).length;
     const assigned=p=>!!p.manager&&!['(미지정)','미지정','-'].includes(p.manager);
@@ -24826,7 +24842,7 @@ async function miOpen(){
  <p class="mi-help">나이 표시 가능 ${x.people.filter(p=>p.birthDate||p.personBirths?.length).length}명 · 주민번호 원문은 저장하지 않습니다.<br>미리보기는 앞 8행입니다. 전체 ${x.people.length}행이 집계됩니다.</p>
  ${x.importInfo.warnings.map(w=>`<p class="mi-warning">${esc(w)}</p>`).join('')}
  ${x.importInfo.unresolved.length?`<div class="mi-table-wrap"><table><thead><tr><th>행</th><th>열</th><th>원본 값</th><th>사유</th></tr></thead><tbody>${x.importInfo.unresolved.slice(0,100).map(u=>`<tr><td>${u.row}</td><td>${esc(u.column)}</td><td>${esc(u.value)}</td><td>${esc(u.reason)}</td></tr>`).join('')}</tbody></table></div>`:''}
- <p class="mi-help">비고·상담내용 열: ${esc(c.schema.notes.map(k=>c.schema.labels[k]).join(' / ')||'없음')}<br>월별 이력 열: ${esc(c.schema.months.map(m=>c.schema.labels[m.c]).join(' / ')||'없음')}<br>누계는 현재 접촉상태 열 우선, 해당 열이 없으면 접촉내역 표시를 사용합니다.</p>
+ <p class="mi-help">비고·상담내용 열: ${esc(c.schema.notes.map(k=>c.schema.labels[k]).join(' / ')||'없음')}<br>월별 이력 열: ${esc(c.schema.months.map(m=>c.schema.labels[m.c]).join(' / ')||'없음')}<br>누계는 명부의 접촉 열만 사용합니다. 빈칸·삭제 내용은 그대로 반영합니다.</p>
  </details>`;
  }
  function render(){
@@ -24835,7 +24851,7 @@ async function miOpen(){
    const card=document.createElement('article');card.className='mi-card';
    card.innerHTML=`<div class="mi-card-title"><label><input class="mi-check" type="checkbox" ${c.checked?'checked':''}> ${esc(c.title)}</label><span>${c.duplicate?'사본·보조명부 · 기본 제외':'명부 인식'}</span></div><div class="mi-source">${esc(c.fileName)} › ${esc(c.sheetName)}</div>
     <div class="mi-controls"><label>연결할 현장 <select class="mi-target" aria-label="${esc(c.sheetName)} 연결 현장"><option value="-1">현장을 선택하세요</option>${pairs.map((p,j)=>`<option value="${j}">${esc(p.site.name)} · ${esc(p.office)}</option>`).join('')}</select></label><label>집계 대상 <select class="mi-scope"><option value="members" ${c.members?'':'disabled'}>조합원·소유주 표시 1만</option><option value="all">이름 있는 행 (비 표시는 별도)</option></select></label></div><div class="mi-result">${detail(c)}</div>
-    <details class="mi-column-settings"><summary>열 연결 수정</summary><p class="mi-help">이름·담당·현재 접촉상태 등의 위치가 바뀌었을 때 수정하세요. 월별 이력은 ‘9월 날짜’처럼 월이 있는 제목으로 인식합니다.</p><div class="mi-controls">${[['name','성명'],['manager','담당'],['member','조합원 표시'],['unit','동·호수'],['dong','동'],['parcel','지번'],['birth','생년월일 / 주민번호'],['status','현재 접촉상태']].map(([key,label])=>`<label>${label}<select data-column="${key}"><option value="-1">없음</option>${c.schema.labels.map((v,j)=>`<option value="${j}" ${c.schema[key]===j?'selected':''}>${esc(v)}</option>`).join('')}</select></label>`).join('')}<label>첫 데이터 행 <input class="mi-start" type="number" min="1" value="${c.schema.startRow+1}"></label></div></details>`;
+    <details class="mi-column-settings"><summary>열 연결 수정</summary><p class="mi-help">이름·담당·현재 접촉상태 등의 위치가 바뀌었을 때 수정하세요. 월별 이력은 ‘9월 날짜’처럼 월이 있는 제목으로 인식합니다.</p><div class="mi-controls">${[['name','성명'],['manager','담당'],['member','조합원 표시'],['unit','동·호수'],['dong','동'],['parcel','지번'],['birth','생년월일 / 주민번호'],['status','현재 접촉상태'],['noteCol','상담내용 셀']].map(([key,label])=>`<label>${label}<select data-column="${key}"><option value="-1">없음</option>${c.schema.labels.map((v,j)=>`<option value="${j}" ${c.schema[key]===j?'selected':''}>${esc(v)}</option>`).join('')}</select></label>`).join('')}<label>첫 데이터 행 <input class="mi-start" type="number" min="1" value="${c.schema.startRow+1}"></label></div></details>`;
    card.querySelector('.mi-target').value=String(c.target);card.querySelector('.mi-scope').value=c.scope;
    card.querySelector('.mi-check').onchange=e=>{c.checked=e.target.checked;validate()};
    const repaint=()=>{calculate(c);card.querySelector('.mi-result').innerHTML=detail(c);validate()};
@@ -24869,7 +24885,7 @@ async function miOpen(){
      const result=miParser.inspect(wb,f.name,XLSX);skipped+=result.ignored.length;
      result.candidates.filter(c=>c.named).forEach(c=>{c.fileHash=hash;c.target=miSuggested(c,pairs,prefs);c.checked=c.selected;
       const prior=prefs[c.sheetName+'|'+miParser.siteKey(c.title)];
-      if(prior){if(prior.scope==='all'||(prior.scope==='members'&&c.members))c.scope=prior.scope;if(prior.signature===JSON.stringify(c.schema.labels)&&prior.schema)c.schema=prior.schema}
+      if(prior){if(prior.scope==='all'||(prior.scope==='members'&&c.members))c.scope=prior.scope;/* Read column positions from this workbook, never a stale saved mapping. */}
       if(c.target<0){
        c.baseline=null;
       }else{
@@ -24902,7 +24918,7 @@ async function miOpen(){
    for(const c of chosen){const p=pairs[c.target],arr=fresh.offices[p.office];const remote=Array.isArray(arr)?arr.find(s=>String(s.id)===String(p.site.id)):null;
     if(!remote||remote.name!==p.site.name)throw Error(`${p.site.name}: 서버 현장이 변경되었습니다. 닫고 파일을 다시 선택해 주세요.`);
     if(JSON.stringify(remote.excelStats||null)!==c.baseline)throw Error(`${p.site.name}: 다른 곳에서 엑셀 집계를 변경했습니다. 닫고 새로고침한 뒤 다시 확인해 주세요.`);
-    remote.excelStats={...c.stats,syncedAt:new Date().toISOString(),importInfo:{...c.stats.importInfo,importId}};
+    remote.excelStats={...c.stats,snapshotPolicy:'latest-workbook-only-v1',syncedAt:new Date().toISOString(),importInfo:{...c.stats.importInfo,importId}};
     remote.ownerBirthDates=[...(c.stats.people||[]),...(c.stats.nonMembers?.people||[])].filter(p=>p.birthDate||p.personBirths?.length).map(p=>({personId:p.personId,name:p.name,unit:p.unit||p.parcel||'',...(p.birthDate?{birthDate:p.birthDate}:{}),...(p.personBirths?.length?{personBirths:p.personBirths}:{} )}));
    }
    fresh.dataVersion=importId;
