@@ -1840,7 +1840,7 @@ function parseImport(raw,sites){
   }).filter(Boolean);
   const source=batch?.items.find(i=>i.office===entry.office&&i.siteId===entry.siteId&&i.siteName===entry.siteName);
   if(batch&&!source)throw Error('복사 대상에 없는 현장입니다.');
-  if(!sections.length&&!(source&&source.snapshot.count===0))throw Error(entry.siteName+': 정리 내용이 비어 있습니다.');
+  // Valid empty sections clear a summary when the final source contains no narrative.
   const site=matches[0],before=site.reportSpecialNotesByPeriod?.[key]??null;
   if(source&&source.before!==before)throw Error(entry.siteName+': 복사 후 요약이 바뀌었습니다. 다시 보고서를 불러오세요.');
   return {coverage:source?.snapshot||null,office:entry.office,siteId:entry.siteId,siteName:entry.siteName,text:sections.join('\n\n'),before,existing:!!String(before||'').trim()};
