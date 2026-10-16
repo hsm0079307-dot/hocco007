@@ -23854,6 +23854,22 @@ ead><body>
     }
     return {people,earliest};
   }
+  function smNewContactHistoryForSite(site){
+    const x=smExcel(site);
+    if(!x||!Array.isArray(x.people))return smNewContactHistory(smEvents(site,{start:'0000-01-01',end:'9999-12-31'}));
+    // AF / each site's exact contact-status cell is the population for every trend.
+    // A historical success must not revive a blank, failed, or removed current row.
+    const eligible=new Set(x.people.filter(p=>smIsSuccessMethod(smExcelStatusMethod(p.contactMethod))).map(p=>String(miPersonKey(p)||'').trim()).filter(Boolean));
+    const events=(Array.isArray(x.contactEvents)?x.contactEvents:[]).filter(e=>eligible.has(String(miPersonKey(e)||'').trim()));
+    const history=smNewContactHistory(events);
+    history.currentTotal=eligible.size;
+    history.undatedCount=Math.max(0,eligible.size-history.people.size);
+    history.asOfDate=String(x.importInfo?.asOfDate||x.asOfDate||x.syncedAt||'').slice(0,10);
+    // Only show undated people at the verified snapshot date, without inventing
+    // their first-contact date or labelling them as new contacts.
+    if(!history.earliest&&history.undatedCount&&smNewValidDate(history.asOfDate))history.earliest=history.asOfDate;
+    return history;
+  }
   function smNewContactCount(history,start,end){
     const contacted=[],fresh=[];
     history.people.forEach(p=>{if([...p.dates].some(d=>d>=start&&d<=end))contacted.push(p);if(p.first>=start&&p.first<=end)fresh.push(p);});
@@ -23874,17 +23890,21 @@ ead><body>
     return bins.map(b=>{
       const cutoff=b.end<today?b.end:today;
       const count=smNewContactCount(history,b.start,cutoff);
-      const cumulative=[...history.people.values()].filter(p=>p.first<=cutoff).length;
+      const dated=[...history.people.values()].filter(p=>p.first<=cutoff).length;
+      const undated=smNewValidDate(history.asOfDate)&&cutoff>=history.asOfDate?Number(history.undatedCount||0):0;
+      const cumulative=dated+undated;
       return {...b,...count,cumulative,previous:cumulative-count.newCount,observed:!!history.earliest&&b.end>=history.earliest&&b.start<=today};
     });
   }
   function smNewContactSnapshot(site,range){
-    const x=smExcel(site),raw=x?(Array.isArray(x.contactEvents)?x.contactEvents:[]):smEvents(site,{start:'0000-01-01',end:'9999-12-31'});
+    const sourceHistory=smNewContactHistoryForSite(site);
+    const x=smExcel(site),allowed=new Set(sourceHistory.people.keys());
+    const raw=(x?(Array.isArray(x.contactEvents)?x.contactEvents:[]):smEvents(site,{start:'0000-01-01',end:'9999-12-31'})).filter(e=>allowed.has(String(miPersonKey(e)||'').trim()));
     const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
     const end=siteMgmtPeriod==='all'?smDateKey(new Date(siteMgmtDate.getFullYear(),siteMgmtDate.getMonth()+1,0)):range.end;
     const cutoff=end<today?end:today;
     const events=raw.filter(e=>e&&smNewValidDate(e.date)&&smIsSuccessMethod(e.method)&&e.date<=cutoff);
-    const history=smNewContactHistory(events),contacted=history.people.size,total=Number(smStats(site).totalOwners||0);
+    const history=smNewContactHistory(events),contacted=Number.isFinite(sourceHistory.currentTotal)?sourceHistory.currentTotal:history.people.size,total=Number(smStats(site).totalOwners||0);
     return {events,history,cutoff,metrics:{total,contacted,uncontacted:Math.max(0,total-contacted),rate:total?contacted/total*100:0}};
   }
   function smNewContactScale(peak){
@@ -23893,8 +23913,7 @@ ead><body>
     return ([1,1.5,2,3,5,7.5,10].find(n=>n>=ratio)||10)*base;
   }
   function smNewContactSection(site,range){
-    const x=smExcel(site),raw=x?(Array.isArray(x.contactEvents)?x.contactEvents:[]):smEvents(site,{start:'0000-01-01',end:'9999-12-31'});
-    const history=smNewContactHistory(raw),y=siteMgmtDate.getFullYear(),m=siteMgmtDate.getMonth();
+    const history=smNewContactHistoryForSite(site),y=siteMgmtDate.getFullYear(),m=siteMgmtDate.getMonth();
     const start=siteMgmtPeriod==='all'?smDateKey(new Date(y,m,1)):range.start;
     const end=siteMgmtPeriod==='all'?smDateKey(new Date(y,m+1,0)):range.end;
     const count=smNewContactCount(history,start,end),period=siteMgmtPeriod==='all'?`${y}년 ${m+1}월`:range.label;
@@ -23914,7 +23933,7 @@ ead><body>
     if(mode){smNewContactChartMode=mode.dataset.ncMode;renderGlobalStats();return;}
     const bar=e.target.closest('[data-nc-start]');if(!bar||bar.disabled)return;
     const pick=smSelected();if(!pick)return;const x=smExcel(pick.site);
-    const history=smNewContactHistory(x?(x.contactEvents||[]):smEvents(pick.site,{start:'0000-01-01',end:'9999-12-31'}));
+    const history=smNewContactHistoryForSite(pick.site);
     const count=smNewContactCount(history,bar.dataset.ncStart,bar.dataset.ncEnd),section=bar.closest('.nc-section');
     section.querySelector('[data-nc-list-title]').textContent=bar.dataset.ncLabel+' 신규 접촉자'+(count.newCount?' · '+count.newCount+'명':'');
     section.querySelector('[data-nc-list-body]').innerHTML=smNewContactNames(count.people);section.querySelector('.nc-list').open=true;
