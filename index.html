@@ -9637,7 +9637,7 @@ function parseRows(candidate,options={}){
  if(!Number.isInteger(year)||year<2000||year>2100)throw Error('이력 연도는 2000~2100년으로 입력하세요.');
  if(!/^\d{4}-\d{2}-\d{2}$/.test(asOfDate||'')||!validDate(...asOfDate.split('-').map(Number)))throw Error('유효한 기준일을 선택하세요.');
  if(s.name<0||s.manager<0)throw Error('성명·담당 열을 확인하세요.');
- const people=[],events=[],unresolved=[],warnings=[],ids=new Set();let named=0,excluded=0,duplicateRows=0;
+ const people=[],events=[],dailyContactEvents=[],unresolved=[],warnings=[],ids=new Set();let named=0,excluded=0,duplicateRows=0;
  const warn=(row,column,value,reason)=>unresolved.push({row,column,value:text(value).slice(0,150),reason});
  function dates(value,month,knownMethod,row,column){
   const v=text(value);if(!v||v==='0'||v==='-')return[];let out=[];
@@ -9675,9 +9675,12 @@ function parseRows(candidate,options={}){
    }
   }
   let pe=[];s.months.forEach(c=>{pe.push(...dates(r[c.c],c.month,'',i+1,s.labels[c.c]))});
-  marks.forEach(c=>{pe.push(...dates(r[c.c],0,c.method,i+1,s.labels[c.c]))});
+  const daily=marks.filter(c=>['상담','단순','TM','거부','부재','불명'].includes(c.method)).flatMap(c=>dates(r[c.c],0,c.method,i+1,s.labels[c.c]).map(e=>({...e,eventSource:'daily-column'})));
+  pe.push(...daily);
+  const dailyUnique=new Map();daily.forEach(e=>dailyUnique.set(e.date+'|'+e.method,e));
+  dailyUnique.forEach(e=>dailyContactEvents.push({...e,personId,name,manager:p.manager,unit,dong,parcel,role,sourceRow:i+1}));
   const unique=new Map();pe.forEach(e=>unique.set(e.date+'|'+e.method,e));pe=[...unique.values()].sort((a,b)=>a.date.localeCompare(b.date));
-  p.todayContactMethod=pe.filter(e=>e.date===asOfDate&&success(e.method)).at(-1)?.method||'';
+  p.todayContactMethod=daily.filter(e=>e.date===asOfDate&&success(e.method)).at(-1)?.method||'';
   pe.forEach(e=>events.push({...e,personId,name,manager:p.manager,unit,dong,parcel,role,sourceRow:i+1}));people.push(p);
  }
  if(!people.length&&!options.allowEmpty)throw Error('선택한 집계 기준에 해당하는 명부 행이 없습니다.');
@@ -9687,14 +9690,14 @@ function parseRows(candidate,options={}){
  if(!s.months.length)warnings.push('월별 이력 열이 없습니다. 날짜가 명확한 접촉 표시만 기간 집계에 반영합니다.');
  warnings.push('이름 한 행을 1명(공동소유는 1행)으로 집계합니다. 현재 누계와 과거 기간 이력은 서로 다를 수 있습니다.');
  const managerNames=new Set(people.map(p=>p.manager));const alias=v=>{const b=v.replace(/\s*(본부장|실장|팀장|부장|차장|과장|대리|사원|주임)$/,'').trim();return b&&managerNames.has(b)?b:v};
- people.forEach(p=>{const m=alias(p.manager);if(m!==p.manager)p.managerOriginal=p.manager;p.manager=m});events.forEach(e=>{e.manager=alias(e.manager)});
+ people.forEach(p=>{const m=alias(p.manager);if(m!==p.manager)p.managerOriginal=p.manager;p.manager=m});events.forEach(e=>{e.manager=alias(e.manager)});dailyContactEvents.forEach(e=>{e.manager=alias(e.manager)});
  const blank=()=>({total:0,contacted:0,uncontacted:0,contactRate:0,todayContacted:0,roleOwners:0,methods:{상담:0,단순:0,TM:0,미접촉:0,거부:0,부재:0,불명:0,부재불명:0,세입자:0,미분류:0},todayMethods:{상담:0,단순:0,TM:0}});
  const byManager=Object.create(null),byRole=Object.create(null),byDong=Object.create(null);
  function group(map,key,p){const g=map[key]||(map[key]=blank());g.total++;if(p.contacted)g.contacted++;if(p.role)g.roleOwners++;g.methods[p.contactMethod]=(g.methods[p.contactMethod]||0)+1;if(success(p.todayContactMethod)){g.todayContacted++;g.todayMethods[p.todayContactMethod]++}}
  people.forEach(p=>{group(byManager,p.manager||'(미지정)',p);if(p.role)group(byRole,p.role,p);if(p.dong)group(byDong,p.dong,p)});
  [byManager,byRole,byDong].forEach(map=>Object.values(map).forEach(g=>{g.uncontacted=g.total-g.contacted;g.contactRate=g.total?g.contacted/g.total*100:0}));
  const total=people.length,contacted=people.filter(p=>p.contacted).length;
- return{source:'excel-master',syncedAt:options.syncedAt||new Date().toISOString(),totalOwners:total,contactedOwners:contacted,uncontactedOwners:total-contacted,contactRate:total?contacted/total*100:0,todayContactedOwners:people.filter(p=>success(p.todayContactMethod)).length,roleOwners:people.filter(p=>p.role).length,people,byManager,byRole,byDong,contactEvents:events.filter(e=>success(e.method)),reportEvents:events,monthDateColumns:Object.fromEntries(s.months.map(c=>[String(c.month),s.labels[c.c]])),importInfo:{version:2,fileName:candidate.fileName,sheetName:candidate.sheetName,title:candidate.title,fileHash:candidate.fileHash||'',year,asOfDate,scope,namedRows:named,excludedRows:excluded,duplicateRows,warnings,unresolved,schema:s,history:'dated-reports-and-contact-events'}};
+ return{source:'excel-master',syncedAt:options.syncedAt||new Date().toISOString(),totalOwners:total,contactedOwners:contacted,uncontactedOwners:total-contacted,contactRate:total?contacted/total*100:0,todayContactedOwners:people.filter(p=>success(p.todayContactMethod)).length,roleOwners:people.filter(p=>p.role).length,people,byManager,byRole,byDong,contactEvents:events.filter(e=>success(e.method)),reportEvents:events,dailyContactEvents,contactBasis:'status-column-and-daily-columns-v1',monthDateColumns:Object.fromEntries(s.months.map(c=>[String(c.month),s.labels[c.c]])),importInfo:{version:2,fileName:candidate.fileName,sheetName:candidate.sheetName,title:candidate.title,fileHash:candidate.fileHash||'',year,asOfDate,scope,namedRows:named,excludedRows:excluded,duplicateRows,warnings,unresolved,schema:s,history:'dated-reports-and-contact-events'}};
 }
 function parse(candidate,options={}){
  const s=options.schema||candidate.schema;
@@ -9703,7 +9706,7 @@ function parse(candidate,options={}){
  const nonMembers=parseRows(subset(true),{...options,scope:'all',allowEmpty:true});
  if(!main.people.length&&!nonMembers.people.length)throw Error('선택한 집계 기준에 해당하는 명부 행이 없습니다.');
  nonMembers.people.forEach(p=>p.memberFlag='비');
- nonMembers.contactEvents.forEach(e=>e.memberFlag='비');nonMembers.reportEvents.forEach(e=>e.memberFlag='비');
+ nonMembers.contactEvents.forEach(e=>e.memberFlag='비');nonMembers.reportEvents.forEach(e=>e.memberFlag='비');nonMembers.dailyContactEvents.forEach(e=>e.memberFlag='비');
  main.nonMembers=nonMembers;main.importInfo.version=3;main.importInfo.nonMemberRows=nonMembers.people.length;
  return main;
 }
@@ -23608,7 +23611,7 @@ ead><body>
 
     const mgr=String(manager||'').trim();
     const people=(n.people||[]).filter(p=>!mgr||(p.manager||'미지정')===mgr);
-    const events=(n.contactEvents||[]).filter(e=>
+    const events=(range?smExcelDailyEvents(n):(n.contactEvents||[])).filter(e=>smIsSuccessMethod(e.method)&&
       (!range||(String(e.date||'')>=range.start&&String(e.date||'')<=range.end)) &&
       (!mgr||(e.manager||'미지정')===mgr)
     );
@@ -23885,7 +23888,7 @@ ead><body>
       const label=b.label+' · '+b.start.slice(5).replace('-','/')+'~'+b.end.slice(5).replace('-','/');
       return `<button type="button" class="nc-bar" data-nc-start="${b.start}" data-nc-end="${b.end}" data-nc-label="${escapeHtml(label)}" ${b.observed?'':'disabled'} aria-label="${escapeHtml(label)}${b.observed?`: 누계 ${b.cumulative}명, 신규 ${b.newCount}명`:': 기록 범위 밖'}"><span class="nc-number">${b.observed&&b.cumulative?b.cumulative:''}${b.observed&&b.newCount>0?`<em class="nc-increase">+${b.newCount}</em>`:''}</span><span class="nc-bar-track"><span class="nc-fresh" style="height:${b.observed?b.newCount/max*100:0}%"></span><span class="nc-return" style="height:${b.observed?b.previous/max*100:0}%"></span></span><span>${b.label}</span>${smNewContactChartMode==='week'?`<small>${b.start.slice(8)*1}~${b.end.slice(8)*1}일</small>`:''}</button>`;
     }).join('');
-    return `<section class="nc-section" aria-label="접촉 누계 추이"><div class="nc-heading"><strong>접촉 누계 추이</strong><span>${escapeHtml(period)}</span></div><div class="nc-kpis"><div>누계접촉<strong>${smNewContactSnapshot(site,range).metrics.contacted||''}${smNewContactSnapshot(site,range).metrics.contacted?'<small>명</small>':''}</strong></div><div>기간 접촉<strong>${count.total||''}${count.total?'<small>명</small>':''}</strong></div><div>신규<strong>${count.newCount||''}${count.newCount?'<small>명</small>':''}</strong></div></div><div class="nc-toolbar"><div><button type="button" data-nc-mode="week" class="${smNewContactChartMode==='week'?'active':''}">주별</button><button type="button" data-nc-mode="month" class="${smNewContactChartMode==='month'?'active':''}">월별</button></div><span>${smNewContactChartMode==='week'?`${y}년 ${m+1}월`:`${y}년`} · <i class="nc-dot"></i> 신규 <i class="nc-dot nc-light"></i> 이전 누계</span></div><div class="nc-axis"><span>0명</span><span>${max}명</span></div><div class="nc-chart" style="--nc-columns:${bins.length}">${bars}</div><details class="nc-list"><summary data-nc-list-title>${escapeHtml(period)} 신규 접촉자${count.newCount?' · '+count.newCount+'명':''}</summary><div data-nc-list-body>${smNewContactNames(count.people)}</div></details></section>`;
+    return `<section class="nc-section" aria-label="접촉 누계 추이"><div class="nc-heading"><strong>접촉 누계 추이</strong><span>${escapeHtml(period)}</span></div><div class="nc-kpis"><div>누계접촉<strong>${smCanonicalCohort(site,range).contacted||''}${smCanonicalCohort(site,range).contacted?'<small>명</small>':''}</strong></div><div>기간 접촉<strong>${count.total||''}${count.total?'<small>명</small>':''}</strong></div><div>신규<strong>${count.newCount||''}${count.newCount?'<small>명</small>':''}</strong></div></div><div class="nc-toolbar"><div><button type="button" data-nc-mode="week" class="${smNewContactChartMode==='week'?'active':''}">주별</button><button type="button" data-nc-mode="month" class="${smNewContactChartMode==='month'?'active':''}">월별</button></div><span>${smNewContactChartMode==='week'?`${y}년 ${m+1}월`:`${y}년`} · <i class="nc-dot"></i> 신규 <i class="nc-dot nc-light"></i> 이전 누계</span></div><div class="nc-axis"><span>0명</span><span>${max}명</span></div><div class="nc-chart" style="--nc-columns:${bins.length}">${bars}</div><details class="nc-list"><summary data-nc-list-title>${escapeHtml(period)} 신규 접촉자${count.newCount?' · '+count.newCount+'명':''}</summary><div data-nc-list-body>${smNewContactNames(count.people)}</div></details></section>`;
   }
   function smNewContactNames(people){
     return people.length?`<div class="nc-names">${people.map(p=>`<div><strong>${escapeHtml(p.name)}</strong><span>${escapeHtml(p.first.slice(5).replace('-','/'))}${p.manager?' · '+escapeHtml(p.manager):''}</span></div>`).join('')}</div>`:'<p class="nc-empty">이 기간의 신규 접촉자가 없습니다.</p>';
@@ -23903,14 +23906,32 @@ ead><body>
   });
 
 
+  function smExcelDailyEvents(source){
+    if(Array.isArray(source?.dailyContactEvents))return source.dailyContactEvents;
+    const columns=new Set((source?.importInfo?.schema?.categories||[]).filter(c=>smIsKnownMethod(c.method)).map(c=>String(source.importInfo.schema.labels?.[c.c]||'')));
+    const reports=Array.isArray(source?.reportEvents)?source.reportEvents:[];
+    const dated=reports.filter(e=>e.eventSource==='daily-column'||(e.sourceColumn&&columns.has(String(e.sourceColumn))));
+    if(dated.length||columns.size)return dated;
+    // Old snapshots can identify only their own reference day's AG~AL results.
+    // Never turn monthly history into daily-column activity.
+    const asOf=source?.importInfo?.asOfDate||source?.asOfDate||String(source?.syncedAt||'').slice(0,10);
+    if(!smNewValidDate(asOf))return [];
+    return (source.people||[]).filter(p=>smIsKnownMethod(p.todayContactMethod)).map(p=>({...p,date:asOf,method:p.todayContactMethod,eventSource:'daily-snapshot'}));
+  }
+  function smExcelStatusMethod(value){
+    const raw=String(value||'').trim();
+    return typeof MemberExcelImport!=='undefined'?MemberExcelImport.method(raw):({상:'상담',단:'단순',T:'TM',거:'거부',부:'부재',불:'불명'}[raw]||raw);
+  }
   function smCanonicalCohort(site,range,nonmember=false,period=false){
     const excel=smExcel(site),owner=excel||smStats(site),source=nonmember?(owner.nonMembers||{}):owner;
     const snapshotCutoff=smNewContactSnapshot(site,range).cutoff,cutoff=period&&range.end<snapshotCutoff?range.end:snapshotCutoff;
     const key=p=>String(miPersonKey(p)||'').trim();
     const roster=(Array.isArray(source.people)?source.people:nonmember?[]:smRoster(site)).filter(p=>p&&key(p));
     const raw=nonmember||excel?(Array.isArray(source.contactEvents)?source.contactEvents:[]):smEvents(site,{start:'0000-01-01',end:cutoff});
-    const reports=Array.isArray(source.reportEvents)?source.reportEvents:raw;
-    const historyEvents=raw.filter(e=>smNewValidDate(e.date)&&e.date<=cutoff&&smIsSuccessMethod(e.method)&&key(e));
+    period=period&&siteMgmtPeriod==='day';
+    const reports=excel&&period?smExcelDailyEvents(source):(Array.isArray(source.reportEvents)?source.reportEvents:raw);
+    const activity=excel&&period?reports:raw;
+    const historyEvents=activity.filter(e=>smNewValidDate(e.date)&&e.date<=cutoff&&smIsSuccessMethod(e.method)&&key(e));
     const events=period?historyEvents.filter(e=>e.date>=range.start):historyEvents;
     const aliases=smManagerAliasMap(roster.map(p=>p.manager).concat(historyEvents.map(e=>e.manager)));
     const manager=m=>smManagerKey(smManagerAlias(m,aliases));
@@ -23918,6 +23939,7 @@ ead><body>
     roster.forEach(p=>{if(key(p))people.set(key(p),{...p,fromRoster:true,key:key(p),personId:p.personId||'',manager:manager(p.manager),role:smPrimaryRoleOnly(p.primaryRole||p.role||''),dong:String(p.dong||'').trim()});});
     for(const e of reports.concat(historyEvents)){
       if(!key(e)||!smNewValidDate(e.date)||e.date>cutoff)continue;
+      if(excel&&!people.has(key(e)))continue;
       if(!people.has(key(e)))people.set(key(e),{...e,fromRoster:false,key:key(e),personId:e.personId||'',manager:'(미지정)',role:smPrimaryRoleOnly(e.role||''),dong:String(e.dong||'').trim()});
       if(period&&e.date<range.start)continue;
       if(!latest.has(key(e))||e.date>=latest.get(key(e)).date)latest.set(key(e),e);
@@ -23925,7 +23947,8 @@ ead><body>
     for(const e of events){counts.set(key(e),(counts.get(key(e))||0)+1);if(!success.has(key(e))||e.date>=success.get(key(e)).date)success.set(key(e),e);}
     const rows=[...people.values()].map(p=>{
       const e=success.get(p.key),last=latest.get(p.key)||{};
-      return {...p,manager:p.manager,dong:p.dong||String(e?.dong||last.dong||'').trim(),role:p.role||smPrimaryRoleOnly(e?.role||last.role||''),contacted:!!e,method:e?.method||last.method||'',contactMethod:e?.method||last.method||'',last:last.date||e?.date||'',count:counts.get(p.key)||0,note:p.note||last.text||''};
+      const method=excel&&!period?smExcelStatusMethod(p.contactMethod):(e?.method||last.method||'');
+      return {...p,manager:p.manager,dong:p.dong||String(e?.dong||last.dong||'').trim(),role:p.role||smPrimaryRoleOnly(e?.role||last.role||''),contacted:smIsSuccessMethod(method),method,contactMethod:method,last:last.date||e?.date||'',count:counts.get(p.key)||0,note:p.note||last.text||''};
     });
     const total=Math.max(nonmember?roster.length:Number(source.totalOwners||0),rows.length),contacted=rows.filter(p=>p.contacted).length;
     const assigned=p=>!!p.manager&&!['(미지정)','미지정','-'].includes(p.manager);
@@ -23954,13 +23977,13 @@ ead><body>
     return {rows,total,contacted,uncontacted:total-contacted,managed,unmanaged:total-managed,managedUncontacted:rows.filter(p=>assigned(p)&&!p.contacted).length,managers,dongs:groupBy('dong'),roles:groupBy('role'),cutoff,nonmember};
   }
   function smCanonicalDrill(site,type,d){
-    const period=d.scope!=='cumulative'&&siteMgmtPeriod!=='all',c=smCanonicalCohort(site,smRange(),d.cohort==='nonmember',period),manager=d.manager?smManagerKey(d.manager):'',dong=d.dong||'',role=d.role||'';
+    const period=d.scope!=='cumulative'&&siteMgmtPeriod==='day',c=smCanonicalCohort(site,smRange(),d.cohort==='nonmember',period),manager=d.manager?smManagerKey(d.manager):'',dong=d.dong||'',role=d.role||'';
     const sourceRole=site.roleView?.items?.find(i=>i.name===role)?.source||role;
     let rows=c.rows.filter(p=>(!manager||p.manager===manager)&&(!dong||(p.dong||'동 미확인')===dong)&&(!role||p.role===sourceRole));
     if(type.endsWith('_uncontacted'))rows=rows.filter(p=>!p.contacted);
     else if(type.endsWith('_contacted')||type.endsWith('_rate'))rows=rows.filter(p=>p.contacted);
     else if(type==='canonical_method')rows=rows.filter(p=>p.method===d.method);
-    const label=d.method|| (type.endsWith('_uncontacted')?'미접촉':type.endsWith('_contacted')||type.endsWith('_rate')?(period?'기간 접촉':'누계접촉'):'전체');
+    const label=d.method|| (type.endsWith('_uncontacted')?'미접촉':type.endsWith('_contacted')||type.endsWith('_rate')?(period?'금일접촉':'누계접촉'):'전체');
     let expected=rows.length;
     if(type==='site_total')expected=c.total;
     else if(type==='site_uncontacted')expected=c.uncontacted;
@@ -24031,7 +24054,7 @@ ead><body>
   const SM_GRAPH_COLORS=['#31866b','#6c9fca','#d8a13b','#c67f88','#8a91b2','#a5aaa7'];
   function smGraphReportEvents(site){
     const x=smExcel(site);
-    if(x)return Array.isArray(x.reportEvents)?x.reportEvents:(Array.isArray(x.contactEvents)?x.contactEvents:[]);
+    if(x)return siteMgmtPeriod==='day'?smExcelDailyEvents(x):(Array.isArray(x.reportEvents)?x.reportEvents:(Array.isArray(x.contactEvents)?x.contactEvents:[]));
     return smEvents(site,{start:'0000-01-01',end:'9999-12-31'});
   }
   function smGraphManagerEvents(site,range){
@@ -24122,11 +24145,11 @@ ead><body>
     return chart;
   }
   function smApprovedContactTable(entries,kind,id,availableWidth=0,meta={}){
-    const period=kind==='week',dong=kind==='dong';
-    const headings=period?['일자 / 주차',...SM_GRAPH_METHODS,'합계']:[dong?'동':'담당',dong?'전체':'관리','접촉',...SM_GRAPH_METHODS,'미접촉','접촉률'];
+    const period=kind==='week',dong=kind==='dong',contactLabel=siteMgmtPeriod==='day'?'금일접촉':'누계접촉';
+    const headings=period?['일자 / 주차',...SM_GRAPH_METHODS,'합계']:[dong?'동':'담당',dong?'전체':'관리',contactLabel,...SM_GRAPH_METHODS,'미접촉','접촉률'];
     const cell=(r,n,col,method='',text='')=>{const link=n>0?` data-sc-source="${id}" data-sc-row="${r.row}" data-sc-col="${col??''}" data-sc-method="${escapeHtml(method)}" tabindex="0" role="button"`:'';return `<td${link}>${text||n||''}</td>`;};
     if(dong){
-      const headers=['동','전체','접촉','상담','단순','TM'];
+      const headers=['동','전체',contactLabel,'상담','단순','TM'];
       const half=Math.ceil(entries.length/2);
       const row=(r,i)=>`<tr class="sc-v-entity" data-sc-entry="${i}"><th scope="row">${escapeHtml(r.label)}${/^\d+$/.test(r.label)?'동':''}</th>${cell(r,r.total,r.totalCol,'전체')}${cell(r,r.value,r.col)}${SM_GRAPH_METHODS.slice(0,3).map((m,j)=>cell(r,Number(r.parts?.[j])||0,r.methodCols?.[j],m)).join('')}</tr>`;
       const table=(part,start)=>`<div class="sc-table-scroll"><table class="sc-readable-table sc-dong-compact"><thead><tr>${headers.map(h=>`<th scope="col">${h}</th>`).join('')}</tr></thead><tbody>${part.map((r,i)=>row(r,start+i)).join('')}</tbody></table></div>`;
@@ -24177,7 +24200,7 @@ ead><body>
       if(kind==='dong')entries.sort((a,b)=>a.label.localeCompare(b.label,'ko',{numeric:true}));
       let canonical=null;
       if(context.cohort&&kind!=='week'){
-        canonical=kind==='nonmember'?smCanonicalCohort(context.site,context.selectedRange||smRange(),true,siteMgmtPeriod!=='all'):context.cohort;
+        canonical=kind==='nonmember'?smCanonicalCohort(context.site,context.selectedRange||smRange(),true,siteMgmtPeriod==='day'):context.cohort;
         const groups=kind==='dong'?canonical.dongs:canonical.managers;
         for(const entry of entries){const g=groups.find(g=>kind==='dong'?g.name===entry.label:smManagerKey(g.name)===smManagerKey(entry.label));if(g)Object.assign(entry,{total:g.total,value:g.contacted,missing:g.uncontacted,parts:SM_GRAPH_METHODS.map(m=>g.methods[m]||0)});}
         table.dataset.scCanonical=kind==='nonmember'?'nonmember':'owner';table.dataset.scKind=kind;
@@ -24246,8 +24269,8 @@ ead><body>
   function renderGlobalStats(){
     const body=document.getElementById('globalStatsBody');if(!body)return;
     const pick=smSelected();if(!pick){body.innerHTML='<div class="pdfsheet"><div class="pdf-empty">표시할 현장이 없습니다.</div></div>';return;}
-    const{site,office}=pick,range=smRange(),x=smStats(site),periodMode=siteMgmtPeriod!=='all',events=periodMode?smEvents(site,range):smEvents(site,{start:'0000-01-01',end:'9999-12-31'});
-    const cumulativeCohort=smCanonicalCohort(site,range),cohort=periodMode?smCanonicalCohort(site,range,false,true):cumulativeCohort,metrics={total:cumulativeCohort.total,contacted:cumulativeCohort.contacted,uncontacted:cumulativeCohort.uncontacted,rate:cumulativeCohort.total?cumulativeCohort.contacted/cumulativeCohort.total*100:0},mr={rows:cohort.managers,unassigned:0},roles=bfRoleRows(site,cohort.roles),dongs=cohort.dongs;
+    const{site,office}=pick,range=smRange(),x=smStats(site),periodMode=siteMgmtPeriod==='day',events=periodMode?(smExcel(site)?smExcelDailyEvents(x).filter(e=>smInRangeDate(e.date,range)&&smIsSuccessMethod(e.method)):smEvents(site,range)):smEvents(site,{start:'0000-01-01',end:'9999-12-31'});
+    const cumulativeCohort=smCanonicalCohort(site,range),cohort=periodMode?smCanonicalCohort(site,range,false,true):cumulativeCohort,metrics={total:cohort.total,contacted:cohort.contacted,uncontacted:cohort.uncontacted,rate:cohort.total?cohort.contacted/cohort.total*100:0},mr={rows:cohort.managers,unassigned:0},roles=bfRoleRows(site,cohort.roles),dongs=cohort.dongs;
     const now=siteMgmtDate,dayNames=['일','월','화','수','목','금','토'];
     const titleDate=siteMgmtPeriod==='day'?`${now.getFullYear()}년 ${now.getMonth()+1}월 ${now.getDate()}일 ${dayNames[now.getDay()]}요일`:range.label;
     const lbl=document.getElementById('siteMgmtPeriodLabel');if(lbl){lbl.textContent=mobileStatsPeriodLabel(range.label);lbl.title=range.label;}
@@ -24282,16 +24305,16 @@ ead><body>
     body.innerHTML=`<div class="pdfsheet">
       <div class="pdf-titlebar"><span>▣ ${escapeHtml(site.name)} 접촉현황</span><small>${escapeHtml(titleDate)}</small></div>
       <div class="pdf-summary">
-        <div class="pdf-summary-cell sm-drill" data-drill="site_total" data-basis="cohort" data-scope="cumulative"><div class="h">소유주</div><div class="n">${metrics.total}명</div></div>
-        <div class="pdf-summary-cell sm-drill" data-drill="site_contacted" data-basis="cohort" data-scope="cumulative"><div class="h">누계접촉</div><div class="n">${metrics.contacted}명</div></div>
-        <div class="pdf-summary-cell sm-drill" data-drill="site_uncontacted" data-basis="cohort" data-scope="cumulative"><div class="h">미접촉</div><div class="n">${metrics.uncontacted}명</div></div>
-        <div class="pdf-summary-cell sm-drill" data-drill="site_rate" data-basis="cohort" data-scope="cumulative"><div class="h">접촉률</div><div class="n">${metrics.rate.toFixed(1)}%</div></div>
+        <div class="pdf-summary-cell sm-drill" data-drill="site_total" data-basis="cohort" data-scope="${periodMode?'day':'cumulative'}"><div class="h">소유주</div><div class="n">${metrics.total}명</div></div>
+        <div class="pdf-summary-cell sm-drill" data-drill="site_contacted" data-basis="cohort" data-scope="${periodMode?'day':'cumulative'}"><div class="h">${periodMode?'금일접촉':'누계접촉'}</div><div class="n">${metrics.contacted}명</div></div>
+        <div class="pdf-summary-cell sm-drill" data-drill="site_uncontacted" data-basis="cohort" data-scope="${periodMode?'day':'cumulative'}"><div class="h">미접촉</div><div class="n">${metrics.uncontacted}명</div></div>
+        <div class="pdf-summary-cell sm-drill" data-drill="site_rate" data-basis="cohort" data-scope="${periodMode?'day':'cumulative'}"><div class="h">접촉률</div><div class="n">${metrics.rate.toFixed(1)}%</div></div>
       </div>
       ${smApprovedGraphHeading(site,range)}
       <div class="sc-analysis-grid">
         ${smNewContactSection(site,range)}
         <div class="pdf-manager-row">${managerTable}</div>
-        ${rfNonMemberBlock(site,null)}
+        ${rfNonMemberBlock(site,periodMode?range:null)}
         ${roleTable}
         <div class="pdf-section pdf-dong-card"><div class="pdf-section-title"><span class="section-heading-text">③ 동별 접촉현황</span></div>${smDongSection(dongs)}</div>
         ${smTrendSection(site,range)}
@@ -24933,8 +24956,8 @@ function rfNonMemberBlock(site,range,manager){
  const n=ex.nonMembers;
  if(!n)return '';
 
- const people=(n.people||[]).filter(p=>!manager||p.manager===manager);
- const events=(n.contactEvents||[]).filter(e=>
+ const people=smCanonicalCohort(site,range||smRange(),true,!!range).rows.filter(p=>!manager||p.manager===manager);
+ const events=(range?smExcelDailyEvents(n):(n.contactEvents||[])).filter(e=>smIsSuccessMethod(e.method)&&
    (!range||(e.date>=range.start&&e.date<=range.end)) &&
    (!manager||e.manager===manager)
  );
@@ -33505,8 +33528,8 @@ body.ux383.theme-dark .rf-nonmember-note-body-v69{
       const n=ex.nonMembers;
       if(!n)return '';
 
-      const people=(n.people||[]).filter(p=>!manager||p.manager===manager);
-      const events=(n.contactEvents||[]).filter(e=>
+      const people=smCanonicalCohort(site,range||smRange(),true,!!range).rows.filter(p=>!manager||p.manager===manager);
+      const events=(range?smExcelDailyEvents(n):(n.contactEvents||[])).filter(e=>smIsSuccessMethod(e.method)&&
         (!range||(e.date>=range.start&&e.date<=range.end)) &&
         (!manager||e.manager===manager)
       );
