@@ -20208,7 +20208,7 @@ function renderDetailPanel(site){
           const embeddedRole=r.role&&r.name.includes(r.role);
           const fullIdentity=r.name+(r.role&&!embeddedRole?' · '+r.role:'');
           const hasMore=shortName!==r.name||shortName.length>12;
-          return `<tr data-owner-row="${escapeHtml(r.name)}"><td class="mgr-contact-cell"><div class="mgr-contact-heading"><button type="button" class="mgr-contact-journal-btn${ageName!==shortName?' has-contact-age':''}" data-person="${escapeHtml(r.personKey)}" data-contact="${escapeHtml(r.name)}">${escapeHtml(ageName)}</button><button type="button" class="mgr-interest-toggle" aria-label="${escapeHtml(r.name)} 관심사항 펼치기" aria-expanded="false" aria-controls="${interestId}" data-interest-target="${interestId}">▸</button></div>${r.role?`<div class="mgr-contact-role">${escapeHtml(r.role)}</div>`:''}</td><td>${escapeHtml(r.manager||'-')}</td><td>${escapeHtml(r.unit||'-')}</td><td>${r.dates.size}</td><td>${r.count}</td><td><span class="contact-date-full">${escapeHtml(r.last||'-')}</span><span class="contact-date-short" title="${escapeHtml(r.last||'')}">${escapeHtml(r.last?Number(r.last.slice(5,7))+'. '+Number(r.last.slice(8,10)):'-')}</span></td><td class="contact-method-compact">${escapeHtml(meth||'-')}</td></tr><tr id="${interestId}" class="mgr-interest-row" hidden><td colspan="7"><div class="mgr-interest-content">${hasMore?`<div class="mgr-contact-full-identity">${escapeHtml(fullIdentity)}</div>`:''}${topics}</div></td></tr>`;
+          return `<tr data-owner-row="${escapeHtml(r.name)}"><td class="mgr-contact-cell"><div class="mgr-contact-heading"><button type="button" class="mgr-contact-journal-btn${ageName!==shortName?' has-contact-age':''}" data-person="${escapeHtml(r.personKey)}" data-contact="${escapeHtml(r.name)}">${escapeHtml(ageName).replace(/\s*\((\d+세)\)/g, '<span class="mgr-contact-age">($1)</span>')}</button><button type="button" class="mgr-interest-toggle" aria-label="${escapeHtml(r.name)} 관심사항 펼치기" aria-expanded="false" aria-controls="${interestId}" data-interest-target="${interestId}">▸</button></div>${r.role?`<div class="mgr-contact-role">${escapeHtml(r.role)}</div>`:''}</td><td>${escapeHtml(r.manager||'-')}</td><td>${escapeHtml(r.unit||'-')}</td><td>${r.dates.size}</td><td>${r.count}</td><td><span class="contact-date-full">${escapeHtml(r.last||'-')}</span><span class="contact-date-short" title="${escapeHtml(r.last||'')}">${escapeHtml(r.last?Number(r.last.slice(5,7))+'. '+Number(r.last.slice(8,10)):'-')}</span></td><td class="contact-method-compact">${escapeHtml(meth||'-')}</td></tr><tr id="${interestId}" class="mgr-interest-row" hidden><td colspan="7"><div class="mgr-interest-content">${hasMore?`<div class="mgr-contact-full-identity">${escapeHtml(fullIdentity)}</div>`:''}${topics}</div></td></tr>`;
         }).join('')}</tbody>
       </table></div>`;
     }
@@ -41513,5 +41513,14 @@ body.ux383 #globalStatsBody .pdf-today-table td:nth-child(8){min-width:0!importa
  body.ux383 #detailBody .rf-nonmember-summary-table-v69 tbody td{background:#fff!important;}
  body.ux383 #detailBody .rf-nonmember-summary-table-v69 tbody tr:last-child>:is(th,td){background:#edf4f0!important;border-bottom:0!important;font-weight:700!important;}
  body.ux383 #detailBody .rf-nonmember-roster-v69>summary{padding:10px 2px 2px!important;color:#417f68!important;}
+}
+</style>
+
+<style id="mobile-contact-age-next-line-20261018">
+@media screen and (max-width:820px){
+ body.ux383 #mgrOwnerTable .mgr-contact-heading .mgr-contact-journal-btn .mgr-contact-age{
+  display:block!important;white-space:nowrap!important;font-size:.92em!important;
+  line-height:1.4!important;margin:1px 0 4px!important;color:var(--text-dim)!important;font-weight:400!important;
+ }
 }
 </style>
