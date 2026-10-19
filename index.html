@@ -12067,41 +12067,61 @@ async function mfRetrySync(){
 
   // ---------- 모바일: 탭(전체/미관리/모니터링 등) 클릭 시 현장목록을 팝업으로 검색/열람 ----------
   let mobileStageListSearch = '';
+  let mobileStageListSearchTimer = null;
+  let mobileStageListComposing = false;
+  function queueMobileStageListSearch(input){
+    clearTimeout(mobileStageListSearchTimer);
+    if(mobileStageListComposing) return;
+    mobileStageListSearchTimer = setTimeout(()=>{
+      mobileStageListSearchTimer = null;
+      if(mobileStageListComposing) return;
+      mobileStageListSearch = input.value;
+      renderMobileStageListModal();
+    }, 450);
+  }
   function renderMobileStageListModal(){
     const box = document.getElementById('mobileStageListModalBox');
     if(!box) return;
+    // Keep the native input node alive while iOS/Android compose Korean text.
+    if(!document.getElementById('mobileStageListSearchInput')){
+      box.innerHTML = `
+        <div class="mobile-stage-list-title">
+          <span id="mobileStageListCount"></span>
+          <button type="button" class="mobile-stage-list-close" id="mobileStageListCloseBtn">✕</button>
+        </div>
+        <input type="text" class="mobile-stage-list-search" id="mobileStageListSearchInput" placeholder="🔍 현장명·담당자로 검색" autocomplete="off">
+        <div id="mobileStageListItems"></div>
+      `;
+      const input = document.getElementById('mobileStageListSearchInput');
+      input.value = mobileStageListSearch;
+      input.addEventListener('compositionstart', ()=>{
+        mobileStageListComposing = true;
+        clearTimeout(mobileStageListSearchTimer);
+        mobileStageListSearchTimer = null;
+      });
+      input.addEventListener('compositionend', ()=>{
+        mobileStageListComposing = false;
+        queueMobileStageListSearch(input);
+      });
+      input.addEventListener('input', (e)=>{
+        if(e.isComposing || mobileStageListComposing) return;
+        queueMobileStageListSearch(input);
+      });
+      document.getElementById('mobileStageListCloseBtn').addEventListener('click', closeMobileStageListModal);
+    }
     const q = mobileStageListSearch.trim().toLowerCase();
     let list = sortFiltered(filteredSites());
     if(q){
       list = list.filter(s=>(s.name+' '+(s.district||'')+' '+(s.manager||'')).toLowerCase().includes(q));
     }
-    box.innerHTML = `
-      <div class="mobile-stage-list-title">
-        <span>${escapeHtml(selectedStage)} · ${list.length}개</span>
-        <button type="button" class="mobile-stage-list-close" id="mobileStageListCloseBtn">✕</button>
-      </div>
-      <input type="text" class="mobile-stage-list-search" id="mobileStageListSearchInput" placeholder="🔍 현장명·담당자로 검색" autocomplete="off">
-      <div id="mobileStageListItems">
-        ${list.length ? list.map(s=>`
-          <div class="mobile-stage-list-item" data-id="${s.id}">
-            <span class="dot" style="background:${colorForStatus(s.status)}"></span>
-            <span class="name-item-text">${escapeHtml(s.name)}</span>
-          </div>`).join('') : `<div class="mobile-stage-list-empty">해당하는 현장이 없습니다.</div>`}
-      </div>
-    `;
-    const searchInput = document.getElementById('mobileStageListSearchInput');
-    if(searchInput){
-      searchInput.value = mobileStageListSearch;
-      searchInput.addEventListener('input', (e)=>{
-        mobileStageListSearch = e.target.value;
-        renderMobileStageListModal();
-        const el = document.getElementById('mobileStageListSearchInput');
-        if(el){ el.focus(); const v = el.value; el.value=''; el.value=v; }
-      });
-    }
-    const closeBtn = document.getElementById('mobileStageListCloseBtn');
-    if(closeBtn) closeBtn.addEventListener('click', closeMobileStageListModal);
-    box.querySelectorAll('.mobile-stage-list-item').forEach(item=>{
+    document.getElementById('mobileStageListCount').textContent = selectedStage+' · '+list.length+'개';
+    const items = document.getElementById('mobileStageListItems');
+    items.innerHTML = list.length ? list.map(s=>`
+      <div class="mobile-stage-list-item" data-id="${s.id}">
+        <span class="dot" style="background:${colorForStatus(s.status)}"></span>
+        <span class="name-item-text">${escapeHtml(s.name)}</span>
+      </div>`).join('') : `<div class="mobile-stage-list-empty">해당하는 현장이 없습니다.</div>`;
+    items.querySelectorAll('.mobile-stage-list-item').forEach(item=>{
       item.addEventListener('click', ()=>{
         const id = item.dataset.id;
         closeMobileStageListModal();
@@ -12116,12 +12136,20 @@ async function mfRetrySync(){
     });
   }
   function openMobileStageListModal(){
+    clearTimeout(mobileStageListSearchTimer);
+    mobileStageListSearchTimer = null;
+    mobileStageListComposing = false;
     mobileStageListSearch = '';
+    const input = document.getElementById('mobileStageListSearchInput');
+    if(input) input.value = '';
     renderMobileStageListModal();
     document.getElementById('mobileStageListOverlay').classList.add('show');
     setTimeout(()=>{ const el = document.getElementById('mobileStageListSearchInput'); if(el) el.focus(); }, 50);
   }
   function closeMobileStageListModal(){
+    clearTimeout(mobileStageListSearchTimer);
+    mobileStageListSearchTimer = null;
+    mobileStageListComposing = false;
     document.getElementById('mobileStageListOverlay').classList.remove('show');
   }
   document.getElementById('mobileStageListOverlay').addEventListener('click', (e)=>{
