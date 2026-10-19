@@ -19205,16 +19205,36 @@ function renderDetailPanel(site){
     guestSelect.innerHTML = keys.map(key=>`<option value="${key}">${escapeHtml(guestAccounts[key].name||key)}</option>`).join('');
   }
 
-  document.getElementById('guestModeBtn').addEventListener('click', ()=>{
+  let staffLoginListLoading=false;
+  document.getElementById('guestModeBtn').addEventListener('click', async()=>{
+    if(staffLoginListLoading)return;
+    staffLoginListLoading=true;
     modeChoiceRow.style.display = 'none';
-    populateGuestSelect();
     guestPwRow.style.display = 'block';
     guestPwError.style.display = 'none';
     guestPwInput.value = '';
-    guestPwInput.focus();
+    const submit=document.getElementById('guestPwConfirmBtn');
+    guestSelect.disabled=true;submit.disabled=true;
+    guestSelect.innerHTML='<option value="">담당자 불러오는 중…</option>';
+    try{
+      // Entry authentication deliberately defers data. Resume the permitted
+      // viewer session before reading the staff list; staff authentication
+      // itself still runs on the server when the user submits a password.
+      window.dashboardPasswordAccess.downgrade();
+      await loadSites();
+      if(uxLoadFailed)throw Error('담당자 명단을 불러오지 못했습니다. 취소 후 다시 눌러주세요.');
+      populateGuestSelect();
+      if(!guestSelect.options.length)throw Error('등록된 담당자가 없습니다. 관리자에게 확인해주세요.');
+      guestSelect.disabled=false;submit.disabled=false;
+      if(guestPwRow.style.display!=='none')guestPwInput.focus();
+    }catch(error){
+      guestSelect.innerHTML='<option value="">담당자 목록 확인 필요</option>';
+      guestPwError.textContent=error.message;guestPwError.style.display='block';
+    }finally{staffLoginListLoading=false;}
   });
 
   async function tryGuestPasswordSubmit(){
+    if(staffLoginListLoading||guestSelect.disabled||!guestSelect.value)return;
     const key = guestSelect.value;
     const pw = guestPwInput.value;
     const g = guestAccounts[key];
@@ -41738,4 +41758,8 @@ body.ux383 #detailBody .mgr-contact-toolbar .mgr-contact-period-toggle button{
   padding:3px 8px!important;border-radius:7px!important;font-size:11px!important;
  }
 }
+</style>
+
+<style id="guest-hide-brief-evidence-20261019">
+body.guest-viewer-readonly :is(.bf-evidence-fold,.bf-evidence-record,.bf-source-group-v46,.bf-check-v46){display:none!important;}
 </style>
