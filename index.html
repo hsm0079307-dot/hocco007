@@ -1847,8 +1847,7 @@ function briefReportBody(value){
  return text.replace(/[ \t]+(?=\n|$)/g,'').replace(/([.!?。])[ \t]*\./g,'$1').trim();
 }
 function briefReportMonthlyMarkup(value,esc){
- const sources=briefReportSources(value);
- return '<div class="bf-manual">'+esc(briefReportBody(value))+'</div>'+(sources.length?'<details class="bf-evidence-fold"><summary>출처 보기</summary><div class="bf-evidence-record">'+sources.map(esc).join('<br>')+'</div></details>':'');
+ return '<div class="bf-manual">'+esc(briefReportBody(value))+'</div>';
 }
 </script>
 
@@ -10961,7 +10960,7 @@ async function mfRetrySync(){
                   const baseSnapshot = {};
                   DRAFT_FIELDS_KEYS.forEach(k=>{ baseSnapshot[k] = arr[idx][k] || ''; });
                   arr[idx].guestDrafts = arr[idx].guestDrafts || {};
-                  arr[idx].guestDrafts[currentGuest.key] = { snapshot: draftSnapshot, baseSnapshot, updatedBy: currentGuest.name, updatedAt: new Date().toISOString() };
+                  arr[idx].guestDrafts[currentGuest.key] = { ...arr[idx].guestDrafts[currentGuest.key], snapshot: draftSnapshot, baseSnapshot, updatedBy: currentGuest.name, updatedAt: new Date().toISOString() };
                 }else{
                   // 관리자 수정: 최신 클라우드에 있던 담당자 사본들(guestDrafts)은 무조건 보존한다.
                   // 관리자가 지금 특정 담당자 사본을 직접 고치는 중(editingGuestDraftKey)이면 그 키만 로컬 값으로 반영하고,
@@ -15331,6 +15330,7 @@ function renderDetailPanel(site){
               <div class="dtab ${t===detailTab?'active':''}" data-tab="${t}">${t==='일지'?'보고서':t}${t==='일지'?` <span class="dtab-count">${visitCount(site)}</span>`:''}${t==='문서함' && (site.documents||[]).length ? ` <span class="dtab-count">${site.documents.length}</span>`:''}</div>
             `).join('')}
             <div class="dtab no-print" data-tab="__siteStats">현장 상세집계</div>
+            <button type="button" class="dtab no-print ${detailTab==='메모'?'active':''}" data-tab="메모" id="siteMemoTab">📝 메모</button>
           </div>
         </div>
         ${site.__officialChanged ? `<div style="background:var(--warn-bg);border:1px solid var(--warn-border);border-radius:8px;padding:8px 10px;margin:8px 0;font-size:12px;color:var(--warn-text);">🔔 관리자가 원본에서 <b>${site.__officialChanged.map(k=>({status:'상태',stage:'단계',manager:'담당자',stageDetail:'진행단계 상세',memo:'비고'}[k]||k)).join(', ')}</b>을(를) 수정했어요. 내 사본과 달라졌으니 확인해보세요.</div>` : ''}
@@ -15496,11 +15496,105 @@ function renderDetailPanel(site){
     await saveSites();
   }
 
+
+  function siteMemoAccess(){
+    const identity=window.dashboardPasswordAccess?.identity();
+    const staff=identity?.role==='staff'&&guestMode&&currentGuest&&identity.key===currentGuest.key;
+    return {role:identity?.role||'viewer',key:staff?currentGuest.key:null,staff:!!staff,
+      writable:!guestViewerMode&&(identity?.role==='admin'&&!guestMode||!!staff)};
+  }
+  function siteMemoCardsOf(site,access=siteMemoAccess()){
+    const value=access.staff?site?.guestDrafts?.[access.key]?.siteMemoCards:site?.siteMemoCards;
+    return Array.isArray(value)?value:[];
+  }
+  async function saveSiteMemoCards(site,baseline,value){
+    const access=siteMemoAccess();
+    if(!access.writable)throw Error('관리자 또는 담당자로 로그인해주세요.');
+    if(access.staff&&!(currentGuest.siteIds||[]).includes(site.id))throw Error('본인 담당 현장에만 메모할 수 있습니다.');
+    if(editMode||logFormOpen)throw Error('작성 중인 현장 정보나 보고서를 먼저 저장해주세요.');
+    if(localStorage.getItem(PENDING_OFFLINE_KEY))throw Error('미전송 변경을 먼저 저장한 뒤 다시 시도해주세요.');
+    const office=OFFICES.find(o=>(allOfficesData[o]||[]).some(x=>x.id===site.id&&x.name===site.name));
+    if(!office)throw Error('현장을 찾을 수 없습니다.');
+    const res=await fetch(FIREBASE_DATA_WRITE_URL,{cache:'no-store',headers:{'X-Firebase-ETag':'true'}});
+    if(!res.ok)throw Error('서버 연결을 확인해주세요. 작성한 메모는 창에 남아 있습니다.');
+    const fresh=await res.json(),etag=res.headers.get('ETag');
+    const remote=fresh.offices?.[office]?.find(x=>x.id===site.id&&x.name===site.name);
+    if(!remote||!etag)throw Error('현장 또는 서버 버전을 확인하지 못했습니다.');
+    if(JSON.stringify(siteMemoCardsOf(remote,access))!==JSON.stringify(baseline))throw Error('다른 곳에서 메모를 수정했습니다. 작성 내용을 복사한 뒤 최신 자료를 불러와주세요.');
+    const active=siteMemoAccess();
+    if(!active.writable||active.role!==access.role||active.key!==access.key)throw Error('로그인이 변경되었습니다. 다시 입장해주세요.');
+    if(access.staff){
+      remote.guestDrafts={...remote.guestDrafts,[access.key]:{...remote.guestDrafts?.[access.key],siteMemoCards:value}};
+      fresh.guestDataVersions={...fresh.guestDataVersions,[access.key]:Date.now()+'-memo'};
+    }else{remote.siteMemoCards=value;fresh.dataVersion=Date.now()+'-memo';}
+    const wr=await fetch(FIREBASE_DATA_WRITE_URL,{method:'PUT',headers:{'Content-Type':'application/json','if-match':etag},body:JSON.stringify(fresh)});
+    if(wr.status===412)throw Error('저장 중 다른 변경이 생겼습니다. 최신 자료를 불러온 뒤 다시 시도해주세요.');
+    if(!wr.ok)throw Error('메모를 저장하지 못했습니다. 작성한 내용은 창에 남아 있습니다.');
+    allOfficesData=fresh.offices;
+    sites=access.staff?buildGuestShadowSites():(currentOffice===ALL_OFFICE?OFFICES.flatMap(o=>allOfficesData[o]||[]):(allOfficesData[currentOffice]||[]));
+    if(access.staff)localGuestDataVersion=fresh.guestDataVersions[access.key];else localDataVersion=fresh.dataVersion;
+    if(!access.staff)lastSavedStateSnapshot=uxClone(allOfficesData);
+    await mfCacheWrite(STORAGE_KEY,JSON.stringify(allOfficesData));syncState='ok';renderSyncStatus();
+  }
+  const SITE_MEMO_CATEGORIES={general:'📝 일반',contact:'🤝 접촉',todo:'☑ 할 일',idea:'💡 아이디어'};
+  function siteMemoTime(value){
+    const date=new Date(value);return isNaN(date)?'':date.toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  }
+  function renderSiteMemoBoard(site){
+    const body=document.getElementById('detailBody');if(!body)return;
+    const access=siteMemoAccess(),cards=uxClone(siteMemoCardsOf(site,access));
+    const refresh=()=>renderSiteMemoBoard(sites.find(x=>x.id===site.id)||site);
+    const list=cards.slice().sort((a,b)=>Number(!!b.pinned)-Number(!!a.pinned)||String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')));
+    body.innerHTML=`<section class="site-memo-board">
+      <header class="site-memo-banner"><div><span class="site-memo-eyebrow">SITE NOTES · ${access.staff?'내 메모':'현장 메모'}</span><h3>📝 ${escapeHtml(site.name)} 메모</h3><p>작은 정보부터 다음 할 일까지, 현장별로 모아두세요.</p></div>${access.writable?'<button type="button" class="btn btn-primary" data-site-memo-new>＋ 새 메모</button>':''}</header>
+      <div class="site-memo-tools"><span>전체 <b>${cards.length}</b> · 고정 <b>${cards.filter(x=>x.pinned).length}</b></span><label class="site-memo-search">⌕ <input type="search" placeholder="제목·내용 검색" aria-label="현장 메모 검색"></label></div>
+      <div class="site-memo-grid">${list.map(card=>`<article class="site-memo-card memo-${Object.hasOwn(SITE_MEMO_CATEGORIES,card.category)?card.category:'general'}" data-site-memo-id="${escapeHtml(card.id)}">
+        <div class="site-memo-card-top"><span>${escapeHtml(SITE_MEMO_CATEGORIES[card.category]||SITE_MEMO_CATEGORIES.general)}</span>${access.writable?`<button type="button" data-site-memo-pin="${escapeHtml(card.id)}" aria-label="${card.pinned?'고정 해제':'상단에 고정'}" aria-pressed="${!!card.pinned}">${card.pinned?'📌 고정':'☆ 고정'}</button>`:card.pinned?'<span>📌 고정</span>':''}</div>
+        <h4>${escapeHtml(card.title||'제목 없는 메모')}</h4><p class="site-memo-text">${escapeHtml(card.text||'')}</p>
+        <footer><span>${escapeHtml(card.author||'')} · ${escapeHtml(siteMemoTime(card.updatedAt))}</span>${access.writable?`<div><button type="button" data-site-memo-edit="${escapeHtml(card.id)}">수정</button><button type="button" data-site-memo-delete="${escapeHtml(card.id)}">삭제</button></div>`:''}</footer>
+      </article>`).join('')}</div>
+      <div class="site-memo-empty"${cards.length?' hidden':''}><span>🗂️</span><h4>아직 메모가 없습니다</h4><p>${access.writable?'새 메모를 눌러 이 현장의 첫 기록을 남겨보세요.':'등록된 현장 메모가 여기에 표시됩니다.'}</p></div>
+      <p class="site-memo-feedback" role="status"></p></section>`;
+    body.querySelector('[data-site-memo-new]')?.addEventListener('click',()=>openSiteMemoEditor(site,null,refresh));
+    body.querySelector('.site-memo-search input').addEventListener('input',e=>{
+      const q=e.target.value.trim().toLocaleLowerCase();let shown=0;
+      body.querySelectorAll('[data-site-memo-id]').forEach(el=>{const card=cards.find(x=>x.id===el.dataset.siteMemoId);el.hidden=!((card.title||'')+' '+(card.text||'')).toLocaleLowerCase().includes(q);if(!el.hidden)shown++;});
+      const empty=body.querySelector('.site-memo-empty');empty.hidden=shown>0;
+      empty.querySelector('h4').textContent=q?'검색 결과가 없습니다':'아직 메모가 없습니다';
+      empty.querySelector('p').textContent=q?'다른 검색어로 찾아보세요.':access.writable?'새 메모를 눌러 이 현장의 첫 기록을 남겨보세요.':'등록된 현장 메모가 여기에 표시됩니다.';
+    });
+    body.querySelectorAll('[data-site-memo-edit]').forEach(b=>b.onclick=()=>openSiteMemoEditor(site,cards.find(x=>x.id===b.dataset.siteMemoEdit),refresh));
+    const mutate=async(b,next)=>{
+      const buttons=[...body.querySelectorAll('.site-memo-board button')];buttons.forEach(x=>x.disabled=true);
+      const status=body.querySelector('.site-memo-feedback');status.textContent='저장 중…';
+      try{await saveSiteMemoCards(site,cards,next);refresh();}catch(error){status.textContent=error.message;buttons.forEach(x=>x.disabled=false);}
+    };
+    body.querySelectorAll('[data-site-memo-pin]').forEach(b=>b.onclick=()=>mutate(b,cards.map(x=>x.id===b.dataset.siteMemoPin?{...x,pinned:!x.pinned}:x)));
+    body.querySelectorAll('[data-site-memo-delete]').forEach(b=>b.onclick=()=>{if(confirm('이 메모를 삭제할까요?'))mutate(b,cards.filter(x=>x.id!==b.dataset.siteMemoDelete));});
+  }
+  function openSiteMemoEditor(site,card,onSaved){
+    if(!siteMemoAccess().writable)return;
+    const baseline=uxClone(siteMemoCardsOf(site)),host=document.createElement('div');host.className='site-memo-editor';
+    const modal=uxModal(card?'📝 메모 수정':'📝 새 메모 · '+site.name,host);modal.dialog.classList.add('site-memo-dialog');
+    host.innerHTML=`<label>분류<select name="category">${Object.entries(SITE_MEMO_CATEGORIES).map(([key,label])=>`<option value="${key}"${key===(card?.category||'general')?' selected':''}>${label}</option>`).join('')}</select></label><label>제목<input name="title" maxlength="100" placeholder="한눈에 알아볼 수 있는 제목" value="${escapeHtml(card?.title||'')}"></label><label>내용<textarea name="text" rows="9" placeholder="현장 소식, 꼭 기억할 내용, 다음 접촉 계획을 남겨보세요.">${escapeHtml(card?.text||'')}</textarea></label><div class="site-memo-editor-bottom"><label><input name="pinned" type="checkbox"${card?.pinned?' checked':''}> 중요한 메모로 고정</label><button type="button" class="btn btn-primary" data-site-memo-save>메모 저장</button></div><p class="site-memo-feedback" role="status"></p>`;
+    host.querySelector('[name="title"]').focus();
+    host.querySelector('[data-site-memo-save]').onclick=async e=>{
+      const title=host.querySelector('[name="title"]').value.trim(),text=host.querySelector('[name="text"]').value.trim(),status=host.querySelector('.site-memo-feedback');
+      if(!title&&!text){status.textContent='제목이나 내용을 입력해주세요.';return;}
+      const access=siteMemoAccess(),now=new Date().toISOString();
+      const next={id:card?.id||('memo-'+(window.crypto?.randomUUID?.()||Date.now()+'-'+Math.random().toString(36).slice(2))),title,text,category:host.querySelector('[name="category"]').value,pinned:host.querySelector('[name="pinned"]').checked,createdAt:card?.createdAt||now,updatedAt:now,author:currentGuest?.name||'관리자'};
+      const value=card?baseline.map(x=>x.id===card.id?next:x):[next,...baseline],button=e.currentTarget;
+      const closeButton=modal.dialog.querySelector('.ux-modal-head button');button.disabled=true;closeButton.disabled=true;status.textContent='저장 중…';
+      try{await saveSiteMemoCards(site,baseline,value);modal.close();onSaved();}catch(error){status.textContent=error.message;}finally{button.disabled=false;closeButton.disabled=false;}
+    };
+  }
+
   function renderDetailBody(site){
     const body = document.getElementById('detailBody');
     if(!body) return;
     requestAnimationFrame(()=>{v16Detail();v17Refresh();setTimeout(syncMapHeightToOverviewV52,40);});
 
+    if(detailTab==='메모'){renderSiteMemoBoard(site);return;}
     if(detailTab==='타사'){renderRivalDirectory(site);return;}
     if(detailTab==='개요'){
       // 사업현황 박스: 보기/수정 모드에서 같은 자리를 유지. 모든 항목을 이 화면에서 직접 수정 가능 (현장추가/수정 폼과 같은 필드를 공유하므로 자동으로 연동됨)
@@ -17836,6 +17930,7 @@ function renderDetailPanel(site){
     });
   }
   async function switchOffice(office){
+    if(guestMode&&currentGuest){sites=buildGuestShadowSites();renderDashboardBrand();renderAll();return;}
     // 사업소 버튼은 같은 사업소를 다시 눌러도 전체 현장으로 초기화한다.
     selectedManagers.clear();
     selectedNameIds.clear();
@@ -17854,11 +17949,7 @@ function renderDetailPanel(site){
     currentView = 'list';
     currentDetailId = null;
     selectedStage = '전체';
-    const brandEl = document.querySelector('.brand');
-    if(brandEl){
-      const main = (office===ALL_OFFICE?'전체':office);
-      brandEl.innerHTML = `<span class="brand-icon-v54" aria-hidden="true">🏗️</span><span class="brand-main-v54">${escapeHtml(main)}</span><span class="brand-sub-v54">스크린</span>`;
-    }
+    renderDashboardBrand();
     renderOfficeSwitcher();
     renderAll();
     renderSeoulShapes();
@@ -19106,7 +19197,20 @@ function renderDetailPanel(site){
     host.innerHTML=`<span>데이터 상태</span><span class="health-badge ${stale?'alert':''}">60일+ ${stale}</span><span class="health-badge ${noCoord?'alert':''}">좌표없음 ${noCoord}</span><span class="health-badge ${noDate?'alert':''}">최근일자 없음 ${noDate}</span>`;
   }
 
+  function renderDashboardBrand(){
+    const brand=document.querySelector('.brand');if(!brand)return;
+    const staff=guestMode&&currentGuest;
+    const main=staff?(currentGuest.name||currentGuest.key):(currentOffice===ALL_OFFICE?'전체':currentOffice);
+    const sub=staff?'담당 현장':'스크린';
+    const markup=`<span class="brand-icon-v54" aria-hidden="true">🏗️</span><span class="brand-main-v54">${escapeHtml(main)}</span><span class="brand-sub-v54">${sub}</span>`;
+    if(brand.innerHTML!==markup)brand.innerHTML=markup;
+  }
   function renderAll(){
+    renderDashboardBrand();
+    if(guestMode&&currentGuest){
+      const allowed=new Set(currentGuest.siteIds||[]);
+      if(sites.some(s=>!allowed.has(s.id)))sites=buildGuestShadowSites();
+    }
     renderStatsBar();
     renderManagerFilter();
     renderTabs();
@@ -19245,6 +19349,7 @@ function renderDetailPanel(site){
       try{ guestPwInput.blur(); }catch(e){}
       currentGuest = Object.assign({key}, guestAccounts[key]);
       guestMode = true;
+      guestViewerMode = false;
       localGuestDataVersion = guestDataVersions[key] || null;
       modeOverlay.classList.remove('show');
       try{ localStorage.setItem('modeOverlayCollapsed','0'); }catch(e){}
@@ -19319,6 +19424,7 @@ function renderDetailPanel(site){
   }
 
   function applyGuestRestrictions(){
+    document.body.classList.remove('guest-viewer-readonly');
     listSort='manual';
     // 모든 게스트 화면은 보기 전용으로 고정.
     document.body.classList.add('guest-readonly');
@@ -19332,9 +19438,7 @@ function renderDetailPanel(site){
     // 다만 특정 담당자로 로그인한 경우엔 자기 담당 현장만 보므로 계속 숨긴다.
     const officeSwitcherEl = document.getElementById('officeSwitcher');
     if(officeSwitcherEl) officeSwitcherEl.style.display = currentGuest ? 'none' : '';
-    const brandEl = document.querySelector('.brand'); if(brandEl && currentGuest){
-      brandEl.innerHTML = `<span class="brand-icon-v54" aria-hidden="true">🏗️</span><span class="brand-main-v54">${escapeHtml(currentGuest.name)}</span><span class="brand-sub-v54">담당 현장</span>`;
-    }
+    renderDashboardBrand();
     // 특정 담당자로 로그인한 경우엔, 자기 현장 몇 개만 관리하는 게 보통이라 굳이 필요 없는 것들(표/캘린더/단계탭)은 더 걷어내서 화면을 단순하게 만든다.
     if(currentGuest){
       const simplifyIds = ['sheetViewBtn','calendarBtn'];
@@ -23283,10 +23387,7 @@ ead><body>
         await loadSites();
         // 라벨 위치도 현장 데이터와 함께 받아 추가 서버 조회를 하지 않습니다.
 
-        const brandEl = document.querySelector('.brand');
-        if(brandEl){
-      brandEl.innerHTML = `<span class="brand-icon-v54" aria-hidden="true">🏗️</span><span class="brand-main-v54">${escapeHtml(currentOffice===ALL_OFFICE?'전체':currentOffice)}</span><span class="brand-sub-v54">스크린</span>`;
-    }
+        renderDashboardBrand();
         syncState = uxLoadFailed ? 'bad' : 'ok';
         renderSyncStatus();
         renderOfficeSwitcher();
@@ -41761,5 +41862,57 @@ body.ux383 #detailBody .mgr-contact-toolbar .mgr-contact-period-toggle button{
 </style>
 
 <style id="guest-hide-brief-evidence-20261019">
-body.guest-viewer-readonly :is(.bf-evidence-fold,.bf-evidence-record,.bf-source-group-v46,.bf-check-v46){display:none!important;}
+body :is(.bf-evidence-fold,.bf-evidence-record,.bf-source-group-v46,.bf-check-v46),
+body.ux383 .report-brief .bf-focused-entry .bf-evidence-fold{display:none!important;}
+</style>
+
+<style id="site-memo-board-design-20261019">
+body.ux383 #siteMemoTab{appearance:none;background:transparent;color:var(--text-dim);font:inherit;cursor:pointer;border:0;border-bottom:2px solid transparent;border-radius:0;white-space:nowrap;}
+body.ux383 #siteMemoTab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:750;}
+.site-memo-board{padding:12px 4px 24px;color:var(--text-main);}
+.site-memo-banner{display:flex;align-items:center;justify-content:space-between;gap:16px;background:linear-gradient(120deg,var(--accent-soft),var(--card));border-radius:18px;padding:23px 24px;margin-bottom:16px;}
+.site-memo-eyebrow{font-size:10px;letter-spacing:.09em;font-weight:750;color:var(--accent);}
+.site-memo-banner h3{font-size:21px;line-height:1.4;margin:7px 0 5px;font-weight:800;}
+.site-memo-banner p{font-size:12px;color:var(--text-dim);margin:0;line-height:1.6;}
+.site-memo-banner>.btn{flex-shrink:0;border-radius:11px;padding:9px 15px;font-size:12px;}
+.site-memo-tools{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 3px 14px;font-size:12px;color:var(--text-dim);}
+.site-memo-tools b{color:var(--accent);}
+.site-memo-search{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:11px;padding:6px 10px;background:var(--card);}
+.site-memo-search input{width:170px;min-width:0;border:0;outline:0;background:transparent;color:var(--text-main);font:inherit;}
+.site-memo-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;align-items:start;}
+.site-memo-card{border:1px solid var(--line);border-radius:16px;background:var(--card);padding:16px 18px 12px;box-shadow:var(--shadow-xs);border-top:4px solid var(--accent-border);min-width:0;}
+.site-memo-card.memo-contact{border-top-color:var(--accent);}
+.site-memo-card.memo-todo{border-top-color:#c3a257;}
+.site-memo-card.memo-idea{border-top-color:#8a95b3;}
+.site-memo-card[hidden],.site-memo-empty[hidden]{display:none!important;}
+.site-memo-card-top{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11px;color:var(--text-dim);}
+.site-memo-card-top>span:first-child{background:var(--accent-soft);color:var(--accent);padding:4px 8px;border-radius:7px;font-weight:650;}
+.site-memo-card button{border:0;background:transparent;color:var(--text-dim);font:inherit;font-size:11px;padding:3px 4px;cursor:pointer;}
+.site-memo-card button:hover{color:var(--accent);background:var(--accent-soft);border-radius:5px;}
+.site-memo-card button[aria-pressed="true"]{color:var(--accent);font-weight:700;}
+.site-memo-card h4{font-size:16px;line-height:1.5;margin:15px 0 9px;font-weight:750;overflow-wrap:anywhere;}
+.site-memo-card .site-memo-text{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;line-height:1.85;margin:0 0 20px;}
+.site-memo-card footer{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;border-top:1px solid var(--line);padding-top:9px;font-size:10px;color:var(--text-dim);}
+.site-memo-card footer>div{display:flex;gap:6px;}
+.site-memo-empty{text-align:center;padding:45px 15px;background:var(--card);border:1px dashed var(--line);border-radius:16px;color:var(--text-dim);}
+.site-memo-empty>span{font-size:35px;}.site-memo-empty h4{font-size:16px;margin:10px 0;}.site-memo-empty p{font-size:12px;line-height:1.6;}
+.site-memo-feedback{font-size:12px;color:var(--warn-text,var(--text-main));line-height:1.6;min-height:1em;}
+body.ux383 .ux-modal.site-memo-dialog{width:560px!important;max-width:calc(100vw - 28px)!important;border-radius:20px!important;background:var(--card)!important;padding:20px!important;}
+.site-memo-editor{display:grid;gap:14px;}
+.site-memo-editor>label{display:grid;gap:6px;font-size:12px;color:var(--text-dim);font-weight:650;}
+.site-memo-editor :is(input:not([type="checkbox"]),select,textarea){width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:10px;background:var(--bg-side-2);color:var(--text-main);padding:10px 12px;font:inherit;font-size:14px;line-height:1.6;}
+.site-memo-editor textarea{resize:vertical;min-height:170px;}
+.site-memo-editor :is(input,select,textarea):focus{outline:2px solid var(--accent-border);outline-offset:2px;}
+.site-memo-editor-bottom{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.site-memo-editor-bottom>label{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--text-dim);}
+.site-memo-editor-bottom input{accent-color:var(--accent);}
+.site-memo-editor-bottom .btn{padding:9px 17px;border-radius:10px;}
+@media(max-width:820px){
+ .site-memo-board{padding:8px 0 20px;}.site-memo-banner{padding:18px 14px;border-radius:14px;gap:10px;}
+ .site-memo-banner h3{font-size:17px;}.site-memo-banner p{font-size:11px;}.site-memo-banner>.btn{font-size:11px;padding:8px 10px;}
+ .site-memo-tools{flex-wrap:wrap;}.site-memo-search{flex:1;min-width:140px;}.site-memo-search input{width:100%;font-size:16px;}
+ .site-memo-grid{grid-template-columns:1fr;}.site-memo-card{padding:14px;}
+ .site-memo-editor :is(input:not([type="checkbox"]),select,textarea){font-size:16px;}
+}
+@media print{.site-memo-tools,.site-memo-board button{display:none!important;}.site-memo-card{break-inside:avoid;box-shadow:none;}}
 </style>
