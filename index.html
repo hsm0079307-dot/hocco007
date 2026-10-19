@@ -15268,6 +15268,7 @@ async function openProjectProcedureBatch(){
 }
 
 function renderDetailPanel(site){
+    if(detailTab==='메모'&&!siteMemoAccess().writable)detailTab='개요';
     const panel = document.getElementById('masterPanel');
     if(!panel) return;
     refreshLogsForSiteIfNeeded(site);
@@ -15330,7 +15331,7 @@ function renderDetailPanel(site){
               <div class="dtab ${t===detailTab?'active':''}" data-tab="${t}">${t==='일지'?'보고서':t}${t==='일지'?` <span class="dtab-count">${visitCount(site)}</span>`:''}${t==='문서함' && (site.documents||[]).length ? ` <span class="dtab-count">${site.documents.length}</span>`:''}</div>
             `).join('')}
             <div class="dtab no-print" data-tab="__siteStats">현장 상세집계</div>
-            <button type="button" class="dtab no-print ${detailTab==='메모'?'active':''}" data-tab="메모" id="siteMemoTab">📝 메모</button>
+            ${siteMemoAccess().writable?`<button type="button" class="dtab no-print ${detailTab==='메모'?'active':''}" data-tab="메모" id="siteMemoTab">📝 메모</button>`:''}
           </div>
         </div>
         ${site.__officialChanged ? `<div style="background:var(--warn-bg);border:1px solid var(--warn-border);border-radius:8px;padding:8px 10px;margin:8px 0;font-size:12px;color:var(--warn-text);">🔔 관리자가 원본에서 <b>${site.__officialChanged.map(k=>({status:'상태',stage:'단계',manager:'담당자',stageDetail:'진행단계 상세',memo:'비고'}[k]||k)).join(', ')}</b>을(를) 수정했어요. 내 사본과 달라졌으니 확인해보세요.</div>` : ''}
@@ -15501,15 +15502,15 @@ function renderDetailPanel(site){
     const identity=window.dashboardPasswordAccess?.identity();
     const staff=identity?.role==='staff'&&guestMode&&currentGuest&&identity.key===currentGuest.key;
     return {role:identity?.role||'viewer',key:staff?currentGuest.key:null,staff:!!staff,
-      writable:!guestViewerMode&&(identity?.role==='admin'&&!guestMode||!!staff)};
+      writable:!guestViewerMode&&!!staff};
   }
   function siteMemoCardsOf(site,access=siteMemoAccess()){
-    const value=access.staff?site?.guestDrafts?.[access.key]?.siteMemoCards:site?.siteMemoCards;
+    const value=access.staff?site?.guestDrafts?.[access.key]?.siteMemoCards:null;
     return Array.isArray(value)?value:[];
   }
   async function saveSiteMemoCards(site,baseline,value){
     const access=siteMemoAccess();
-    if(!access.writable)throw Error('관리자 또는 담당자로 로그인해주세요.');
+    if(!access.writable)throw Error('담당자로 로그인해주세요.');
     if(access.staff&&!(currentGuest.siteIds||[]).includes(site.id))throw Error('본인 담당 현장에만 메모할 수 있습니다.');
     if(editMode||logFormOpen)throw Error('작성 중인 현장 정보나 보고서를 먼저 저장해주세요.');
     if(localStorage.getItem(PENDING_OFFLINE_KEY))throw Error('미전송 변경을 먼저 저장한 뒤 다시 시도해주세요.');
@@ -15540,49 +15541,81 @@ function renderDetailPanel(site){
   function siteMemoTime(value){
     const date=new Date(value);return isNaN(date)?'':date.toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
   }
+
+  let siteMemoBoardState={key:'',filter:'all',query:''};
+  function siteMemoMatches(card,filter,query){
+    const tasks=Array.isArray(card.tasks)?card.tasks:[];
+    const match=filter==='pinned'?card.pinned:filter==='done'?card.completed:filter==='open'?!card.completed:true;
+    return !!match&&[card.title,card.text,...tasks.map(t=>t.text)].filter(Boolean).join(' ').toLocaleLowerCase().includes(String(query||'').trim().toLocaleLowerCase());
+  }
+  function siteMemoParseTasks(text,previous=[]){
+    const used=new Set();
+    return String(text||'').split('\n').map(t=>t.trim()).filter(Boolean).map((text,index)=>{
+      const old=previous.find(t=>t.text===text&&!used.has(t.id));if(old)used.add(old.id);
+      return old?{...old}:{id:'task-'+Date.now()+'-'+index+'-'+Math.random().toString(36).slice(2),text,done:false};
+    });
+  }
   function renderSiteMemoBoard(site){
     const body=document.getElementById('detailBody');if(!body)return;
-    const access=siteMemoAccess(),cards=uxClone(siteMemoCardsOf(site,access));
+    const access=siteMemoAccess();if(!access.writable){body.innerHTML='';return;}
+    const key=access.key+'|'+site.id;
+    if(siteMemoBoardState.key!==key)siteMemoBoardState={key,filter:'all',query:''};
+    const state=siteMemoBoardState,cards=uxClone(siteMemoCardsOf(site,access));
     const refresh=()=>renderSiteMemoBoard(sites.find(x=>x.id===site.id)||site);
-    const list=cards.slice().sort((a,b)=>Number(!!b.pinned)-Number(!!a.pinned)||String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')));
+    const list=cards.slice().sort((a,b)=>Number(!!b.pinned)-Number(!!a.pinned)||Number(!!a.completed)-Number(!!b.completed)||String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')));
+    const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
     body.innerHTML=`<section class="site-memo-board">
-      <header class="site-memo-banner"><div><span class="site-memo-eyebrow">SITE NOTES · ${access.staff?'내 메모':'현장 메모'}</span><h3>📝 ${escapeHtml(site.name)} 메모</h3><p>작은 정보부터 다음 할 일까지, 현장별로 모아두세요.</p></div>${access.writable?'<button type="button" class="btn btn-primary" data-site-memo-new>＋ 새 메모</button>':''}</header>
-      <div class="site-memo-tools"><span>전체 <b>${cards.length}</b> · 고정 <b>${cards.filter(x=>x.pinned).length}</b></span><label class="site-memo-search">⌕ <input type="search" placeholder="제목·내용 검색" aria-label="현장 메모 검색"></label></div>
-      <div class="site-memo-grid">${list.map(card=>`<article class="site-memo-card memo-${Object.hasOwn(SITE_MEMO_CATEGORIES,card.category)?card.category:'general'}" data-site-memo-id="${escapeHtml(card.id)}">
-        <div class="site-memo-card-top"><span>${escapeHtml(SITE_MEMO_CATEGORIES[card.category]||SITE_MEMO_CATEGORIES.general)}</span>${access.writable?`<button type="button" data-site-memo-pin="${escapeHtml(card.id)}" aria-label="${card.pinned?'고정 해제':'상단에 고정'}" aria-pressed="${!!card.pinned}">${card.pinned?'📌 고정':'☆ 고정'}</button>`:card.pinned?'<span>📌 고정</span>':''}</div>
-        <h4>${escapeHtml(card.title||'제목 없는 메모')}</h4><p class="site-memo-text">${escapeHtml(card.text||'')}</p>
-        <footer><span>${escapeHtml(card.author||'')} · ${escapeHtml(siteMemoTime(card.updatedAt))}</span>${access.writable?`<div><button type="button" data-site-memo-edit="${escapeHtml(card.id)}">수정</button><button type="button" data-site-memo-delete="${escapeHtml(card.id)}">삭제</button></div>`:''}</footer>
-      </article>`).join('')}</div>
-      <div class="site-memo-empty"${cards.length?' hidden':''}><span>🗂️</span><h4>아직 메모가 없습니다</h4><p>${access.writable?'새 메모를 눌러 이 현장의 첫 기록을 남겨보세요.':'등록된 현장 메모가 여기에 표시됩니다.'}</p></div>
+      <header class="site-memo-banner"><div><span class="site-memo-eyebrow">MY SITE NOTES</span><h3>📝 ${escapeHtml(site.name)} 메모</h3><p>내가 챙길 내용과 다음 할 일을 한곳에.</p></div><button type="button" class="btn btn-primary" data-site-memo-new>＋ 새 메모</button></header>
+      <div class="site-memo-tools"><span>전체 <b>${cards.length}</b> · 진행 중 <b>${cards.filter(x=>!x.completed).length}</b> · 완료 <b>${cards.filter(x=>x.completed).length}</b></span><label class="site-memo-search">⌕ <input type="search" placeholder="메모·할 일 검색" aria-label="현장 메모 검색" value="${escapeHtml(state.query)}"></label></div>
+      <nav class="site-memo-filters" aria-label="메모 보기">${[['all','전체'],['open','진행 중'],['done','완료'],['pinned','📌 고정']].map(([value,label])=>`<button type="button" data-memo-filter="${value}" aria-pressed="${state.filter===value}">${label}</button>`).join('')}</nav>
+      <div class="site-memo-grid">${list.map(card=>{
+        const tasks=Array.isArray(card.tasks)?card.tasks:[],done=tasks.filter(t=>t.done).length;
+        return `<article class="site-memo-card memo-${Object.hasOwn(SITE_MEMO_CATEGORIES,card.category)?card.category:'general'}${card.completed?' is-completed':''}" data-site-memo-id="${escapeHtml(card.id)}">
+        <div class="site-memo-card-top"><span>${escapeHtml(SITE_MEMO_CATEGORIES[card.category]||SITE_MEMO_CATEGORIES.general)}</span><button type="button" data-site-memo-pin="${escapeHtml(card.id)}" aria-label="${card.pinned?'고정 해제':'상단에 고정'}" aria-pressed="${!!card.pinned}">${card.pinned?'📌 고정':'☆ 고정'}</button></div>
+        <h4>${escapeHtml(card.title||'제목 없는 메모')}${card.completed?'<span class="site-memo-done-badge">완료</span>':''}</h4>${card.dueDate?`<div class="site-memo-due${!card.completed&&card.dueDate<today?' overdue':''}">📅 ${escapeHtml(card.dueDate.replace(/-/g,'.'))}${!card.completed&&card.dueDate<today?' · 기한 지남':''}</div>`:''}
+        ${card.text?`<p class="site-memo-text">${escapeHtml(card.text)}</p>`:''}
+        ${tasks.length?`<div class="site-memo-task-progress"><span>체크리스트 ${done}/${tasks.length}</span><progress max="${tasks.length}" value="${done}" aria-label="완료한 할 일"></progress></div><div class="site-memo-tasks">${tasks.map((task,index)=>`<label class="${task.done?'is-done':''}"><input type="checkbox" data-memo-task="${index}" data-memo-task-card="${escapeHtml(card.id)}" ${task.done?'checked':''}><span>${escapeHtml(task.text)}</span></label>`).join('')}</div>`:''}
+        <footer><span>${escapeHtml(card.author||'')} · ${escapeHtml(siteMemoTime(card.updatedAt))}</span><div><button type="button" data-site-memo-complete="${escapeHtml(card.id)}">${card.completed?'다시 진행':'✓ 완료'}</button><button type="button" data-site-memo-edit="${escapeHtml(card.id)}">수정</button><button type="button" data-site-memo-delete="${escapeHtml(card.id)}">삭제</button></div></footer>
+      </article>`;}).join('')}</div>
+      <div class="site-memo-empty" hidden><span>🗂️</span><h4></h4><p></p></div>
       <p class="site-memo-feedback" role="status"></p></section>`;
-    body.querySelector('[data-site-memo-new]')?.addEventListener('click',()=>openSiteMemoEditor(site,null,refresh));
-    body.querySelector('.site-memo-search input').addEventListener('input',e=>{
-      const q=e.target.value.trim().toLocaleLowerCase();let shown=0;
-      body.querySelectorAll('[data-site-memo-id]').forEach(el=>{const card=cards.find(x=>x.id===el.dataset.siteMemoId);el.hidden=!((card.title||'')+' '+(card.text||'')).toLocaleLowerCase().includes(q);if(!el.hidden)shown++;});
+    body.querySelector('[data-site-memo-new]').onclick=()=>openSiteMemoEditor(site,null,refresh);
+    const applyFilter=()=>{
+      let shown=0;
+      body.querySelectorAll('[data-site-memo-id]').forEach(el=>{const card=cards.find(x=>x.id===el.dataset.siteMemoId);el.hidden=!siteMemoMatches(card,state.filter,state.query);if(!el.hidden)shown++;});
+      body.querySelectorAll('[data-memo-filter]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.memoFilter===state.filter)));
       const empty=body.querySelector('.site-memo-empty');empty.hidden=shown>0;
-      empty.querySelector('h4').textContent=q?'검색 결과가 없습니다':'아직 메모가 없습니다';
-      empty.querySelector('p').textContent=q?'다른 검색어로 찾아보세요.':access.writable?'새 메모를 눌러 이 현장의 첫 기록을 남겨보세요.':'등록된 현장 메모가 여기에 표시됩니다.';
-    });
-    body.querySelectorAll('[data-site-memo-edit]').forEach(b=>b.onclick=()=>openSiteMemoEditor(site,cards.find(x=>x.id===b.dataset.siteMemoEdit),refresh));
-    const mutate=async(b,next)=>{
-      const buttons=[...body.querySelectorAll('.site-memo-board button')];buttons.forEach(x=>x.disabled=true);
-      const status=body.querySelector('.site-memo-feedback');status.textContent='저장 중…';
-      try{await saveSiteMemoCards(site,cards,next);refresh();}catch(error){status.textContent=error.message;buttons.forEach(x=>x.disabled=false);}
+      empty.querySelector('h4').textContent=cards.length?'조건에 맞는 메모가 없습니다':'아직 메모가 없습니다';
+      empty.querySelector('p').textContent=cards.length?'다른 검색어나 필터를 선택해보세요.':'새 메모를 눌러 첫 기록을 남겨보세요.';
     };
-    body.querySelectorAll('[data-site-memo-pin]').forEach(b=>b.onclick=()=>mutate(b,cards.map(x=>x.id===b.dataset.siteMemoPin?{...x,pinned:!x.pinned}:x)));
-    body.querySelectorAll('[data-site-memo-delete]').forEach(b=>b.onclick=()=>{if(confirm('이 메모를 삭제할까요?'))mutate(b,cards.filter(x=>x.id!==b.dataset.siteMemoDelete));});
+    body.querySelector('.site-memo-search input').oninput=e=>{state.query=e.target.value;applyFilter();};
+    body.querySelectorAll('[data-memo-filter]').forEach(b=>b.onclick=()=>{state.filter=b.dataset.memoFilter;applyFilter();});applyFilter();
+    body.querySelectorAll('[data-site-memo-edit]').forEach(b=>b.onclick=()=>openSiteMemoEditor(site,cards.find(x=>x.id===b.dataset.siteMemoEdit),refresh));
+    const mutate=async(next)=>{
+      const controls=[...body.querySelectorAll('.site-memo-board button,.site-memo-tasks input')];controls.forEach(x=>x.disabled=true);
+      const status=body.querySelector('.site-memo-feedback');status.textContent='저장 중…';
+      try{await saveSiteMemoCards(site,cards,next);refresh();}catch(error){status.textContent=error.message;controls.forEach(x=>x.disabled=false);body.querySelectorAll('[data-memo-task]').forEach(el=>{el.checked=!!cards.find(x=>x.id===el.dataset.memoTaskCard)?.tasks?.[Number(el.dataset.memoTask)]?.done;});}
+    };
+    body.querySelectorAll('[data-site-memo-pin]').forEach(b=>b.onclick=()=>mutate(cards.map(x=>x.id===b.dataset.siteMemoPin?{...x,pinned:!x.pinned}:x)));
+    body.querySelectorAll('[data-site-memo-delete]').forEach(b=>b.onclick=()=>{if(confirm('이 메모를 삭제할까요?'))mutate(cards.filter(x=>x.id!==b.dataset.siteMemoDelete));});
+    body.querySelectorAll('[data-site-memo-complete]').forEach(b=>b.onclick=()=>mutate(cards.map(x=>x.id===b.dataset.siteMemoComplete?{...x,completed:!x.completed,tasks:(x.tasks||[]).map(t=>({...t,done:!x.completed})),updatedAt:new Date().toISOString()}:x)));
+    body.querySelectorAll('[data-memo-task]').forEach(input=>input.onchange=()=>mutate(cards.map(card=>{
+      if(card.id!==input.dataset.memoTaskCard)return card;
+      const tasks=card.tasks.map((task,index)=>index===Number(input.dataset.memoTask)?{...task,done:input.checked}:task);
+      return {...card,tasks,completed:tasks.length>0&&tasks.every(t=>t.done),updatedAt:new Date().toISOString()};
+    })));
   }
   function openSiteMemoEditor(site,card,onSaved){
     if(!siteMemoAccess().writable)return;
-    const baseline=uxClone(siteMemoCardsOf(site)),host=document.createElement('div');host.className='site-memo-editor';
+    const access=siteMemoAccess(),baseline=uxClone(siteMemoCardsOf(site)),host=document.createElement('div');host.className='site-memo-editor';
     const modal=uxModal(card?'📝 메모 수정':'📝 새 메모 · '+site.name,host);modal.dialog.classList.add('site-memo-dialog');
-    host.innerHTML=`<label>분류<select name="category">${Object.entries(SITE_MEMO_CATEGORIES).map(([key,label])=>`<option value="${key}"${key===(card?.category||'general')?' selected':''}>${label}</option>`).join('')}</select></label><label>제목<input name="title" maxlength="100" placeholder="한눈에 알아볼 수 있는 제목" value="${escapeHtml(card?.title||'')}"></label><label>내용<textarea name="text" rows="9" placeholder="현장 소식, 꼭 기억할 내용, 다음 접촉 계획을 남겨보세요.">${escapeHtml(card?.text||'')}</textarea></label><div class="site-memo-editor-bottom"><label><input name="pinned" type="checkbox"${card?.pinned?' checked':''}> 중요한 메모로 고정</label><button type="button" class="btn btn-primary" data-site-memo-save>메모 저장</button></div><p class="site-memo-feedback" role="status"></p>`;
+    host.innerHTML=`<div class="site-memo-editor-row"><label>분류<select name="category">${Object.entries(SITE_MEMO_CATEGORIES).map(([key,label])=>`<option value="${key}"${key===(card?.category||'general')?' selected':''}>${label}</option>`).join('')}</select></label><label>기한<input name="dueDate" type="date" value="${escapeHtml(card?.dueDate||'')}"></label></div><label>제목<input name="title" maxlength="100" placeholder="한눈에 알아볼 수 있는 제목" value="${escapeHtml(card?.title||'')}"></label><label>내용<textarea name="text" rows="5" placeholder="기억할 현장 소식이나 접촉 내용을 적어주세요.">${escapeHtml(card?.text||'')}</textarea></label><label>체크리스트 <small>한 줄에 하나씩 작성</small><textarea name="tasks" rows="3" placeholder="위원장에게 연락하기&#10;설명회 자료 준비하기">${escapeHtml((card?.tasks||[]).map(t=>t.text).join('\n'))}</textarea></label><div class="site-memo-editor-bottom"><label><input name="pinned" type="checkbox"${card?.pinned?' checked':''}> 중요한 메모로 고정</label><button type="button" class="btn btn-primary" data-site-memo-save>메모 저장</button></div><p class="site-memo-feedback" role="status"></p>`;
     host.querySelector('[name="title"]').focus();
     host.querySelector('[data-site-memo-save]').onclick=async e=>{
-      const title=host.querySelector('[name="title"]').value.trim(),text=host.querySelector('[name="text"]').value.trim(),status=host.querySelector('.site-memo-feedback');
-      if(!title&&!text){status.textContent='제목이나 내용을 입력해주세요.';return;}
-      const access=siteMemoAccess(),now=new Date().toISOString();
-      const next={id:card?.id||('memo-'+(window.crypto?.randomUUID?.()||Date.now()+'-'+Math.random().toString(36).slice(2))),title,text,category:host.querySelector('[name="category"]').value,pinned:host.querySelector('[name="pinned"]').checked,createdAt:card?.createdAt||now,updatedAt:now,author:currentGuest?.name||'관리자'};
+      const title=host.querySelector('[name="title"]').value.trim(),text=host.querySelector('[name="text"]').value.trim(),tasks=siteMemoParseTasks(host.querySelector('[name="tasks"]').value,card?.tasks||[]),status=host.querySelector('.site-memo-feedback');
+      if(!title&&!text&&!tasks.length){status.textContent='제목, 내용 또는 체크리스트를 입력해주세요.';return;}
+      if(siteMemoAccess().key!==access.key){status.textContent='로그인이 변경되었습니다. 다시 입장해주세요.';return;}
+      const now=new Date().toISOString(),next={...card,id:card?.id||('memo-'+(window.crypto?.randomUUID?.()||Date.now()+'-'+Math.random().toString(36).slice(2))),title,text,tasks,dueDate:host.querySelector('[name="dueDate"]').value,category:host.querySelector('[name="category"]').value,pinned:host.querySelector('[name="pinned"]').checked,completed:tasks.length?tasks.every(t=>t.done):!!card?.completed,createdAt:card?.createdAt||now,updatedAt:now,author:currentGuest.name};
       const value=card?baseline.map(x=>x.id===card.id?next:x):[next,...baseline],button=e.currentTarget;
       const closeButton=modal.dialog.querySelector('.ux-modal-head button');button.disabled=true;closeButton.disabled=true;status.textContent='저장 중…';
       try{await saveSiteMemoCards(site,baseline,value);modal.close();onSaved();}catch(error){status.textContent=error.message;}finally{button.disabled=false;closeButton.disabled=false;}
@@ -24599,7 +24632,8 @@ ead><body>
       const row=(r,i)=>`<tr class="sc-v-entity" data-sc-entry="${i}"><th scope="row">${escapeHtml(r.label)}${/^\d+$/.test(r.label)?'동':''}</th>${cell(r,r.total,r.totalCol,'전체')}${cell(r,r.value,r.col)}${SM_GRAPH_METHODS.slice(0,3).map((m,j)=>cell(r,Number(r.parts?.[j])||0,r.methodCols?.[j],m)).join('')}</tr>`;
       const table=(part,start)=>`<div class="sc-table-scroll"><table class="sc-readable-table sc-dong-compact"><thead><tr>${headers.map(h=>`<th scope="col">${h}</th>`).join('')}</tr></thead><tbody>${part.map((r,i)=>row(r,start+i)).join('')}</tbody></table></div>`;
       const sums=[entries.reduce((n,r)=>n+r.total,0),entries.reduce((n,r)=>n+r.value,0),...Array.from({length:3},(_,j)=>entries.reduce((n,r)=>n+(Number(r.parts?.[j])||0),0))];
-      return `<div class="sc-dong-two-columns">${table(entries.slice(0,half),0)}${entries.length>half?table(entries.slice(half),half):''}<div class="sc-dong-totals"><strong>합계</strong>${headers.slice(1).map((h,j)=>`<span>${h} <b>${sums[j]?sums[j].toLocaleString('ko-KR'):''}</b></span>`).join('')}</div></div>`;
+      const mobile=typeof window!=='undefined'&&window.matchMedia('(max-width:820px)').matches;
+      return `<div class="sc-dong-two-columns${mobile?' sc-dong-mobile-single':''}">${mobile?table(entries,0):table(entries.slice(0,half),0)+(entries.length>half?table(entries.slice(half),half):'')}<div class="sc-dong-totals"><strong>합계</strong>${headers.slice(1).map((h,j)=>`<span>${h} <b>${sums[j]?sums[j].toLocaleString('ko-KR'):''}</b></span>`).join('')}</div></div>`;
     }
     const rows=entries.map((r,i)=>{
       const name=escapeHtml(r.label)+(dong&&/^\d+$/.test(r.label)?'동':'');
@@ -41988,5 +42022,68 @@ body.ux383 #globalStatsOverlay .ux-report-switch>.btn{flex:0 1 auto;white-space:
  body.ux383 #globalStatsOverlay .ux-report-switch>.btn{padding:9px 12px!important;font-size:13px!important;min-width:0!important;}
  body.ux383 #contactReportModalBox>.ux-report-switch>.btn{padding:6px 7px!important;font-size:11px!important;white-space:nowrap!important;}
  .sm-combined-population{font-size:11px;padding:0 2px 10px;}
+}
+</style>
+
+<style id="staff-memo-tasks-polish-20261019">
+body.ux383 #masterPanel .detail-tabs #siteMemoTab.dtab{
+ -webkit-appearance:none!important;appearance:none!important;
+ border:0!important;border-bottom:2px solid transparent!important;border-radius:0!important;
+ background:transparent!important;box-shadow:none!important;font-family:inherit!important;
+ font-size:inherit!important;line-height:inherit!important;color:var(--text-dim)!important;
+ padding:10px 12px!important;outline:none!important;
+}
+body.ux383 #masterPanel .detail-tabs #siteMemoTab.dtab.active{border-bottom-color:var(--accent)!important;color:var(--accent)!important;}
+body.ux383 #masterPanel .detail-tabs #siteMemoTab.dtab:focus-visible{outline:2px solid var(--accent-border)!important;outline-offset:-3px!important;}
+body.guest-viewer-readonly #siteMemoTab{display:none!important;}
+.site-memo-filters{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 16px;}
+.site-memo-filters button{border:1px solid var(--line);border-radius:20px;background:transparent;color:var(--text-dim);font:inherit;font-size:12px;padding:6px 12px;cursor:pointer;}
+.site-memo-filters button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);border-color:var(--accent-border);font-weight:700;}
+.site-memo-done-badge{display:inline-block;margin-left:8px;font-size:10px;vertical-align:middle;border-radius:5px;padding:3px 6px;color:var(--accent);background:var(--accent-soft);}
+.site-memo-card.is-completed{border-top-color:var(--line);}
+.site-memo-card.is-completed h4{color:var(--text-dim);}
+.site-memo-due{font-size:11px;color:var(--text-dim);margin:-3px 0 12px;}
+.site-memo-due.overdue{color:var(--warn-text,#be8850);font-weight:650;}
+.site-memo-task-progress{display:grid;gap:6px;font-size:10px;color:var(--text-dim);margin:10px 0;}
+.site-memo-task-progress progress{width:100%;height:5px;border:0;border-radius:8px;overflow:hidden;accent-color:var(--accent);}
+.site-memo-task-progress progress::-webkit-progress-bar{background:var(--line);border-radius:8px;}
+.site-memo-task-progress progress::-webkit-progress-value{background:var(--accent);border-radius:8px;}
+.site-memo-tasks{display:grid;gap:7px;margin:0 0 18px;}
+.site-memo-tasks label{display:flex;align-items:flex-start;gap:8px;font-size:12px;line-height:1.6;cursor:pointer;}
+.site-memo-tasks input{flex:0 0 auto;width:16px;height:16px;margin:2px 0 0;accent-color:var(--accent);}
+.site-memo-tasks label>span{overflow-wrap:anywhere;min-width:0;}
+.site-memo-tasks .is-done>span{text-decoration:line-through;color:var(--text-dim);}
+.site-memo-editor-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.site-memo-editor-row>label{display:grid;min-width:0;gap:6px;font-size:12px;color:var(--text-dim);font-weight:650;}
+.site-memo-editor>label small{font-size:10px;font-weight:400;color:var(--text-dim);}
+.site-memo-editor textarea[name="text"]{min-height:120px;}
+.site-memo-editor textarea[name="tasks"]{min-height:85px;}
+@media(max-width:820px){
+ body.ux383 #masterPanel .detail-tabs #siteMemoTab.dtab{padding:8px 10px!important;}
+ .site-memo-filters button{padding:7px 11px;}.site-memo-tasks label{font-size:13px;}
+}
+</style>
+
+<style id="mobile-dong-table-single-20261019">
+@media screen and (max-width:820px){
+ body.ux383 #globalStatsBody .sc-dong-two-columns{
+  grid-template-columns:minmax(0,1fr)!important;gap:10px!important;min-width:0!important;
+ }
+ body.ux383 #globalStatsBody .sc-dong-two-columns .sc-table-scroll{width:100%!important;min-width:0!important;overflow-x:auto!important;}
+ body.ux383 #globalStatsBody .sc-dong-two-columns .sc-readable-table.sc-dong-compact{
+  width:100%!important;min-width:0!important;table-layout:fixed!important;
+ }
+ body.ux383 #globalStatsBody .sc-dong-two-columns .sc-readable-table.sc-dong-compact :is(th,td){
+  font-size:12px!important;padding:10px 2px!important;box-sizing:border-box!important;text-align:center!important;line-height:1.5!important;
+ }
+ body.ux383 #globalStatsBody .sc-dong-two-columns .sc-readable-table.sc-dong-compact thead th{
+  font-size:11px!important;white-space:normal!important;word-break:keep-all!important;overflow-wrap:normal!important;
+ }
+ body.ux383 #globalStatsBody .sc-dong-two-columns .sc-readable-table.sc-dong-compact tr>:first-child{width:25%!important;white-space:normal!important;word-break:keep-all!important;}
+ body.ux383 #globalStatsBody .sc-dong-two-columns .sc-readable-table.sc-dong-compact tr>:nth-child(2){width:15%!important;}
+ body.ux383 #globalStatsBody .sc-dong-two-columns .sc-readable-table.sc-dong-compact tr>:nth-child(3){width:18%!important;}
+ body.ux383 #globalStatsBody .sc-dong-two-columns .sc-readable-table.sc-dong-compact .sc-table-group-gap{width:3%!important;min-width:4px!important;padding:0!important;}
+ body.ux383 #globalStatsBody .sc-dong-two-columns .sc-readable-table.sc-dong-compact tr>:nth-child(n+5){width:13%!important;}
+ body.ux383 #globalStatsBody .sc-dong-totals{grid-column:1!important;flex-wrap:wrap!important;gap:7px 12px!important;}
 }
 </style>
