@@ -18439,7 +18439,7 @@ function renderDetailPanel(site){
         installMapIsolationControls();
       });
     }
-    const controlsParent=window.innerWidth<=820?(wrap.querySelector('.map-bottom-controls')||wrap):wrap;
+    const controlsParent=wrap.querySelector('.map-bottom-controls')||wrap;
     if(bar.parentElement!==controlsParent)controlsParent.appendChild(bar);
     const rows=filteredSites(),select=bar.querySelector('select');
     if(!mapIsolationActive&&currentView==='detail'&&rows.some(s=>s.id===currentDetailId))mapIsolationSiteId=currentDetailId;
@@ -25501,7 +25501,7 @@ const rfScheduleDecorate=()=>{if(rfObserver.pending)return;rfObserver.pending=tr
 const rfObserver=new MutationObserver(rfScheduleDecorate);rfObserver.observe(document.body,{childList:true,subtree:true});rfDecorate();
 
 
-(function(){const wrap=document.querySelector('.map-wrap'),region=document.getElementById('regionPanel'),office=document.getElementById('officeSwitcher');if(!wrap||!region)return;const dock=document.createElement('div');dock.className='map-bottom-controls no-print';dock.setAttribute('aria-label','지도 지역 및 사업소 선택');dock.append(region);if(office)dock.append(office);wrap.append(dock);const isolation=document.getElementById('mapIsolationControls');if(window.innerWidth<=820&&isolation)dock.append(isolation);renderRegionPanel();})();
+(function(){const wrap=document.querySelector('.map-wrap'),region=document.getElementById('regionPanel'),office=document.getElementById('officeSwitcher');if(!wrap||!region)return;const dock=document.createElement('div');dock.className='map-bottom-controls no-print';dock.setAttribute('aria-label','지도 지역 및 사업소 선택');dock.append(region);if(office)dock.append(office);wrap.append(dock);const isolation=document.getElementById('mapIsolationControls');if(isolation)dock.append(isolation);renderRegionPanel();})();
 
 function miExcelReportEvents(site){return window.MemberExcelReports.events(smExcel(site));}
 function miReportLogs(site){return window.MemberExcelReports.logs(site,smExcel(site));}
@@ -41711,5 +41711,27 @@ body.ux383 #detailBody .mgr-contact-toolbar .mgr-contact-period-toggle button{
  body.ux383 #detailBody .rf-nonmember-summary-table-v69 :is(th,td){padding:11px 10px!important;color:var(--text-main)!important;}
  body.ux383 #detailBody .rf-nonmember-summary-table-v69 thead th{color:var(--text-dim)!important;font-weight:700!important;}
  body.ux383 #detailBody .rf-nonmember-roster-v69>summary{padding-top:12px!important;}
+}
+</style>
+
+<style id="map-isolation-dock-desktop-20261019">
+@media screen and (min-width:821px){
+ body.ux383 .map-wrap>.map-bottom-controls #mapIsolationControls{
+  position:static!important;inset:auto!important;transform:none!important;
+  display:flex!important;align-items:center!important;flex:1 0 100%!important;
+  order:4!important;width:100%!important;max-width:100%!important;min-width:0!important;
+  margin:4px 0 0!important;padding:0!important;border:0!important;
+  background:transparent!important;box-shadow:none!important;z-index:auto!important;
+  gap:6px!important;box-sizing:border-box!important;
+ }
+ body.ux383 .map-wrap>.map-bottom-controls #mapIsolationControls select{
+  flex:1 1 auto!important;width:0!important;min-width:0!important;max-width:none!important;
+  height:30px!important;min-height:30px!important;padding:4px 7px!important;
+  border:1px solid var(--line)!important;border-radius:7px!important;
+ }
+ body.ux383 .map-wrap>.map-bottom-controls #mapIsolationControls button{
+  flex:0 0 auto!important;height:30px!important;min-height:30px!important;margin:0!important;
+  border-radius:7px!important;
+ }
 }
 </style>
