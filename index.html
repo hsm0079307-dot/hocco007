@@ -20296,10 +20296,10 @@ function renderDetailPanel(site){
       for(let d=1;d<=days;d++){
         const key=`${y}-${String(mo+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
         const ev=byDate[key]||[];
-        const memberEv=ev.filter(e=>e.memberFlag!=='비'),nonMemberCount=uniquePeople(ev.filter(e=>e.memberFlag==='비'));const mc=methodCounts(memberEv),people=uniquePeople(memberEv);
+        const memberEv=ev.filter(e=>e.memberFlag!=='비'),memberContacts=memberEv.filter(e=>successMethods.has(clean(e.method))),nonMemberCount=uniquePeople(ev.filter(e=>e.memberFlag==='비'&&successMethods.has(clean(e.method))));const mc=methodCounts(smPeriodPeople(memberEv)),people=uniquePeople(memberContacts);
         const mgrs=Array.from(new Set(ev.map(e=>mgrKey(e.manager)).filter(x=>x&&x!=='(미지정)')));
         const managerGroups=new Map();
-        memberEv.forEach(e=>{const name=mgrKey(e.manager)||'(미지정)';if(!managerGroups.has(name))managerGroups.set(name,[]);managerGroups.get(name).push(e)});
+        memberContacts.forEach(e=>{const name=mgrKey(e.manager)||'(미지정)';if(!managerGroups.has(name))managerGroups.set(name,[]);managerGroups.get(name).push(e)});
         const managerCounts=[...managerGroups].map(([name,events])=>({name:name==='(미지정)'?'미지정':name,count:uniquePeople(events)})).sort((a,b)=>b.count-a.count||a.name.localeCompare(b.name,'ko'));
         const managerLine=m=>`<span class="cal-manager-count"><span class="cal-manager-name">${escapeHtml(m.name)}</span><span class="cal-manager-number">${m.count}명</span></span>`;
         const managerVisibleLimit=6;
@@ -21525,11 +21525,13 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
     return{contacted:Math.min(total,contacted),total};
   }
   function cisRowData(pair,r){
-    const {site,office}=pair,x=smStats(site),periodMode=reportSummaryMode!=='all',events=smEvents(site,r),a=smAggregateEvents(events);
-    const total=Number(x.totalOwners||0),cum=Number(x.contactedOwners||0),rate=total?cum/total*100:0;
-    // 기간접촉/집행부 접촉은 Excel-master면 smEvents()가 Excel contactEvents만 사용한다.
-    // 방문일수/최근보고/특이사항은 서술형 보고서 활동 정보이므로 Dashboard 로그를 별도 보조 표시한다.
-    const visits=cisVisitDays(site,r),periodPeople=a.uniquePeople,role=cisRoleContact(site,x,events,periodMode);
+    const {site,office}=pair,x=smStats(site),periodMode=reportSummaryMode!=='all';
+    const events=smPeriodReportEvents(site,r,reportSummaryMode).filter(e=>smIsSuccessMethod(e.method));
+    const periodRows=smPeriodPeople(events),cohort=smCanonicalCohort(site,r);
+    const total=cohort.total,cum=cohort.contacted,rate=total?cum/total*100:0;
+    const periodIds=new Set(periodRows.map(miPersonKey));
+    const role={total:cohort.roles.reduce((n,g)=>n+g.total,0),contacted:cohort.roles.reduce((n,g)=>n+(periodMode?g.people.filter(p=>periodIds.has(miPersonKey(p))).length:g.contacted),0)};
+    const visits=cisVisitDays(site,r),periodPeople=periodRows.length;
     const reportCount=cisLogsInRange(site,r).length;
     return{site,office,x,total,cum,rate,visits,periodPeople,role,reportCount,last:cisLatestReport(site),issue:cisIssue(site,r)};
   }
@@ -24536,17 +24538,17 @@ ead><body>
   }
   // Period totals use the same reconciled Excel activity as the report calendar.
   // Raw reportEvents can contain monthly cells plus status/note copies of a contact.
-  function smPeriodMethods(){
-    return siteMgmtPeriod==='day'||siteMgmtPeriod==='week'?SM_GRAPH_METHODS:SM_GRAPH_METHODS.filter(smIsSuccessMethod);
+  function smPeriodMethods(mode=siteMgmtPeriod){
+    return mode==='day'||mode==='week'?SM_GRAPH_METHODS:SM_GRAPH_METHODS.filter(smIsSuccessMethod);
   }
-  function smPeriodReportEvents(site,range){
+  function smPeriodReportEvents(site,range,mode=siteMgmtPeriod){
     const x=smExcel(site);
     let raw;
-    if(x&&siteMgmtPeriod==='day')raw=smExcelDailyEvents(x);
+    if(x&&mode==='day')raw=smExcelDailyEvents(x);
     else if(x&&window.MemberExcelReports?.events)raw=window.MemberExcelReports.events(x);
     else raw=smGraphReportEvents(site);
     return raw.filter(e=>(!x||site._combinedContactStats||e.memberFlag!=='비')&&
-      smNewValidDate(e.date)&&smInRangeDate(e.date,range)&&smPeriodMethods().includes(e.method)&&String(miPersonKey(e)||'').trim());
+      smNewValidDate(e.date)&&smInRangeDate(e.date,range)&&smPeriodMethods(mode).includes(e.method)&&String(miPersonKey(e)||'').trim());
   }
   function smPeriodPeople(events){
     const people=new Map();
