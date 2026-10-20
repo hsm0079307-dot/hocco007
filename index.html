@@ -24114,12 +24114,12 @@ ead><body>
     else if(type==='period_method'||type==='period_total'){
       eventMode=true;
       const start=d.start||'0000-01-01',end=d.end||'9999-12-31';
-      let ev=smGraphReportEvents(site).filter(e=>String(e.date||'')>=start&&String(e.date||'')<=end&&SM_GRAPH_METHODS.includes(e.method));
+      let ev=smPeriodPeople(smPeriodReportEvents(site,{start,end}));
       if(type==='period_method')ev=ev.filter(e=>String(e.method||'')===method);
       rawCount=ev.length;
       rows=smGroupEventRows(site,ev);
       title=`${d.label||start} · ${type==='period_method'?method:'전체 접촉'}`;
-      sub=`${rawCount}건 · ${rows.length}명`;
+      sub=`${rows.length}명`;
     }
     return{title,sub,rows,eventMode,rawCount};
   }
@@ -24508,25 +24508,58 @@ ead><body>
     const legend=(start,end)=>SM_GRAPH_METHODS.slice(start,end).map((m,i)=>`<span><i style="background:${SM_GRAPH_COLORS[start+i]}"></i>${m}</span>`).join('');
     return `<div class="sc-approved-context"><div class="sc-approved-context-main"><strong>${escapeHtml(site.name)} <small>${label}</small></strong><div class="sc-approved-legend">${legend(0,3)}</div></div><div class="sc-approved-legend sc-approved-legend-fail">${legend(3,6)}</div></div>`;
   }
+  // Period totals use the same reconciled Excel activity as the report calendar.
+  // Raw reportEvents can contain monthly cells plus status/note copies of a contact.
+  function smPeriodMethods(){
+    return siteMgmtPeriod==='day'||siteMgmtPeriod==='week'?SM_GRAPH_METHODS:SM_GRAPH_METHODS.filter(smIsSuccessMethod);
+  }
+  function smPeriodReportEvents(site,range){
+    const x=smExcel(site);
+    let raw;
+    if(x&&siteMgmtPeriod==='day')raw=smExcelDailyEvents(x);
+    else if(x&&window.MemberExcelReports?.events)raw=window.MemberExcelReports.events(x);
+    else raw=smGraphReportEvents(site);
+    return raw.filter(e=>(!x||site._combinedContactStats||e.memberFlag!=='비')&&
+      smNewValidDate(e.date)&&smInRangeDate(e.date,range)&&smPeriodMethods().includes(e.method)&&String(miPersonKey(e)||'').trim());
+  }
+  function smPeriodPeople(events){
+    const people=new Map();
+    for(const e of events){
+      const key=String(miPersonKey(e)||'').trim();if(!key)continue;
+      const old=people.get(key),success=smIsSuccessMethod(e.method),oldSuccess=old&&smIsSuccessMethod(old.method);
+      // One mutually exclusive method per person: a successful contact wins over
+      // refusal/absence, then use the latest dated method within the period.
+      if(!old||(success&&!oldSuccess)||(success===oldSuccess&&e.date>=old.date))people.set(key,e);
+    }
+    return [...people.values()];
+  }
+  function smPeriodTotals(site,range){
+    const people=smPeriodPeople(smPeriodReportEvents(site,range)),parts=SM_GRAPH_METHODS.map(()=>0);
+    for(const p of people)parts[SM_GRAPH_METHODS.indexOf(p.method)]++;
+    return {parts,total:people.length,start:range.start,end:range.end};
+  }
   function smApprovedPeriodRows(site,range,mode){
     const effective=mode==='week'||mode==='day'?range:smMonthRangeForCurrent();
-    const events=smGraphReportEvents(site).filter(e=>smNewValidDate(e.date)&&smInRangeDate(e.date,effective)&&SM_GRAPH_METHODS.includes(e.method));
+    const events=smPeriodReportEvents(site,effective);
     const map=new Map(),daily=mode==='week'||mode==='day';
     const y=Number(effective.start.slice(0,4)),m=Number(effective.start.slice(5,7))-1;
     const boundaries=daily?[]:smNewContactBins(smNewContactHistory([]),y,m,'week',effective.end);
     const bucketFor=date=>{
       if(daily)return {key:date,label:date.slice(5).replace('-','/'),start:date,end:date};
       const i=boundaries.findIndex(b=>date>=b.start&&date<=b.end),b=boundaries[i];
-      return {key:String(i+1),label:(i+1)+'주',start:b.start,end:b.end};
+      return b?{key:String(i+1),label:(i+1)+'주',start:b.start,end:b.end}:null;
     };
-    if(!daily)for(const b of boundaries){const z=bucketFor(b.start);map.set(z.key,{...z,parts:[0,0,0,0,0,0]});}
-    for(const e of events){const b=bucketFor(e.date);if(!map.has(b.key))map.set(b.key,{...b,parts:[0,0,0,0,0,0]});map.get(b.key).parts[SM_GRAPH_METHODS.indexOf(e.method)]++;}
-    return [...map.values()].sort((a,b)=>a.start.localeCompare(b.start));
+    if(!daily)for(const b of boundaries){const z=bucketFor(b.start);map.set(z.key,{...z,parts:[0,0,0,0,0,0],events:[]});}
+    for(const e of events){const b=bucketFor(e.date);if(!b)continue;if(!map.has(b.key))map.set(b.key,{...b,parts:[0,0,0,0,0,0],events:[]});map.get(b.key).events.push(e);}
+    return [...map.values()].sort((a,b)=>a.start.localeCompare(b.start)).map(({events,...row})=>{
+      for(const e of smPeriodPeople(events))row.parts[SM_GRAPH_METHODS.indexOf(e.method)]++;
+      return row;
+    });
   }
   function smApprovedPeriodSection(site,range){
-    const rows=smApprovedPeriodRows(site,range,siteMgmtPeriod),daily=siteMgmtPeriod==='day'||siteMgmtPeriod==='week';
-    const body=rows.map((r,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(r.label)}</td>${r.parts.map((n,j)=>`<td ${n?smDrillAttr('period_method',{method:SM_GRAPH_METHODS[j],start:r.start,end:r.end,label:r.label}):''}>${n||''}</td>`).join('')}<td ${r.parts.some(Boolean)?smDrillAttr('period_total',{start:r.start,end:r.end,label:r.label}):''}>${r.parts.reduce((a,b)=>a+b,0)||''}</td></tr>`).join('');
-    return `<div class="pdf-section pdf-period-card"><div class="pdf-section-title"><span class="section-heading-text">④ ${daily?'일자별':'주별'} 접촉현황</span></div><table class="pdf-table pdf-week"><thead><tr><th>No</th><th>${daily?'일자':'주별'}</th>${SM_GRAPH_METHODS.map(m=>`<th>${m}</th>`).join('')}<th>합계</th></tr></thead><tbody>${body}</tbody></table></div>`;
+    const rows=smApprovedPeriodRows(site,range,siteMgmtPeriod),daily=siteMgmtPeriod==='day'||siteMgmtPeriod==='week',methods=smPeriodMethods();
+    const body=rows.map((r,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(r.label)}</td>${methods.map(m=>{const n=r.parts[SM_GRAPH_METHODS.indexOf(m)];return `<td ${n?smDrillAttr('period_method',{method:m,start:r.start,end:r.end,label:r.label}):''}>${n||''}</td>`;}).join('')}<td ${r.parts.some(Boolean)?smDrillAttr('period_total',{start:r.start,end:r.end,label:r.label}):''}>${r.parts.reduce((a,b)=>a+b,0)||''}</td></tr>`).join('');
+    return `<div class="pdf-section pdf-period-card"><div class="pdf-section-title"><span class="section-heading-text">④ ${daily?'일자별':'주별'} 접촉현황</span></div><table class="pdf-table pdf-week"><thead><tr><th>No</th><th>${daily?'일자':'주별'}</th>${methods.map(m=>`<th data-period-method="${m}">${m}</th>`).join('')}<th>합계</th></tr></thead><tbody>${body}</tbody></table></div>`;
   }
   function smApprovedGroupedChart(entries,kind,id,availableWidth=0,meta={}){
     const desktop=typeof window!=='undefined'&&typeof window.matchMedia==='function'&&window.matchMedia('(min-width:900px)').matches;
@@ -24587,7 +24620,8 @@ ead><body>
   }
   function smApprovedContactTable(entries,kind,id,availableWidth=0,meta={}){
     const period=kind==='week',dong=kind==='dong',contactLabel=siteMgmtPeriod==='day'?'금일접촉':'누계접촉';
-    const headings=period?['일자 / 주차',...SM_GRAPH_METHODS,'합계']:[dong?'동':'담당',dong?'전체':'관리',contactLabel,...SM_GRAPH_METHODS,'미접촉','접촉률'];
+    const displayMethods=period?smPeriodMethods():SM_GRAPH_METHODS;
+    const headings=period?['일자 / 주차',...displayMethods,'합계']:[dong?'동':'담당',dong?'전체':'관리',contactLabel,...SM_GRAPH_METHODS,'미접촉','접촉률'];
     const cell=(r,n,col,method='',text='')=>{const link=n>0?` data-sc-source="${id}" data-sc-row="${r.row}" data-sc-col="${col??''}" data-sc-method="${escapeHtml(method)}" tabindex="0" role="button"`:'';return `<td${link}>${text||n||''}</td>`;};
     if(dong){
       const headers=['동','전체',contactLabel,'상담','단순','TM'];
@@ -24600,14 +24634,16 @@ ead><body>
     }
     const rows=entries.map((r,i)=>{
       const name=escapeHtml(r.label)+(dong&&/^\d+$/.test(r.label)?'동':'');
-      const methods=SM_GRAPH_METHODS.map((m,j)=>cell(r,Number(r.parts?.[j])||0,r.methodCols?.[j],m)).join('');
+      const methods=displayMethods.map(m=>{const j=SM_GRAPH_METHODS.indexOf(m);return cell(r,Number(r.parts?.[j])||0,r.methodCols?.[j],m);}).join('');
       const data=period?methods+cell(r,r.value,r.col):cell(r,r.total,r.totalCol,dong?'전체':'관리')+cell(r,r.value,r.col)+methods+cell(r,r.missing,r.missingCol,'미접촉')+`<td>${r.total>0?String(Math.round(r.value/r.total*1000)/10)+'%':''}</td>`;
       return `<tr class="sc-v-entity" data-sc-entry="${i}"><th scope="row">${name}</th>${data}</tr>`;
     }).join('');
     const sum=fn=>entries.reduce((n,r)=>n+(Number(fn(r))||0),0),total=sum(r=>r.total),contact=sum(r=>r.value),missing=sum(r=>r.missing);
     const n=v=>v?v.toLocaleString('ko-KR'):'';
-    const methodTotals=SM_GRAPH_METHODS.map((_,j)=>`<td>${n(sum(r=>r.parts?.[j]))}</td>`).join('');
-    const totals=period?methodTotals+`<td>${n(contact)}</td>`:`<td>${n(total)}</td><td>${n(contact)}</td>${methodTotals}<td>${n(missing)}</td><td>${total>0&&contact<=total?String(Math.round(contact/total*1000)/10)+'%':''}</td>`;
+    const periodTotals=period?meta.periodTotals:null;
+    const periodLink=(value,method)=>periodTotals&&value?smDrillAttr(method?'period_method':'period_total',{...(method?{method}:{}),start:periodTotals.start,end:periodTotals.end,label:'선택기간 합계'}):'';
+    const methodTotals=displayMethods.map(m=>{const j=SM_GRAPH_METHODS.indexOf(m),value=period?Number(periodTotals?.parts?.[j]||0):sum(r=>r.parts?.[j]);return `<td ${period?periodLink(value,m):''}>${n(value)}</td>`;}).join('');
+    const totals=period?methodTotals+`<td ${periodLink(periodTotals?.total)}>${n(periodTotals?.total||0)}</td>`:`<td>${n(total)}</td><td>${n(contact)}</td>${methodTotals}<td>${n(missing)}</td><td>${total>0&&contact<=total?String(Math.round(contact/total*1000)/10)+'%':''}</td>`;
     return `<div class="sc-table-scroll"><table class="sc-readable-table"><thead><tr>${headings.map(h=>`<th scope="col">${h}</th>`).join('')}</tr></thead><tbody>${rows}</tbody><tfoot><tr><th scope="row">합계</th>${totals}</tr></tfoot></table></div>`;
   }
   function smRenderContactTable(entries,kind,id,width=0,meta={}){
@@ -24635,7 +24671,11 @@ ead><body>
         if(kind==='manager'&&c.length>=13)entries.push({label:c[1].textContent.trim(),total:number(c[2]),value:number(c[3]),parts:[6,7,8,10,11,12].map(i=>number(c[i])),methodCols:[6,7,8,10,11,12],totalCol:2,missing:number(c[9]),missingCol:9,col:3,row:ri});
         if(kind==='nonmember'&&c.length===6&&!c[0].textContent.includes('합계'))entries.push({label:c[0].textContent.trim(),total:number(c[1]),value:number(c[2]),missing:number(c[3]),totalCol:1,missingCol:3,col:2,row:ri});
         if(kind==='dong')for(let offset=0;offset+4<c.length;offset+=5){const label=c[offset].textContent.trim();if(label)entries.push({label,total:number(c[offset+1]),value:number(c[offset+2]),missing:number(c[offset+3]),totalCol:offset+1,missingCol:offset+3,col:offset+2,row:ri});}
-        if(kind==='week'&&(c.length===9||c.length===6))entries.push({label:c[1].textContent.trim(),value:number(c[c.length-1]),parts:(c.length===9?[2,3,4,5,6,7]:[2,3,4]).map(i=>number(c[i])).concat(c.length===6?[null,null,null]:[]),methodCols:c.length===9?[2,3,4,5,6,7]:[2,3,4],col:c.length-1,row:ri});
+        if(kind==='week'){
+          const headers=[...table.querySelectorAll('thead th')],tagged=headers.some(h=>h.dataset.periodMethod);
+          const cols=SM_GRAPH_METHODS.map(m=>tagged?headers.findIndex(h=>h.dataset.periodMethod===m):(c.length===9?2+SM_GRAPH_METHODS.indexOf(m):SM_GRAPH_METHODS.indexOf(m)<3?2+SM_GRAPH_METHODS.indexOf(m):-1));
+          if(tagged||c.length===9||c.length===6)entries.push({label:c[1].textContent.trim(),value:number(c[c.length-1]),parts:cols.map(i=>i>=0?number(c[i]):0),methodCols:cols.map(i=>i>=0?i:null),col:c.length-1,row:ri});
+        }
       });
       if(!entries.length){delete table.dataset.scConverted;continue;}
       if(kind==='manager'||kind==='nonmember')entries.sort((a,b)=>smCompareManagerNames(a.label,b.label));
@@ -24652,7 +24692,9 @@ ead><body>
       const chart=document.createElement('div');chart.className='sc-contact-graph sc-approved-vertical sc-'+kind;
       let periodPeople=0;
       if(kind==='week'&&context.cohort){const selected=siteMgmtPeriod==='all'?smMonthRangeForCurrent():context.selectedRange||context.range;if(selected)periodPeople=smNewContactCount(smNewContactSnapshot(context.site,selected).history,selected.start,selected.end).total;}
-      chart.__scMeta={cohort:canonical,periodPeople};chart.innerHTML=smRenderContactTable(entries,kind,id,0,chart.__scMeta);
+      const periodRange=kind==='week'?(siteMgmtPeriod==='all'?smMonthRangeForCurrent():context.selectedRange||context.range):null;
+      const periodTotals=periodRange&&context.site?smPeriodTotals(context.site,periodRange):null;
+      chart.__scMeta={cohort:canonical,periodPeople,periodTotals};chart.innerHTML=smRenderContactTable(entries,kind,id,0,chart.__scMeta);
       const card=table.closest('.pdf-section,.rf-nonmember');
       if(card){let anchor=table;while(anchor.parentNode!==card)anchor=anchor.parentNode;card.insertBefore(chart,anchor);card.classList.add('sc-approved-card');}
       else table.parentNode.insertBefore(chart,table);
