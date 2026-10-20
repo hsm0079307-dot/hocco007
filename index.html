@@ -24547,7 +24547,7 @@ ead><body>
     const bucketFor=date=>{
       if(daily)return {key:date,label:date.slice(5).replace('-','/'),start:date,end:date};
       const i=boundaries.findIndex(b=>date>=b.start&&date<=b.end),b=boundaries[i];
-      return b?{key:String(i+1),label:(i+1)+'주',start:b.start,end:b.end}:null;
+      return b?{key:String(i+1),label:(i+1)+'주('+Number(b.start.slice(8))+'~'+Number(b.end.slice(8))+'일)',start:b.start,end:b.end}:null;
     };
     if(!daily)for(const b of boundaries){const z=bucketFor(b.start);map.set(z.key,{...z,parts:[0,0,0,0,0,0],events:[]});}
     for(const e of events){const b=bucketFor(e.date);if(!b)continue;if(!map.has(b.key))map.set(b.key,{...b,parts:[0,0,0,0,0,0],events:[]});map.get(b.key).events.push(e);}
