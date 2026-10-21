@@ -1841,13 +1841,36 @@ function briefCompactReport(value){
 function briefReportSources(value){
  return [...String(value||'').matchAll(/[（(［\[]([^）)］\]]*\bR[0-9a-f]{4,}\b[^）)］\]]*)[）)］\]]/gi)].map(m=>m[0]);
 }
+function briefDisplayReportText(value){
+ const quotes=[],sources=[];
+ let text=String(value||'').replace(/“[^”]*”|‘[^’]*’|「[^」]*」|『[^』]*』|"[^"\n]*"/g,m=>{quotes.push(m);return '\uE300'+(quotes.length-1)+'\uE301';})
+  .replace(/[（(［\[][^）)］\]]*\bR[0-9a-f]{4,}\b[^）)］\]]*[）)］\]]/gi,m=>{sources.push(m);return '\uE310'+(sources.length-1)+'\uE311';});
+ const actions='예약|방문|연락|요청|문의|설명|전달|확인|참석|접촉|면담|미팅|접수|설치|게시|협의|논의|제안|검토|소개';
+ text=text.replace(new RegExp('('+actions+')(?:을\\s*)?(?:하였으며|하였고|했으며|했고)(?=\\s|[.。]|$)','g'),(_,action)=>action+' ·')
+  .replace(new RegExp('('+actions+')(?:을\\s*)?(?:하였다|하였음|했다|했음|함)(?=[.。\\s]|$)','g'),'$1')
+  .replace(new RegExp('('+actions+')(?:으로|로|이며|이고|이었으며|이었고|이었음)(?=[ \\t]*(?:[.。](?:\\s|$)|\\n|$|\\uE310))','g'),'$1')
+  .replace(new RegExp('(\\d+)\\s*번째\\s*('+actions+')','g'),'$1번째 $2')
+  .replace(/[.。]+(?=\s|$)/g,'')
+  .replace(/\s*·(?=\s*(?:\n|$))/g,'')
+  .replace(/[ \t]*·[ \t]+/g,' · ')
+  .replace(/[ \t]+(?=\n|$)/g,'').trim();
+ return text.replace(/\uE300(\d+)\uE301/g,(_,i)=>quotes[Number(i)]).replace(/\uE310(\d+)\uE311/g,(_,i)=>sources[Number(i)]);
+}
 function briefReportBody(value){
  let text=briefCompactReport(briefReportSentenceStyle(value));
  for(const citation of briefReportSources(text))text=text.replace(citation,'');
- return text.replace(/[ \t]+(?=\n|$)/g,'').replace(/([.!?。])[ \t]*\./g,'$1').trim();
+ return briefDisplayReportText(text.replace(/[ \t]+(?=\n|$)/g,'').replace(/([.!?。])[ \t]*\./g,'$1').trim());
 }
 function briefReportMonthlyMarkup(value,esc){
- return '<div class="bf-manual">'+esc(briefReportBody(value))+'</div>';
+ const text=briefReportBody(value),lines=text.split(/\r?\n/),bullet=/^\s*(?:[•●◦▪‣∙·]\s*|[-*]\s+)/;
+ if(!lines.some(line=>bullet.test(line)))return '<div class="bf-manual">'+esc(text)+'</div>';
+ const items=[],intro=[];
+ for(const line of lines){
+  if(bullet.test(line))items.push(line.replace(bullet,''));
+  else if(items.length){if(line.trim())items[items.length-1]+='\n'+line.trim();}
+  else if(line.trim())intro.push(line);
+ }
+ return '<div class="bf-manual bf-manual-aligned">'+(intro.length?'<p>'+esc(intro.join('\n'))+'</p>':'')+'<ul class="bf-report-list">'+items.map(item=>'<li>'+esc(item)+'</li>').join('')+'</ul></div>';
 }
 </script>
 
@@ -14033,7 +14056,7 @@ window.addEventListener('resize', ()=>{
   }
   function renderRivalDirectory(site){
     const host=document.getElementById('detailBody');
-    host.innerHTML=`<section class="rival-directory"><div class="rival-heading"><div><h3>타사 현황</h3></div>${rivalReadOnly()?'':'<button type="button" class="rival-primary" id="rivalAdd">+ 인원 등록</button><button type="button" class="rival-primary" id="rivalBulk">일괄 등록</button>'}</div><div class="rival-controls"><div class="rival-view"><button type="button" data-rival-scope="site" class="selected">현재 현장</button></div><select id="rivalCompanyFilter" aria-label="시공사 필터"><option value="">모든 시공사</option></select><input id="rivalSearch" placeholder="담당 · 연락처 · 차량번호 · 활동 지역 검색" aria-label="타사 인원 검색"></div><div id="rivalDirectoryRows"></div><div id="rivalDirectoryReports"></div><section class="rival-overview-map-section rival-directory-map-section"><div class="rival-overview-map-heading"><h3>사무실 · 라운지 위치</h3><span>■ 사무실　 ● 라운지</span></div><div id="rivalDirectoryMap"></div><p id="rivalDirectoryMapStatus" role="status"></p></section></section>`;
+    host.innerHTML=`<section class="rival-directory"><div class="rival-heading"><div><h3>타사 현황</h3></div>${rivalReadOnly()?'':'<button type="button" class="rival-primary" id="rivalAdd">+ 인원 등록</button><button type="button" class="rival-primary" id="rivalBulk">일괄 등록</button>'}</div><div class="rival-controls"><select id="rivalCompanyFilter" aria-label="시공사 필터"><option value="">모든 시공사</option></select><input id="rivalSearch" placeholder="담당 · 연락처 · 차량번호 · 활동 지역 검색" aria-label="타사 인원 검색"></div><div id="rivalDirectoryRows"></div><div id="rivalDirectoryReports"></div><section class="rival-overview-map-section rival-directory-map-section"><div class="rival-overview-map-heading"><h3>사무실 · 라운지 위치</h3><span>■ 사무실　 ● 라운지</span></div><div id="rivalDirectoryMap"></div><p id="rivalDirectoryMapStatus" role="status"></p></section></section>`;
     let scope='site',reportCompany='';
     if(typeof window!=='undefined' && window.matchMedia && window.matchMedia('(max-width:820px)').matches){
       host.querySelector('#rivalSearch').placeholder='담당 · 연락처 검색';
@@ -14062,7 +14085,7 @@ window.addEventListener('resize', ()=>{
       const reportHost=host.querySelector('#rivalDirectoryReports');
       if(!reportGroups.some(g=>g.company===reportCompany))reportCompany='';
       const activeReport=reportGroups.find(g=>g.company===reportCompany);
-      reportHost.innerHTML=(reportGroups.length?'<div class="rival-report-logo-row" aria-label="활동보고 회사 선택">'+reportGroups.map(({company})=>'<button type="button" data-site-rival-logo="'+escapeHtml(company)+'" aria-label="'+escapeHtml(company)+' 활동보고" title="'+escapeHtml(company)+'" aria-pressed="'+(company===reportCompany)+'">'+rivalActivityLogo(company)+'</button>').join('')+'</div>':'')+(activeReport?'<section class="rival-selected-report"><div class="rival-selected-report-heading"><strong>'+escapeHtml(activeReport.company)+'</strong><time>'+escapeHtml(activeReport.reports[0].log.date||'날짜 미기재')+'</time></div><div class="rival-site-report-body">'+activeReport.reports.slice(0,3).map(r=>'<div class="rival-site-report-record"><small>'+escapeHtml([r.log.date,r.log.contactName,r.log.author?'담당 '+r.log.author:''].filter(Boolean).join(' · '))+'</small><p>'+r.mentions.map(escapeHtml).join('<br>')+'</p></div>').join('')+'<div class="rival-site-report-actions"><button type="button" data-site-rival-reports="'+escapeHtml(activeReport.company)+'">보고 보기 ›</button>'+(!rivalReadOnly()?'<button type="button" data-site-rival-hide="'+escapeHtml(activeReport.company)+'">표시 제외</button>':'')+'</div></div></section>':'');
+      reportHost.innerHTML=(reportGroups.length?'<div class="rival-report-logo-row" aria-label="활동보고 회사 선택">'+reportGroups.map(({company})=>'<button type="button" data-site-rival-logo="'+escapeHtml(company)+'" aria-label="'+escapeHtml(company)+' 활동보고" title="'+escapeHtml(company)+'" aria-pressed="'+(company===reportCompany)+'">'+rivalActivityLogo(company)+'</button>').join('')+'</div>':'')+(activeReport?'<section class="rival-selected-report"><div class="rival-selected-report-heading"><strong>'+escapeHtml(activeReport.company)+'</strong><time>'+escapeHtml(activeReport.reports[0].log.date||'날짜 미기재')+'</time></div><div class="rival-site-report-body">'+activeReport.reports.slice(0,3).map(r=>'<div class="rival-site-report-record"><small>'+escapeHtml([r.log.date,r.log.contactName,r.log.author?'담당 '+r.log.author:''].filter(Boolean).join(' · '))+'</small><p>'+r.mentions.map(text=>escapeHtml(briefDisplayReportText(text))).join('<br>')+'</p></div>').join('')+'<div class="rival-site-report-actions"><button type="button" data-site-rival-reports="'+escapeHtml(activeReport.company)+'">보고 보기 ›</button>'+(!rivalReadOnly()?'<button type="button" data-site-rival-hide="'+escapeHtml(activeReport.company)+'">표시 제외</button>':'')+'</div></div></section>':'');
       reportHost.querySelectorAll('[data-site-rival-logo]').forEach(button=>button.onclick=()=>{reportCompany=reportCompany===button.dataset.siteRivalLogo?'':button.dataset.siteRivalLogo;draw();});
       const hiddenGroups=rivalSiteReportGroups(site,{includeHidden:true,company:companyFilter.value,search:q}).filter(g=>rivalReportCompanyHidden(site,g.company));
       if(hiddenGroups.length&&!rivalReadOnly())reportHost.insertAdjacentHTML('beforeend','<details class="rival-hidden-reports"><summary>제외한 보고 현황</summary>'+hiddenGroups.map(g=>'<div><span>'+escapeHtml(g.company)+'</span><button type="button" data-site-rival-restore="'+escapeHtml(g.company)+'">다시 표시</button></div>').join('')+'</details>');
@@ -14405,7 +14428,7 @@ window.addEventListener('resize', ()=>{
       const groups=new Map();shown.forEach((record,index)=>{const key=record.office+'|'+record.site.id;if(!groups.has(key))groups.set(key,[]);groups.get(key).push({...record,index})});
       count.textContent=company+' · 관련 보고 '+shown.length+'건 · 보고 현장 '+groups.size+'곳';
       if(!shown.length){target.innerHTML='<p class="rival-activity-empty">선택 조건에 맞는 확인된 활동 보고가 없습니다.</p>';return;}
-      const reportMarkup=record=>'<div class="rival-activity-report"><div class="rival-activity-meta"><time>'+escapeHtml(record.log.date||'보고일 미기재')+'</time><span>'+escapeHtml(record.log.contactName||'접촉자 미기재')+'</span>'+(record.log.author?'<span>담당 '+escapeHtml(record.log.author)+'</span>':'')+'</div>'+record.mentions.map(text=>'<p>'+escapeHtml(text)+'</p>').join('')+'<div class="rival-activity-source"><details><summary>보고 원문</summary><p>'+escapeHtml(record.text)+'</p></details><button type="button" data-activity-report="'+record.index+'">보고서 보기 ›</button></div></div>';
+      const reportMarkup=record=>'<div class="rival-activity-report"><div class="rival-activity-meta"><time>'+escapeHtml(record.log.date||'보고일 미기재')+'</time><span>'+escapeHtml(record.log.contactName||'접촉자 미기재')+'</span>'+(record.log.author?'<span>담당 '+escapeHtml(record.log.author)+'</span>':'')+'</div>'+record.mentions.map(text=>'<p>'+escapeHtml(briefDisplayReportText(text))+'</p>').join('')+'<div class="rival-activity-source"><details><summary>보고 원문</summary><p>'+escapeHtml(record.text)+'</p></details><button type="button" data-activity-report="'+record.index+'">보고서 보기 ›</button></div></div>';
       target.innerHTML=[...groups.values()].map(rows=>{const r=rows[0];return '<details class="rival-activity-site"><summary><span class="rival-activity-site-icon" aria-hidden="true">▥</span><div class="rival-activity-site-title"><h3>'+escapeHtml(r.site.name)+'</h3><small>'+escapeHtml(r.office)+' · 최근 보고 '+escapeHtml(r.log.date||'날짜 미기재')+'</small></div><div class="rival-activity-site-actions"><span>'+rows.length+'건</span>'+(embedded?'<button type="button" data-activity-roster="'+r.index+'">등록 정보 ›</button>':'')+'</div></summary><div class="rival-activity-site-body">'+rows.slice(0,3).map(reportMarkup).join('')+(rows.length>3?'<details class="rival-activity-more"><summary>지난 보고 '+(rows.length-3)+'건 더 보기</summary>'+rows.slice(3).map(reportMarkup).join('')+'</details>':'')+'</div></details>'}).join('');
     }
     content.addEventListener('click',async event=>{
@@ -14765,7 +14788,7 @@ window.addEventListener('resize', ()=>{
     const sections=[...groups].sort((a,b)=>b[0].localeCompare(a[0])).map(([month,rows])=>{
       const heading=showMonths?`<div class="management-note-month">${years.size>1?esc(month.slice(2,4))+'년 ':''}${Number(month.slice(5))}월:</div>`:'';
       return `<section class="management-note-month-group">${heading}${rows.map(({item,index})=>{
-        const text=reportStyleText(item.text).trim(),ending=/[.!?。！？]$/.test(text)?'':'.';
+        const text=reportStyleText(item.text).trim(),ending='';
         return `<div class="management-note-item"><a href="#" class="management-note-link" data-management-note="${esc(siteId)}" data-note-index="${index}">• ${esc(text+ending)}</a> ${disclosure(item)}</div>`;
       }).join('')}</section>`;
     }).join('');
@@ -24203,10 +24226,10 @@ ead><body>
     </div>`;
   }
 
-  function smTodaySection(site,events,periodMode){
-    const range=smRange();let targetDate='';
+  function smTodaySection(site,events,_dailyMode){
+    const range=smRange(),periodMode=['day','week','month'].includes(siteMgmtPeriod);let targetDate='';
     if(!periodMode){const dates=events.map(e=>e.date).filter(Boolean).sort();targetDate=dates.length?dates[dates.length-1]:smDateKey(new Date());}
-    const scoped=periodMode?events.filter(e=>e.date>=range.start&&e.date<=range.end&&smIsSuccessMethod(e.method)):events.filter(e=>e.date===targetDate);
+    const scoped=periodMode?smPeriodReportEvents(site,range,siteMgmtPeriod).filter(e=>smIsSuccessMethod(e.method)):events.filter(e=>e.date===targetDate);
     const groups=new Map();scoped.forEach(e=>{const key=miPersonKey(e);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(e)});
     const ev=[...groups.values()].map(history=>{history.sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));return {...history[0],history}}).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(a.name||'').localeCompare(String(b.name||''),'ko'));
     const allEvents=periodMode?scoped:smEvents(site,{start:'0000-01-01',end:'9999-12-31'}),counts={};allEvents.forEach(e=>{const key=miPersonKey(e);counts[key]=(counts[key]||0)+1});
@@ -25209,7 +25232,7 @@ function openJournalQuery(){
  }
  el('form').onsubmit=e=>{e.preventDefault();if(!composing)search();};input.oncompositionstart=()=>{composing=true;};input.oncompositionend=()=>{composing=false;};
  el('[data-jqs-reset]').onclick=()=>{el('[data-jqs-start]').value='';el('[data-jqs-end]').value='';if(input.value.trim())search();};
- el('[data-jqs-summary]').onclick=()=>{const items=jqsSummarize(records,query);sum.hidden=false;sum.innerHTML=`<h3>${esc(query.replace(/[?？]/g,''))}</h3>${['반응·평가','방문·접촉','예정·후속'].map(category=>{const group=items.filter(item=>item.category===category);return group.length?`<h4 class="jqs-category">${category}</h4><ul>${group.map(item=>`<li><strong class="jqs-speaker">${esc(records[item.refs[0]].site.name)} · ${esc(records[item.refs[0]].log.contactName||records[item.refs[0]].log.owner||'접촉자 미기재')}</strong><p>${esc(item.text)}</p><div>${item.refs.map(i=>`<button type="button" data-jqs-ref="${i}">${esc(meta(records[i]))}</button>`).join('')}</div></li>`).join('')}</ul>`:'';}).join('')}${items.length?'':'<p class="jqs-empty">검색 주제에 직접 연결된 짧은 발언을 찾지 못했습니다.</p>'}`;
+ el('[data-jqs-summary]').onclick=()=>{const items=jqsSummarize(records,query);sum.hidden=false;sum.innerHTML=`<h3>${esc(query.replace(/[?？]/g,''))}</h3>${['반응·평가','방문·접촉','예정·후속'].map(category=>{const group=items.filter(item=>item.category===category);return group.length?`<h4 class="jqs-category">${category}</h4><ul>${group.map(item=>`<li><strong class="jqs-speaker">${esc(records[item.refs[0]].site.name)} · ${esc(records[item.refs[0]].log.contactName||records[item.refs[0]].log.owner||'접촉자 미기재')}</strong><p>${esc(briefDisplayReportText(item.text))}</p><div>${item.refs.map(i=>`<button type="button" data-jqs-ref="${i}">${esc(meta(records[i]))}</button>`).join('')}</div></li>`).join('')}</ul>`:'';}).join('')}${items.length?'':'<p class="jqs-empty">검색 주제에 직접 연결된 짧은 발언을 찾지 못했습니다.</p>'}`;
   sum.querySelectorAll('[data-jqs-ref]').forEach(b=>b.onclick=()=>{const i=Number(b.dataset.jqsRef);while(shown<=i&&shown<records.length)append();const card=wrap.querySelector('#jqs-record-'+i);card?.scrollIntoView({block:'center',behavior:'smooth'});card?.focus({preventScroll:true});});
  };
  input.focus({preventScroll:true});
@@ -43245,6 +43268,27 @@ body.ux383 :is(#detailBody,#masterPanel,#contactReportModalBox,#globalStatsModal
 /* Dense seven-day calendars and wide role/dong tables keep their existing compact text. */
 body.ux383 #globalStatsBody :is(.sc-dong-two-columns,.pdf-role-card) :is(th,td){font-size:11px!important;}
 }
+</style>
+<style id="brief-hanging-bullets-20261021">
+body.ux383 :is(.report-brief,.bf-shared-embedded,.shared-brief-issues,.report-site-note-view) .bf-manual.bf-manual-aligned{white-space:normal!important;text-align:left!important;}
+body.ux383 .bf-manual.bf-manual-aligned>.bf-report-list{list-style-type:disc!important;list-style-position:outside!important;margin:0!important;padding:0 0 0 1.15em!important;text-align:left!important;}
+body.ux383 .bf-manual.bf-manual-aligned>.bf-report-list>li{display:list-item!important;margin:0 0 .4em!important;padding:0 0 0 .15em!important;text-align:left!important;text-indent:0!important;white-space:pre-line!important;word-break:keep-all!important;overflow-wrap:anywhere!important;line-height:inherit!important;}
+body.ux383 .bf-manual.bf-manual-aligned>.bf-report-list>li::marker{color:var(--text-main)!important;font-size:.8em!important;}
+body.ux383 .bf-manual.bf-manual-aligned>p{margin:0 0 .4em!important;text-indent:0!important;}
+</style>
+<style id="report-period-tabs-equal-20261021">
+body.ux383 #detailBody .mgr-breakdown-wrap .mgr-subtabs{display:flex!important;gap:5px!important;align-items:center!important;}
+body.ux383 #detailBody .mgr-breakdown-wrap .mgr-subtabs>.mgr-subtab{display:inline-flex!important;align-items:center!important;justify-content:center!important;box-sizing:border-box!important;flex:0 0 78px!important;width:78px!important;min-width:78px!important;max-width:78px!important;height:34px!important;min-height:34px!important;max-height:34px!important;margin:0!important;padding:0 6px!important;border:1px solid var(--line)!important;border-radius:10px!important;font-size:12px!important;font-weight:600!important;line-height:1!important;letter-spacing:-.15px!important;white-space:nowrap!important;}
+body.ux383 #detailBody .mgr-breakdown-wrap .mgr-subtabs>.mgr-subtab.active{background:var(--accent)!important;border-color:var(--accent)!important;color:var(--accent-ink)!important;font-weight:700!important;}
+@media(max-width:820px){body.ux383 #detailBody .mgr-breakdown-wrap .mgr-subtabs>.mgr-subtab{flex:1 1 0!important;min-width:0!important;max-width:none!important;width:auto!important;}}
+</style>
+<style id="rival-roster-rounded-20261021">
+body.ux383 #rivalDirectoryRows .rival-centered-scroll{border:1px solid var(--line)!important;border-radius:11px!important;overflow:auto!important;}
+body.ux383 #rivalDirectoryRows .rival-centered-table{border-collapse:separate!important;border-spacing:0!important;border-radius:10px!important;}
+body.ux383 #rivalDirectoryRows .rival-centered-table thead tr:first-child>th:first-child{border-top-left-radius:10px!important;}
+body.ux383 #rivalDirectoryRows .rival-centered-table thead tr:first-child>th:last-child{border-top-right-radius:10px!important;}
+body.ux383 #rivalDirectoryRows .rival-centered-table tbody tr:last-child>td:first-child{border-bottom-left-radius:10px!important;}
+body.ux383 #rivalDirectoryRows .rival-centered-table tbody tr:last-child>td:last-child{border-bottom-right-radius:10px!important;}
 </style>
 </body>
 </html>
