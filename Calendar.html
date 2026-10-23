@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta name="calendar-build" content="2026.10.23.2">
+<meta name="calendar-build" content="2026.10.23.3">
 <script id="calendar-shared-foundation">(function(){
  'use strict';
  const keys=['manual_schedule_data_v1','calendar_checkmarks_v1','person_memos_v1','staff_contacts_v1','category_labels_v1','capacity_date_override_v1','capacity_weekday_v1','capacity_weekend_v1','site_title_v1','site_subtitle_v1','footnote_comment_v1','fdDisplayTitle','fdCustomTitle'];
@@ -8280,9 +8280,28 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
       const holidayHtml=holiday?`<span class="fd-holiday">${esc(holiday)}</span>`:'';
       const note=!other&&vis.length?`<span class="fd-day-note">${esc(vis[0].site)}${vis.length>1?' 외 '+(vis.length-1)+'건':''}</span>`:'';
       b.innerHTML=`<span class="fd-daynum">${d.getDate()}</span>${holidayHtml}${count}${note}${dots?`<span class="fd-dots">${dots}</span>`:''}`;
-      b.onclick=()=>{if(other){setMonth(d);selectedKey=k;}select(k)};days.appendChild(b);
+      b.setAttribute('aria-label',dateLabel(d)+' 일정 '+vis.length+'건');b.onclick=()=>{select(k);openDaySchedule(k)};days.appendChild(b);
     }
   }
+  function dayScheduleMarkup(date,events){
+    if(!events.length)return '<div class="fd-summary-empty">등록된 일정이 없습니다.</div>';
+    return events.map(event=>`<div class="fd-month-detail-row ${esc(event.kind)}"><time>${date.getMonth()+1}/${date.getDate()}</time><span class="kind">${event.kind==='gallery'?'갤러리':event.kind==='tour'?'투어':'휴관'}</span><div class="fd-month-detail-main"><strong>${esc(event.site)} · ${esc(event.name)}</strong><span>${esc(event.meta||'')}</span></div><em>${esc(event.time)}</em></div>`).join('');
+  }
+  function openDaySchedule(k){
+    const date=parseKey(k,viewDate.getFullYear()),events=rawEvents(k);
+    let dialog=document.getElementById('fdDaySchedulePopup');
+    if(!dialog){
+      dialog=document.createElement('dialog');dialog.id='fdDaySchedulePopup';dialog.className='fd-summary-dialog';
+      dialog.setAttribute('aria-labelledby','fdDayScheduleTitle');
+      dialog.addEventListener('click',event=>{if(event.target===dialog)dialog.close();});
+      dialog.addEventListener('close',()=>q('#fdDays .fd-day.selected')?.focus({preventScroll:true}));
+      document.body.appendChild(dialog);
+    }
+    dialog.innerHTML=`<div class="fd-summary-dialog-head"><strong id="fdDayScheduleTitle">${date.getFullYear()}년 ${esc(dateLabel(date))} 일정</strong><button type="button" aria-label="일정 팝업 닫기">✕</button></div><div class="fd-summary-dialog-body">${dayScheduleMarkup(date,events)}</div>`;
+    dialog.querySelector('button').onclick=()=>dialog.close();
+    if(!dialog.open)dialog.showModal();
+  }
+
   function renderDetail(){
     const box=q('#fdDetail');if(!box||!viewDate)return;const d=parseKey(selectedKey,viewDate.getFullYear());const ev=rawEvents(selectedKey),hc=expected(selectedKey);let list='';
     if(ev.length){list='<div class="fd-detail-list">'+ev.map(x=>`<div class="fd-event ${x.kind}"><div class="fd-event-time">${esc(x.time)}</div><div class="fd-event-copy"><strong>${esc(x.site)} · ${esc(x.name)}</strong><span>${esc(x.meta|| (x.manager?'담당 '+x.manager:''))}</span></div><div class="fd-event-controls"><div class="fd-kind">${x.kind==='gallery'?'갤러리':x.kind==='tour'?'투어':'휴관'}</div>${x.kind==='closed'?'':`<button type="button" class="schedule-delete-button" onclick="deleteEntry('${x.kind}','${selectedKey}',${x.idx},this,'detail')">삭제</button>`}</div></div>`).join('')+'</div>'}
@@ -9113,4 +9132,21 @@ function toggleChecklistColumnFilter(kind){
 #freshDesktopApp #fdLegacyMount #managerTable thead th,#freshDesktopApp #fdLegacyMount #checklistBody thead th{height:36px!important;min-height:36px!important;padding:8px 3px!important;line-height:18px!important;white-space:nowrap!important;overflow-wrap:normal!important;word-break:keep-all!important;vertical-align:middle!important;}
 #freshDesktopApp #fdLegacyMount #checklistBody td.calendar-manager-cell{white-space:normal!important;}
 }
+</style>
+
+<style id="calendar-day-popup-layout">/* Leave more room for the selected schedule, totals and checklist on wide screens. */
+@media screen and (min-width:1251px){
+ #freshDesktopApp .fd-grid{grid-template-columns:minmax(0,.85fr) minmax(0,1fr)!important;}
+}
+#fdDaySchedulePopup{padding:0;width:min(880px,calc(100vw - 32px));max-height:82dvh;box-sizing:border-box;color:#17343d;}
+#fdDaySchedulePopup::backdrop{background:rgba(16,42,51,.30);}
+#fdDaySchedulePopup .fd-summary-dialog-head{min-height:50px;height:auto;gap:12px;}
+#fdDaySchedulePopup .fd-summary-dialog-head strong{padding:12px 0;line-height:1.5;}
+#fdDaySchedulePopup .fd-summary-dialog-head button{flex:0 0 30px;}
+#fdDaySchedulePopup .fd-month-detail-main strong,#fdDaySchedulePopup .fd-month-detail-main span{white-space:normal;overflow-wrap:anywhere;}
+#fdDaySchedulePopup .fd-month-detail-row.gallery{background:#e5f4f1;}
+#fdDaySchedulePopup .fd-month-detail-row.tour{background:#fff4e9;}
+#fdDaySchedulePopup .fd-month-detail-row.closed{background:#f9eeee;}
+#fdDaySchedulePopup .fd-month-detail-row.closed .kind{color:#ad5757;}
+#fdDaySchedulePopup .fd-summary-dialog-body{max-height:calc(82dvh - 64px);}
 </style>
