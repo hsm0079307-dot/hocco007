@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta name="calendar-build" content="2026.10.23.4">
+<meta name="calendar-build" content="2026.10.23.6">
 <script id="calendar-shared-foundation">(function(){
  'use strict';
  const keys=['manual_schedule_data_v1','calendar_checkmarks_v1','person_memos_v1','staff_contacts_v1','category_labels_v1','capacity_date_override_v1','capacity_weekday_v1','capacity_weekend_v1','site_title_v1','site_subtitle_v1','footnote_comment_v1','fdDisplayTitle','fdCustomTitle'];
@@ -1898,15 +1898,15 @@ html.calendar-unlocked #appRoot{display:block!important;}
 </style>
 </head>
 <body>
-<div id="lockScreen" role="main" aria-labelledby="pwTitle">
+<dialog id="lockScreen" aria-labelledby="pwTitle">
   <h2 id="pwTitle">🔒 비밀번호 입력</h2>
   <p>통합 일정표 열람을 위해 비밀번호가 필요합니다</p>
   <form id="lockForm" novalidate>
-    <input type="password" id="pwInput" maxlength="10" inputmode="numeric" autocomplete="current-password" aria-label="비밀번호" placeholder="••••">
+    <input type="password" id="pwInput" maxlength="10" inputmode="numeric" enterkeyhint="go" autocomplete="current-password" aria-label="비밀번호" placeholder="••••">
     <button type="submit" id="pwOpenBtn">열기</button>
   </form>
   <div class="err" id="pwErr" aria-live="polite"></div>
-</div>
+</dialog>
 <script id="calendar-lock-simple-script">
 (function(){
   var DEFAULT='0134';
@@ -7487,7 +7487,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
   function relabelNav(){
     const bs=qa('.pro-bottomnav button');if(bs.length<4)return;
     const cfg=[['schedule','일정'],['customer','고객'],['check','체크리스트'],['more','더보기']];
-    cfg.forEach((x,i)=>{bs[i].dataset.mobile=x[0];const sp=q('span',bs[i]);if(sp)sp.textContent=x[1]});
+    cfg.forEach((x,i)=>{bs[i].dataset.mobile=x[0];const sp=q('span',bs[i]);if(sp&&sp.textContent!==x[1])sp.textContent=x[1]});
   }
 
   function fixDetailActions(){
@@ -7861,14 +7861,15 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
   function decorateDays(){
     const today=new Date();
     qa('.pro-day').forEach(btn=>{
-      btn.classList.remove('pro-v27-today');qa('.pro-v27-badges,.pro-v27-today-label',btn).forEach(x=>x.remove());
       if(btn.dataset.other==='1')return;
       const d=new Date(+btn.dataset.y,+btn.dataset.m,+btn.dataset.d), k=btn.dataset.key;
-      const rows=rowsFor(k), g=rows.filter(x=>x.kind==='gallery').length, t=rows.filter(x=>x.kind==='tour').length;
-      if(sameDay(d,today)){
-        btn.classList.add('pro-v27-today');const lab=document.createElement('span');lab.className='pro-v27-today-label';lab.textContent='오늘';btn.appendChild(lab);
-      }
+      const rows=rowsFor(k),g=rows.filter(x=>x.kind==='gallery').length,t=rows.filter(x=>x.kind==='tour').length;
       let closed=false;try{closed=!!GALLERY_CLOSED?.[k]}catch(e){}
+      const isToday=sameDay(d,today),signature=JSON.stringify([k,g,t,closed,isToday]);
+      if(btn.dataset.v27BadgeSignature===signature)return;
+      btn.dataset.v27BadgeSignature=signature;
+      btn.classList.remove('pro-v27-today');qa('.pro-v27-badges,.pro-v27-today-label',btn).forEach(x=>x.remove());
+      if(isToday){btn.classList.add('pro-v27-today');const lab=document.createElement('span');lab.className='pro-v27-today-label';lab.textContent='오늘';btn.appendChild(lab);}
       if(closed||g||t){
         const box=document.createElement('span');box.className='pro-v27-badges';const b=document.createElement('span');
         if(closed){b.className='pro-v27-badge closed';b.textContent='휴관'}
@@ -7882,6 +7883,9 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
   }
   function renderAgenda(){
     const box=ensureAgenda();if(!box)return;const k=selectedKey();if(!k)return;const d=selectedDate(), rows=rowsFor(k), isToday=sameDay(d,new Date()), ups=rows.length?[]:upcoming(d,3);
+    const signature=JSON.stringify([k,rows,isToday,ups.map(x=>[x.key,x.time,x.site,x.name,x.kind])]);
+    if(box.dataset.v27AgendaSignature===signature&&q('.pro-v27-agenda-head',box))return;
+    box.dataset.v27AgendaSignature=signature;
     const items=rows.map(x=>`<button type="button" class="pro-v27-agenda-row"><span class="pro-v27-kind ${x.kind}">${x.kind==='gallery'?'갤러리':'투어'}</span><time>${esc(x.time)}</time><span class="pro-v27-agenda-main"><b>${esc(x.site)}${x.name?' · '+esc(x.name):''}</b><small>${esc(x.meta||'')}</small></span><span class="pro-v27-arr">›</span></button>`).join('');
     const up=ups.length?`<div class="pro-v27-up-head"><strong>다가오는 일정</strong><span>다음 일정</span></div>${ups.map(x=>`<button type="button" class="pro-v27-up-row" data-key="${esc(x.key)}"><span class="pro-v27-up-date">${esc(compact(x.date))}</span><span class="pro-v27-kind ${x.kind}">${x.kind==='gallery'?'갤러리':'투어'}</span><span class="pro-v27-agenda-main"><b>${esc(x.time)} · ${esc(x.site)}</b><small>${esc(x.name)}</small></span><span class="pro-v27-arr">›</span></button>`).join('')}`:'';
     box.innerHTML=`<div class="pro-v27-agenda-head"><div class="pro-v27-agenda-title">${isToday?'<span class="pro-v27-today-chip">오늘</span>':''}<strong>${esc(fmt(d))}</strong></div><span class="pro-v27-count">${rows.length}건</span></div><div class="pro-v27-agenda-list">${items||'<div class="pro-v27-empty">등록된 일정이 없습니다.</div>'}${up}</div>`;
@@ -8082,10 +8086,10 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
       q('#proV28Back',head).onclick=showSchedule;
     }
     const hs=qa(':scope > h3',sec);
-    if(hs[0])hs[0].textContent='담당자별 현황';
-    if(hs[1])hs[1].textContent='이번 주 인원';
-    const reset=q('.managerFilterBar .resetBtn',sec);if(reset)reset.textContent='초기화';
-    const fb=q('.filterbar',sec);if(fb){const bs=qa('button',fb);if(bs[0]){bs[0].textContent='‹';bs[0].setAttribute('aria-label','이전 날짜')}if(bs[1]){bs[1].textContent='›';bs[1].setAttribute('aria-label','다음 날짜')}}
+    if(hs[0]&&hs[0].textContent!=='담당자별 현황')hs[0].textContent='담당자별 현황';
+    if(hs[1]&&hs[1].textContent!=='이번 주 인원')hs[1].textContent='이번 주 인원';
+    const reset=q('.managerFilterBar .resetBtn',sec);if(reset&&reset.textContent!=='초기화')reset.textContent='초기화';
+    const fb=q('.filterbar',sec);if(fb){const bs=qa('button',fb);if(bs[0]){if(bs[0].textContent!=='‹')bs[0].textContent='‹';bs[0].setAttribute('aria-label','이전 날짜')}if(bs[1]){if(bs[1].textContent!=='›')bs[1].textContent='›';bs[1].setAttribute('aria-label','다음 날짜')}}
   }
   function safeScroll(){
     if(!mobile()||!document.body.classList.contains('pro-show-legacy'))return;
@@ -9140,3 +9144,46 @@ function toggleChecklistColumnFilter(kind){
 #fdDaySchedulePopup .fd-month-detail-row.closed .kind{color:#ad5757;}
 #fdDaySchedulePopup .fd-summary-dialog-body{max-height:calc(82dvh - 64px);}
 </style>
+
+<style id="calendar-entrance-mobile-style">/* Keep the entrance above mobile navigation and resize it with the keyboard. */
+html:not(.calendar-unlocked) #lockScreen{
+ position:fixed!important;inset:auto 0 auto 0!important;top:var(--calendar-lock-top,0px)!important;
+ z-index:2147483647!important;margin:0!important;padding:24px 16px!important;border:0!important;
+ width:100%!important;max-width:none!important;height:var(--calendar-lock-height,100dvh)!important;
+ min-height:0!important;max-height:none!important;overflow:auto!important;border-radius:0!important;
+ display:flex!important;gap:14px!important;box-sizing:border-box!important;
+}
+#lockScreen::backdrop{background:#173b40;}
+#lockScreen #lockForm{flex-shrink:0;}
+#lockScreen #pwInput,#lockScreen #pwOpenBtn{min-height:52px!important;font-size:16px!important;}
+html.calendar-unlocked #lockScreen{display:none!important;}
+</style>
+<script id="calendar-entrance-mobile-script">(function(){
+ function resizeEntrance(){
+  var viewport=window.visualViewport,root=document.documentElement;
+  if(!viewport||!root.style)return;
+  root.style.setProperty('--calendar-lock-height',Math.round(viewport.height)+'px');
+  root.style.setProperty('--calendar-lock-top',Math.round(viewport.offsetTop)+'px');
+ }
+ function showEntrance(){
+  var lock=document.getElementById('lockScreen');
+  if(!lock||document.documentElement.getAttribute('data-calendar-unlocked')==='1')return;
+  resizeEntrance();
+  if(typeof lock.showModal==='function'&&!lock.open){
+   try{lock.showModal();}catch(e){}
+  }
+  if(!lock.dataset.entranceBound){
+   lock.dataset.entranceBound='1';
+   lock.addEventListener('cancel',function(event){event.preventDefault();});
+  }
+ }
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',showEntrance,{once:true});else showEntrance();
+ if(window.visualViewport){window.visualViewport.addEventListener('resize',resizeEntrance);window.visualViewport.addEventListener('scroll',resizeEntrance);}
+ window.addEventListener('calendar-entrance-unlocked',function(){
+  var input=document.getElementById('pwInput'),lock=document.getElementById('lockScreen');
+  if(input)input.blur();
+  if(lock&&lock.open&&typeof lock.close==='function')lock.close();
+  setTimeout(function(){window.scrollTo(0,0);window.dispatchEvent(new Event('resize'));},100);
+ });
+})();
+</script>
