@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta name="calendar-build" content="2026.10.23.3">
+<meta name="calendar-build" content="2026.10.23.4">
 <script id="calendar-shared-foundation">(function(){
  'use strict';
  const keys=['manual_schedule_data_v1','calendar_checkmarks_v1','person_memos_v1','staff_contacts_v1','category_labels_v1','capacity_date_override_v1','capacity_weekday_v1','capacity_weekend_v1','site_title_v1','site_subtitle_v1','footnote_comment_v1','fdDisplayTitle','fdCustomTitle'];
@@ -127,16 +127,13 @@
       book:q.get('book')||'',
       mode:q.get('mode')||''
     };
-    if(ok) document.documentElement.classList.add('dashboard-entry-v135');
+
   }catch(e){
     window.__calendarDashboardEntryV135={valid:false,date:'',book:'',mode:''};
   }
 })();
 </script>
-<style id="calendar-dashboard-entry-style-v135">
-html.dashboard-entry-v135 #lockScreen{display:none!important;visibility:hidden!important;pointer-events:none!important;}
-html.dashboard-entry-v135 #appRoot{display:block!important;visibility:visible!important;}
-</style>
+
 
 <style>
   :root{
@@ -1929,6 +1926,7 @@ html.calendar-unlocked #appRoot{display:block!important;}
     if(lock){lock.hidden=true;lock.setAttribute('aria-hidden','true');}
     if(app){app.hidden=false;app.style.removeProperty('display');}
     try{window.scrollTo(0,0);}catch(e){}
+    try{window.dispatchEvent(new Event('calendar-entrance-unlocked'));}catch(e){}
     try{window.dispatchEvent(new Event('resize'));}catch(e){}
     return true;
   }
@@ -8680,23 +8678,14 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
     var m=String(v||'').match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
     return m ? (String(Number(m[2]))+'-'+String(Number(m[3]))) : '';
   }
-  function unlockFromDashboard(){
-    var s=window.__calendarDashboardEntryV135;
-    if(!s || !s.valid) return false;
-    document.documentElement.classList.add('dashboard-entry-v135','calendar-unlocked');
-    document.documentElement.setAttribute('data-calendar-unlocked','1');
-    var lock=document.getElementById('lockScreen');
-    var app=document.getElementById('appRoot');
-    if(lock){ lock.hidden=true; lock.style.display='none'; lock.setAttribute('aria-hidden','true'); }
-    if(app){ app.hidden=false; app.style.display='block'; app.style.removeProperty('visibility'); }
-    return true;
-  }
+  function unlockFromDashboard(){return document.documentElement.getAttribute('data-calendar-unlocked')==='1';}
   function openRequestedBooking(){
     var s=window.__calendarDashboardEntryV135;
     if(!s || !s.valid) return;
-    unlockFromDashboard();
+    if(!unlockFromDashboard()||window.__calendarRequestedBookingOpened) return;
     var k=dateToKey(s.date);
     if(!k) return;
+    window.__calendarRequestedBookingOpened=true;
     try{
       if(typeof currentDateKey!=='undefined') currentDateKey=k;
       if(typeof previewKey!=='undefined') previewKey=k;
@@ -8716,6 +8705,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
     if(!unlockFromDashboard()) return;
     setTimeout(openRequestedBooking,260);
   }
+  window.addEventListener('calendar-entrance-unlocked',run);
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',run,{once:true});
   else run();
   window.addEventListener('load',function(){setTimeout(openRequestedBooking,350);},{once:true});
