@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta name="calendar-build" content="2026.10.23.7">
+<meta name="calendar-build" content="2026.10.23.8">
 <script id="calendar-shared-foundation">(function(){
  'use strict';
  const keys=['manual_schedule_data_v1','calendar_checkmarks_v1','person_memos_v1','staff_contacts_v1','category_labels_v1','capacity_date_override_v1','capacity_weekday_v1','capacity_weekend_v1','site_title_v1','site_subtitle_v1','footnote_comment_v1','fdDisplayTitle','fdCustomTitle'];
@@ -4814,6 +4814,7 @@ function computeDateHeadcount(key){
 </style>
 <script id="calendar-mobile-v13-shell-js">
 (function(){
+  const q=(s,r)=>(r||document).querySelector(s),qa=(s,r)=>Array.from((r||document).querySelectorAll(s));
   const mq=()=>true;
   const isDesktop=()=>window.matchMedia&&window.matchMedia('(min-width:561px)').matches;
   let selectedKey=null;
@@ -6669,11 +6670,22 @@ body.pro-show-legacy .checklist-section,body.pro-show-legacy .car{display:block!
   }
 
   function wrap(name){const old=window[name];if(typeof old!=='function'||old.__pro20)return;const fn=function(){const r=old.apply(this,arguments);setTimeout(render,0);return r};fn.__pro20=true;window[name]=fn}
+  function refreshSharedMobile(){
+    const month=baseDate();
+    const inMonth=k=>Number(String(k||'').split('-')[0])===month.getMonth()+1;
+    const current=typeof currentDateKey==='string'?currentDateKey:'';
+    if(current&&inMonth(current))selectedKey=current;
+    else if(!selectedKey||!inMonth(selectedKey))selectedKey=pickSelectedForMonth(month);
+    try{currentDateKey=selectedKey;previewKey=selectedKey;}catch(e){}
+    render();
+  }
+  window.addEventListener('calendar-data-applied',refreshSharedMobile);
+
   function init(){
     ['applyRange','setThisMonth','setNextMonth','toggleCategory','toggleClosedFilter','onScheduleDataChanged','deleteEntry'].forEach(wrap);
     const originalPreview=window.openPreview;
     window.openPreview=function(k){selectedKey=k;previewKey=k;currentDateKey=k;render();if(matchMedia('(max-width:760px)').matches)openSheet();};window.openPreview.__pro20=true;
-    render();window.addEventListener('resize',()=>render());
+    render();window.addEventListener('resize',refreshSharedMobile);
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
@@ -8340,6 +8352,18 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
     const oldChange=window.onScheduleDataChanged;if(typeof oldChange==='function'&&!oldChange.__fd){const f=function(){const r=oldChange.apply(this,arguments);setTimeout(render,0);return r};f.__fd=true;window.onScheduleDataChanged=f}
     const oldApply=window.applyRange;if(typeof oldApply==='function'&&!oldApply.__fd){const f=function(){const r=oldApply.apply(this,arguments);setTimeout(()=>{viewDate=monthFromHidden();render()},0);return r};f.__fd=true;window.applyRange=f}
   }
+  function refreshSharedSchedule(){
+    if(!desktop())return;
+    if(!app){init();return;}
+    viewDate=monthFromHidden();
+    const isInMonth=k=>{const date=parseKey(k,viewDate.getFullYear());return date.getMonth()===viewDate.getMonth();};
+    const current=typeof currentDateKey==='string'?currentDateKey:'';
+    if(current&&isInMonth(current))selectedKey=current;
+    else if(!selectedKey||!isInMonth(selectedKey))selectedKey=(viewDate.getMonth()+1)+'-1';
+    render();
+  }
+  window.addEventListener('calendar-data-applied',refreshSharedSchedule);
+
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(init,50));else setTimeout(init,50);
   window.addEventListener('resize',()=>{if(desktop()){if(!app){init();return;}render()}});
 })();
@@ -8790,10 +8814,11 @@ button.onclick=()=>{closeFormOverlay();fields.classList.remove('gallery-admin-ac
    for(const [key,id] of [['site_title_v1','siteTitle'],['site_subtitle_v1','siteSubtitle'],['footnote_comment_v1','footnote']]){
     const element=document.getElementById(id);if(element&&values[key]!==undefined)element.textContent=String(values[key]);
    }
-   onScheduleDataChanged();window.dispatchEvent(new Event('resize'));
+   onScheduleDataChanged();window.CalendarAdapter.refresh();
   }finally{F.applying=false;}
  },
  persist(){persistScheduleData();persistCheck();persistMemos();persistStaff();persistCatLabel();persistDateCapacity();},
+ refresh(){window.dispatchEvent(new Event('calendar-data-applied'));window.dispatchEvent(new Event('resize'));},
  editing(){return !!document.querySelector('#formOverlay.on,#memoOverlay.on,#previewOverlay.on,dialog[open]')||!!document.activeElement?.matches('input:not([type=checkbox]):not([type=radio]),textarea,[contenteditable=true]');}
 };
 
@@ -8843,25 +8868,27 @@ button.onclick=()=>{closeFormOverlay();fields.classList.remove('gallery-admin-ac
   const client=C.createClient({base:existing?.base||initial,local:initial,initialized:existing?.initialized||false,
    blocked:()=>A.editing(),
    read:()=>request('GET'),write:(value,etag)=>request('PUT',value,etag),
-   apply:values=>{if(!C.equal(values,A.capture())){backup();A.apply(values);}},
+   apply:values=>{if(!C.equal(values,A.capture())){backup();A.apply(values);}else A.refresh?.();},
    changed:state=>{try{F.native.set.call(localStorage,cacheKey,JSON.stringify(state));}catch{status('기기 저장 공간이 부족합니다. 백업을 내려받아 주세요.');}}
   });
   async function synchronize(options={}){
-   if(active||!auth)return;if(!options.force&&A.editing())return;
+   if(active)return {ok:false,message:'이전 저장을 처리 중입니다. 잠시 후 저장 완료를 확인해주세요.'};
+   if(!auth)return {ok:false,message:'입장 비밀번호로 서버에 다시 연결해주세요.'};
+   if(!options.force&&A.editing())return {ok:false,message:'입력 중입니다. 입력을 마치면 자동 저장합니다.'};
    active=true;status('동기화 중…');
    try{
     const result=await client.sync(options);empty=!!result.empty;conflict=false;
-    if(empty){status('관리 → 일정 저장으로 동기화 시작');if(client.snapshot().dirty)queue();}
-    else if(client.snapshot().dirty){status('추가 변경 내용 저장 대기');queue();}
-    else status('동기화 완료 · '+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}));
-   }catch(error){status(errorMessage(error));}finally{active=false;}
+    if(empty){status('관리 → 일정 저장으로 동기화 시작');if(client.snapshot().dirty)queue();return {ok:false,message:lastMessage};}
+    else if(client.snapshot().dirty){status('추가 변경 내용 저장 대기');queue();return {ok:false,message:lastMessage};}
+    else{status('동기화 완료 · '+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}));return {ok:true,message:lastMessage};}
+   }catch(error){const message=errorMessage(error);status(message);return {ok:false,message};}finally{active=false;}
   }
   function queue(){clearTimeout(timer);timer=setTimeout(()=>{if(auth&&!conflict)synchronize({initialize:empty});},800);}
   F.onChange=()=>{client.edit(A.capture());status(auth?'변경 내용 저장 중…':'이 기기에 저장됨');queue();};
   window.saveCalendarData=async()=>{try{
    A.persist();client.edit(A.capture());
-   if(auth)await synchronize({initialize:true,force:true});
-   else status('이 기기에 저장됨 · 동기화는 대시보드에서 열어주세요');
+   if(auth){const result=await synchronize({initialize:true,force:true});if(typeof window.alert==='function')window.alert(result.ok?'서버 저장 확인이 완료되었습니다. 다른 기기에서도 같은 일정이 표시됩니다.':result.message);return result;}
+   else{status('이 기기에 저장됨 · 동기화는 다시 입장해 연결해주세요');if(typeof window.alert==='function')window.alert(lastMessage);return {ok:false,message:lastMessage};}
   }catch(error){status(errorMessage(error));}};
   F.ready=true;status(lastMessage);
   window.addEventListener('calendar-entrance-unlocked',()=>{loadAuthentication();setTimeout(()=>synchronize(),0);});
