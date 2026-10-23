@@ -1,8 +1,117 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
+<meta name="calendar-build" content="2026.10.23.1">
+<script id="calendar-shared-foundation">(function(){
+ 'use strict';
+ const keys=['manual_schedule_data_v1','calendar_checkmarks_v1','person_memos_v1','staff_contacts_v1','category_labels_v1','capacity_date_override_v1','capacity_weekday_v1','capacity_weekend_v1','site_title_v1','site_subtitle_v1','footnote_comment_v1','fdDisplayTitle','fdCustomTitle'];
+ const json=new Set(keys.slice(0,6));
+ const native={get:Storage.prototype.getItem,set:Storage.prototype.setItem,remove:Storage.prototype.removeItem};
+ const today=()=>{const s=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());return new Date(s+'T12:00:00');};
+ let initial=today();
+ try{const requested=sessionStorage.getItem('calendar_open_month_v1');sessionStorage.removeItem('calendar_open_month_v1');if(/^\d{4}-\d{2}-\d{2}$/.test(requested||''))initial=new Date(requested+'T12:00:00');}catch{}
+ const year=initial.getFullYear(),yearly=new Set(keys.slice(0,3).concat('capacity_date_override_v1'));
+ const actual=k=>yearly.has(k)?'calendar_year_'+year+':'+k:k,missing='__calendar_cloud_removed_v1__';
+ const F={keys,json,native,year,initial,today,applying:false,ready:false,onChange:null};
+ Storage.prototype.getItem=function(k){
+  if(this!==localStorage||!keys.includes(String(k)))return native.get.call(this,k);
+  const value=native.get.call(this,actual(String(k)));
+  if(value===missing)return null;
+  return value===null&&year===2026&&yearly.has(k)?native.get.call(this,k):value;
+ };
+ Storage.prototype.setItem=function(k,v){
+  if(this!==localStorage||!keys.includes(String(k)))return native.set.call(this,k,v);
+  const before=this.getItem(k);native.set.call(this,actual(String(k)),v);if(before!==String(v)&&F.ready&&!F.applying)F.onChange?.();
+ };
+ Storage.prototype.removeItem=function(k){
+  if(this!==localStorage||!keys.includes(String(k)))return native.remove.call(this,k);
+  const before=this.getItem(k);if(yearly.has(k))native.set.call(this,actual(String(k)),missing);else native.remove.call(this,actual(String(k)));if(before!==null&&F.ready&&!F.applying)F.onChange?.();
+ };
+ F.readValues=()=>{const out={};for(const key of keys){const raw=localStorage.getItem(key);if(raw!==null){try{out[key]=json.has(key)?JSON.parse(raw):raw;}catch{throw Error('이 기기에 저장된 자료 형식을 확인해주세요.');}}}return out;};
+ F.writeValues=values=>{for(const key of keys){if(Object.hasOwn(values,key))localStorage.setItem(key,json.has(key)?JSON.stringify(values[key]):String(values[key]));else localStorage.removeItem(key);}};
+ F.navigateYear=date=>{try{sessionStorage.setItem('calendar_open_month_v1',date);}catch{}location.reload();};
+ window.CalendarFoundation=F;
+ window.calendarToday=()=>new Date(F.initial);
+})();
+
+</script>
+<script id="calendar-shared-core">(function(root){
+ 'use strict';
+ const clone=x=>x===undefined?undefined:JSON.parse(JSON.stringify(x));
+ const equal=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+ const object=x=>x!==null&&typeof x==='object'&&!Array.isArray(x);
+ function merge(base,local,remote,path=''){
+  if(equal(local,base))return clone(remote);
+  if(equal(remote,base)||equal(local,remote))return clone(local);
+  if(object(local)&&object(remote)&&(base===undefined||object(base))){
+   const out={};
+   for(const key of new Set([...Object.keys(base||{}),...Object.keys(local),...Object.keys(remote)])){
+    if(['__proto__','constructor','prototype'].includes(key))throw Error('저장할 자료의 형식을 확인해주세요.');
+    const value=merge(base?.[key],local[key],remote[key],path+'/'+key);if(value!==undefined)out[key]=value;
+   }
+   return out;
+  }
+  const error=Error('다른 기기에서도 같은 항목을 변경했습니다. 현재 자료를 백업한 뒤 공유 자료를 다시 불러와 주세요.');error.code='CONFLICT';error.path=path;throw error;
+ }
+ // Index-based checks/memos cannot be merged onto a different person's row.
+ function validateRowReferences(base,local,remote){
+  for(const field of ['calendar_checkmarks_v1','person_memos_v1']){
+   const before=base?.[field]||{},after=local?.[field]||{};
+   for(const rowKey of new Set([...Object.keys(before),...Object.keys(after)])){
+    if(equal(before[rowKey],after[rowKey]))continue;
+    const match=/^(gallery|tour)_(\d{1,2}-\d{1,2})_(\d+)$/.exec(rowKey);if(!match)continue;
+    const kind=match[1]==='gallery'?'GALLERY_ROWS':'TOUR_ROWS',index=Number(match[3]);
+    const a=base?.manual_schedule_data_v1?.[kind]?.[match[2]]?.[index];
+    const b=remote?.manual_schedule_data_v1?.[kind]?.[match[2]]?.[index];
+    if(!equal(a,b)){const error=Error('다른 기기에서 해당 일정을 변경했습니다. 출석·메모를 확인한 뒤 다시 저장해주세요.');error.code='CONFLICT';throw error;}
+   }
+  }
+ }
+ function createClient(options){
+  let base=clone(options.base||{}),local=clone(options.local||{}),initialized=!!options.initialized,busy=null;
+  const changed=()=>options.changed?.({base:clone(base),local:clone(local),initialized,dirty:!equal(base,local)});
+  const guard=()=>{if(options.blocked?.()){const error=Error('입력 중입니다. 입력을 마치면 공유합니다.');error.code='EDITING';throw error;}};
+  const client={
+   edit(values){local=clone(values);changed();},
+   snapshot(){return {base:clone(base),local:clone(local),initialized,dirty:!equal(base,local)};},
+   pull({discard=false}={}){return client.sync({discard});},
+   sync({initialize=false,discard=false}={}){
+    if(busy)return busy;
+    busy=(async()=>{
+     for(let attempt=0;attempt<4;attempt++){
+      const read=await options.read();
+      if(!read.etag)throw Error('서버의 저장 버전을 확인하지 못했습니다.');
+      if(read.value&&(read.value.schema!==1||!object(read.value.values)))throw Error('공유 일정의 형식을 확인해주세요.');
+      if(!read.value&&!initialize){changed();return {empty:true};}
+      const remote=clone(read.value?.values||{}),captured=clone(local);
+      guard();
+      if(discard){base=remote;local=clone(remote);initialized=true;options.apply?.(clone(local));changed();return {loaded:true};}
+      if(!initialized&&read.value&&equal(base,local)){
+       base=remote;local=clone(remote);initialized=true;options.apply?.(clone(local));changed();return {loaded:true};
+      }
+      if(!read.value&&initialize)base={};
+      validateRowReferences(base,captured,remote);
+      const merged=merge(base,captured,remote);
+      if(equal(merged,remote)&&read.value){
+       local=merge(captured,local,merged);base=remote;initialized=true;options.apply?.(clone(local));changed();return {loaded:true};
+      }
+      const write=await options.write({schema:1,updatedAt:new Date().toISOString(),values:merged},read.etag);
+      if(write.conflict)continue;
+      guard();
+      // Edits made while the request was pending remain queued locally.
+      local=merge(captured,local,merged);base=clone(merged);initialized=true;options.apply?.(clone(local));changed();return {saved:true};
+     }
+     const error=Error('다른 기기에서 계속 수정 중입니다. 잠시 후 다시 저장해주세요.');error.code='CONFLICT';throw error;
+    })().finally(()=>{busy=null;});return busy;
+   }
+  };return client;
+ }
+ root.CalendarSyncCore={merge,validateRowReferences,createClient,equal};
+})(typeof window==='undefined'?globalThis:window);
+
+</script>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>통합 일정표 &amp; 날짜별 체크리스트</title>
 <script id="calendar-dashboard-entry-head-v135">
 (function(){
@@ -2512,16 +2621,10 @@ try{
 function persistCatLabel(){ localStorage.setItem(CAT_LABEL_KEY, JSON.stringify(CAT_LABEL)); }
 
 // ---- 날짜 목록 (요일 포함) ----
-const ALL_DATES = [
-  ["7-20","7월 20일(월)"],["7-21","7월 21일(화)"],["7-22","7월 22일(수)"],["7-23","7월 23일(목)"],
-  ["7-24","7월 24일(금)"],["7-25","7월 25일(토)"],["7-26","7월 26일(일)"],
-  ["7-27","7월 27일(월)"],["7-28","7월 28일(화)"],["7-29","7월 29일(수)"],["7-30","7월 30일(목)"],
-  ["7-31","7월 31일(금)"],["8-1","8월 1일(토)"],["8-2","8월 2일(일)"],["8-3","8월 3일(월)"],
-  ["8-4","8월 4일(화)"],["8-5","8월 5일(수)"],["8-6","8월 6일(목)"],["8-7","8월 7일(금)"],
-  ["8-8","8월 8일(토)"],["8-9","8월 9일(일)"],["8-10","8월 10일(월)"],["8-11","8월 11일(화)"],
-  ["8-12","8월 12일(수)"],["8-13","8월 13일(목)"],["8-14","8월 14일(금)"],["8-15","8월 15일(토)"],
-  ["8-16","8월 16일(일)"]
-];
+const ALL_DATES = (()=>{
+ const now=calendarToday(),year=now.getFullYear(),month=now.getMonth(),count=new Date(year,month+1,0).getDate();
+ return Array.from({length:count},(_,i)=>{const day=i+1,date=new Date(year,month,day);return [(month+1)+'-'+day,(month+1)+'월 '+day+'일('+['일','월','화','수','목','금','토'][date.getDay()]+')'];});
+})();
 const CAPACITY_WEEKDAY_KEY = "capacity_weekday_v1"; // 평일 정원 키
 const CAPACITY_WEEKEND_KEY = "capacity_weekend_v1"; // 주말 정원 키
 const CAPACITY_DATE_KEY = "capacity_date_override_v1"; // 날짜별 정원 개별 지정 키
@@ -2624,6 +2727,7 @@ function loadScheduleData(){
       return;
     }
   }catch(e){}
+  if(CalendarFoundation.year!==2026){GALLERY_ROWS={};TOUR_ROWS={};GALLERY_CLOSED={};return;}
   GALLERY_ROWS = JSON.parse(JSON.stringify(GALLERY_ROWS_DEFAULT));
   TOUR_ROWS = JSON.parse(JSON.stringify(TOUR_ROWS_DEFAULT));
   GALLERY_CLOSED = JSON.parse(JSON.stringify(GALLERY_CLOSED_DEFAULT));
@@ -2772,15 +2876,9 @@ function toISO(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDa
 function mondayIndex(jsDay){return (jsDay+6)%7;}
 
 const RANGE_KEY = "calendar_range_v1";
-const defaultRange = {start:"2026-07-20", end:"2026-08-16"};
-function loadRange(){
-  try{
-    const raw = localStorage.getItem(RANGE_KEY);
-    if(raw) return JSON.parse(raw);
-  }catch(e){}
-  return {...defaultRange};
-}
-function persistRange(){ localStorage.setItem(RANGE_KEY, JSON.stringify(range)); }
+const defaultRange = (()=>{const d=calendarToday();return {start:toISO(new Date(d.getFullYear(),d.getMonth(),1)),end:toISO(new Date(d.getFullYear(),d.getMonth()+1,0))};})();
+function loadRange(){return {...defaultRange};}
+function persistRange(){if(Number(range.start.slice(0,4))!==CalendarFoundation.year){CalendarFoundation.navigateYear(range.start);return;}localStorage.setItem(RANGE_KEY,JSON.stringify(range));}
 let range = loadRange();
 
 function buildCalendarArea(){
@@ -2950,6 +3048,7 @@ function applyRange(){
   const errEl = document.getElementById("rangeErr");
   if(!s || !e){ errEl.textContent = "시작일과 종료일을 모두 선택해주세요."; return; }
   if(s > e){ errEl.textContent = "종료일이 시작일보다 빠릅니다."; return; }
+  if(s.slice(0,4)!==e.slice(0,4)){errEl.textContent="연도가 다른 기간은 연도별로 선택해주세요.";return;}
   errEl.textContent = "";
   range = {start:s, end:e};
   persistRange();
@@ -3004,7 +3103,7 @@ function reorderRow(kind, r){
 // 오늘 날짜 기준으로 해당 날짜가 지났는지 판단 (연도는 2026 가정)
 function parseKeyDate(key){
   const [m,d] = key.split("-").map(Number);
-  return new Date(2026, m-1, d);
+  return new Date(CalendarFoundation.year, m-1, d);
 }
 function isPast(key){
   const today = new Date();
@@ -3515,7 +3614,7 @@ window.addEventListener("afterprint", ()=>{
 });
 
 
-let currentDateKey = ALL_DATES[0][0];
+let currentDateKey = (calendarToday().getMonth()+1)+'-'+calendarToday().getDate();
 let previewKey = null;
 
 function labelFor(key){
@@ -3799,7 +3898,7 @@ populateDanjiToggleBar();
 buildCalendarArea();
 populateFilter();
 populateManagerFilter();
-selectDate("7-20", false);
+selectDate(currentDateKey, false);
 updateSummary();
 populateManagerColDropdowns();
 updateManagerTable();
@@ -4151,6 +4250,7 @@ function computeDateHeadcount(key){
     const errEl=document.getElementById("rangeErr");
     if(!s||!e){ errEl.textContent="시작일과 종료일을 모두 선택해주세요."; return; }
     if(s>e){ errEl.textContent="종료일이 시작일보다 빠릅니다."; return; }
+    if(s.slice(0,4)!==e.slice(0,4)){errEl.textContent="연도가 다른 기간은 연도별로 선택해주세요.";return;}
     errEl.textContent="";
     range={start:s,end:e};
     persistRange();
@@ -7989,6 +8089,133 @@ button.onclick=()=>{closeFormOverlay();fields.classList.remove('gallery-admin-ac
 </script>
 
 </body>
+<style id="calendar-shared-ui-style">#calendarSharedBar{position:relative!important;display:flex!important;align-items:center;gap:8px;flex-wrap:wrap;margin:8px auto;padding:10px 12px;max-width:1440px;box-sizing:border-box;border:1px solid #d7e4df;border-radius:10px;background:#f5faf7;color:#24443a;font:12px/1.5 'Malgun Gothic',system-ui,sans-serif;z-index:5000;}
+#calendarSharedBar [data-status]{flex:1;min-width:160px;}
+#calendarSharedBar button,#calendarCloudLogin button{min-height:34px;border:1px solid #ccddd4;border-radius:7px;background:white;color:#24443a;font:inherit;padding:6px 10px;cursor:pointer;}
+#calendarSharedBar button[data-save],#calendarCloudLogin button[type=submit]{background:#147e62;color:white;border-color:#147e62;}
+#calendarSharedBar [hidden]{display:none!important;}
+#calendarCloudLogin{width:min(360px,calc(100vw - 32px));padding:20px;border:1px solid #d7e4df;border-radius:13px;color:#24443a;background:white;box-sizing:border-box;font:14px/1.6 'Malgun Gothic',system-ui,sans-serif;}
+#calendarCloudLogin::backdrop{background:rgba(16,35,29,.4);}
+#calendarCloudLogin h3{margin:0 0 10px;font-size:17px;}
+#calendarCloudLogin p{font-size:12px;color:#637a70;}
+#calendarCloudLogin input{width:100%;height:42px;box-sizing:border-box;padding:8px;border:1px solid #ccddd4;border-radius:7px;font-size:16px;}
+#calendarCloudLogin .calendar-login-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px;}
+#calendarCloudLogin [data-error]{color:#9b3c32;}
+@media(max-width:760px){#calendarSharedBar{margin:6px 8px;padding:8px;font-size:11px;}#calendarSharedBar button{font-size:11px;min-height:32px;padding:4px 8px;}}
+@media print{#calendarSharedBar,#calendarCloudLogin{display:none!important;}}
+</style>
+<script id="calendar-shared-adapter">window.CalendarAdapter={
+ capture(){
+  const values=CalendarFoundation.readValues();
+  values.manual_schedule_data_v1=JSON.parse(JSON.stringify({GALLERY_ROWS,TOUR_ROWS,GALLERY_CLOSED}));
+  values.calendar_checkmarks_v1=JSON.parse(JSON.stringify(checkState));
+  values.person_memos_v1=JSON.parse(JSON.stringify(personMemos));
+  values.staff_contacts_v1=JSON.parse(JSON.stringify(staffList));
+  values.category_labels_v1=JSON.parse(JSON.stringify(CAT_LABEL));
+  values.capacity_date_override_v1=JSON.parse(JSON.stringify(dateCapacityOverrides));
+  return values;
+ },
+ apply(values){
+  const F=CalendarFoundation;F.applying=true;
+  try{
+   F.writeValues(values);loadScheduleData();
+   checkState=values.calendar_checkmarks_v1||{};personMemos=values.person_memos_v1||{};
+   staffList=values.staff_contacts_v1||[];dateCapacityOverrides=values.capacity_date_override_v1||{};
+   if(values.category_labels_v1)Object.assign(CAT_LABEL,values.category_labels_v1);
+   for(const [key,id] of [['site_title_v1','siteTitle'],['site_subtitle_v1','siteSubtitle'],['footnote_comment_v1','footnote']]){
+    const element=document.getElementById(id);if(element&&values[key]!==undefined)element.textContent=String(values[key]);
+   }
+   onScheduleDataChanged();window.dispatchEvent(new Event('resize'));
+  }finally{F.applying=false;}
+ },
+ persist(){persistScheduleData();persistCheck();persistMemos();persistStaff();persistCatLabel();persistDateCapacity();},
+ editing(){return !!document.querySelector('#formOverlay.on,#memoOverlay.on,#previewOverlay.on,dialog[open]')||!!document.activeElement?.matches('input:not([type=checkbox]):not([type=radio]),textarea,[contenteditable=true]');}
+};
+
+</script>
+<script id="calendar-shared-ui">(function(){
+ 'use strict';
+ function init(){
+  const F=window.CalendarFoundation,A=window.CalendarAdapter,C=window.CalendarSyncCore;if(!F||!A||!C)return;
+  const endpoint='https://stately-sfogliatella-7ab674.netlify.app/api/password-access';
+  const path='/offices/__calendar_sync_v1__/year_'+F.year+'.json';
+  const cacheKey='calendar_shared_cache_v1_'+F.year,backupKey='calendar_shared_backup_v1_'+F.year;
+  let auth=null,timer=null,empty=false,conflict=false,active=false,lastMessage='이 기기 보관 · 공유 로그인 필요';
+  try{const saved=JSON.parse(sessionStorage.getItem('calendar_shared_session_v1')||'null');if(saved?.role==='admin'&&saved.expiresAt>Date.now())auth=saved;}catch{}
+  const bar=document.createElement('section');bar.id='calendarSharedBar';bar.setAttribute('aria-label','일정 공유 저장');
+  bar.innerHTML='<span data-status role="status" aria-live="polite"></span><button type="button" data-login>공유 로그인</button><button type="button" data-save hidden>공유 저장</button><button type="button" data-reload hidden>공유 자료 불러오기</button><button type="button" data-backup>기기 백업</button><button type="button" data-logout hidden>로그아웃</button>';
+  const mount=document.getElementById('freshDesktopApp')||document.getElementById('appRoot')||document.body;mount.prepend(bar);
+  const q=s=>bar.querySelector(s);
+  function status(message){lastMessage=message;q('[data-status]').textContent=message;q('[data-login]').hidden=!!auth;q('[data-save]').hidden=!auth;q('[data-logout]').hidden=!auth;q('[data-reload]').hidden=!auth||!conflict;q('[data-save]').textContent=empty?'현재 일정으로 첫 공유 저장':'공유 저장';}
+  function readCache(){try{return JSON.parse(localStorage.getItem(cacheKey)||'null');}catch{return null;}}
+  const existing=readCache(),initial=A.capture();
+  function backup(){F.native.set.call(localStorage,backupKey,JSON.stringify({savedAt:new Date().toISOString(),year:F.year,values:A.capture()}));}
+  function errorMessage(error){
+   if(error.code==='EDITING')return '입력 중 · 완료 후 자동 공유 저장';
+   if(error.code==='AUTH'){auth=null;sessionStorage.removeItem('calendar_shared_session_v1');return '공유 로그인이 만료되었습니다. 다시 로그인해주세요.';}
+   if(error.code==='CONFLICT'){conflict=true;return error.message;}
+   return '이 기기에 보관됨 · 공유 저장 실패: '+error.message;
+  }
+  async function request(method,value,etag){
+   if(!auth){const error=Error('공유 로그인이 필요합니다.');error.code='AUTH';throw error;}
+   const url=new URL(endpoint);url.searchParams.set('action','data');url.searchParams.set('path',path);
+   const headers={Authorization:'Bearer '+auth.token};if(method==='GET')headers['X-Firebase-ETag']='true';else{headers['Content-Type']='application/json';headers['If-Match']=etag;}
+   const response=await fetch(url.href,{method,headers,cache:'no-store',body:method==='PUT'?JSON.stringify(value):undefined,signal:AbortSignal.timeout(20000)});
+   if(response.status===401||response.status===403){const error=Error('로그인을 확인해주세요.');error.code='AUTH';throw error;}
+   if(response.status===412)return {conflict:true};
+   if(!response.ok)throw Error('서버 응답 '+response.status);
+   const data=await response.json();return {value:data,etag:response.headers.get('etag')};
+  }
+  const client=C.createClient({base:existing?.base||initial,local:initial,initialized:existing?.initialized||false,
+   blocked:()=>A.editing(),
+   read:()=>request('GET'),write:(value,etag)=>request('PUT',value,etag),
+   apply:values=>{if(!C.equal(values,A.capture())){backup();A.apply(values);}},
+   changed:state=>{try{F.native.set.call(localStorage,cacheKey,JSON.stringify(state));}catch{status('기기 저장 공간이 부족합니다. 백업을 내려받아 주세요.');}}
+  });
+  async function synchronize(options={}){
+   if(active||!auth)return;if(!options.force&&A.editing())return;
+   active=true;status('공유 자료 확인 중…');
+   try{
+    const result=await client.sync(options);empty=!!result.empty;conflict=false;
+    if(empty)status('공유된 일정이 없습니다. 첫 공유 저장을 눌러 시작하세요.');
+    else if(client.snapshot().dirty){status('추가 변경 내용 저장 대기');queue();}
+    else status('공유 저장 완료 · '+F.year+'년 · '+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}));
+   }catch(error){status(errorMessage(error));}finally{active=false;}
+  }
+  function queue(){clearTimeout(timer);timer=setTimeout(()=>{if(auth&&!empty&&!conflict)synchronize();},800);}
+  F.onChange=()=>{client.edit(A.capture());status(auth?'변경 내용 공유 저장 대기':'이 기기에 보관됨 · 공유 로그인 후 저장됩니다.');queue();};
+  q('[data-login]').onclick=()=>{
+   let dialog=document.getElementById('calendarCloudLogin');
+   if(!dialog){dialog=document.createElement('dialog');dialog.id='calendarCloudLogin';dialog.innerHTML='<form><h3>일정 공유 로그인</h3><p>기존 대시보드 관리자 비밀번호를 입력하세요. PC와 휴대폰에서 같은 공유 일정을 사용합니다.</p><input type="password" autocomplete="current-password" aria-label="대시보드 관리자 비밀번호" required><p data-error role="alert"></p><div class="calendar-login-actions"><button type="button" data-cancel>닫기</button><button type="submit">연결</button></div></form>';document.body.append(dialog);dialog.querySelector('[data-cancel]').onclick=()=>dialog.close();}
+   const input=dialog.querySelector('input'),error=dialog.querySelector('[data-error]'),submit=dialog.querySelector('[type=submit]');input.value='';error.textContent='';
+   dialog.querySelector('form').onsubmit=async event=>{
+    event.preventDefault();submit.disabled=true;error.textContent='연결 중…';
+    try{
+     const response=await fetch(endpoint+'?action=login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role:'admin',password:input.value,includeData:false}),signal:AbortSignal.timeout(20000)});
+     input.value='';if(!response.ok)throw Error(response.status===429?'잠시 후 다시 시도해주세요.':'대시보드 관리자 비밀번호를 확인해주세요.');
+     const data=await response.json();if(!data.token||data.role!=='admin')throw Error('로그인 응답을 확인하지 못했습니다.');
+     auth={token:data.token,role:data.role,expiresAt:data.expiresAt};sessionStorage.setItem('calendar_shared_session_v1',JSON.stringify(auth));dialog.close();status('공유 로그인 완료');await synchronize({force:true});
+    }catch(e){error.textContent=e.message;}finally{submit.disabled=false;}
+   };dialog.showModal();input.focus();
+  };
+  q('[data-save]').onclick=()=>{client.edit(A.capture());synchronize({initialize:empty,force:true});};
+  q('[data-reload]').onclick=()=>{backup();synchronize({discard:true,force:true});};
+  q('[data-logout]').onclick=()=>{auth=null;sessionStorage.removeItem('calendar_shared_session_v1');status('이 기기에 보관됨 · 공유 로그인 필요');};
+  q('[data-backup]').onclick=()=>{
+   const previous=localStorage.getItem(backupKey),values=previous?JSON.parse(previous).values:A.capture();
+   const value=JSON.stringify({...values.manual_schedule_data_v1,calendarSharedBackupValues:values,year:F.year},null,2);
+   const url=URL.createObjectURL(new Blob([value],{type:'application/json'})),link=document.createElement('a');link.href=url;link.download='calendar-backup-'+F.year+'.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  };
+  window.saveCalendarData=async()=>{try{A.persist();client.edit(A.capture());if(auth)await synchronize({initialize:empty,force:true});else status('이 기기에 저장했습니다. PC·휴대폰 공유는 공유 로그인 후 가능합니다.');}catch(error){status(error.message);}};
+  F.ready=true;status(lastMessage);
+  window.addEventListener('online',()=>synchronize());window.addEventListener('focus',()=>synchronize());
+  setInterval(()=>{if(document.visibilityState==='visible')synchronize();},20000);
+  if(auth)synchronize();
+ }
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(init,150),{once:true});else setTimeout(init,150);
+})();
+
+</script>
 </html>
 <style id="mobile-calendar-layout-repair-oct01">
 @media screen{
