@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta name="calendar-build" content="2026.10.23.6">
+<meta name="calendar-build" content="2026.10.23.7">
 <script id="calendar-shared-foundation">(function(){
  'use strict';
  const keys=['manual_schedule_data_v1','calendar_checkmarks_v1','person_memos_v1','staff_contacts_v1','category_labels_v1','capacity_date_override_v1','capacity_weekday_v1','capacity_weekend_v1','site_title_v1','site_subtitle_v1','footnote_comment_v1','fdDisplayTitle','fdCustomTitle'];
@@ -108,6 +108,32 @@
  }
  root.CalendarSyncCore={merge,validateRowReferences,createClient,equal};
 })(typeof window==='undefined'?globalThis:window);
+
+</script>
+<script id="calendar-auth">(function(){
+ 'use strict';
+ const key='calendar_shared_session_v1',endpoint='https://stately-sfogliatella-7ab674.netlify.app/api/password-access';
+ function current(){
+  try{const value=JSON.parse(sessionStorage.getItem(key)||'null');if(value?.role==='admin'&&typeof value.token==='string'&&value.token&&Number(value.expiresAt)>Date.now())return value;}catch{}
+  return null;
+ }
+ async function authenticate(password){
+  const inherited=current();
+  // A session handed over by the dashboard already has server authentication.
+  let localPassword='0134';try{localPassword=localStorage.getItem('calendar_password_v1')||localPassword;}catch{}
+  if(inherited&&password===localPassword)return inherited;
+  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),20000);
+  try{
+   const response=await fetch(endpoint+'?action=login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role:'admin',password,includeData:false}),signal:controller.signal});
+   if(!response.ok)throw Error(response.status===429?'잠시 후 다시 시도해주세요.':'PC·모바일 공유에는 대시보드 관리자 비밀번호를 입력해주세요.');
+   const result=await response.json();
+   if(result?.role!=='admin'||typeof result.token!=='string'||!result.token||!Number.isFinite(Number(result.expiresAt))||Number(result.expiresAt)<=Date.now())throw Error('동기화 연결을 확인하지 못했습니다.');
+   const session={role:'admin',token:result.token,expiresAt:Number(result.expiresAt)};
+   sessionStorage.setItem(key,JSON.stringify(session));return session;
+  }finally{clearTimeout(timeout);}
+ }
+ window.CalendarAuthentication={current,authenticate};
+})();
 
 </script>
 
@@ -1900,57 +1926,45 @@ html.calendar-unlocked #appRoot{display:block!important;}
 <body>
 <dialog id="lockScreen" aria-labelledby="pwTitle">
   <h2 id="pwTitle">🔒 비밀번호 입력</h2>
-  <p>통합 일정표 열람을 위해 비밀번호가 필요합니다</p>
+  <p>PC·모바일 공용 · 대시보드 관리자 비밀번호</p>
   <form id="lockForm" novalidate>
-    <input type="password" id="pwInput" maxlength="10" inputmode="numeric" enterkeyhint="go" autocomplete="current-password" aria-label="비밀번호" placeholder="••••">
+    <input type="password" id="pwInput" enterkeyhint="go" autocomplete="current-password" aria-label="비밀번호" placeholder="••••">
     <button type="submit" id="pwOpenBtn">열기</button>
   </form>
   <div class="err" id="pwErr" aria-live="polite"></div>
 </dialog>
 <script id="calendar-lock-simple-script">
 (function(){
-  var DEFAULT='0134';
-  function expected(){
-    try{return localStorage.getItem('calendar_password_v1') || DEFAULT;}catch(e){return DEFAULT;}
-  }
-  function openCalendar(){
-    var input=document.getElementById('pwInput');
-    var err=document.getElementById('pwErr');
-    var value=String(input && input.value || '').trim();
-    if(!value){ if(err) err.textContent='비밀번호를 입력해주세요'; if(input) input.focus(); return false; }
-    if(value!==expected()){ if(err) err.textContent='비밀번호가 올바르지 않습니다'; if(input){input.focus(); try{input.select();}catch(e){}} return false; }
-    document.documentElement.classList.add('calendar-unlocked');
-    document.documentElement.setAttribute('data-calendar-unlocked','1');
-    var lock=document.getElementById('lockScreen');
-    var app=document.getElementById('appRoot');
-    if(lock){lock.hidden=true;lock.setAttribute('aria-hidden','true');}
-    if(app){app.hidden=false;app.style.removeProperty('display');}
-    try{window.scrollTo(0,0);}catch(e){}
-    try{window.dispatchEvent(new Event('calendar-entrance-unlocked'));}catch(e){}
-    try{window.dispatchEvent(new Event('resize'));}catch(e){}
-    return true;
-  }
-  window.unlockCalendarNow=function(){return openCalendar();};
-  function bind(){
-    var form=document.getElementById('lockForm');
-    var btn=document.getElementById('pwOpenBtn');
-    var input=document.getElementById('pwInput');
-    if(form && !form.dataset.simpleBound){
-      form.dataset.simpleBound='1';
-      form.addEventListener('submit',function(e){e.preventDefault();openCalendar();});
-    }
-    if(btn && !btn.dataset.clickBound){
-      btn.dataset.clickBound='1';
-      btn.addEventListener('click',function(e){e.preventDefault();openCalendar();});
-    }
-    if(input && !input.dataset.keyBound){
-      input.dataset.keyBound='1';
-      input.addEventListener('keyup',function(e){if(e.key==='Enter'){e.preventDefault();openCalendar();}});
-    }
-  }
-  bind();
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bind,{once:true});
+ 'use strict';
+ let busy=false;
+ async function openCalendar(){
+  if(busy)return false;
+  const input=document.getElementById('pwInput'),error=document.getElementById('pwErr'),button=document.getElementById('pwOpenBtn');
+  const password=String(input?.value||'');
+  if(!password.trim()){error.textContent='비밀번호를 입력해주세요.';input?.focus();return false;}
+  busy=true;if(button){button.disabled=true;button.textContent='연결 중…';}error.textContent='';
+  try{
+   await window.CalendarAuthentication.authenticate(password);
+   input.value='';input.blur();
+   document.documentElement.classList.add('calendar-unlocked');document.documentElement.setAttribute('data-calendar-unlocked','1');
+   const lock=document.getElementById('lockScreen'),app=document.getElementById('appRoot');
+   if(lock){lock.hidden=true;lock.setAttribute('aria-hidden','true');}
+   if(app){app.hidden=false;app.style.removeProperty('display');}
+   window.dispatchEvent(new Event('calendar-entrance-unlocked'));window.dispatchEvent(new Event('resize'));return true;
+  }catch(cause){
+   error.textContent=cause.name==='AbortError'?'서버 연결이 지연됩니다. 네트워크를 확인하고 다시 시도해주세요.':cause.name==='TypeError'?'동기화 서버에 연결하지 못했습니다. 네트워크를 확인해주세요.':cause.message||'동기화 서버에 연결하지 못했습니다.';
+   input?.focus();return false;
+  }finally{busy=false;if(button){button.disabled=false;button.textContent='열기';}}
+ }
+ window.unlockCalendarNow=openCalendar;
+ function bind(){
+  const form=document.getElementById('lockForm'),button=document.getElementById('pwOpenBtn');
+  if(form&&!form.dataset.syncBound){form.dataset.syncBound='1';form.addEventListener('submit',event=>{event.preventDefault();openCalendar();});}
+  if(button&&!button.dataset.syncBound){button.dataset.syncBound='1';button.addEventListener('click',event=>{event.preventDefault();openCalendar();});}
+ }
+ bind();if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});
 })();
+
 </script>
 <div id="appRoot" hidden>
 <div class="wrap">
@@ -3224,24 +3238,7 @@ function submitForm(){
 }
 
 // ---- 비밀번호 변경 (폼 방식) ----
-function changePassword(errorMsg){
-  openForm((errorMsg?("⚠ "+errorMsg+" — "):"")+"비밀번호 변경", [
-    {id:"current", label:"현재 비밀번호", placeholder:"현재 비밀번호"},
-    {id:"next", label:"새 비밀번호", placeholder:"새 비밀번호 (4자리 이상 권장)"},
-  ], (v)=>{
-    if(v.current !== getPassword()){
-      changePassword("현재 비밀번호가 일치하지 않습니다");
-      return;
-    }
-    if(!v.next){
-      changePassword("새 비밀번호를 입력해주세요");
-      return;
-    }
-    localStorage.setItem(PW_STORAGE_KEY, v.next);
-    openForm("✔ 비밀번호가 변경되었습니다", [], ()=>{});
-    document.getElementById("formFields").innerHTML = "<div style='color:var(--gallery);font-size:13px;padding:8px 0;'>다음 접속부터 새 비밀번호로 로그인해주세요.</div>";
-  });
-}
+function changePassword(){alert('PC와 모바일은 대시보드 관리자 비밀번호로 함께 연결됩니다. 비밀번호 변경은 대시보드에서 진행해주세요.');}
 
 // ---- 홈화면 추가 안내 ----
 function showHomeScreenGuide(){
@@ -6763,7 +6760,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
       '<button class="pro-tool-btn primary" data-act="save">일정 저장</button><button class="pro-tool-btn" data-act="capacity">정원 설정</button><button class="pro-tool-btn" data-act="excel">엑셀 저장</button>'+
       '<button class="pro-tool-btn" data-act="print">현재 화면 인쇄</button><button class="pro-tool-btn" data-act="printall">날짜별 전체 인쇄</button>'+
       '<button class="pro-tool-btn" data-act="backup">일정 백업</button><button class="pro-tool-btn" data-act="restore">백업 불러오기</button>'+
-      '<button class="pro-tool-btn" data-act="password">비밀번호 변경</button><button class="pro-tool-btn" data-act="home">홈화면 추가</button></div>';
+      '<button class="pro-tool-btn" data-act="password">비밀번호 안내</button><button class="pro-tool-btn" data-act="home">홈화면 추가</button></div>';
     const customers=document.createElement('section');customers.className='pro-customer-sheet';customers.id='proCustomerSheet';
     customers.innerHTML='<div class="pro-tools-head"><strong>선택 날짜 고객</strong><button class="pro-tools-close" type="button">×</button></div><div id="proCustomerList" class="pro-customer-list"></div>';
     document.body.append(back,tools,customers);
@@ -8232,7 +8229,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
         <div class="fd-search-wrap"><div class="fd-search">${icons.search}<input id="fdSearch" type="search" autocomplete="off" placeholder="검색하세요."></div><div class="fd-search-results" id="fdSearchResults"></div></div>
         <button type="button" class="fd-top-action" id="fdTodayTop">오늘</button>
         <div class="fd-admin-wrap"><button type="button" class="fd-top-action" id="fdAdminBtn">${icons.tune}<span>관리</span></button><div class="fd-admin-menu" id="fdAdminMenu">
-          <button data-admin="save">일정 저장</button><button data-admin="capacity">정원 설정</button><button data-admin="excel">엑셀 저장</button><button data-admin="print">인쇄</button><button data-admin="backup">일정 백업</button><button data-admin="restore">백업 불러오기</button><button data-admin="password">비밀번호 변경</button>
+          <button data-admin="save">일정 저장</button><button data-admin="capacity">정원 설정</button><button data-admin="excel">엑셀 저장</button><button data-admin="print">인쇄</button><button data-admin="backup">일정 백업</button><button data-admin="restore">백업 불러오기</button><button data-admin="password">비밀번호 안내</button>
         </div></div>
       </header>
       <main class="fd-content">
@@ -8751,7 +8748,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
     openForm('관리',[],()=>{});
     document.getElementById('formOverlay').classList.add('gallery-admin-open');
     const fields=document.getElementById('formFields');fields.classList.add('gallery-admin-actions');
-    const actions=[['일정 저장',()=>saveCalendarData()],['정원 설정',()=>openCapacitySettings()],['엑셀 저장',()=>exportExcel()],['인쇄',()=>window.print()],['일정 백업',()=>backupScheduleData()],['백업 불러오기',()=>restoreScheduleDataPrompt()],['비밀번호 변경',()=>changePassword()]];
+    const actions=[['일정 저장',()=>saveCalendarData()],['정원 설정',()=>openCapacitySettings()],['엑셀 저장',()=>exportExcel()],['인쇄',()=>window.print()],['일정 백업',()=>backupScheduleData()],['백업 불러오기',()=>restoreScheduleDataPrompt()],['비밀번호 안내',()=>changePassword()]];
     const paths=['<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h12l4 4v12a2 2 0 0 1-2 2zM7 3v6h10V3M7 21v-8h10v8"/>','<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M17 4a4 4 0 0 1 0 8m5 9v-2a4 4 0 0 0-3-3.9"/>','<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13l4 5m0-5-4 5"/>','<path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6zM18 12h.01"/>','<path d="M12 3v12m-4-4 4 4 4-4M4 16v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/>','<path d="M12 16V4m-4 4 4-4 4 4M4 16v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/>','<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V6a4 4 0 0 1 8 0v4M12 15v2"/>'];
     actions.forEach(([label,run],index)=>{const button=document.createElement('button');button.type='button';
       const icon=document.createElement('span');icon.className='gallery-admin-icon';icon.setAttribute('aria-hidden','true');icon.innerHTML='<svg viewBox="0 0 24 24">'+paths[index]+'</svg>';
@@ -8829,7 +8826,7 @@ button.onclick=()=>{closeFormOverlay();fields.classList.remove('gallery-admin-ac
   function backup(){F.native.set.call(localStorage,backupKey,JSON.stringify({savedAt:new Date().toISOString(),year:F.year,values:A.capture()}));}
   function errorMessage(error){
    if(error.code==='EDITING')return '입력 중 · 완료 후 자동 저장';
-   if(error.code==='AUTH'){auth=null;sessionStorage.removeItem('calendar_shared_session_v1');return '동기화 연결 만료 · 대시보드에서 다시 열어주세요';}
+   if(error.code==='AUTH'){auth=null;sessionStorage.removeItem('calendar_shared_session_v1');document.documentElement.classList.remove('calendar-unlocked');document.documentElement.removeAttribute('data-calendar-unlocked');const lock=document.getElementById('lockScreen');if(lock){lock.hidden=false;lock.removeAttribute('aria-hidden');if(typeof lock.showModal==='function'&&!lock.open)lock.showModal();}return '동기화 연결 만료 · 입장 비밀번호를 다시 입력해주세요';}
    if(error.code==='CONFLICT'){conflict=true;return error.message;}
    return '이 기기에 보관됨 · 공유 저장 실패: '+error.message;
   }
@@ -8854,7 +8851,7 @@ button.onclick=()=>{closeFormOverlay();fields.classList.remove('gallery-admin-ac
    active=true;status('동기화 중…');
    try{
     const result=await client.sync(options);empty=!!result.empty;conflict=false;
-    if(empty)status('관리 → 일정 저장으로 동기화 시작');
+    if(empty){status('관리 → 일정 저장으로 동기화 시작');if(client.snapshot().dirty)queue();}
     else if(client.snapshot().dirty){status('추가 변경 내용 저장 대기');queue();}
     else status('동기화 완료 · '+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}));
    }catch(error){status(errorMessage(error));}finally{active=false;}
@@ -8867,6 +8864,7 @@ button.onclick=()=>{closeFormOverlay();fields.classList.remove('gallery-admin-ac
    else status('이 기기에 저장됨 · 동기화는 대시보드에서 열어주세요');
   }catch(error){status(errorMessage(error));}};
   F.ready=true;status(lastMessage);
+  window.addEventListener('calendar-entrance-unlocked',()=>{loadAuthentication();setTimeout(()=>synchronize(),0);});
   window.addEventListener('online',()=>synchronize());window.addEventListener('focus',()=>{loadAuthentication();synchronize();});
   setInterval(()=>{if(document.visibilityState==='visible')synchronize();},20000);
   if(auth)synchronize();
