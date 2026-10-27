@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta name="calendar-build" content="2026.10.28.33">
+<meta name="calendar-build" content="2026.10.28.34">
 <script id="calendar-shared-foundation">(function(){
  'use strict';
  const keys=['manual_schedule_data_v1','calendar_checkmarks_v1','person_memos_v1','staff_contacts_v1','category_labels_v1','capacity_date_override_v1','capacity_weekday_v1','capacity_weekend_v1','site_title_v1','site_subtitle_v1','footnote_comment_v1','fdDisplayTitle','fdCustomTitle'];
@@ -3418,13 +3418,16 @@ function openForm(title, fields, callback){
   const fieldsEl = document.getElementById("formFields");
   const booking=fields.some(f=>f.id==='danji')&&fields.some(f=>f.id==='time')&&fields.some(f=>f.id==='name');
   document.getElementById('formOverlay').classList.toggle('booking-editor',booking);
+  document.querySelectorAll('#formOverlay [data-booking-editor-action]').forEach(button=>button.remove());
+  const regularSave=document.querySelector('#formOverlay button[onclick="submitForm()"]');
+  if(regularSave){regularSave.disabled=false;regularSave.onclick=()=>submitForm();}
   fieldsEl.innerHTML=fields.map(f=>{
     const safe=s=>escText(String(s??'')).replace(/'/g,'&#39;').replace(/"/g,'&quot;');
     const label="<label class='field-label' for='ff-"+f.id+"'>"+safe(f.label)+"</label>";
     let control;
     if(f.options)control="<input type='text' id='ff-"+f.id+"' list='ff-options-"+f.id+"' required placeholder='"+safe(f.placeholder||'현장 선택 또는 입력')+"' value='"+safe(f.value)+"'><datalist id='ff-options-"+f.id+"'>"+f.options.map(x=>"<option value='"+safe(x)+"'></option>").join('')+"</datalist>";
     else if(f.multiline)control="<textarea id='ff-"+f.id+"' placeholder='"+safe(f.placeholder)+"' rows='2'>"+escText(f.value||'')+"</textarea>";
-    else control="<input type='text' id='ff-"+f.id+"' placeholder='"+safe(f.placeholder)+"' value='"+safe(f.value)+"'>";
+    else control="<input type='"+(f.type==='date'?'date':'text')+"' id='ff-"+f.id+"' placeholder='"+safe(f.placeholder)+"' value='"+safe(f.value)+"'>";
     return "<div class='"+(booking?'booking-field booking-field-'+f.id:'form-field')+"'>"+label+control+"</div>";
   }).join('');
   formCallback = callback;
@@ -6862,7 +6865,7 @@ body.pro-show-legacy .checklist-section,body.pro-show-legacy .car{display:block!
   }
   function renderDetail(){
     const body=document.getElementById('proDetailBody');if(!body)return;const ev=dayEvents(selectedKey),g=ev.filter(x=>x.kind==='gallery'),t=ev.filter(x=>x.kind==='tour'),head=headcount(selectedKey),cap=capacity(selectedKey),closed=GALLERY_CLOSED?.[selectedKey];
-    const group=(arr,kind,title)=>arr.length?`<section class="pro-group"><div class="pro-group-title ${kind}"><i class="pro-dot ${kind}"></i>${title} · ${arr.length}건</div><div class="pro-eventlist">${arr.map(e=>`<div class="pro-event ${kind}"><div class="pro-time">${esc(e.time)}</div><div><div class="pro-event-title">${esc(e.site)} &nbsp; ${esc(e.name)}</div><div class="pro-event-meta">${esc(e.meta||'상세 정보 없음')}</div></div><button class="pro-event-arr pro-booking-edit" type="button" data-pro-record-kind="${e.kind}" data-pro-record-key="${esc(selectedKey)}" data-pro-record-index="${e.idx}" aria-label="${esc(e.name)} 일정 수정">›</button><button class="pro-event-comment" type="button" data-pro-comment-kind="${e.kind}" data-pro-record-key="${esc(selectedKey)}" data-pro-record-index="${e.idx}"><span>비고</span><span>${esc(personMemos[e.kind+'_'+selectedKey+'_'+e.idx]||'간단 코멘트 남기기')}</span></button></div>`).join('')}</div></section>`:'';
+    const group=(arr,kind,title)=>arr.length?`<section class="pro-group"><div class="pro-group-title ${kind}"><i class="pro-dot ${kind}"></i>${title} · ${arr.length}건</div><div class="pro-eventlist">${arr.map(e=>`<div class="pro-event ${kind}"><div class="pro-time">${esc(e.time)}</div><div><div class="pro-event-title">${esc(e.site)} &nbsp; ${esc(e.name)}</div><div class="pro-event-meta">${esc(e.meta||'상세 정보 없음')}</div></div><button class="pro-event-arr pro-booking-edit" type="button" data-pro-record-kind="${e.kind}" data-pro-record-key="${esc(selectedKey)}" data-pro-record-index="${e.idx}" aria-label="${esc(e.name)} 일정 수정">›</button><button class="pro-event-comment" type="button" aria-label="코멘트 수정" data-pro-comment-kind="${e.kind}" data-pro-record-key="${esc(selectedKey)}" data-pro-record-index="${e.idx}"><span>${esc(personMemos[e.kind+'_'+selectedKey+'_'+e.idx]||'')}</span></button></div>`).join('')}</div></section>`:'';
     body.innerHTML=`<div class="pro-detail-date">${esc(label(selectedKey))}</div><div class="pro-statrow"><div class="pro-stat">${svg.cal}<span>일정 <b>${ev.length}건</b></span></div><div class="pro-stat">${svg.people}<span>예상 인원 <b>${head}명</b></span></div></div>${closed?`<div class="pro-group"><div class="pro-group-title" style="color:#bd6074">휴관 / 이용불가</div><div class="pro-empty" style="padding:16px">${esc(closed)}</div></div>`:''}${group(g,'gallery','갤러리')}${group(t,'tour','투어')}${!ev.length&&!closed?'<div class="pro-empty">등록된 일정이 없습니다.</div>':''}<div class="pro-capacity"><span>정원 &nbsp;<b>${cap>0?cap+'명':'미설정'}${head>0?' · 현재 '+head+'명':''}</b></span><button type="button" id="proCapBtn">이 날짜 정원 설정 ›</button></div><div class="pro-actions"><button class="pro-add-gallery" id="proAddG" type="button">+ 갤러리 일정</button><button class="pro-add-tour" id="proAddT" type="button">+ 투어 일정</button><button class="pro-open-check" id="proOpenCheck" type="button">체크리스트 열기</button></div><div class="pro-secondary"><button id="proClosedBtn" type="button">${closed?'휴관 해제':'휴관 / 이용불가 지정'}</button></div>`;
     document.getElementById('proCapBtn').onclick=()=>{previewKey=selectedKey;if(typeof openDateCapacitySettings==='function')openDateCapacitySettings()};
     document.getElementById('proAddG').onclick=()=>{previewKey=selectedKey;if(typeof addEntryFlow==='function')addEntryFlow('gallery')};
@@ -9135,6 +9138,18 @@ html body #formOverlay.booking-editor .modal-actions>button:not(.booking-cancel)
  },true);
 })();
 </script>
+
+<style id="booking-date-four-actions">
+html body #formOverlay.booking-editor .modal-actions{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:6px!important;}
+html body #formOverlay.booking-editor .modal-actions>button{width:100%!important;min-width:0!important;padding:0 4px!important;}
+html body #formOverlay.booking-editor .modal-actions>button:disabled{opacity:.45;cursor:default;}
+html body #formOverlay.booking-editor .modal-actions>button[data-booking-editor-action]{background:#fff!important;border-color:#d4dfd8!important;color:#647d70!important;}
+html body #formOverlay.booking-editor .modal-actions>button[data-booking-editor-action="delete"]{color:#b65c5c!important;border-color:#edcece!important;}
+html body #formOverlay.booking-editor #formFields input[readonly],html body #formOverlay.booking-editor #formFields textarea[readonly]{background:#f4f7f5!important;}
+#proDetailBody .pro-event .pro-event-comment{grid-template-columns:minmax(0,1fr)!important;border:0!important;margin:0!important;padding:2px 0 0!important;min-height:20px;}
+#proDetailBody .pro-event-comment>span{min-width:0;color:#35564e;white-space:pre-wrap;overflow-wrap:anywhere;}
+html body #formOverlay.booking-editor #formFields input[type=date]{appearance:none;-webkit-appearance:none;min-width:0!important;text-align:left;}
+</style>
 </body>
 <style id="calendar-shared-ui-style">.calendar-sync-status{display:block;font:11px/1.4 'Malgun Gothic',system-ui,sans-serif;color:#66857c;white-space:normal;overflow-wrap:anywhere;max-width:100%;margin-top:3px;}
 @media(max-width:760px){.calendar-sync-status{font-size:10px;margin-top:5px;}}
@@ -9508,6 +9523,7 @@ html.calendar-unlocked #lockScreen{display:none!important;}
   function fields(v={}){
     return [
       {id:'danji',label:'현장명',options:gallerySiteSuggestions(),value:v.danji||'',placeholder:'현장 선택 또는 입력'},
+      {id:'date',label:'날짜',type:'date',value:v.date||'',placeholder:''},
       {id:'time',label:'시간',value:value(v.time),placeholder:'예: 13:30'},
       {id:'ho',label:'동호수',value:value(v.ho),placeholder:'예: 101-1001'},
       {id:'name',label:'성함',value:value(v.name),placeholder:'이름'},
@@ -9523,22 +9539,66 @@ html.calendar-unlocked #lockScreen{display:none!important;}
     const current=editing?read(kind,key,index):{danji:new URLSearchParams(location.search).get('site')||''};
     if(!current)return;
     const original=editing?JSON.stringify(store[key][index]):null;
+    const year=Number(document.getElementById('rangeStart')?.value?.slice(0,4))||calendarToday().getFullYear();
+    const [month,day]=key.split('-').map(Number);
+    current.date=year+'-'+String(month).padStart(2,'0')+'-'+String(day).padStart(2,'0');
+    const dateKey=text=>{
+      const match=String(text||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);if(!match)return null;
+      const y=Number(match[1]),m=Number(match[2]),d=Number(match[3]),date=new Date(y,m-1,d);
+      if(y!==year||date.getFullYear()!==y||date.getMonth()!==m-1||date.getDate()!==d)return null;
+      return m+'-'+d;
+    };
     for(const id of ['fdScheduleDetails','fdDaySchedulePopup','fdMonthDetailsDialog']){const dialog=document.getElementById(id);if(dialog?.open)dialog.close();}
     previewKey=key;
     openForm((kind==='gallery'?CAT_LABEL.gallery:CAT_LABEL.tour)+' 일정 '+(editing?'수정':'추가'),fields(current),v=>{
       const targetStore=kind==='gallery'?GALLERY_ROWS:TOUR_ROWS;
+      const targetKey=dateKey(v.date);if(!targetKey){alert('현재 달력 연도 안에서 날짜를 선택해 주세요.');return;}
       if(editing&&JSON.stringify(targetStore[key]?.[index])!==original){alert('편집 중 이 일정이 변경되었습니다. 최신 일정을 다시 열어 수정해 주세요.');return;}
       const row=kind==='gallery'?[v.time||'-',v.spot||'-',v.name||'-',v.plus||'-',v.manager||'-',v.danji||'',v.ho||'']:[v.time||'-',v.danji||'-',v.ho||'-',v.name||'-',v.plus||'-',v.manager||'-',v.spot||'-'];
-      let target=index;
-      if(editing)targetStore[key][index]=row;
-      else{targetStore[key]??=[];target=targetStore[key].length;targetStore[key].push(row);}
-      const memoKey=kind+'_'+key+'_'+target;
+      let target=index,checked;
+      if(editing&&targetKey!==key){
+        const prefix=kind+'_'+key+'_';checked=checkState[prefix+index];
+        for(const state of [checkState,personMemos]){
+          const moved={};for(const [id,value] of Object.entries(state)){
+            if(!id.startsWith(prefix)){moved[id]=value;continue;}
+            const n=Number(id.slice(prefix.length));
+            if(!Number.isInteger(n)||n<index)moved[id]=value;
+            else if(n>index)moved[prefix+(n-1)]=value;
+          }
+          Object.keys(state).forEach(id=>delete state[id]);Object.assign(state,moved);
+        }
+        targetStore[key].splice(index,1);if(!targetStore[key].length)delete targetStore[key];
+      }
+      if(editing&&targetKey===key)targetStore[key][index]=row;
+      else{targetStore[targetKey]??=[];target=targetStore[targetKey].length;targetStore[targetKey].push(row);}
+      const memoKey=kind+'_'+targetKey+'_'+target;
+      if(checked!==undefined)checkState[memoKey]=checked;
       if(v.memo)personMemos[memoKey]=v.memo;else delete personMemos[memoKey];
-      currentDateKey=key;previewKey=key;
-      persistMemos();onScheduleDataChanged();
+      currentDateKey=targetKey;previewKey=targetKey;
+      persistCheck();persistMemos();onScheduleDataChanged();
       window.CalendarAdapter?.refresh();
       // Stay on the selected date; do not reopen a second preview over the editor.
     });
+    const overlay=document.getElementById('formOverlay'),actions=overlay.querySelector('.modal-actions');
+    actions.querySelectorAll('[data-booking-editor-action]').forEach(button=>button.remove());
+    const save=actions.querySelector('button[onclick="submitForm()"]');
+    const editButton=document.createElement('button');editButton.type='button';editButton.textContent='수정';editButton.dataset.bookingEditorAction='edit';
+    const deleteButton=document.createElement('button');deleteButton.type='button';deleteButton.textContent='삭제';deleteButton.dataset.bookingEditorAction='delete';
+    actions.insertBefore(editButton,save);actions.insertBefore(deleteButton,save);
+    const inputs=()=>overlay.querySelectorAll('#formFields input,#formFields textarea');
+    const editable=on=>{inputs().forEach(input=>input.readOnly=!on);save.disabled=!on;editButton.disabled=on||!editing;};
+    editable(!editing);deleteButton.disabled=!editing;
+    editButton.onclick=()=>{editable(true);document.getElementById('ff-danji')?.focus();};
+    save.onclick=()=>{
+      if(!dateKey(document.getElementById('ff-date')?.value)){alert('현재 달력 연도 안에서 날짜를 선택해 주세요.');return;}
+      submitForm();
+    };
+    deleteButton.onclick=()=>{
+      if(!editing)return;
+      if(JSON.stringify((kind==='gallery'?GALLERY_ROWS:TOUR_ROWS)[key]?.[index])!==original){alert('일정이 변경되었습니다. 다시 열어주세요.');return;}
+      if(!confirm('이 일정을 삭제할까요?'))return;
+      closeFormOverlay();deleteEntry(kind,key,index,null,'detail');window.CalendarAdapter?.refresh();
+    };
   }
   window.addEntryFlow=kind=>show(kind,previewKey);
   window.editEntryFlow=(kind,key,index)=>show(kind,key,Number(index));
