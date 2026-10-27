@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta name="calendar-build" content="2026.10.27.9">
+<meta name="calendar-build" content="2026.10.27.10">
 <script id="calendar-shared-foundation">(function(){
  'use strict';
  const keys=['manual_schedule_data_v1','calendar_checkmarks_v1','person_memos_v1','staff_contacts_v1','category_labels_v1','capacity_date_override_v1','capacity_weekday_v1','capacity_weekend_v1','site_title_v1','site_subtitle_v1','footnote_comment_v1','fdDisplayTitle','fdCustomTitle'];
@@ -2384,7 +2384,7 @@ function onScheduleDataChanged(){
 
 // ---- 일정 데이터 백업/불러오기 (JSON 파일) ----
 function backupScheduleData(){
-  const blob = new Blob([JSON.stringify({GALLERY_ROWS, TOUR_ROWS, GALLERY_CLOSED}, null, 2)], {type:"application/json"});
+  const blob = new Blob([JSON.stringify({GALLERY_ROWS, TOUR_ROWS, GALLERY_CLOSED, personMemos, checkState}, null, 2)], {type:"application/json"});
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -2406,6 +2406,8 @@ function restoreScheduleDataPrompt(){
         GALLERY_ROWS = parsed.GALLERY_ROWS || {};
         TOUR_ROWS = parsed.TOUR_ROWS || {};
         GALLERY_CLOSED = parsed.GALLERY_CLOSED || {};
+        if(parsed.personMemos&&typeof parsed.personMemos==='object'&&!Array.isArray(parsed.personMemos)){personMemos=parsed.personMemos;persistMemos();}
+        if(parsed.checkState&&typeof parsed.checkState==='object'&&!Array.isArray(parsed.checkState)){checkState=parsed.checkState;persistCheck();}
         onScheduleDataChanged();
       }catch(err){
         alert("파일을 읽을 수 없습니다. 올바른 백업 JSON 파일인지 확인해주세요.");
@@ -2708,7 +2710,7 @@ function reorderRow(kind, r){
   } else {
     // r = [시간, 단지, 동호수, 성함/업체, 동반, 담당]
     const [time, danji, ho, name, plus, manager] = r;
-    return [time, danji, ho, name, plus, manager, "-"];
+    return [time, danji, ho, name, plus, manager, r[6]||"-"];
   }
 }
 
@@ -3164,22 +3166,22 @@ function exportExcel(){
     return selectedDanji.has(d);
   };
 
-  const galleryData = [["날짜","시간","단지명","동호수","성함","동반","담당","픽업/자가","상태"]];
+  const galleryData = [["날짜","시간","단지명","동호수","성함","동반","담당","픽업/자가","상태","메모"]];
   Object.keys(GALLERY_ROWS).forEach(key=>{
     GALLERY_ROWS[key].forEach((raw, idx)=>{
       if(!passesManagerFilter(raw,"gallery") || !passesDanjiFilter(raw,"gallery")) return;
       const r = reorderRow("gallery", raw);
       const status = statusLabel(rowStatus("gallery", key, idx));
-      galleryData.push([labelFor(key), ...r, status]);
+      galleryData.push([labelFor(key), ...r, status,personMemos['gallery_'+key+'_'+idx]||'']);
     });
   });
-  const tourData = [["날짜","시간","단지명","동호수","성함/업체","동반","담당","픽업/자가","상태"]];
+  const tourData = [["날짜","시간","단지명","동호수","성함/업체","동반","담당","픽업/자가","상태","메모"]];
   Object.keys(TOUR_ROWS).forEach(key=>{
     TOUR_ROWS[key].forEach((raw, idx)=>{
       if(!passesManagerFilter(raw,"tour") || !passesDanjiFilter(raw,"tour")) return;
       const r = reorderRow("tour", raw);
       const status = statusLabel(rowStatus("tour", key, idx));
-      tourData.push([labelFor(key), ...r, status]);
+      tourData.push([labelFor(key), ...r, status,personMemos['tour_'+key+'_'+idx]||'']);
     });
   });
 
@@ -3247,7 +3249,7 @@ function openPreview(key){
     html += "<div class='block'><span class='tag gallery'>"+CAT_LABEL.gallery+" "+GALLERY_ROWS[key].length+"팀</span>";
     GALLERY_ROWS[key].forEach((r,idx)=>{
       const [time, spot, name, plus, manager] = r;
-      html += "<div class='row-line'><span>"+time+" · "+name+(plus!=="-"?" "+plus:"")+" ("+manager+") "+spot+"</span>"+
+      html += "<div class='row-line' ondblclick=\"editEntryFlow('gallery','"+key+"',"+idx+")\"><span>"+time+" · "+name+(plus!=="-"?" "+plus:"")+" ("+manager+") "+spot+"</span>"+
         "<button class='row-del' onclick=\"deleteEntry('gallery','"+key+"',"+idx+",this)\">삭제</button></div>";
     });
     html += "</div>";
@@ -3258,7 +3260,7 @@ function openPreview(key){
     TOUR_ROWS[key].forEach((r,idx)=>{
       const [time, danji, ho, name, plus, manager] = r;
       const spot = (ho && ho !== "-") ? (danji+" "+ho) : danji;
-      html += "<div class='row-line'><span>"+time+" · "+spot+" "+name+(plus!=="-"?" "+plus:"")+" ("+manager+")</span>"+
+      html += "<div class='row-line' ondblclick=\"editEntryFlow('tour','"+key+"',"+idx+")\"><span>"+time+" · "+spot+" "+name+(plus!=="-"?" "+plus:"")+" ("+manager+")</span>"+
         "<button class='row-del' onclick=\"deleteEntry('tour','"+key+"',"+idx+",this)\">삭제</button></div>";
     });
     html += "</div>";
@@ -3290,16 +3292,17 @@ let formCallback = null;
 function openForm(title, fields, callback){
   document.getElementById("formTitle").textContent = title;
   const fieldsEl = document.getElementById("formFields");
-  fieldsEl.innerHTML = fields.map(f=>{
-    const val = escText(String(f.value||"")).replace(/'/g,"&#39;");
-    if(f.options){return "<div class='field-label'>"+f.label+"</div><input type='text' id='ff-"+f.id+"' list='ff-options-"+f.id+"' required placeholder='현장 선택 또는 입력' value='"+val+"'><datalist id='ff-options-"+f.id+"'>"+f.options.map(x=>"<option value='"+escText(String(x)).replace(/'/g,"&#39;")+"'></option>").join("")+"</datalist>";}
-    if(f.multiline){
-      return "<div class='field-label'>"+f.label+"</div>"+
-        "<textarea id='ff-"+f.id+"' placeholder='"+(f.placeholder||"")+"' rows='4'>"+escText(f.value||"")+"</textarea>";
-    }
-    return "<div class='field-label'>"+f.label+"</div>"+
-      "<input type='text' id='ff-"+f.id+"' placeholder='"+(f.placeholder||"")+"' value='"+val+"'>";
-  }).join("");
+  const booking=fields.some(f=>f.id==='danji')&&fields.some(f=>f.id==='time')&&fields.some(f=>f.id==='name');
+  document.getElementById('formOverlay').classList.toggle('booking-editor',booking);
+  fieldsEl.innerHTML=fields.map(f=>{
+    const safe=s=>escText(String(s??'')).replace(/'/g,'&#39;').replace(/"/g,'&quot;');
+    const label="<label class='field-label' for='ff-"+f.id+"'>"+safe(f.label)+"</label>";
+    let control;
+    if(f.options)control="<input type='text' id='ff-"+f.id+"' list='ff-options-"+f.id+"' required placeholder='"+safe(f.placeholder||'현장 선택 또는 입력')+"' value='"+safe(f.value)+"'><datalist id='ff-options-"+f.id+"'>"+f.options.map(x=>"<option value='"+safe(x)+"'></option>").join('')+"</datalist>";
+    else if(f.multiline)control="<textarea id='ff-"+f.id+"' placeholder='"+safe(f.placeholder)+"' rows='2'>"+escText(f.value||'')+"</textarea>";
+    else control="<input type='text' id='ff-"+f.id+"' placeholder='"+safe(f.placeholder)+"' value='"+safe(f.value)+"'>";
+    return "<div class='"+(booking?'booking-field booking-field-'+f.id:'form-field')+"'>"+label+control+"</div>";
+  }).join('');
   formCallback = callback;
   document.getElementById("overlay").classList.remove("on");
   document.getElementById("formOverlay").classList.add("on");
@@ -3310,9 +3313,7 @@ function closeFormOverlay(){
   document.getElementById("formOverlay").classList.remove("on");
   formCallback = null;
 }
-document.getElementById("formOverlay").addEventListener("click",(e)=>{
-  if(e.target.id==="formOverlay") closeFormOverlay();
-});
+// Input dialogs close only with their close or save button; dragging outside must not discard a draft.
 function submitForm(){
   if(!formCallback) return;
   const inputs = document.querySelectorAll("#formFields input, #formFields textarea");
@@ -8385,7 +8386,8 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
   }
   function dayScheduleMarkup(date,events){
     if(!events.length)return '<div class="fd-summary-empty">등록된 일정이 없습니다.</div>';
-    return events.map(event=>`<div class="fd-month-detail-row ${esc(event.kind)}"><time>${date.getMonth()+1}/${date.getDate()}</time><span class="kind">${event.kind==='gallery'?'갤러리':event.kind==='tour'?'투어':'휴관'}</span><div class="fd-month-detail-main"><strong>${esc(event.site)} · ${esc(event.name)}</strong><span>${esc(event.meta||'')}</span></div><em>${esc(event.time)}</em></div>`).join('');
+    const dayKey=(date.getMonth()+1)+'-'+date.getDate();
+    return events.map(event=>CalendarBooking.card(event,dayKey,date)).join('');
   }
   function openDaySchedule(k){
     const date=parseKey(k,viewDate.getFullYear()),events=rawEvents(k);
@@ -8404,7 +8406,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
 
   function renderDetail(){
     const box=q('#fdDetail');if(!box||!viewDate)return;const d=parseKey(selectedKey,viewDate.getFullYear());const ev=rawEvents(selectedKey),hc=expected(selectedKey);let list='';
-    if(ev.length){list='<div class="fd-detail-list">'+ev.map(x=>`<div class="fd-event ${x.kind}"><div class="fd-event-time">${esc(x.time)}</div><div class="fd-event-copy"><strong>${esc(x.site)} · ${esc(x.name)}</strong><span>${esc(x.meta|| (x.manager?'담당 '+x.manager:''))}</span></div><div class="fd-event-controls"><div class="fd-kind">${x.kind==='gallery'?'갤러리':x.kind==='tour'?'투어':'휴관'}</div>${x.kind==='closed'?'':`<button type="button" class="schedule-delete-button" onclick="deleteEntry('${x.kind}','${selectedKey}',${x.idx},this,'detail')">삭제</button>`}</div></div>`).join('')+'</div>'}
+    if(ev.length){list='<div class="fd-detail-list">'+ev.map(event=>CalendarBooking.card(event,selectedKey)).join('')+'</div>';}
     else list=`<div class="fd-empty"><strong>등록된 일정이 없습니다.</strong><span>필요하면 아래에서 바로 추가하세요.</span></div>`;
     box.innerHTML=`<div class="fd-detail-top"><div><div class="fd-detail-date">${dateLabel(d)}</div><div class="fd-detail-meta"><span class="fd-meta-pill">일정 <strong>${ev.filter(x=>x.kind!=='closed').length}건</strong></span><span class="fd-meta-pill">예상 인원 <strong>${hc}명</strong></span>${GALLERY_CLOSED?.[selectedKey]?'<span class="fd-meta-pill">휴관 지정</span>':''}</div></div></div>${list}<div class="fd-detail-actions"><button type="button" id="fdAddGallery">+ 갤러리 일정</button><button type="button" id="fdAddTour">+ 투어 일정</button><button type="button" id="fdFullDetail">전체 상세보기</button><button type="button" class="danger" id="fdClosed">${GALLERY_CLOSED?.[selectedKey]?'휴관/불가 해제':'휴관/이용불가 지정'}</button></div>`;
     q('#fdAddGallery').onclick=()=>{try{previewKey=selectedKey;addEntryFlow('gallery')}catch(e){}};
@@ -9342,4 +9344,136 @@ html.calendar-unlocked #lockScreen{display:none!important;}
   setTimeout(function(){window.scrollTo(0,0);window.dispatchEvent(new Event('resize'));},100);
  });
 })();
+</script>
+
+<style id="calendar-booking-editor-style">/* Compact booking editor: site/time, unit/name/companions, staff/transport, notes. */
+#formOverlay.booking-editor .modal{width:min(490px,calc(100vw - 28px))!important;max-width:490px!important;max-height:calc(100dvh - 32px)!important;padding:20px!important;border-radius:16px!important;box-sizing:border-box!important;overflow:auto!important;}
+#formOverlay.booking-editor #formTitle{margin:0 36px 16px 0!important;font-size:16px!important;line-height:1.4!important;}
+#formOverlay.booking-editor #formFields{display:grid!important;grid-template-columns:repeat(6,minmax(0,1fr))!important;gap:12px 10px!important;}
+#formOverlay.booking-editor .booking-field{min-width:0!important;margin:0!important;}
+#formOverlay.booking-editor .booking-field-danji{grid-column:span 4;}
+#formOverlay.booking-editor .booking-field-time{grid-column:span 2;}
+#formOverlay.booking-editor :is(.booking-field-ho,.booking-field-name,.booking-field-plus){grid-column:span 2;}
+#formOverlay.booking-editor :is(.booking-field-manager,.booking-field-spot){grid-column:span 3;}
+#formOverlay.booking-editor .booking-field-memo{grid-column:1/-1;}
+#formOverlay.booking-editor .field-label{display:block!important;margin:0 0 5px!important;font-size:11px!important;font-weight:600!important;color:#627b81!important;line-height:1.3!important;}
+#formOverlay.booking-editor #formFields :is(input,textarea){box-sizing:border-box!important;width:100%!important;min-width:0!important;margin:0!important;padding:8px 10px!important;border:1px solid #d9e5e8!important;border-radius:8px!important;background:#f8fbfc!important;color:#173c47!important;font:inherit!important;font-size:12px!important;line-height:1.4!important;box-shadow:none!important;}
+#formOverlay.booking-editor #formFields input{height:36px!important;min-height:36px!important;}
+#formOverlay.booking-editor #formFields textarea{height:64px!important;min-height:64px!important;max-height:140px!important;resize:vertical!important;}
+#formOverlay.booking-editor #formFields :is(input,textarea):focus{outline:2px solid #9dc8c3!important;outline-offset:1px!important;background:white!important;}
+#formOverlay.booking-editor .modal-actions{margin-top:16px!important;}
+#formOverlay.booking-editor .modal-actions button{height:36px!important;min-height:36px!important;border-radius:8px!important;font-size:12px!important;}
+/* Clear information hierarchy and stable time widths; notes stay alongside on wide screens. */
+.booking-event{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:10px!important;align-items:start!important;padding:10px 12px!important;margin:0 0 8px!important;border:1px solid #dce8e8!important;border-left:3px solid #55aaa3!important;border-radius:9px!important;background:#f1f9f7!important;color:#183d49!important;box-sizing:border-box!important;}
+.booking-event.tour{background:#fff8ef!important;border-left-color:#d8a366!important;}
+.booking-event.closed{background:#fcf2f2!important;border-left-color:#cc9494!important;}
+.booking-event-wide{grid-template-columns:45px minmax(0,1.35fr) auto!important;}
+.booking-event-wide:has(.booking-memo){grid-template-columns:45px minmax(0,1.35fr) minmax(120px,.9fr) auto!important;}
+.booking-event-compact:has(.booking-memo) .booking-memo{grid-column:1!important;grid-row:2!important;}
+.booking-event-compact .booking-actions{grid-column:2!important;grid-row:1/3!important;flex-direction:column!important;}
+.booking-copy{min-width:0!important;}
+.booking-main{display:flex!important;align-items:baseline!important;flex-wrap:wrap!important;gap:4px 7px!important;line-height:1.5!important;}
+.booking-main time{white-space:nowrap!important;font-size:12px!important;font-weight:700!important;font-style:normal!important;color:#173d4b!important;flex:none!important;}
+.booking-kind{display:inline-flex!important;padding:1px 5px!important;border-radius:4px!important;color:#22867c!important;background:#e0f0eb!important;font-size:10px!important;font-weight:600!important;white-space:nowrap!important;}
+.booking-event.tour .booking-kind{background:#f8ead9!important;color:#ad7434!important;}
+.booking-main strong,.booking-main b{font-size:12px!important;font-weight:600!important;line-height:1.5!important;overflow-wrap:anywhere!important;}
+.booking-sub{display:flex!important;flex-wrap:wrap!important;gap:3px 9px!important;margin-top:3px!important;color:#71878d!important;font-size:10.5px!important;line-height:1.6!important;}
+.booking-sub>span{white-space:normal!important;word-break:keep-all!important;}
+.booking-date{font-size:12px!important;line-height:24px!important;color:#69818b!important;font-weight:600!important;white-space:nowrap!important;}
+.booking-memo{min-width:0!important;border-left:1px solid #dce8e4!important;padding-left:10px!important;color:#4d6871!important;font-size:11px!important;line-height:1.6!important;}
+.booking-memo small{display:block!important;color:#7b9296!important;font-size:9px!important;margin:0 0 2px!important;}
+.booking-memo>span{display:block!important;white-space:pre-wrap!important;overflow-wrap:anywhere!important;}
+.booking-actions{display:flex!important;gap:4px!important;align-self:start!important;}
+.booking-actions button{width:auto!important;height:24px!important;min-height:24px!important;margin:0!important;padding:2px 6px!important;background:white!important;border:1px solid #d6e3e4!important;border-radius:5px!important;font-family:inherit!important;font-size:10px!important;line-height:18px!important;color:#4a7279!important;cursor:pointer!important;white-space:nowrap!important;}
+.booking-actions button.booking-delete{color:#b77878!important;border-color:#ecdada!important;}
+.booking-event[data-booking-kind]:hover{border-color:#a7cbc5!important;}
+#fdDaySchedulePopup{width:min(860px,calc(100vw - 32px))!important;}
+#fdDaySchedulePopup .fd-summary-dialog-body{padding:12px 14px!important;}
+#fdDaySchedulePopup .booking-event{min-height:0!important;}
+@media(max-width:760px){
+ #formOverlay.booking-editor{align-items:center!important;padding:14px!important;}
+ #formOverlay.booking-editor .modal{padding:18px!important;border-radius:16px!important;max-height:calc(100dvh - 28px)!important;}
+ #formOverlay.booking-editor #formFields :is(input,textarea){font-size:16px!important;}
+ .booking-event-wide,.booking-event-wide:has(.booking-memo){grid-template-columns:38px minmax(0,1fr) auto!important;gap:7px!important;}
+ .booking-event-wide .booking-memo{grid-column:2!important;grid-row:2!important;}
+ .booking-event-wide .booking-actions{grid-column:3!important;grid-row:1/3!important;flex-direction:column!important;}
+}
+</style>
+<script id="calendar-booking-editor">(function(){
+  const text=value=>String(value??'');
+  const escape=value=>text(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const value=s=>s&&s!=='-'?s:'';
+  function read(kind,key,index){
+    const row=(kind==='gallery'?GALLERY_ROWS:TOUR_ROWS)[key]?.[index];
+    if(!row)return null;
+    const v=kind==='gallery'?{time:row[0],spot:row[1],name:row[2],plus:row[3],manager:row[4],danji:row[5]||gallerySite(row),ho:row[6]}:{time:row[0],danji:row[1],ho:row[2],name:row[3],plus:row[4],manager:row[5],spot:row[6]};
+    return {...v,memo:personMemos[kind+'_'+key+'_'+index]||''};
+  }
+  function fields(v={}){
+    return [
+      {id:'danji',label:'현장명',options:gallerySiteSuggestions(),value:v.danji||'',placeholder:'현장 선택 또는 입력'},
+      {id:'time',label:'시간',value:value(v.time),placeholder:'예: 13:30'},
+      {id:'ho',label:'동호수',value:value(v.ho),placeholder:'예: 101-1001'},
+      {id:'name',label:'성함',value:value(v.name),placeholder:'이름'},
+      {id:'plus',label:'동반',value:value(v.plus),placeholder:'예: 1명'},
+      {id:'manager',label:'담당',value:value(v.manager),placeholder:'담당자'},
+      {id:'spot',label:'픽업 / 자가',value:value(v.spot),placeholder:'픽업 또는 자가'},
+      {id:'memo',label:'메모 · 비고',value:v.memo||'',placeholder:'방문 시 참고할 내용을 적어주세요.',multiline:true}
+    ];
+  }
+  function show(kind,key,index){
+    if(!key||!['gallery','tour'].includes(kind))return;
+    const editing=Number.isInteger(index),store=kind==='gallery'?GALLERY_ROWS:TOUR_ROWS;
+    const current=editing?read(kind,key,index):{danji:new URLSearchParams(location.search).get('site')||''};
+    if(!current)return;
+    const original=editing?JSON.stringify(store[key][index]):null;
+    for(const id of ['fdScheduleDetails','fdDaySchedulePopup','fdMonthDetailsDialog']){const dialog=document.getElementById(id);if(dialog?.open)dialog.close();}
+    previewKey=key;
+    openForm((kind==='gallery'?CAT_LABEL.gallery:CAT_LABEL.tour)+' 일정 '+(editing?'수정':'추가'),fields(current),v=>{
+      const targetStore=kind==='gallery'?GALLERY_ROWS:TOUR_ROWS;
+      if(editing&&JSON.stringify(targetStore[key]?.[index])!==original){alert('편집 중 이 일정이 변경되었습니다. 최신 일정을 다시 열어 수정해 주세요.');return;}
+      const row=kind==='gallery'?[v.time||'-',v.spot||'-',v.name||'-',v.plus||'-',v.manager||'-',v.danji||'',v.ho||'']:[v.time||'-',v.danji||'-',v.ho||'-',v.name||'-',v.plus||'-',v.manager||'-',v.spot||'-'];
+      let target=index;
+      if(editing)targetStore[key][index]=row;
+      else{targetStore[key]??=[];target=targetStore[key].length;targetStore[key].push(row);}
+      const memoKey=kind+'_'+key+'_'+target;
+      if(v.memo)personMemos[memoKey]=v.memo;else delete personMemos[memoKey];
+      currentDateKey=key;previewKey=key;
+      persistMemos();onScheduleDataChanged();
+      window.CalendarAdapter?.refresh();
+      // Stay on the selected date; do not reopen a second preview over the editor.
+    });
+  }
+  window.addEntryFlow=kind=>show(kind,previewKey);
+  window.editEntryFlow=(kind,key,index)=>show(kind,key,Number(index));
+  function card(event,key,date){
+    const kind=event.kind,editable=kind==='gallery'||kind==='tour',v=editable?read(kind,key,event.idx):null;
+    const label=kind==='gallery'?CAT_LABEL.gallery:kind==='tour'?CAT_LABEL.tour:'휴관';
+    const memo=v?.memo||'';
+    const sub=v?[value(v.ho),value(v.plus)?'동반 '+v.plus:'',value(v.spot),value(v.manager)?'담당 '+v.manager:''].filter(Boolean):[event.meta||''];
+    const attrs=editable?` data-booking-kind="${kind}" data-booking-key="${escape(key)}" data-booking-index="${event.idx}" title="더블클릭하여 일정 수정"`:'';
+    return `<article class="booking-event ${date?'booking-event-wide':'booking-event-compact'} ${escape(kind)}"${attrs}>
+      ${date?`<div class="booking-date">${date.getMonth()+1}/${date.getDate()}</div>`:''}
+      <div class="booking-copy"><div class="booking-main"><time>${escape(event.time)}</time><span class="booking-kind">${escape(label)}</span><strong>${escape(event.site)}</strong><b>${escape(event.name)}</b></div><div class="booking-sub">${sub.map(s=>`<span>${escape(s)}</span>`).join('')}</div></div>
+      ${memo?`<div class="booking-memo"><small>메모</small><span>${escape(memo)}</span></div>`:''}
+      ${editable?`<div class="booking-actions"><button type="button" data-booking-edit aria-label="${escape(event.name)} 일정 수정">수정</button><button type="button" data-booking-delete class="booking-delete" aria-label="${escape(event.name)} 일정 삭제">삭제</button></div>`:''}
+    </article>`;
+  }
+  function editFrom(element){const row=element.closest('[data-booking-kind]');if(row)window.editEntryFlow(row.dataset.bookingKind,row.dataset.bookingKey,Number(row.dataset.bookingIndex));}
+  document.addEventListener('dblclick',event=>{
+    if(event.target.closest('button,input,textarea,select,a'))return;
+    const row=event.target.closest('[data-booking-kind]');if(row){event.preventDefault();editFrom(row);}
+  });
+  document.addEventListener('click',event=>{
+    if(event.target.closest('[data-booking-edit]')){event.preventDefault();event.stopPropagation();editFrom(event.target);}
+    const button=event.target.closest('[data-booking-delete]');if(!button)return;
+    const row=button.closest('[data-booking-kind]');if(!row)return;
+    event.preventDefault();event.stopPropagation();
+    const store=row.dataset.bookingKind==='gallery'?GALLERY_ROWS:TOUR_ROWS,before=store[row.dataset.bookingKey]?.length||0;
+    deleteEntry(row.dataset.bookingKind,row.dataset.bookingKey,Number(row.dataset.bookingIndex),button,'detail');
+    if((store[row.dataset.bookingKey]?.length||0)<before){document.getElementById('fdDaySchedulePopup')?.close();window.CalendarAdapter?.refresh();}
+  });
+  window.CalendarBooking={read,fields,card};
+})();
+
 </script>
