@@ -15021,7 +15021,7 @@ window.addEventListener('resize', ()=>{
   }
   function renderRivalDirectory(site){
     const host=document.getElementById('detailBody');
-    host.innerHTML=`<section class="rival-directory"><div class="rival-heading"><div><h3>타사 현황</h3></div>${rivalReadOnly()?'':'<button type="button" class="rival-primary" id="rivalAdd">+ 인원 등록</button><button type="button" class="rival-primary" id="rivalBulk">일괄 등록</button>'}</div><div class="rival-controls"><select id="rivalCompanyFilter" aria-label="시공사 필터"><option value="">모든 시공사</option></select><input id="rivalSearch" placeholder="담당 · 연락처 · 차량번호 · 활동 지역 검색" aria-label="타사 인원 검색"></div><div id="rivalDirectoryRows"></div><div id="rivalDirectoryReports"></div><section class="rival-overview-map-section rival-directory-map-section"><div class="rival-overview-map-heading"><h3>사무실 · 라운지 위치</h3><span>■ 사무실　 ● 라운지</span></div><div id="rivalDirectoryMap"></div><p id="rivalDirectoryMapStatus" role="status"></p></section></section>`;
+    host.innerHTML=`<section class="rival-directory"><div class="rival-heading"><div><h3>타사 현황</h3></div>${rivalReadOnly()?'':'<button type="button" class="rival-primary" id="rivalAdd">+ 인원 등록</button><button type="button" class="rival-primary" id="rivalBulk">일괄 등록</button>'}</div><div class="rival-controls"><select id="rivalCompanyFilter" aria-label="시공사 필터"><option value="">모든 시공사</option></select><input id="rivalSearch" placeholder="담당 · 연락처 · 차량번호 · 활동 지역 검색" aria-label="타사 인원 검색"></div><div id="rivalDirectoryRows"></div><div id="rivalDirectoryReports"></div><section class="rival-overview-map-section rival-directory-map-section"><div class="rival-overview-map-heading"><h3>사무실 · 라운지 위치</h3><span class="rival-map-brand-legend" aria-label="지도 표시: 원형은 라운지, 네모는 사무실"></span></div><div id="rivalDirectoryMap"></div><p id="rivalDirectoryMapStatus" role="status"></p></section></section>`;
     let scope='site',reportCompany='';
     if(typeof window!=='undefined' && window.matchMedia && window.matchMedia('(max-width:820px)').matches){
       host.querySelector('#rivalSearch').placeholder='담당 · 연락처 검색';
@@ -15324,6 +15324,12 @@ window.addEventListener('resize', ()=>{
     if(typeof MutationObserver!=='undefined'){watcher=new MutationObserver(()=>{if(!isAlive())close();});watcher.observe(document.body,{childList:true,subtree:true});}
     async function drawMap(groups){
       const run=++generation;cleanup();const addresses=rivalOverviewAddresses(groups);
+      const legend=mapNode.closest('section')?.querySelector('.rival-map-brand-legend');
+      if(legend){
+        legend.innerHTML='<span class="rival-shape-key"><i class="lounge" aria-hidden="true"></i>라운지</span><span class="rival-shape-key"><i class="office" aria-hidden="true"></i>사무실</span>';
+        legend.hidden=!addresses.length;
+      }
+
       if(mapNode.id==='rivalOverviewMap'){
         status.replaceChildren();status.classList.remove('rival-location-directory');status.hidden=true;
       }else{
@@ -15478,7 +15484,7 @@ window.addEventListener('resize', ()=>{
   function openRivalOverview(){
     if(document.getElementById('rivalOverviewContent'))return;
     const content=document.createElement('div');content.id='rivalOverviewContent';
-    content.innerHTML='<div class="rival-overview-heading"><h3 class="rival-brand-heading">타사 현황</h3></div><div class="rival-overview-tabs" aria-label="타사 현황 보기"><button type="button" data-rival-view="roster" aria-pressed="true">등록 현황</button><button type="button" data-rival-view="activity" aria-pressed="false">활동 보고</button></div><div class="rival-overview-activity-host" hidden></div><div class="rival-overview-workspace"><div class="rival-overview-left"><div id="rivalOverviewCompanies"></div><div class="rival-overview-controls"><input type="hidden" id="rivalOverviewSite"><input type="hidden" id="rivalOverviewCompany"><input id="rivalOverviewSearch" aria-label="성함 또는 연락처 검색" placeholder="성함"><span id="rivalOverviewCount"></span></div><div id="rivalOverviewScope" hidden></div><div id="rivalOverviewDetails" hidden><div id="rivalOverviewSites" class="rival-overview-site-buttons" aria-label="현장 선택"></div><div id="rivalOverviewCards"></div></div></div><section class="rival-overview-map-section" hidden><div class="rival-overview-map-heading"><h3>사무실 · 라운지 위치</h3><span>■ 사무실　 ● 라운지</span></div><div id="rivalOverviewMap"></div><div id="rivalOverviewMapStatus" role="status"></div></section></div>';
+    content.innerHTML='<div class="rival-overview-heading"><h3 class="rival-brand-heading">타사 현황</h3></div><div class="rival-overview-tabs" aria-label="타사 현황 보기"><button type="button" data-rival-view="roster" aria-pressed="true">등록 현황</button><button type="button" data-rival-view="activity" aria-pressed="false">활동 보고</button></div><div class="rival-overview-activity-host" hidden></div><div class="rival-overview-workspace"><div class="rival-overview-left"><div id="rivalOverviewCompanies"></div><div class="rival-overview-controls"><input type="hidden" id="rivalOverviewSite"><input type="hidden" id="rivalOverviewCompany"><input id="rivalOverviewSearch" aria-label="성함 또는 연락처 검색" placeholder="성함"><span id="rivalOverviewCount"></span></div><div id="rivalOverviewScope" hidden></div><div id="rivalOverviewDetails" hidden><div id="rivalOverviewSites" class="rival-overview-site-buttons" aria-label="현장 선택"></div><div id="rivalOverviewCards"></div></div></div><section class="rival-overview-map-section" hidden><div class="rival-overview-map-heading"><h3>사무실 · 라운지 위치</h3><span class="rival-map-brand-legend" aria-label="지도 표시: 원형은 라운지, 네모는 사무실"></span></div><div id="rivalOverviewMap"></div><div id="rivalOverviewMapStatus" role="status"></div></section></div>';
     const modal=uxModal('▦ 타사현황',content);modal.dialog.classList.add('rival-overview-modal');modal.dialog.querySelector('.ux-modal-head h2')?.classList.add('rival-overview-hidden-title');
     const select=content.querySelector('#rivalOverviewSite'),companySelect=content.querySelector('#rivalOverviewCompany'),search=content.querySelector('#rivalOverviewSearch'),cards=content.querySelector('#rivalOverviewCards'),siteButtons=content.querySelector('#rivalOverviewSites'),mapNode=content.querySelector('#rivalOverviewMap'),status=content.querySelector('#rivalOverviewMapStatus');
     const locationMap=rivalCreateLocationMap(mapNode,status);
@@ -46153,6 +46159,22 @@ body.ux383 #rivalOverviewContent #rivalOverviewMapStatus{display:none!important;
 @media(min-width:1400px){body.ux383 #rivalOverviewContent .has-rival-map #rivalOverviewMap{height:620px!important;min-height:620px!important;max-height:620px!important;}}
 @media(max-width:760px){body.ux383 #rivalOverviewContent .rival-overview-workspace.has-rival-map{grid-template-columns:minmax(0,1fr)!important;gap:18px!important;}body.ux383 #rivalOverviewContent .has-rival-map #rivalOverviewMap{height:400px!important;min-height:400px!important;max-height:400px!important;}body.ux383 #rivalOverviewContent #rivalOverviewDetails #rivalOverviewSites .rival-overview-office-sites{grid-template-columns:repeat(2,minmax(0,1fr))!important;}body.ux383 #rivalOverviewContent #rivalOverviewScope .rival-scope-toolbar{flex-wrap:wrap!important;}}
 
+</style>
+<style id="rival-map-legend-correction">
+body.ux383 .rival-overview-map-heading{align-items:center;flex-wrap:wrap;gap:10px;}
+body.ux383 .rival-overview-map-heading>.rival-map-brand-legend{display:flex!important;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:7px 12px;white-space:normal!important;}
+body.ux383 .rival-map-brand-legend[hidden]{display:none!important;}
+body.ux383 .rival-map-legend-item{display:inline-flex;align-items:center;gap:5px;font-size:10px;color:var(--text-dim);white-space:nowrap;}
+body.ux383 .rival-map-legend-item i{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;color:#fff;font:700 8px/1 Arial,sans-serif;font-style:normal;letter-spacing:-.3px;}
+@media(max-width:520px){body.ux383 .rival-overview-map-heading>.rival-map-brand-legend{justify-content:flex-start;}}
+</style>
+<style id="rival-shape-legend">
+body.ux383 .rival-shape-key{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;color:var(--text-dim);font-size:11px;}
+body.ux383 .rival-shape-key i{display:inline-block;width:9px;height:9px;background:#71858a;flex:none;}
+body.ux383 .rival-shape-key .lounge{border-radius:50%;}
+body.ux383 .rival-shape-key .office{border-radius:1px;}
+body.ux383 :is(#rivalOverviewMap,#rivalDirectoryMap) .rival-map-place.rival-map-logo-only.lounge{border-radius:50%!important;}
+body.ux383 :is(#rivalOverviewMap,#rivalDirectoryMap) .rival-map-place.rival-map-logo-only.office{border-radius:3px!important;}
 </style>
 </body>
 </html>
