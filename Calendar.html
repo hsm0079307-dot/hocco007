@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta name="calendar-build" content="2026.10.27.28">
+<meta name="calendar-build" content="2026.10.27.29">
 <script id="calendar-shared-foundation">(function(){
  'use strict';
  const keys=['manual_schedule_data_v1','calendar_checkmarks_v1','person_memos_v1','staff_contacts_v1','category_labels_v1','capacity_date_override_v1','capacity_weekday_v1','capacity_weekend_v1','site_title_v1','site_subtitle_v1','footnote_comment_v1','fdDisplayTitle','fdCustomTitle'];
@@ -2006,6 +2006,103 @@ html.calendar-unlocked #appRoot{display:block!important;}
 #lockForm #pwInput{font-size:16px!important;}
 #lockForm #pwOpenBtn{min-height:52px!important;cursor:pointer!important;-webkit-appearance:none!important;appearance:none!important;}
 </style>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/sunn-us/SUIT/fonts/static/woff2/SUIT.css">
+<style id="dashboard-font-picker-style">
+:root{--ui-type-title:18px;--ui-type-body:14px;--ui-type-small:12px;}
+body :is(button,input,select,textarea,table),body svg text{font-family:var(--ui-font)!important;}
+#dashboardTypographyDialog{box-sizing:border-box;width:min(440px,calc(100vw - 24px));max-width:440px;max-height:calc(100dvh - 32px);overflow:auto;margin:auto;padding:0;border:1px solid var(--line,#d8e2e3);border-radius:12px;background:var(--card,#fff);color:var(--text-main,#263e46);font-family:var(--ui-font)!important;font-size:14px;box-shadow:0 16px 60px #183b4d2b;}
+#dashboardTypographyDialog::backdrop{background:#16343e66;}
+#dashboardTypographyDialog *{box-sizing:border-box;font-family:var(--ui-font)!important;letter-spacing:0!important;}
+#dashboardTypographyDialog .ui-font-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0;padding:14px 16px;border-bottom:1px solid var(--line,#d8e2e3);}
+#dashboardTypographyDialog .ui-font-head h2{font-size:18px!important;font-weight:600;line-height:1.4;margin:0;}
+#dashboardTypographyDialog .ui-font-head button,#dashboardTypographyDialog .ui-font-actions button{font-size:12px!important;padding:6px 10px;min-height:30px;border:1px solid var(--line,#d8e2e3);border-radius:6px;background:var(--card,#fff);color:var(--text-main,#263e46);cursor:pointer;}
+#dashboardTypographyDialog .ui-font-body{padding:16px;}
+#dashboardTypographyDialog label{display:block;font-size:14px!important;margin-bottom:7px;}
+#dashboardTypographyDialog select{display:block;width:100%;min-height:42px;padding:8px 10px;border:1px solid var(--line,#d8e2e3);border-radius:6px;background:var(--card,#fff);color:var(--text-main,#263e46);font-size:14px!important;}
+#dashboardTypographyDialog .ui-font-sizes{display:flex;flex-wrap:wrap;gap:18px;margin:12px 0;font-size:12px!important;color:var(--text-dim,#637b83);}
+#dashboardTypographyDialog .ui-font-sizes b{font-size:12px!important;font-weight:500;}
+#dashboardTypographyDialog .ui-font-preview{padding:16px 0;border-top:1px solid var(--line,#d8e2e3);border-bottom:1px solid var(--line,#d8e2e3);}
+#dashboardTypographyDialog .ui-font-preview h3{font-size:18px!important;line-height:1.5!important;font-weight:600;margin:0 0 10px;}
+#dashboardTypographyDialog .ui-font-preview p{font-size:14px!important;line-height:1.8!important;font-weight:400;margin:5px 0;}
+#dashboardTypographyDialog .ui-font-preview small{display:block;font-size:12px!important;line-height:1.6!important;margin-top:10px;color:var(--text-dim,#637b83);}
+#dashboardTypographyDialog .ui-font-status,#dashboardTypographyDialog .ui-font-hint{font-size:12px!important;line-height:1.7!important;overflow-wrap:anywhere;color:var(--text-dim,#637b83);margin:12px 0 0;}
+#dashboardTypographyDialog .ui-font-actions{display:flex;justify-content:space-between;gap:8px;margin-top:12px;}
+@media(max-width:760px){#dashboardTypographyDialog select:focus{font-size:18px!important;}}
+@media print{#dashboardTypographyDialog{display:none!important;}}
+
+</style>
+<script id="dashboard-font-picker-script">
+(function(){
+ 'use strict';
+ if(window.DashboardTypography)return;
+ const KEY='hocco_ui_font_v1',DEFAULT='suit',fallback="'Apple SD Gothic Neo','Malgun Gothic',system-ui,sans-serif";
+ const fonts=[
+  {id:'pretendard',label:'프리텐다드',family:'Pretendard Variable',css:'https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css'},
+  {id:'suit',label:'SUIT',family:'SUIT',css:'https://cdn.jsdelivr.net/gh/sunn-us/SUIT/fonts/static/woff2/SUIT.css'},
+  {id:'noto-sans',label:'Noto Sans KR',family:'Noto Sans KR',css:'https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600&display=swap'},
+  {id:'nanum-gothic',label:'나눔고딕',family:'Nanum Gothic',css:'https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700&display=swap'},
+  {id:'nanum-square',label:'나눔스퀘어',family:'NanumSquare',css:'https://hangeul.pstatic.net/hangeul_static/css/nanum-square.css'},
+  {id:'nanum-square-round',label:'나눔스퀘어라운드',family:'NanumSquareRound',css:'https://hangeul.pstatic.net/hangeul_static/css/nanum-square-round.css'},
+  {id:'gmarket',label:'지마켓 산스',family:'Dashboard Gmarket Sans',woff:'https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/GmarketSansMedium.woff'},
+  {id:'gowun-dodum',label:'고운돋움',family:'Gowun Dodum',css:'https://fonts.googleapis.com/css2?family=Gowun+Dodum&display=swap'},
+  {id:'maru-buri',label:'마루부리',family:'MaruBuri',css:'https://hangeul.pstatic.net/hangeul_static/css/maru-buri.css'},
+  {id:'noto-serif',label:'Noto Serif KR',family:'Noto Serif KR',css:'https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600&display=swap'}
+ ];
+ const find=id=>fonts.find(font=>font.id===id),root=document.documentElement,assets=new Map();let current=DEFAULT,sequence=0,status='';
+ function stored(){try{return localStorage.getItem(KEY)||'';}catch{return '';}}
+ function save(id){try{localStorage.setItem(KEY,id);return true;}catch{return false;}}
+ function notify(message){status=message;document.querySelectorAll('[data-ui-font-status]').forEach(node=>node.textContent=message);document.querySelectorAll('[data-ui-font-select]').forEach(node=>node.value=current);}
+ function resource(font){
+  if(assets.has(font.id))return assets.get(font.id);
+  const pending=new Promise((resolve,reject)=>{
+   if(font.woff){
+    if(!document.getElementById('dashboard-gmarket-face')){const style=document.createElement('style');style.id='dashboard-gmarket-face';style.textContent="@font-face{font-family:'Dashboard Gmarket Sans';src:url('"+font.woff+"') format('woff');font-weight:400 700;font-style:normal;font-display:swap;}";document.head.appendChild(style);}resolve();return;
+   }
+   let link=[...document.querySelectorAll('link[rel="stylesheet"]')].find(node=>node.href===font.css);
+   if(link?.sheet){resolve();return;}
+   const fresh=!link;if(!link){link=document.createElement('link');link.rel='stylesheet';link.href=font.css;link.dataset.uiFontAsset=font.id;}
+   const timer=setTimeout(()=>reject(Error('글꼴 연결이 늦습니다.')),15000);
+   const done=()=>{clearTimeout(timer);resolve();};const failed=()=>{clearTimeout(timer);if(link.dataset.uiFontAsset)link.remove();reject(Error('글꼴을 불러오지 못했습니다.'));};
+   link.addEventListener('load',done,{once:true});link.addEventListener('error',failed,{once:true});if(fresh)document.head.appendChild(link);
+  }).then(async()=>{
+   if(!document.fonts?.load)return;
+   const loaded=await document.fonts.load('400 14px "'+font.family+'"','현장 보고서 가나다 123');
+   if(!loaded.length)throw Error('글꼴 파일을 확인하지 못했습니다.');
+  });
+  assets.set(font.id,pending);pending.catch(()=>assets.delete(font.id));return pending;
+ }
+ async function set(id,{persist=true}={}){
+  const font=find(id);if(!font)throw Error('지원하지 않는 글꼴입니다.');
+  current=id;const revision=++sequence;const saved=!persist||save(id);
+  root.style.setProperty('--ui-font',"'"+font.family+"',"+fallback,'important');
+  root.style.setProperty('--ui-type-title','18px','important');root.style.setProperty('--ui-type-body','14px','important');root.style.setProperty('--ui-type-small','12px','important');
+  notify(font.label+' 불러오는 중…');
+  window.dispatchEvent(new CustomEvent('dashboard-typography-changed',{detail:{id,label:font.label}}));
+  try{await resource(font);if(revision===sequence)notify(font.label+' · 전체 적용'+(saved?' · 이 기기에 저장됨':' · 현재 창에 적용됨(기기 저장 불가)'));return true;}
+  catch(error){if(revision===sequence)notify(font.label+' 다운로드 실패 · 기본 글꼴로 표시 중입니다. 다시 시도를 눌러주세요.');return false;}
+ }
+ function withPreference(value){const url=new URL(value,location.href);url.searchParams.set('uiFont',current);return url.href;}
+ function open(){
+  let dialog=document.getElementById('dashboardTypographyDialog');
+  if(!dialog){
+   dialog=document.createElement('dialog');dialog.id='dashboardTypographyDialog';dialog.setAttribute('aria-labelledby','dashboardTypographyTitle');
+   dialog.innerHTML='<form method="dialog" class="ui-font-head"><h2 id="dashboardTypographyTitle">전체 글꼴 변경</h2><button type="submit" aria-label="글꼴 설정 닫기">닫기</button></form><div class="ui-font-body"><label for="dashboardFontChoice">화면 전체에 사용할 글꼴</label><select id="dashboardFontChoice" data-ui-font-select>'+fonts.map(font=>'<option value="'+font.id+'">'+font.label+'</option>').join('')+'</select><div class="ui-font-sizes"><span>제목 <b>18px</b></span><span>본문 <b>14px</b></span><span>보조 <b>12px</b></span></div><section class="ui-font-preview"><h3>목동1단지 · 월간정리</h3><p>통합심의 결과를 확인하고 다음 방문 일정을 조율합니다.</p><p>조합원 1,882명 · 접촉률 34.1%</p><small>현장 상세 · 보고서 · 표 · 메뉴 · 팝업 · 일정표</small></section><p class="ui-font-status" data-ui-font-status role="status" aria-live="polite"></p><div class="ui-font-actions"><button type="button" data-ui-font-retry>다시 시도</button><button type="button" data-ui-font-reset>기본 글꼴(SUIT)</button></div><p class="ui-font-hint">선택하면 바로 적용됩니다. 글꼴 선택은 이 기기에 저장됩니다.</p></div>';
+   dialog.querySelector('[data-ui-font-select]').addEventListener('change',event=>{void set(event.target.value);});dialog.querySelector('[data-ui-font-retry]').onclick=()=>{void set(current);};dialog.querySelector('[data-ui-font-reset]').onclick=()=>{void set(DEFAULT);};
+   dialog.addEventListener('click',event=>{if(event.target===dialog)dialog.close();});document.body.appendChild(dialog);
+  }
+  document.getElementById('fdAdminMenu')?.classList.remove('on');notify(status);if(!dialog.open)dialog.showModal();
+ }
+ window.DashboardTypography={fonts:fonts.map(({id,label})=>({id,label})),current:()=>current,set,open,withPreference};
+ const requested=new URLSearchParams(location.search).get('uiFont');const initial=find(requested)?requested:find(stored())?stored():DEFAULT;
+ if(find(requested)){
+  save(requested);try{const url=new URL(location.href);url.searchParams.delete('uiFont');history.replaceState(history.state,'',url.href);}catch{}
+ }
+ void set(initial,{persist:false});
+ document.addEventListener('click',event=>{if(event.target.closest('[data-ui-font-open]')){event.preventDefault();open();}});
+ window.addEventListener('storage',event=>{if(event.key===KEY&&find(event.newValue)&&event.newValue!==current)void set(event.newValue,{persist:false});});
+})();
+
+</script>
 </head>
 <body>
 <dialog id="lockScreen" aria-labelledby="pwTitle">
@@ -8294,7 +8391,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
         <div class="fd-search-wrap"><div class="fd-search">${icons.search}<input id="fdSearch" type="search" autocomplete="off" placeholder="검색하세요."></div><div class="fd-search-results" id="fdSearchResults"></div></div>
         <button type="button" class="fd-top-action" id="fdTodayTop">오늘</button>
         <div class="fd-admin-wrap"><button type="button" class="fd-top-action" id="fdAdminBtn">${icons.tune}<span>관리</span></button><div class="fd-admin-menu" id="fdAdminMenu">
-          <button data-admin="save">일정 저장</button><button data-admin="capacity">정원 설정</button><button data-admin="excel">엑셀 저장</button><button data-admin="print">인쇄</button><button data-admin="print-all">전체 인쇄</button><button data-admin="home-guide">홈화면 추가</button><button data-admin="backup">일정 백업</button><button data-admin="restore">백업 불러오기</button><button data-admin="password">비밀번호 안내</button>
+          <button type="button" data-ui-font-open>전체 글꼴 변경</button><button data-admin="save">일정 저장</button><button data-admin="capacity">정원 설정</button><button data-admin="excel">엑셀 저장</button><button data-admin="print">인쇄</button><button data-admin="print-all">전체 인쇄</button><button data-admin="home-guide">홈화면 추가</button><button data-admin="backup">일정 백업</button><button data-admin="restore">백업 불러오기</button><button data-admin="password">비밀번호 안내</button>
         </div></div>
       </header>
       <main class="fd-content">
@@ -8710,8 +8807,9 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
     openForm('관리',[],()=>{});
     document.getElementById('formOverlay').classList.add('gallery-admin-open');
     const fields=document.getElementById('formFields');fields.classList.add('gallery-admin-actions');
-    const actions=[['일정 저장',()=>saveCalendarData()],['정원 설정',()=>openCapacitySettings()],['엑셀 저장',()=>exportExcel()],['인쇄',()=>window.print()],['일정 백업',()=>backupScheduleData()],['백업 불러오기',()=>restoreScheduleDataPrompt()],['비밀번호 안내',()=>changePassword()]];
+    const actions=[['일정 저장',()=>saveCalendarData()],['정원 설정',()=>openCapacitySettings()],['엑셀 저장',()=>exportExcel()],['인쇄',()=>window.print()],['일정 백업',()=>backupScheduleData()],['백업 불러오기',()=>restoreScheduleDataPrompt()],['비밀번호 안내',()=>changePassword()],['전체 글꼴 변경',()=>window.DashboardTypography?.open()]];
     const paths=['<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h12l4 4v12a2 2 0 0 1-2 2zM7 3v6h10V3M7 21v-8h10v8"/>','<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M17 4a4 4 0 0 1 0 8m5 9v-2a4 4 0 0 0-3-3.9"/>','<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13l4 5m0-5-4 5"/>','<path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6zM18 12h.01"/>','<path d="M12 3v12m-4-4 4 4 4-4M4 16v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/>','<path d="M12 16V4m-4 4 4-4 4 4M4 16v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/>','<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V6a4 4 0 0 1 8 0v4M12 15v2"/>'];
+    paths.push('<path d="M4 5h16M12 5v15M8 20h8"/>');
     actions.forEach(([label,run],index)=>{const button=document.createElement('button');button.type='button';
       const icon=document.createElement('span');icon.className='gallery-admin-icon';icon.setAttribute('aria-hidden','true');icon.innerHTML='<svg viewBox="0 0 24 24">'+paths[index]+'</svg>';
       const text=document.createElement('span');text.className='gallery-admin-label';text.textContent=label;
@@ -8792,6 +8890,81 @@ button.onclick=()=>{closeFormOverlay();fields.classList.remove('gallery-admin-ac
 @media(max-width:580px){#fdDaySchedulePopup{width:calc(100vw - 24px)!important;}#fdDaySchedulePopup .fd-summary-dialog-body{grid-template-columns:minmax(0,1fr)!important;padding:12px!important;gap:12px!important;}}
 
 </style>
+<style id="global-three-size-foundation">
+:root{--ui-font:'SUIT','Apple SD Gothic Neo','Malgun Gothic',system-ui,sans-serif;--ui-type-title:18px;--ui-type-body:14px;--ui-type-small:12px;}
+html,body{font-family:var(--ui-font)!important;font-size:var(--ui-type-body)!important;-webkit-text-size-adjust:100%;text-size-adjust:100%;}
+</style>
+<script id="dashboard-global-type-enforcer">
+(function(){
+ 'use strict';
+ const tokens={small:'var(--ui-type-small, 12px)',body:'var(--ui-type-body, 14px)',title:'var(--ui-type-title, 18px)'};
+ function sizeToken(value){
+  const text=String(value||'').trim();
+  if(!text||/^(?:0(?:px|em|rem|%)?|inherit|initial|unset|revert)$/.test(text)||/--ui-type-/.test(text))return '';
+  const match=text.match(/^([\d.]+)(px|pt|em|rem|%)$/);let px;
+  if(match){const number=Number(match[1]),unit=match[2];px=number*(unit==='pt'?4/3:unit==='rem'?16:unit==='em'?14:unit==='%'?.14:1);}
+  else if(/^(?:small|smaller|x-small|xx-small)$/.test(text))px=12;
+  else if(/^(?:large|larger|x-large|xx-large)$/.test(text))px=18;
+  else return '';
+  return px<=12?tokens.small:px<17?tokens.body:tokens.title;
+ }
+ const protectedSelector=/(?:rc-preview|rc-reader-paper|rc-reader-person|rc-category|leaflet|kakao|rival-map-brand-initial|rival-map-logo-only|fontawesome|icon-font)/i;
+ function normalizeDeclaration(style,selector=''){
+  const original=style.getPropertyValue('font-size');
+  let next=sizeToken(original);
+  if(!next&&/(?:var|calc|clamp|min|max)\(/.test(original)&&!/--ui-type-/.test(original))next=/title|heading|brand|\bh[12]\b/i.test(selector)?tokens.title:/button|small|badge|chip|tab|hint|meta/i.test(selector)?tokens.small:tokens.body;
+  if(next)style.setProperty('font-size',next,style.getPropertyPriority('font-size'));
+  const family=style.getPropertyValue('font-family');
+  if(family&&!/--ui-font|icon|fontawesome|monospace|courier/i.test(family))style.setProperty('font-family','var(--ui-font)',style.getPropertyPriority('font-family'));
+ }
+ function normalizeRules(rules){
+  for(const rule of rules){
+   if(rule.type===5||rule.type===7||rule.type===8)continue;
+   if(rule.conditionText&&/\bprint\b/i.test(rule.conditionText))continue;
+   if(rule.selectorText&&protectedSelector.test(rule.selectorText)){
+    // Keep diagram geometry and sizes, but let the global font choice reach its text.
+    if(/rc-/.test(rule.selectorText)&&rule.style){const family=rule.style.getPropertyValue('font-family');if(family&&!/--ui-font|icon|fontawesome|monospace|courier/i.test(family))rule.style.setProperty('font-family','var(--ui-font)',rule.style.getPropertyPriority('font-family'));}
+    continue;
+   }
+   if(rule.style&&rule.selectorText)normalizeDeclaration(rule.style,rule.selectorText);
+   if(rule.cssRules)normalizeRules(rule.cssRules);
+  }
+ }
+ function normalizeSheet(node){if(node.tagName!=='STYLE')return;try{if(node.sheet)normalizeRules(node.sheet.cssRules);}catch{}}
+ function normalizeInline(node){
+  if(node.nodeType!==1||!node.style||node.closest('svg,canvas,.rc-preview,.rc-reader-paper,.leaflet-container,.management-mini-map,.rival-map-logo-only'))return;
+  const next=sizeToken(node.style.getPropertyValue('font-size'));
+  if(next)node.style.setProperty('font-size',next,'important');
+  const family=node.style.getPropertyValue('font-family');
+  if(family&&!/--ui-font|icon|fontawesome|monospace|courier/i.test(family))node.style.setProperty('font-family','var(--ui-font)','important');
+ }
+ function normalizeTree(node){
+  if(node.nodeType!==1)return;
+  if(node.tagName==='STYLE'){normalizeSheet(node);return;}
+  normalizeInline(node);
+  node.querySelectorAll('style,[style]').forEach(child=>child.tagName==='STYLE'?normalizeSheet(child):normalizeInline(child));
+ }
+ function start(){
+  document.querySelectorAll('style').forEach(normalizeSheet);normalizeTree(document.body);
+  const roots=new Set();let scheduled=false;
+  const observer=new MutationObserver(records=>{
+   for(const record of records){
+    if(record.type==='attributes'){if(record.target.style?.fontSize||record.target.style?.fontFamily)roots.add(record.target);}
+    else {if(record.target.nodeType===1&&record.target.tagName==='STYLE')roots.add(record.target);for(const node of record.addedNodes)if(node.nodeType===1)roots.add(node);}
+   }
+   if(!roots.size||scheduled)return;scheduled=true;
+   requestAnimationFrame(()=>{
+    scheduled=false;const batch=[...roots];roots.clear();
+    for(const root of batch)if(root.isConnected&&!batch.some(other=>other!==root&&other.contains(root)))normalizeTree(root);
+    observer.takeRecords();
+   });
+  });
+  observer.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['style']});
+ }
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
+})();
+
+</script>
 </body>
 <style id="calendar-shared-ui-style">.calendar-sync-status{display:block;font:11px/1.4 'Malgun Gothic',system-ui,sans-serif;color:#66857c;white-space:normal;overflow-wrap:anywhere;max-width:100%;margin-top:3px;}
 @media(max-width:760px){.calendar-sync-status{font-size:10px;margin-top:5px;}}
