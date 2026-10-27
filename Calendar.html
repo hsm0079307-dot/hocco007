@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta name="calendar-build" content="2026.10.23.8">
+<meta name="calendar-build" content="2026.10.27.9">
 <script id="calendar-shared-foundation">(function(){
  'use strict';
  const keys=['manual_schedule_data_v1','calendar_checkmarks_v1','person_memos_v1','staff_contacts_v1','category_labels_v1','capacity_date_override_v1','capacity_weekday_v1','capacity_weekend_v1','site_title_v1','site_subtitle_v1','footnote_comment_v1','fdDisplayTitle','fdCustomTitle'];
@@ -40,18 +40,106 @@
  const clone=x=>x===undefined?undefined:JSON.parse(JSON.stringify(x));
  const equal=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
  const object=x=>x!==null&&typeof x==='object'&&!Array.isArray(x);
- function merge(base,local,remote,path=''){
+ function merge(base,local,remote,path='',resolve){
   if(equal(local,base))return clone(remote);
   if(equal(remote,base)||equal(local,remote))return clone(local);
   if(object(local)&&object(remote)&&(base===undefined||object(base))){
    const out={};
    for(const key of new Set([...Object.keys(base||{}),...Object.keys(local),...Object.keys(remote)])){
     if(['__proto__','constructor','prototype'].includes(key))throw Error('저장할 자료의 형식을 확인해주세요.');
-    const value=merge(base?.[key],local[key],remote[key],path+'/'+key);if(value!==undefined)out[key]=value;
+    const value=merge(base?.[key],local[key],remote[key],path+'/'+key,resolve);if(value!==undefined)out[key]=value;
    }
    return out;
   }
-  const error=Error('다른 기기에서도 같은 항목을 변경했습니다. 현재 자료를 백업한 뒤 공유 자료를 다시 불러와 주세요.');error.code='CONFLICT';error.path=path;throw error;
+  const detail={path,base:clone(base),local:clone(local),remote:clone(remote)};
+  const decision=resolve?.(detail);if(decision?.resolved)return clone(decision.value);
+  const error=Error('같은 일정의 변경 내용이 다릅니다. 두 내용을 확인하고 선택해주세요.');error.code='CONFLICT';Object.assign(error,detail);throw error;
+ }
+ // The page stores a whole day as one array. Convert it to independent records
+ // for merging, then restore the page's format and the attendance/memo indexes.
+ function alignRows(base,rows){
+  const before=base.map(row=>JSON.stringify(row)),after=rows.map(row=>JSON.stringify(row));
+  const n=base.length,m=rows.length,dp=Array.from({length:n+1},()=>new Uint32Array(m+1));
+  for(let i=n-1;i>=0;i--)for(let j=m-1;j>=0;j--)dp[i][j]=before[i]===after[j]?1+dp[i+1][j+1]:Math.max(dp[i+1][j],dp[i][j+1]);
+  const matches=[[-1,-1]];let i=0,j=0;
+  while(i<n&&j<m){if(before[i]===after[j]){matches.push([i++,j++]);}else if(dp[i+1][j]>=dp[i][j+1])i++;else j++;}
+  matches.push([n,m]);const ids=[];
+  for(let k=1;k<matches.length;k++){
+   const [a,b]=matches[k-1],[c,d]=matches[k];
+   // A replacement within an unchanged surrounding sequence is still one row.
+   if(c-a===d-b)for(let x=1;x<c-a;x++)ids[b+x]='b:'+String(a+x);
+   if(c<n)ids[d]='b:'+String(c);
+  }
+  const counts=new Map();return rows.map((row,index)=>{if(ids[index])return ids[index];const key=JSON.stringify(row),occurrence=counts.get(key)||0;counts.set(key,occurrence+1);return 'n:'+key+':'+occurrence;});
+ }
+ function mergeValues(base,local,remote,resolve){
+  if(equal(local,base))return clone(remote);
+  if(equal(remote,base)||equal(local,remote))return clone(local);
+  const docs=[base,local,remote].map(value=>clone(value||{})),days=[];
+  let staffOrder=null;
+  const staff=docs.map(doc=>doc.staff_contacts_v1);
+  if(staff.every(value=>value===undefined||Array.isArray(value))&&staff.some(Array.isArray)){
+   const lists=staff.map(value=>value||[]),ids=lists.map((rows,i)=>i===0?rows.map((_,index)=>'b:'+index):alignRows(lists[0],rows));
+   docs.forEach((doc,i)=>doc.staff_contacts_v1=Object.fromEntries(lists[i].map((row,index)=>[ids[i][index],row])));
+   staffOrder=[...new Set([...ids[2],...ids[1],...ids[0]])];
+  }
+  for(const kind of ['GALLERY_ROWS','TOUR_ROWS']){
+   const dates=new Set(docs.flatMap(doc=>Object.keys(doc.manual_schedule_data_v1?.[kind]||{})));
+   for(const date of dates){
+    const lists=docs.map(doc=>doc.manual_schedule_data_v1?.[kind]?.[date]||[]);
+    if(!lists.every(Array.isArray))return merge(base,local,remote,'',resolve);
+    const ids=lists.map((rows,i)=>i===0?rows.map((_,index)=>'b:'+index):alignRows(lists[0],rows));
+    const prefix=(kind==='GALLERY_ROWS'?'gallery':'tour')+'_'+date+'_';
+    docs.forEach((doc,i)=>{
+     const records={};lists[i].forEach((row,index)=>{
+      if(!Array.isArray(row))throw Error('일정 항목의 형식을 확인해주세요.');
+      const record={cells:Object.fromEntries(row.map((cell,index)=>[index,cell]))};
+      for(const [field,label] of [['calendar_checkmarks_v1','check'],['person_memos_v1','memo']]){
+       if(Object.hasOwn(doc[field]||{},prefix+index)){record[label]=doc[field][prefix+index];delete doc[field][prefix+index];}
+      }
+      records[ids[i][index]]=record;
+     });
+     doc.manual_schedule_data_v1??={};doc.manual_schedule_data_v1[kind]??={};doc.manual_schedule_data_v1[kind][date]=records;
+    });
+    days.push({kind,date,ids,prefix,lists});
+   }
+  }
+  let result;
+  try{
+   for(const day of days){
+    const records=docs.map(doc=>doc.manual_schedule_data_v1[day.kind][day.date]);
+    const identity=record=>day.kind==='GALLERY_ROWS'?[record?.cells?.[2],record?.cells?.[5],record?.cells?.[6]]:[record?.cells?.[1],record?.cells?.[2],record?.cells?.[3]];
+    for(const id of day.ids[0]){
+     const [b,l,r]=records.map(rows=>rows[id]);if(!l||!r)continue;
+     const refsChanged=x=>!equal(x.check,b.check)||!equal(x.memo,b.memo);
+     if((refsChanged(l)&&!equal(identity(b),identity(r)))||(refsChanged(r)&&!equal(identity(b),identity(l)))){
+      const detail={path:'/manual_schedule_data_v1/'+day.kind+'/'+day.date+'/'+id,base:clone(b),local:clone(l),remote:clone(r)},decision=resolve?.(detail);
+      if(decision?.resolved){records[1][id]=clone(decision.value);records[2][id]=clone(decision.value);}
+      else{const error=Error('출석·메모를 변경한 일정의 인물이 다른 기기에서 바뀌었습니다. 내용을 선택해주세요.');error.code='CONFLICT';Object.assign(error,detail);throw error;}
+     }
+    }
+   }
+   result=merge(docs[0],docs[1],docs[2],'',resolve);
+  }catch(error){
+   if(error.code==='CONFLICT'){
+    error.values={base:clone(base),local:clone(local),remote:clone(remote)};
+    const day=days.find(d=>error.path.startsWith('/manual_schedule_data_v1/'+d.kind+'/'+d.date+'/'));
+    if(day){error.date=day.date;error.kind=day.kind;const suffix=error.path.slice(('/manual_schedule_data_v1/'+day.kind+'/'+day.date+'/').length);const id=suffix.match(/^(b:\d+)/)?.[1];
+     if(id){error.row=clone(day.lists[0][Number(id.slice(2))]);}
+    }
+   }throw error;
+  }
+  for(const day of days){
+   const records=result.manual_schedule_data_v1[day.kind][day.date],order=[...new Set([...day.ids[2],...day.ids[1],...day.ids[0]])].filter(id=>Object.hasOwn(records,id));
+   const rows=order.map((id,index)=>{
+    const record=records[id];
+    for(const [field,label] of [['calendar_checkmarks_v1','check'],['person_memos_v1','memo']])if(Object.hasOwn(record,label)){result[field]??={};result[field][day.prefix+index]=record[label];}
+    return Object.keys(record.cells).sort((a,b)=>Number(a)-Number(b)).map(key=>record.cells[key]);
+   });
+   if(rows.length)result.manual_schedule_data_v1[day.kind][day.date]=rows;else delete result.manual_schedule_data_v1[day.kind][day.date];
+  }
+  if(staffOrder){const records=result.staff_contacts_v1;result.staff_contacts_v1=staffOrder.filter(id=>Object.hasOwn(records,id)).map(id=>records[id]);}
+  return result;
  }
  // Index-based checks/memos cannot be merged onto a different person's row.
  function validateRowReferences(base,local,remote){
@@ -69,11 +157,13 @@
  }
  function createClient(options){
   let base=clone(options.base||{}),local=clone(options.local||{}),initialized=!!options.initialized,busy=null;
+  const resolutions=new Map(),resolve=detail=>{const saved=resolutions.get(detail.path);return saved&&equal(saved.detail,detail)?{resolved:true,value:clone(saved.choice==='local'?detail.local:detail.remote)}:undefined;};
   const changed=()=>options.changed?.({base:clone(base),local:clone(local),initialized,dirty:!equal(base,local)});
   const guard=()=>{if(options.blocked?.()){const error=Error('입력 중입니다. 입력을 마치면 공유합니다.');error.code='EDITING';throw error;}};
   const client={
    edit(values){local=clone(values);changed();},
    snapshot(){return {base:clone(base),local:clone(local),initialized,dirty:!equal(base,local)};},
+   resolveConflict(detail,choice){if(!['local','remote'].includes(choice))throw Error('선택한 내용을 확인해주세요.');resolutions.set(detail.path,{detail:{path:detail.path,base:clone(detail.base),local:clone(detail.local),remote:clone(detail.remote)},choice});},
    pull({discard=false}={}){return client.sync({discard});},
    sync({initialize=false,discard=false}={}){
     if(busy)return busy;
@@ -90,23 +180,22 @@
        base=remote;local=clone(remote);initialized=true;options.apply?.(clone(local));changed();return {loaded:true};
       }
       if(!read.value&&initialize)base={};
-      validateRowReferences(base,captured,remote);
-      const merged=merge(base,captured,remote);
+      const merged=mergeValues(base,captured,remote,resolve);
       if(equal(merged,remote)&&read.value){
-       local=merge(captured,local,merged);base=remote;initialized=true;options.apply?.(clone(local));changed();return {loaded:true};
+       local=mergeValues(captured,local,merged);base=remote;initialized=true;resolutions.clear();options.apply?.(clone(local));changed();return {loaded:true};
       }
       const write=await options.write({schema:1,updatedAt:new Date().toISOString(),values:merged},read.etag);
       if(write.conflict)continue;
       guard();
       // Edits made while the request was pending remain queued locally.
-      local=merge(captured,local,merged);base=clone(merged);initialized=true;options.apply?.(clone(local));changed();return {saved:true};
+      local=mergeValues(captured,local,merged);base=clone(merged);initialized=true;resolutions.clear();options.apply?.(clone(local));changed();return {saved:true};
      }
      const error=Error('다른 기기에서 계속 수정 중입니다. 잠시 후 다시 저장해주세요.');error.code='CONFLICT';throw error;
     })().finally(()=>{busy=null;});return busy;
    }
   };return client;
  }
- root.CalendarSyncCore={merge,validateRowReferences,createClient,equal};
+ root.CalendarSyncCore={merge,mergeValues,validateRowReferences,createClient,equal};
 })(typeof window==='undefined'?globalThis:window);
 
 </script>
@@ -8792,6 +8881,10 @@ button.onclick=()=>{closeFormOverlay();fields.classList.remove('gallery-admin-ac
 #freshDesktopApp .fd-brand>.calendar-sync-status{flex-basis:100%;}
 @media(max-width:760px){.calendar-sync-status{font-size:10px;margin-top:5px;}}
 @media print{.calendar-sync-status{display:none!important;}}
+.calendar-conflict-panel{position:fixed;z-index:2147483000;bottom:84px;left:50%;transform:translateX(-50%);width:min(520px,calc(100% - 24px));box-sizing:border-box;padding:18px;border:1px solid #a6bdb5;border-radius:18px;background:#fff;color:#183b32;box-shadow:0 12px 48px #0004;max-height:65dvh;overflow:auto;font:14px/1.5 system-ui,sans-serif;}
+.calendar-conflict-panel>strong{font-size:17px}.calendar-conflict-panel p{font-size:12px;margin:8px 0 14px;color:#50675f}.calendar-conflict-options{display:grid;grid-template-columns:1fr 1fr;gap:10px}.calendar-conflict-options>div{min-width:0;padding:10px;border:1px solid #d8e4df;border-radius:10px}.calendar-conflict-panel pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:160px;overflow:auto;font:13px/1.5 system-ui,sans-serif}.calendar-conflict-panel button{min-height:42px;width:100%;padding:8px;border:1px solid #9ab7ab;border-radius:8px;background:#e5f2eb;color:#183b32;font:600 12px system-ui,sans-serif;cursor:pointer}.calendar-conflict-panel .calendar-conflict-later{margin-top:12px;background:transparent;border-color:transparent;color:#50675f}
+@media(prefers-color-scheme:dark){.calendar-conflict-panel{background:#20372f;color:#edf7f2;border-color:#527165}.calendar-conflict-panel p,.calendar-conflict-panel .calendar-conflict-later{color:#bed3c8}.calendar-conflict-options>div{border-color:#527165}.calendar-conflict-panel button{background:#365a49;color:#edf7f2;border-color:#648774}}
+@media print{.calendar-conflict-panel{display:none!important}}
 </style>
 <script id="calendar-shared-adapter">window.CalendarAdapter={
  capture(){
@@ -8819,7 +8912,7 @@ button.onclick=()=>{closeFormOverlay();fields.classList.remove('gallery-admin-ac
  },
  persist(){persistScheduleData();persistCheck();persistMemos();persistStaff();persistCatLabel();persistDateCapacity();},
  refresh(){window.dispatchEvent(new Event('calendar-data-applied'));window.dispatchEvent(new Event('resize'));},
- editing(){return !!document.querySelector('#formOverlay.on,#memoOverlay.on,#previewOverlay.on,dialog[open]')||!!document.activeElement?.matches('input:not([type=checkbox]):not([type=radio]),textarea,[contenteditable=true]');}
+ editing(){return !!document.querySelector('#formOverlay.on,#memoOverlay.on,#lockScreen[open]:not([hidden])')||!!document.activeElement?.matches('input:not([type=checkbox]):not([type=radio]),textarea,[contenteditable=true]');}
 };
 
 </script>
@@ -8830,7 +8923,7 @@ button.onclick=()=>{closeFormOverlay();fields.classList.remove('gallery-admin-ac
   const endpoint='https://stately-sfogliatella-7ab674.netlify.app/api/password-access';
   const path='/offices/__calendar_sync_v1__/year_'+F.year+'.json';
   const cacheKey='calendar_shared_cache_v1_'+F.year,backupKey='calendar_shared_backup_v1_'+F.year;
-  let auth=null,timer=null,empty=false,conflict=false,active=false,lastMessage='이 기기에 저장됨';
+  let auth=null,timer=null,empty=false,conflict=null,active=false,lastMessage='이 기기에 저장됨',dismissedConflict='';
   function loadAuthentication(){
    try{const saved=JSON.parse(sessionStorage.getItem('calendar_shared_session_v1')||'null');
     auth=saved?.role==='admin'&&typeof saved.token==='string'&&saved.token&&Number(saved.expiresAt)>Date.now()?saved:null;
@@ -8839,7 +8932,7 @@ button.onclick=()=>{closeFormOverlay();fields.classList.remove('gallery-admin-ac
   }
   loadAuthentication();
   function status(message){
-   lastMessage=message;window.calendarSyncState={message,connected:!!auth,pending:client?.snapshot().dirty||false};
+   lastMessage=message;window.calendarSyncState={message,connected:!!auth,pending:client?.snapshot().dirty||false,conflict:!!conflict};
    for(const target of document.querySelectorAll('#freshDesktopApp .fd-brand,#proCalendarApp .pro-main-head>div')){
     let note=target.querySelector('.calendar-sync-status');
     if(!note){note=document.createElement('small');note.className='calendar-sync-status';note.setAttribute('role','status');note.setAttribute('aria-live','polite');target.append(note);}
@@ -8848,11 +8941,46 @@ button.onclick=()=>{closeFormOverlay();fields.classList.remove('gallery-admin-ac
   }
   function readCache(){try{return JSON.parse(localStorage.getItem(cacheKey)||'null');}catch{return null;}}
   const existing=readCache(),initial=A.capture();
-  function backup(){F.native.set.call(localStorage,backupKey,JSON.stringify({savedAt:new Date().toISOString(),year:F.year,values:A.capture()}));}
+  function backup(values=A.capture(),remote){
+   const record={savedAt:new Date().toISOString(),year:F.year,values};if(remote)record.remote=remote;
+   F.native.set.call(localStorage,backupKey,JSON.stringify(record));
+   let history=[];try{history=JSON.parse(localStorage.getItem(backupKey+'_history')||'[]');}catch{}
+   if(!Array.isArray(history))history=[];
+   if(!C.equal(history[0]?.values,values)||!C.equal(history[0]?.remote,remote)){history.unshift(record);F.native.set.call(localStorage,backupKey+'_history',JSON.stringify(history.slice(0,10)));}
+  }
+  function clearConflict(){document.getElementById('calendarConflictPanel')?.remove();conflict=null;dismissedConflict='';}
+  function showConflict(error,{explicit=false}={}){
+   conflict=error;const signature=JSON.stringify([error.path,error.base,error.local,error.remote]);
+   if(!explicit&&dismissedConflict===signature)return;
+   let panel=document.getElementById('calendarConflictPanel');if(panel?.dataset.signature===signature)return;
+   panel?.remove();panel=document.createElement('section');panel.id='calendarConflictPanel';panel.className='calendar-conflict-panel';panel.dataset.signature=signature;panel.setAttribute('role','region');panel.setAttribute('aria-label','일정 변경 내용 확인');
+   const heading=document.createElement('strong');heading.textContent=error.date?error.date.replace('-','월 ')+'일 변경 내용 확인':'변경 내용 확인';panel.append(heading);
+   const rowLabel=error.row?(error.kind==='GALLERY_ROWS'?[error.row[5],error.row[2]]:[error.row[1],error.row[3]]).filter(Boolean).join(' · '):'';
+   const description=document.createElement('p');description.textContent=(rowLabel?rowLabel+' — ':'')+'두 기기에서 같은 내용을 다르게 바꿨습니다. 반영할 내용을 선택해주세요. 두 원본은 이 기기에 보관했습니다.';panel.append(description);
+   const columns=document.createElement('div');columns.className='calendar-conflict-options';
+   const labels=error.kind==='GALLERY_ROWS'?['시간','픽업','성함','동반','담당','현장','동호수']:['시간','현장','동호수','성함','동반','담당'];
+   const field=error.path?.match(/\/cells\/(\d+)$/)?.[1];
+   const groupLabels={staff_contacts_v1:'담당자 연락처',site_title_v1:'제목',site_subtitle_v1:'설명',footnote_comment_v1:'하단 안내',capacity_weekday_v1:'평일 정원',capacity_weekend_v1:'주말 정원'};
+   const group=error.path?.split('/')[1];if(!error.date&&groupLabels[group])heading.textContent=groupLabels[group]+' 변경 내용 확인';
+   function preview(value){
+    if(value===undefined)return '삭제됨';if(value===null)return '비어 있음';
+    if(value?.cells)return Object.keys(value.cells).map(k=>(labels[k]||'내용')+': '+String(value.cells[k]??'')).join('\n')+(Object.hasOwn(value,'check')?'\n출석: '+(value.check?'참석':'미참석'):'')+(value.memo?'\n메모: '+value.memo:'');
+    if(typeof value==='boolean')return value?'참석':'미참석';if(value&&typeof value==='object'&&Object.hasOwn(value,'name'))return ['성함: '+value.name,'연락처: '+(value.phone||'-'),'차량: '+(value.car||'-')].join('\n');if(typeof value==='object')return JSON.stringify(value,null,2);
+    return (field!==undefined?(labels[field]||'내용')+': ':'')+String(value);
+   }
+   for(const [choice,title,value] of [['local','이 기기 내용',error.local],['remote','공유된 내용',error.remote]]){
+    const option=document.createElement('div'),name=document.createElement('b'),body=document.createElement('pre'),button=document.createElement('button');
+    name.textContent=title;body.textContent=preview(value);button.type='button';button.textContent=title+' 반영';
+    button.onclick=async()=>{try{backup(client.snapshot().local,error.values?.remote);client.resolveConflict(error,choice);clearConflict();await synchronize({force:true,explicit:true});}catch(cause){status('원본 보관에 실패했습니다. 기기 저장 공간을 확인해주세요.');}};
+    option.append(name,body,button);columns.append(option);
+   }
+   panel.append(columns);
+   const later=document.createElement('button');later.type='button';later.className='calendar-conflict-later';later.textContent='나중에 확인';later.onclick=()=>{dismissedConflict=signature;panel.remove();};panel.append(later);document.body.append(panel);
+  }
   function errorMessage(error){
    if(error.code==='EDITING')return '입력 중 · 완료 후 자동 저장';
    if(error.code==='AUTH'){auth=null;sessionStorage.removeItem('calendar_shared_session_v1');document.documentElement.classList.remove('calendar-unlocked');document.documentElement.removeAttribute('data-calendar-unlocked');const lock=document.getElementById('lockScreen');if(lock){lock.hidden=false;lock.removeAttribute('aria-hidden');if(typeof lock.showModal==='function'&&!lock.open)lock.showModal();}return '동기화 연결 만료 · 입장 비밀번호를 다시 입력해주세요';}
-   if(error.code==='CONFLICT'){conflict=true;return error.message;}
+   if(error.code==='CONFLICT')return error.path?'변경 내용 확인 필요 · 두 원본 보관됨':'다른 기기에서 저장 중 · 잠시 후 자동 재시도';
    return '이 기기에 보관됨 · 공유 저장 실패: '+error.message;
   }
   async function request(method,value,etag){
@@ -8877,17 +9005,20 @@ button.onclick=()=>{closeFormOverlay();fields.classList.remove('gallery-admin-ac
    if(!options.force&&A.editing())return {ok:false,message:'입력 중입니다. 입력을 마치면 자동 저장합니다.'};
    active=true;status('동기화 중…');
    try{
-    const result=await client.sync(options);empty=!!result.empty;conflict=false;
+    const result=await client.sync(options);empty=!!result.empty;clearConflict();
     if(empty){status('관리 → 일정 저장으로 동기화 시작');if(client.snapshot().dirty)queue();return {ok:false,message:lastMessage};}
     else if(client.snapshot().dirty){status('추가 변경 내용 저장 대기');queue();return {ok:false,message:lastMessage};}
     else{status('동기화 완료 · '+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}));return {ok:true,message:lastMessage};}
-   }catch(error){const message=errorMessage(error);status(message);return {ok:false,message};}finally{active=false;}
+   }catch(error){
+    if(error.code==='CONFLICT'&&error.path){try{backup(client.snapshot().local,error.values?.remote);}catch{status('원본 보관에 실패했습니다. 기기 저장 공간을 확인해주세요.');return {ok:false,message:lastMessage};}showConflict(error,{explicit:!!options.explicit});}
+    const message=errorMessage(error);status(message);return {ok:false,message,conflict:error.code==='CONFLICT'};
+   }finally{active=false;}
   }
-  function queue(){clearTimeout(timer);timer=setTimeout(()=>{if(auth&&!conflict)synchronize({initialize:empty});},800);}
+  function queue(){clearTimeout(timer);timer=setTimeout(()=>{if(auth)synchronize({initialize:empty});},800);}
   F.onChange=()=>{client.edit(A.capture());status(auth?'변경 내용 저장 중…':'이 기기에 저장됨');queue();};
   window.saveCalendarData=async()=>{try{
    A.persist();client.edit(A.capture());
-   if(auth){const result=await synchronize({initialize:true,force:true});if(typeof window.alert==='function')window.alert(result.ok?'서버 저장 확인이 완료되었습니다. 다른 기기에서도 같은 일정이 표시됩니다.':result.message);return result;}
+   if(auth){const result=await synchronize({initialize:true,force:true,explicit:true});if(!result.conflict&&typeof window.alert==='function')window.alert(result.ok?'서버 저장 확인이 완료되었습니다. 다른 기기에서도 같은 일정이 표시됩니다.':result.message);return result;}
    else{status('이 기기에 저장됨 · 동기화는 다시 입장해 연결해주세요');if(typeof window.alert==='function')window.alert(lastMessage);return {ok:false,message:lastMessage};}
   }catch(error){status(errorMessage(error));}};
   F.ready=true;status(lastMessage);
