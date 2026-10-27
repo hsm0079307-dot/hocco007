@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta name="calendar-build" content="2026.10.28.34">
+<meta name="calendar-build" content="2026.10.28.35">
 <script id="calendar-shared-foundation">(function(){
  'use strict';
  const keys=['manual_schedule_data_v1','calendar_checkmarks_v1','person_memos_v1','staff_contacts_v1','category_labels_v1','capacity_date_override_v1','capacity_weekday_v1','capacity_weekend_v1','site_title_v1','site_subtitle_v1','footnote_comment_v1','fdDisplayTitle','fdCustomTitle'];
@@ -8115,12 +8115,15 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
   }
   function renderAgenda(){
     const box=ensureAgenda();if(!box)return;const k=selectedKey();if(!k)return;const d=selectedDate(), rows=rowsFor(k), isToday=sameDay(d,new Date()), ups=rows.length?[]:upcoming(d,3);
-    const signature=JSON.stringify([k,rows,isToday,ups.map(x=>[x.key,x.time,x.site,x.name,x.kind])]);
+    const closed=typeof GALLERY_CLOSED!=='undefined'?GALLERY_CLOSED[k]:'';
+    const closedText=closed?String(closed):'';
+    const closure=closedText?`<aside class="pro-closure-notice" role="note"><strong>갤러리 휴관 / 이용불가</strong><span>${esc(closedText)}${/^(휴관|이용불가)$/.test(closedText.trim())?' · 시간 미지정':''}</span></aside>`:'';
+    const signature=JSON.stringify([k,rows,isToday,closedText,ups.map(x=>[x.key,x.time,x.site,x.name,x.kind])]);
     if(box.dataset.v27AgendaSignature===signature&&q('.pro-v27-agenda-head',box))return;
     box.dataset.v27AgendaSignature=signature;
     const items=rows.map(x=>`<button type="button" class="pro-v27-agenda-row"><span class="pro-v27-kind ${x.kind}">${x.kind==='gallery'?'갤러리':'투어'}</span><time>${esc(x.time)}</time><span class="pro-v27-agenda-main"><b>${esc(x.site)}${x.name?' · '+esc(x.name):''}</b><small>${esc(x.meta||'')}</small></span><span class="pro-v27-arr">›</span></button>`).join('');
     const up=ups.length?`<div class="pro-v27-up-head"><strong>다가오는 일정</strong><span>다음 일정</span></div>${ups.map(x=>`<button type="button" class="pro-v27-up-row" data-key="${esc(x.key)}"><span class="pro-v27-up-date">${esc(compact(x.date))}</span><span class="pro-v27-kind ${x.kind}">${x.kind==='gallery'?'갤러리':'투어'}</span><span class="pro-v27-agenda-main"><b>${esc(x.time)} · ${esc(x.site)}</b><small>${esc(x.name)}</small></span><span class="pro-v27-arr">›</span></button>`).join('')}`:'';
-    box.innerHTML=`<div class="pro-v27-agenda-head"><div class="pro-v27-agenda-title">${isToday?'<span class="pro-v27-today-chip">오늘</span>':''}<strong>${esc(fmt(d))}</strong></div><span class="pro-v27-count">${rows.length}건</span></div><div class="pro-v27-agenda-list">${items||'<div class="pro-v27-empty">등록된 일정이 없습니다.</div>'}${up}</div>`;
+    box.innerHTML=`<div class="pro-v27-agenda-head"><div class="pro-v27-agenda-title">${isToday?'<span class="pro-v27-today-chip">오늘</span>':''}<strong>${esc(fmt(d))}</strong></div><span class="pro-v27-count">${rows.length}건</span></div>${closure}<div class="pro-v27-agenda-list">${items||'<div class="pro-v27-empty">등록된 일정이 없습니다.</div>'}${up}</div>`;
     qa('.pro-v27-agenda-row',box).forEach(b=>b.onclick=()=>document.body.classList.add('pro-sheet-open'));
     qa('.pro-v27-up-row',box).forEach(b=>b.onclick=()=>{const key=b.dataset.key,day=q(`.pro-day[data-key="${CSS.escape(key)}"]`);if(day){day.click()}else{try{const [m]=key.split('-').map(Number),base=d;let y=base.getFullYear();if(m<base.getMonth()+1)y++;const s=q('#rangeStart'),e=q('#rangeEnd');if(s)s.value=`${y}-${String(m).padStart(2,'0')}-01`;if(e)e.value=`${y}-${String(m).padStart(2,'0')}-${String(new Date(y,m,0).getDate()).padStart(2,'0')}`;if(typeof applyRange==='function')applyRange();setTimeout(()=>q(`.pro-day[data-key="${CSS.escape(key)}"]`)?.click(),100)}catch(err){}}});
   }
@@ -9149,6 +9152,16 @@ html body #formOverlay.booking-editor #formFields input[readonly],html body #for
 #proDetailBody .pro-event .pro-event-comment{grid-template-columns:minmax(0,1fr)!important;border:0!important;margin:0!important;padding:2px 0 0!important;min-height:20px;}
 #proDetailBody .pro-event-comment>span{min-width:0;color:#35564e;white-space:pre-wrap;overflow-wrap:anywhere;}
 html body #formOverlay.booking-editor #formFields input[type=date]{appearance:none;-webkit-appearance:none;min-width:0!important;text-align:left;}
+</style>
+
+<style id="calendar-closure-date-align">
+#proV27Schedule .pro-closure-notice{display:flex;flex-direction:column;gap:4px;box-sizing:border-box;width:100%;margin:10px 0;padding:10px 12px;border:1px solid #edd4d4;border-radius:8px;background:#fcf1f1;color:#a85454;font-size:var(--ui-type-small,12px);line-height:1.5;}
+#proV27Schedule .pro-closure-notice strong{font-weight:600;}
+#proV27Schedule .pro-closure-notice span{white-space:pre-wrap;overflow-wrap:anywhere;}
+html body #formOverlay.booking-editor #formFields .booking-field-date>input[type=date]{display:block!important;text-align:left!important;direction:ltr!important;padding-left:9px!important;padding-right:9px!important;}
+html body #formOverlay.booking-editor #formFields .booking-field-date>input[type=date]::-webkit-date-and-time-value{text-align:left!important;margin:0!important;padding:0!important;}
+html body #formOverlay.booking-editor #formFields .booking-field-date>input[type=date]::-webkit-datetime-edit{text-align:left!important;padding:0!important;}
+html body #formOverlay.booking-editor #formFields .booking-field-date>input[type=date]::-webkit-datetime-edit-fields-wrapper{padding:0!important;text-align:left!important;}
 </style>
 </body>
 <style id="calendar-shared-ui-style">.calendar-sync-status{display:block;font:11px/1.4 'Malgun Gothic',system-ui,sans-serif;color:#66857c;white-space:normal;overflow-wrap:anywhere;max-width:100%;margin-top:3px;}
