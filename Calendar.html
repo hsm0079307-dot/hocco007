@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta name="calendar-build" content="2026.10.27.11">
+<meta name="calendar-build" content="2026.10.27.28">
 <script id="calendar-shared-foundation">(function(){
  'use strict';
  const keys=['manual_schedule_data_v1','calendar_checkmarks_v1','person_memos_v1','staff_contacts_v1','category_labels_v1','capacity_date_override_v1','capacity_weekday_v1','capacity_weekend_v1','site_title_v1','site_subtitle_v1','footnote_comment_v1','fdDisplayTitle','fdCustomTitle'];
@@ -401,8 +401,7 @@
   .manager-table th,.manager-table td{border:1px solid var(--line);padding:6px 8px;text-align:center;}
   .manager-table th{background:var(--bg);color:var(--sub);font-weight:700;font-size:11.5px;}
   .manager-table th:nth-child(1),.manager-table td:nth-child(1){width:34px;}
-  .manager-table th:nth-child(2),.manager-table td:nth-child(2),
-  .manager-table th:nth-child(3),.manager-table td:nth-child(3){width:90px;}
+  .manager-table th:nth-child(2),.manager-table td:nth-child(2),.manager-table th:nth-child(3),.manager-table td:nth-child(3){width:90px;}
   .manager-table td.mname{font-weight:700;text-align:center;}
   .manager-table td.mdanji{text-align:center;}
   .manager-table td.m-attended{color:#2f6f6b;font-weight:700;}
@@ -806,8 +805,7 @@ header:after{
 }
 header h1{margin:0 0 7px !important;font-size:27px !important;line-height:1.15;font-weight:900 !important;letter-spacing:-.05em}
 header p{margin:0 !important;color:#6f858b !important;font-size:12.5px !important;font-weight:650}
-header h1[contenteditable]:hover,header h1[contenteditable]:focus,
-#siteSubtitle[contenteditable]:hover,#siteSubtitle[contenteditable]:focus{border-color:#9fc7c0 !important}
+header h1[contenteditable]:hover,header h1[contenteditable]:focus,#siteSubtitle[contenteditable]:hover,#siteSubtitle[contenteditable]:focus{border-color:#9fc7c0 !important}
 
 /* 검색 / 현황 */
 .dash-panel{
@@ -1162,10 +1160,7 @@ body.dark-mode .modal input,body.dark-mode .modal textarea,body.dark-mode .modal
 .manager-table th:nth-child(1),.manager-table td:nth-child(1){width:9% !important}
 .manager-table th:nth-child(2),.manager-table td:nth-child(2){width:25% !important}
 .manager-table th:nth-child(3),.manager-table td:nth-child(3){width:24% !important}
-.manager-table th:nth-child(4),.manager-table td:nth-child(4),
-.manager-table th:nth-child(5),.manager-table td:nth-child(5),
-.manager-table th:nth-child(6),.manager-table td:nth-child(6),
-.manager-table th:nth-child(7),.manager-table td:nth-child(7){width:10.5% !important}
+.manager-table th:nth-child(4),.manager-table td:nth-child(4),.manager-table th:nth-child(5),.manager-table td:nth-child(5),.manager-table th:nth-child(6),.manager-table td:nth-child(6),.manager-table th:nth-child(7),.manager-table td:nth-child(7){width:10.5% !important}
 
 /* 요일 차트 영역을 과하게 큰 카드처럼 보이지 않게 */
 .chartWeekBar{
@@ -2878,47 +2873,23 @@ function updateSummary(){
 
 // ---------- 참석/불참/예정 클릭 시 인원 미리보기 ----------
 const STATUS_LABELS = {attended:"참석", noshow:"불참", scheduled:"예정"};
-function renderStatusTable(kind, key, status, managerFilter){
-  const store = kind==="gallery" ? GALLERY_ROWS : TOUR_ROWS;
-  const rows = store[key];
-  if(!rows) return "";
-  const managerIdx = kind==="gallery" ? 4 : 5;
-  const idxList = [];
-  rows.forEach((r,idx)=>{
-    if(rowStatus(kind,key,idx)!==status) return;
-    if(managerFilter && r[managerIdx]!==managerFilter) return;
-    idxList.push(idx);
+function renderStatusTable(kind,key,status,managerFilter){
+  const store=kind==='gallery'?GALLERY_ROWS:TOUR_ROWS,rows=store[key]||[],groups=new Map();
+  const esc=value=>String(value==null?'':value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const value=v=>v&&v!=='-'?String(v):'';
+  rows.forEach((raw,index)=>{
+    if(rowStatus(kind,key,index)!==status)return;
+    if(managerFilter&&raw[kind==='gallery'?4:5]!==managerFilter)return;
+    const row=reorderRow(kind,raw),site=row[1]||'현장 미입력',time=row[0]||'시간 미입력';
+    const groupKey=site+'|'+time;
+    if(!groups.has(groupKey))groups.set(groupKey,{site,time,rows:[]});
+    groups.get(groupKey).rows.push({row,index});
   });
-  if(idxList.length===0) return "";
-  const tagClass = kind==="gallery" ? "gallery" : "tour";
-  const tagLabel = kind==="gallery" ? CAT_LABEL.gallery : CAT_LABEL.tour;
-  let html = "<div class='sub-title'><span class='tag "+tagClass+"'>"+tagLabel+"</span></div>";
-  html += "<div class='table-scroll'><table><thead><tr>"+
-    ["시간","단지명","동호수","성함","동반","담당","픽업자가","확인","삭제"].map(h=>"<th>"+h+"</th>").join("")+
-    "</tr></thead><tbody>";
-  idxList.forEach(idx=>{
-    const raw = rows[idx];
-    const r = reorderRow(kind, raw);
-    const rowKey = kind+"_"+key+"_"+idx;
-    const isChecked = !!checkState[rowKey];
-    const hasMemo = !!personMemos[rowKey];
-    html += "<tr class='"+status+"'>";
-    r.forEach((v,ci)=>{
-      if(ci===3){
-        html += "<td class='name'><span class='memo-name"+(hasMemo?" has-memo":"")+"' onclick=\"openMemoFormFromStatus('"+rowKey+"','"+v.replace(/'/g,"&#39;")+"','"+status+"','"+(managerFilter?managerFilter.replace(/'/g,"&#39;"):"")+"')\">"+v+(hasMemo?" <span class='memo-dot'>●</span>":"")+"</span></td>";
-      } else if(ci===4||ci===5){
-        html += "<td class='calendar-manager-cell'>"+(ci===4?calendarCompanionLines(v):calendarManagerLines(v))+"</td>";
-      } else {
-        html += "<td class='name'>"+v+"</td>";
-      }
-    });
-    html += "<td><input type='checkbox' "+(isChecked?"checked":"")+
-      " onchange=\"toggleCheckFromStatus('"+kind+"','"+key+"',"+idx+",this,'"+status+"','"+(managerFilter?managerFilter.replace(/'/g,"&#39;"):"")+"')\"></td>";
-    html += "<td><button type='button' class='schedule-delete-button' onclick=\"deleteEntry('"+kind+"','"+key+"',"+idx+",this,'"+status+"','"+(managerFilter?managerFilter.replace(/'/g,"&#39;"):"")+"')\">삭제</button></td>";
-    html += "</tr>";
-  });
-  html += "</tbody></table></div>";
-  return html;
+  return [...groups.values()].map(group=>'<section class="status-visit-group"><div class="status-visit-heading"><strong>'+esc(group.site)+'</strong><time>'+esc(group.time)+'</time><span class="'+kind+'">'+esc(kind==='gallery'?CAT_LABEL.gallery:CAT_LABEL.tour)+'</span></div><div class="status-visit-people">'+group.rows.map(({row,index})=>{
+    const meta=[value(row[2]),value(row[4])?'동반 '+row[4]:'',value(row[5])?'담당 '+row[5]:'',value(row[6])].filter(Boolean);
+    const memo=personMemos[kind+'_'+key+'_'+index]||'';
+    return '<article><strong>'+esc(row[3]||'성명 미입력')+'</strong><div><span>'+meta.map(esc).join(' · ')+'</span>'+(memo?'<p class="status-person-memo">'+esc(memo)+'</p>':'')+'</div></article>';
+  }).join('')+'</div></section>').join('');
 }
 
 function toggleCheckFromStatus(kind, key, idx, el, status, managerFilter){
@@ -6873,7 +6844,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
         if(a==='save')saveCalendarData();
         else if(a==='capacity'&&typeof openCapacitySettings==='function')openCapacitySettings();
         else if(a==='excel'&&typeof exportExcel==='function')exportExcel();
-        else if(a==='print')window.print();
+        else if(a==='print')window.print();else if(a==='print-all')printAllDates();else if(a==='home-guide')showHomeScreenGuide();
         else if(a==='printall'&&typeof printAllDates==='function')printAllDates();
         else if(a==='backup'&&typeof backupScheduleData==='function')backupScheduleData();
         else if(a==='restore'&&typeof restoreScheduleDataPrompt==='function')restoreScheduleDataPrompt();
@@ -8221,8 +8192,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
   :root{--fd-bg:#f5f7f8;--fd-card:#fff;--fd-line:#dfe7e8;--fd-line2:#edf2f2;--fd-ink:#17343d;--fd-text:#334f57;--fd-sub:#809298;--fd-teal:#138f86;--fd-teal-soft:#ebf7f5;--fd-orange:#e69a4b;--fd-orange-soft:#fff6ed;--fd-blue:#347bd0;}
   html,body{background:var(--fd-bg)!important}
   body{padding:0!important;margin:0!important;font-family:'SUIT Variable','Apple SD Gothic Neo','Malgun Gothic',sans-serif!important;color:var(--fd-text)!important;letter-spacing:-.022em!important}
-  #appRoot{min-height:100vh!important;background:var(--fd-bg)!important}.wrap{width:100%!important;max-width:none!important;margin:0!important;padding:0!important}.wrap>*:not(#freshDesktopApp){display:none!important}
-  #freshDesktopApp{display:block!important;min-height:100vh;background:var(--fd-bg)!important;font-family:inherit!important}
+  #appRoot{min-height:100vh!important;background:var(--fd-bg)!important}.wrap{width:100%!important;max-width:none!important;margin:0!important;padding:0!important}
   #mobileMockApp,#proCalendarApp,#mobileMockNav,.pro-bottomnav,.pro-backdrop,.pro-tools-sheet,.pro-customer-sheet,.mobile-admin-fab,.mobile-admin-scrim{display:none!important}
   button,input,select,textarea{font-family:inherit!important}
   .fd-topbar{height:66px;background:#fff;border-bottom:1px solid var(--fd-line);display:flex;align-items:center;padding:0 30px;gap:10px;position:sticky;top:0;z-index:120}
@@ -8230,19 +8200,11 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
   .fd-search-wrap{margin-left:auto;position:relative;width:320px}.fd-search{height:38px;border:1px solid #d9e2e4;border-radius:9px;background:#fbfcfc;display:flex;align-items:center;gap:8px;padding:0 11px}.fd-search svg{width:15px;height:15px;stroke:#70868e;fill:none;stroke-width:1.8}.fd-search input{border:0!important;outline:0!important;background:transparent!important;width:100%;font-size:11.5px;color:#304a52}.fd-search input::placeholder{color:#a1adb1}
   .fd-search-results{display:none;position:absolute;top:45px;left:0;right:0;background:#fff;border:1px solid var(--fd-line);border-radius:11px;box-shadow:0 16px 40px rgba(35,66,73,.14);overflow:hidden;z-index:140}.fd-search-results.on{display:block}.fd-search-item{width:100%;border:0;background:#fff;display:grid;grid-template-columns:42px 1fr;text-align:left;gap:8px;padding:10px 12px;border-bottom:1px solid #eef2f3}.fd-search-item:last-child{border-bottom:0}.fd-search-item time{font-size:10px;color:var(--fd-teal);font-weight:800}.fd-search-item strong{display:block;font-size:11px;color:var(--fd-ink)}.fd-search-item small{display:block;margin-top:3px;font-size:9px;color:#89999e}.fd-search-empty{padding:15px;font-size:11px;color:#8b9aa0;text-align:center}
   .fd-top-action{height:38px;border:1px solid #d9e2e4;border-radius:9px;background:#fff;padding:0 12px;color:#405c64;font-size:11px;font-weight:700;display:flex;align-items:center;gap:6px;cursor:pointer}.fd-top-action:hover{background:#f8fbfb}.fd-top-action svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.7}.fd-admin-wrap{position:relative}.fd-admin-menu{display:none;position:absolute;right:0;top:45px;width:148px;background:#fff;border:1px solid var(--fd-line);border-radius:10px;box-shadow:0 14px 34px rgba(32,63,70,.13);padding:5px;z-index:150}.fd-admin-menu.on{display:block}.fd-admin-menu button{width:100%;border:0;background:transparent;border-radius:7px;padding:8px 9px;text-align:left;font-size:10.5px;color:#405860;cursor:pointer}.fd-admin-menu button:hover{background:#f3f7f7}
-  .fd-content{max-width:1640px;margin:0 auto;padding:18px 24px 44px}
   .fd-controlbar{display:flex;align-items:center;gap:20px;margin-bottom:12px}.fd-month-nav{display:flex;align-items:center;gap:7px;flex:0 0 auto}.fd-month-title{font-size:20px;font-weight:790;color:var(--fd-ink);min-width:126px;text-align:center}.fd-iconbtn,.fd-today{height:34px;border:1px solid #d9e2e4;background:#fff;border-radius:8px;color:#4d656c;cursor:pointer}.fd-iconbtn{width:34px;font-size:18px}.fd-today{padding:0 11px;font-size:10.5px;font-weight:700}
-  .fd-filterline{height:40px;display:flex;align-items:center;min-width:0;position:relative}.fd-filter-wrap{position:relative}.fd-filter-btn{height:34px;border:1px solid #d9e2e4;background:#fff;border-radius:8px;padding:0 12px;display:flex;align-items:center;gap:7px;color:#4d656c;font-size:10.5px;font-weight:720;cursor:pointer}.fd-filter-btn:hover{background:#f8fbfb}.fd-filter-btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8}.fd-filter-dot{width:6px;height:6px;border-radius:50%;background:var(--fd-teal);display:none}.fd-filter-btn.active .fd-filter-dot{display:block}.fd-filter-menu{display:none;position:absolute;left:0;top:40px;width:246px;background:#fff;border:1px solid var(--fd-line);border-radius:10px;box-shadow:0 14px 34px rgba(32,63,70,.13);padding:9px;z-index:130}.fd-filter-menu.on{display:block}.fd-filter-group+.fd-filter-group{margin-top:9px;padding-top:9px;border-top:1px solid #edf2f2}.fd-filter-group-title{display:block;margin:0 0 6px 2px;font-size:9px;color:#87999f;font-weight:760}.fd-filter-items{display:flex;align-items:center;gap:5px;flex-wrap:wrap}.fd-chip{height:29px;border:1px solid #dce5e6;background:#fff;border-radius:7px;padding:0 9px;font-size:9.8px;font-weight:650;color:#586e75;cursor:pointer}.fd-chip:hover{border-color:#b7c9cb}.fd-chip.on{background:var(--fd-teal-soft);border-color:#8bcac4;color:#0e7f77;font-weight:780}
-  .fd-grid{display:grid;grid-template-columns:minmax(760px,1fr) 320px 255px;gap:12px;align-items:stretch}.fd-panel{background:var(--fd-card);border:1px solid var(--fd-line);border-radius:13px;overflow:hidden;box-shadow:0 2px 8px rgba(34,66,72,.025)}
-  .fd-calendar-panel{min-height:0}.fd-cal-top{height:36px;border-bottom:1px solid var(--fd-line2);display:flex;justify-content:flex-end;align-items:center;padding:0 13px}.fd-cal-top span{font-size:9.5px;color:#91a0a4;font-weight:600}
-  .fd-cal{padding:10px 12px 12px}.fd-weekdays,.fd-days{display:grid;grid-template-columns:repeat(7,1fr)}.fd-weekdays{border:1px solid var(--fd-line);border-bottom:0;border-radius:9px 9px 0 0;background:#fafbfb;overflow:hidden}.fd-weekday{height:30px;display:flex;align-items:center;justify-content:center;border-right:1px solid var(--fd-line2);font-size:10.5px;color:#667f87;font-weight:740}.fd-weekday:last-child{border-right:0}.fd-weekday.sun{color:#df5f68}.fd-weekday.sat{color:#3e80d2}.fd-days{border-left:1px solid var(--fd-line);border-top:1px solid var(--fd-line)}
-  .fd-day{height:80px;position:relative;border:0;border-right:1px solid var(--fd-line);border-bottom:1px solid var(--fd-line);background:#fff;text-align:left;padding:8px;cursor:pointer;color:#37545d}.fd-day:hover{background:#f9fbfb}.fd-day.other{background:#fbfcfc;color:#b8c1c4}.fd-day.selected{background:#f1f9f7;box-shadow:inset 0 0 0 1.5px #35a99f}.fd-daynum{position:absolute;right:8px;top:7px;font-size:12px;line-height:23px;font-weight:820;color:#294a54;text-align:center}.fd-day.today .fd-daynum{background:var(--fd-teal);color:#fff;border-radius:50%;width:23px;height:23px;display:flex;align-items:center;justify-content:center;line-height:1}.fd-day.sun .fd-daynum{color:#e25d67}.fd-day.sat .fd-daynum{color:#367bcc}.fd-day.today.sun .fd-daynum,.fd-day.today.sat .fd-daynum{color:#fff}.fd-day.holiday .fd-daynum{color:#e25d67}.fd-day.today.holiday .fd-daynum{color:#fff}.fd-count{position:absolute;left:7px;top:7px;min-width:26px;height:18px;padding:0 6px;border-radius:9px;background:#edf4f3;color:#527269;display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:800}.fd-holiday{position:absolute;right:8px;top:32px;max-width:74%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:8.5px;line-height:1.2;color:#df5f68;font-weight:760;text-align:right}.fd-day-note{position:absolute;left:8px;right:8px;bottom:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:9px;color:#738990;font-weight:620}.fd-dots{position:absolute;left:8px;bottom:8px;display:flex;gap:4px}.fd-dots i{width:5px;height:5px;border-radius:50%;background:var(--fd-teal)}.fd-dots i.t{background:var(--fd-orange)}.fd-dots i.c{background:#df6d7c}
+  .fd-filterline{height:40px;display:flex;align-items:center;min-width:0;position:relative}.fd-filter-wrap{position:relative}.fd-filter-btn{height:34px;border:1px solid #d9e2e4;background:#fff;border-radius:8px;padding:0 12px;display:flex;align-items:center;gap:7px;color:#4d656c;font-size:10.5px;font-weight:720;cursor:pointer}.fd-filter-btn:hover{background:#f8fbfb}.fd-filter-btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8}.fd-filter-dot{width:6px;height:6px;border-radius:50%;background:var(--fd-teal);display:none}.fd-filter-btn.active .fd-filter-dot{display:block}.fd-filter-menu{display:none;position:absolute;left:0;top:40px;width:246px;background:#fff;border:1px solid var(--fd-line);border-radius:10px;box-shadow:0 14px 34px rgba(32,63,70,.13);padding:9px;z-index:130}.fd-filter-menu.on{display:block}.fd-filter-group+.fd-filter-group{margin-top:9px;padding-top:9px;border-top:1px solid #edf2f2}.fd-filter-group-title{display:block;margin:0 0 6px 2px;font-size:9px;color:#87999f;font-weight:760}.fd-filter-items{display:flex;align-items:center;gap:5px;flex-wrap:wrap}.fd-chip{height:29px;border:1px solid #dce5e6;background:#fff;border-radius:7px;padding:0 9px;font-size:9.8px;font-weight:650;color:#586e75;cursor:pointer}.fd-chip:hover{border-color:#b7c9cb}.fd-chip.on{background:var(--fd-teal-soft);border-color:#8bcac4;color:#0e7f77;font-weight:780}.fd-cal-top{height:36px;border-bottom:1px solid var(--fd-line2);display:flex;justify-content:flex-end;align-items:center;padding:0 13px}.fd-cal-top span{font-size:9.5px;color:#91a0a4;font-weight:600}.fd-holiday{position:absolute;right:8px;top:32px;max-width:74%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:8.5px;line-height:1.2;color:#df5f68;font-weight:760;text-align:right}
   .fd-mini-head{height:40px;border-bottom:1px solid var(--fd-line2);display:flex;align-items:center;justify-content:space-between;padding:0 12px}.fd-mini-head h2{margin:0;font-size:12px;color:#36525b;font-weight:760}.fd-mini-head span{font-size:9px;color:#8fa0a5;font-weight:650}
-  .fd-detail{padding:12px}.fd-detail-top{padding:0 0 9px;border-bottom:1px solid var(--fd-line2);margin-bottom:7px}.fd-detail-date{font-size:17px;font-weight:790;color:var(--fd-ink)}.fd-detail-meta{display:flex;gap:5px;margin-top:7px}.fd-meta-pill{height:22px;padding:0 7px;border-radius:6px;background:#f2f6f6;color:#6d838a;display:flex;align-items:center;font-size:8.5px;font-weight:650}.fd-meta-pill strong{margin-left:3px;color:#284850}.fd-detail-list{display:flex;flex-direction:column;gap:4px;max-height:250px;overflow:auto}.fd-event{display:grid;grid-template-columns:36px minmax(0,1fr);gap:7px;align-items:center;min-height:38px;border:1px solid #e6ecee;border-radius:7px;background:#fcfdfd;padding:4px 7px}.fd-event.gallery{border-left:3px solid var(--fd-teal)}.fd-event.tour{border-left:3px solid var(--fd-orange)}.fd-event.closed{border-left:3px solid #dc7284}.fd-event-time{font-size:8.8px;font-weight:800;color:#45636b}.fd-event-copy{min-width:0}.fd-event-copy strong{display:block;font-size:10.5px;line-height:1.2;font-weight:760;color:#274852;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.fd-event-copy span{display:block;margin-top:2px;font-size:8.4px;line-height:1.15;color:#8a9a9f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.fd-kind{display:none}.fd-empty{min-height:62px;border:1px dashed #dfe8e9;border-radius:8px;background:#fbfcfc;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#8b9ca1}.fd-empty strong{font-size:10px;color:#667d84}.fd-empty span{font-size:8.5px;margin-top:3px}.fd-detail-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:9px;padding-top:9px;border-top:1px solid var(--fd-line2)}.fd-detail-actions button{height:30px;border:1px solid #dce5e6;background:#fff;border-radius:7px;font-size:8.8px;color:#526d74;font-weight:700;cursor:pointer}.fd-detail-actions button.primary{background:var(--fd-teal);border-color:var(--fd-teal);color:#fff}.fd-detail-actions button.danger{grid-column:1/-1;background:#fff7f7;border-color:#efc7cc;color:#c95d6d}
-  .fd-summary{padding:11px}.fd-kpis{display:grid;grid-template-columns:1fr 1fr;gap:6px}.fd-kpi{min-height:58px;border-radius:8px;background:#f5f7f7;padding:8px}.fd-kpi span{display:block;font-size:8px;color:#8b9ba0;font-weight:600}.fd-kpi strong{display:block;margin-top:6px;font-size:18px;line-height:1;color:#24474f;font-weight:800}.fd-kpi small{font-size:8px;margin-left:2px;color:#7e949a}.fd-section-label{margin:14px 0 7px;font-size:9.5px;color:#61777e;font-weight:800}.fd-site-list,.fd-busy-list{display:flex;flex-direction:column;gap:5px}.fd-site-row{display:grid;grid-template-columns:minmax(0,1fr) 32px;gap:7px;align-items:center}.fd-site-top span{font-size:9px;color:#49666d;font-weight:700}.fd-site-bar{height:4px;margin-top:5px;background:#edf2f2;border-radius:4px;overflow:hidden}.fd-site-bar i{display:block;height:100%;background:#58b8b0;border-radius:4px}.fd-site-num{font-size:9px;color:#557278;text-align:right;font-weight:800}.fd-busy{height:29px;border-bottom:1px solid #eef2f3;display:grid;grid-template-columns:1fr 22px 30px;align-items:center}.fd-busy time{font-size:9px;color:#4a666e;font-weight:700}.fd-busy span{font-size:8px;color:#9aa6aa;text-align:center}.fd-busy strong{font-size:9px;color:#247b75;text-align:right}.fd-no-summary{font-size:9px;color:#95a3a7;padding:5px 0}
-  @media (max-width:1320px){.fd-content{padding-left:14px;padding-right:14px}.fd-grid{grid-template-columns:minmax(600px,1fr) 300px 230px}.fd-brand{min-width:290px}.fd-search-wrap{width:270px}}
+  @media (max-width:1320px){.fd-brand{min-width:290px}.fd-search-wrap{width:270px}}
 }
-@media (max-width:760px){#freshDesktopApp{display:none!important}}
 </style>
 <script id="fresh-desktop-rebuild-v4-js">
 (function(){
@@ -8327,26 +8289,24 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
     app.innerHTML=`
       <header class="fd-topbar">
         <div class="fd-brand">
-          <div class="fd-brand-copy fd-brand-inline"><div><strong id="fdMainTitle">현장 일정표</strong><span id="fdSubtitleText"></span></div><button id="fdEditTitle" type="button">수정</button><input id="fdCustomTitle" type="hidden"></div>
+          <div class="fd-brand-copy fd-brand-inline"><div><strong id="fdMainTitle">일정표</strong><span id="fdSubtitleText"></span></div><button id="fdEditTitle" type="button">수정</button><input id="fdCustomTitle" type="hidden"></div>
         </div>
         <div class="fd-search-wrap"><div class="fd-search">${icons.search}<input id="fdSearch" type="search" autocomplete="off" placeholder="검색하세요."></div><div class="fd-search-results" id="fdSearchResults"></div></div>
         <button type="button" class="fd-top-action" id="fdTodayTop">오늘</button>
         <div class="fd-admin-wrap"><button type="button" class="fd-top-action" id="fdAdminBtn">${icons.tune}<span>관리</span></button><div class="fd-admin-menu" id="fdAdminMenu">
-          <button data-admin="save">일정 저장</button><button data-admin="capacity">정원 설정</button><button data-admin="excel">엑셀 저장</button><button data-admin="print">인쇄</button><button data-admin="backup">일정 백업</button><button data-admin="restore">백업 불러오기</button><button data-admin="password">비밀번호 안내</button>
+          <button data-admin="save">일정 저장</button><button data-admin="capacity">정원 설정</button><button data-admin="excel">엑셀 저장</button><button data-admin="print">인쇄</button><button data-admin="print-all">전체 인쇄</button><button data-admin="home-guide">홈화면 추가</button><button data-admin="backup">일정 백업</button><button data-admin="restore">백업 불러오기</button><button data-admin="password">비밀번호 안내</button>
         </div></div>
       </header>
       <main class="fd-content">
-        <div class="fd-controlbar">
+        <div class="fd-grid">
+          <div class="fd-left-stack"><section class="fd-panel fd-calendar-panel"><div class="fd-cal-top">        <div class="fd-controlbar">
           <div class="fd-month-nav"><button class="fd-iconbtn" id="fdPrev" type="button">‹</button><div class="fd-month-title" id="fdMonthTitle"></div><button class="fd-iconbtn" id="fdNext" type="button">›</button><button class="fd-today" id="fdToday" type="button">오늘</button></div>
           <div class="fd-filterline"><div class="fd-filter-wrap"><button type="button" class="fd-filter-btn" id="fdFilterBtn">${icons.tune}<span>필터</span><i class="fd-filter-dot" aria-hidden="true"></i></button><div class="fd-filter-menu" id="fdFilterMenu"><div id="fdFilters"></div></div></div></div>
         </div>
-        <div class="fd-grid">
-          <section class="fd-panel fd-calendar-panel"><div class="fd-cal-top"><span id="fdMonthHint"></span></div><div class="fd-cal"><div class="fd-weekdays"><div class="fd-weekday sun">일</div><div class="fd-weekday">월</div><div class="fd-weekday">화</div><div class="fd-weekday">수</div><div class="fd-weekday">목</div><div class="fd-weekday">금</div><div class="fd-weekday sat">토</div></div><div class="fd-days" id="fdDays"></div></div></section>
+<span id="fdMonthHint"></span></div><div class="fd-cal"><div class="fd-weekdays"><div class="fd-weekday sun">일</div><div class="fd-weekday">월</div><div class="fd-weekday">화</div><div class="fd-weekday">수</div><div class="fd-weekday">목</div><div class="fd-weekday">금</div><div class="fd-weekday sat">토</div></div><div class="fd-days" id="fdDays"></div></div></section></div>
           <div class="fd-right-stack">
-            <div class="fd-right-top">
-              <section class="fd-panel fd-detail-panel"><div class="fd-mini-head"><h2>선택 일정</h2></div><div class="fd-detail" id="fdDetail"></div></section>
-              <section class="fd-panel fd-summary-panel"><div class="fd-mini-head"><h2>월간 집계</h2><span id="fdSummaryBadge"></span></div><div class="fd-summary" id="fdSummary"></div></section>
-            </div>
+            <section class="fd-panel fd-summary-panel" aria-label="월간 요약"><div class="fd-mini-head"><h2>월간 집계</h2><span id="fdSummaryBadge"></span></div><div class="fd-summary" id="fdSummary"></div></section>
+            <section class="fd-panel fd-detail-panel"><div class="fd-mini-head"><h2>선택 일정</h2></div><div class="fd-detail" id="fdDetail"></div></section>
             <section class="fd-panel fd-ops-panel"><div class="fd-mini-head fd-ops-title"><h2>현장 운영 현황</h2><span>집계 · 담당자 · 체크리스트</span></div><div id="fdLegacyMount"></div></section>
           </div>
         </div>
@@ -8372,15 +8332,17 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
   function renderCalendar(){
     const days=q('#fdDays');if(!days||!viewDate)return;days.innerHTML='';
     const y=viewDate.getFullYear(),m=viewDate.getMonth(),first=new Date(y,m,1),start=new Date(y,m,1-first.getDay()),todayD=new Date();todayD.setHours(0,0,0,0);
-    for(let i=0;i<42;i++){
+    const weeks=Math.max(5,Math.ceil((first.getDay()+new Date(y,m+1,0).getDate())/7));
+    days.style.setProperty("--fd-calendar-weeks",String(weeks));
+    for(let i=0;i<weeks*7;i++){
       const d=new Date(start);d.setDate(start.getDate()+i);const k=key(d),other=d.getMonth()!==m,raw=totalRawEvents(k),vis=rawEvents(k);const b=document.createElement('button');b.type='button';b.className='fd-day '+(other?'other ':'')+(d.getDay()===0?'sun ':'')+(d.getDay()===6?'sat ':'')+(k===selectedKey&&!other?'selected ':'')+(d.getTime()===todayD.getTime()?'today ':'');
-      if(other){b.disabled=true;b.className='fd-day calendar-month-blank';b.setAttribute('aria-hidden','true');days.appendChild(b);continue;}
+      if(other){b.disabled=true;b.className='fd-day other';b.innerHTML='<span class="fd-daynum">'+d.getDate()+'</span>';b.setAttribute('aria-label',dateLabel(d));days.appendChild(b);continue;}
       let dots='';if(!other){if(showGallery&&((raw.g>0)||raw.c>0)&&(!siteFilter||(GALLERY_ROWS?.[k]||[]).some(r=>gallerySite(r)===siteFilter)))dots+=`<i class="${raw.c&&!raw.g?'c':'g'}"></i>`;if(showTour&&raw.t>0)dots+='<i class="t"></i>'}
       const count=!other&&vis.length?`<span class="fd-count">${vis.length}건</span>`:'';
       const holiday=!other?holidayName(d):'';
       if(holiday)b.classList.add('holiday');
       const holidayHtml=holiday?`<span class="fd-holiday">${esc(holiday)}</span>`:'';
-      const note=!other&&vis.length?`<span class="fd-day-note">${esc(vis[0].site)}${vis.length>1?' 외 '+(vis.length-1)+'건':''}</span>`:'';
+      const note=!other&&vis.length?`<span class="fd-day-note"><span class="fd-day-site-title">${esc(vis[0].site)}</span>${vis.length>1?'<small class="fd-day-extra">외 '+(vis.length-1)+'건</small>':''}</span>`:'';
       b.innerHTML=`<span class="fd-daynum">${d.getDate()}</span>${holidayHtml}${count}${note}${dots?`<span class="fd-dots">${dots}</span>`:''}`;
       b.setAttribute('aria-label',dateLabel(d)+' 일정 '+vis.length+'건');b.onclick=()=>{select(k);openDaySchedule(k)};days.appendChild(b);
     }
@@ -8388,7 +8350,21 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
   function dayScheduleMarkup(date,events){
     if(!events.length)return '<div class="fd-summary-empty">등록된 일정이 없습니다.</div>';
     const dayKey=(date.getMonth()+1)+'-'+date.getDate();
-    return events.map(event=>CalendarBooking.card(event,dayKey,date)).join('');
+    const sites=new Map();
+    events.forEach(event=>{
+      const site=String(event.site||'현장 미입력').trim();
+      if(!sites.has(site))sites.set(site,new Map());
+      const slots=sites.get(site),time=String(event.time||'시간 미입력').trim();
+      // Keep the stored time label; group equivalent Korean/colon time formats.
+      const normalized=time.replace(/시\s*/g,':').replace(/분/g,'').replace(/\s+/g,'').replace(/:$/,':00');
+      const key=event.kind+'|'+normalized;
+      if(!slots.has(key))slots.set(key,{time,kind:event.kind,events:[]});
+      slots.get(key).events.push(event);
+    });
+    return [...sites].map(([site,slots])=>{
+      const total=[...slots.values()].reduce((n,slot)=>n+slot.events.length,0);
+      return `<section class="day-site-group"><div class="day-site-heading"><h3>${esc(site)}</h3><span>${total}건</span></div><div class="day-roster-columns"><span>시간</span><span>방문자 명단</span></div>${[...slots.values()].map(slot=>`<section class="day-time-group ${esc(slot.kind)}"><h4><time>${esc(slot.time)}</time><span>${slot.kind==='gallery'?CAT_LABEL.gallery:slot.kind==='tour'?CAT_LABEL.tour:'휴관'}</span><small>${slot.events.length}건</small></h4><div class="day-time-members">${slot.events.map(event=>CalendarBooking.card(event,dayKey,date,{readOnly:true})).join('')}</div></section>`).join('')}</section>`;
+    }).join('');
   }
   function openDaySchedule(k){
     const date=parseKey(k,viewDate.getFullYear()),events=rawEvents(k);
@@ -8400,16 +8376,28 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
       dialog.addEventListener('close',()=>q('#fdDays .fd-day.selected')?.focus({preventScroll:true}));
       document.body.appendChild(dialog);
     }
-    dialog.innerHTML=`<div class="fd-summary-dialog-head"><strong id="fdDayScheduleTitle">${date.getFullYear()}년 ${esc(dateLabel(date))} 일정</strong><button type="button" aria-label="일정 팝업 닫기">✕</button></div><div class="fd-summary-dialog-body">${dayScheduleMarkup(date,events)}</div>`;
+    dialog.innerHTML=`<div class="fd-summary-dialog-head"><strong id="fdDayScheduleTitle">${esc(dateLabel(date))} 일정 <span class="day-tile-count">${events.length}건</span></strong><button type="button" aria-label="일정 팝업 닫기">✕</button></div><div class="fd-summary-dialog-body">${dayScheduleMarkup(date,events)}</div>`;
     dialog.querySelector('button').onclick=()=>dialog.close();
     if(!dialog.open)dialog.showModal();
   }
 
+  function selectedRosterMarkup(events,dayKey){
+    const groups=new Map();
+    events.forEach(event=>{
+      const groupKey=[event.site,event.time,event.kind].join('|');
+      if(!groups.has(groupKey))groups.set(groupKey,{site:event.site,time:event.time,kind:event.kind,events:[]});
+      groups.get(groupKey).events.push(event);
+    });
+    return [...groups.values()].map(group=>`<section class="fd-roster-group ${esc(group.kind)}"><div class="fd-roster-site"><i></i><strong>${esc(group.site)}</strong></div><div class="fd-roster-slot"><time>${esc(group.time)}</time><span>${group.kind==='gallery'?CAT_LABEL.gallery:group.kind==='tour'?CAT_LABEL.tour:'휴관'}</span></div><div class="fd-roster-people">${group.events.map(event=>{
+      const v=CalendarBooking.read?.(event.kind,dayKey,event.idx)||{},clean=value=>value&&value!=='-'?value:'';
+      const attrs=event.kind==='closed'?'':`data-booking-kind="${esc(event.kind)}" data-booking-key="${esc(dayKey)}" data-booking-index="${event.idx}"`;
+      return `<div class="fd-roster-person" ${attrs}><strong>${esc(event.name)}</strong><span>${clean(v.plus)?'동반 '+esc(v.plus):''}</span><span>${clean(v.manager)?'담당 '+esc(v.manager):''}</span></div>`;
+    }).join('')}</div></section>`).join('');
+  }
   function renderDetail(){
-    const box=q('#fdDetail');if(!box||!viewDate)return;const d=parseKey(selectedKey,viewDate.getFullYear());const ev=rawEvents(selectedKey),hc=expected(selectedKey);let list='';
-    if(ev.length){list='<div class="fd-detail-list">'+ev.map(event=>CalendarBooking.card(event,selectedKey)).join('')+'</div>';}
-    else list=`<div class="fd-empty"><strong>등록된 일정이 없습니다.</strong><span>필요하면 아래에서 바로 추가하세요.</span></div>`;
-    box.innerHTML=`<div class="fd-detail-top"><div><div class="fd-detail-date">${dateLabel(d)}</div><div class="fd-detail-meta"><span class="fd-meta-pill">일정 <strong>${ev.filter(x=>x.kind!=='closed').length}건</strong></span><span class="fd-meta-pill">예상 인원 <strong>${hc}명</strong></span>${GALLERY_CLOSED?.[selectedKey]?'<span class="fd-meta-pill">휴관 지정</span>':''}</div></div></div>${list}<div class="fd-detail-actions"><button type="button" id="fdAddGallery">+ 갤러리 일정</button><button type="button" id="fdAddTour">+ 투어 일정</button><button type="button" id="fdFullDetail">전체 상세보기</button><button type="button" class="danger" id="fdClosed">${GALLERY_CLOSED?.[selectedKey]?'휴관/불가 해제':'휴관/이용불가 지정'}</button></div>`;
+    const box=q('#fdDetail');if(!box||!viewDate)return;const d=parseKey(selectedKey,viewDate.getFullYear());const ev=rawEvents(selectedKey),hc=expected(selectedKey);
+    const list=ev.length?'<div class="fd-detail-list">'+selectedRosterMarkup(ev,selectedKey)+'</div>':`<div class="fd-empty"><strong>등록된 일정이 없습니다.</strong><span>아래에서 일정을 추가하세요.</span></div>`;
+    box.innerHTML=`<div class="fd-detail-top"><div class="fd-detail-date">${dateLabel(d)}</div><span class="fd-detail-total">${ev.filter(x=>x.kind!=='closed').length}건 / ${hc}명</span></div>${list}<div class="fd-detail-actions"><button type="button" id="fdAddGallery" title="갤러리 일정 추가">+ 갤러리</button><button type="button" id="fdAddTour" title="투어 일정 추가">+ 투어</button><button type="button" id="fdFullDetail" title="전체 일정 상세보기">전체보기</button><button type="button" class="danger" id="fdClosed">${GALLERY_CLOSED?.[selectedKey]?'휴관·불가 해제':'휴관·불가'}</button></div>`;
     q('#fdAddGallery').onclick=()=>{try{previewKey=selectedKey;addEntryFlow('gallery')}catch(e){}};
     q('#fdAddTour').onclick=()=>{try{previewKey=selectedKey;addEntryFlow('tour')}catch(e){}};
     q('#fdClosed').onclick=()=>{try{previewKey=selectedKey;toggleClosedDay()}catch(e){}};
@@ -8426,7 +8414,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
     const box=q('#fdSummary');if(!box)return;const s=monthCount();q('#fdSummaryBadge').textContent=s.total+'건';const sites=Object.entries(s.sites).sort((a,b)=>b[1]-a[1]);const max=Math.max(1,...sites.map(x=>x[1]));
     const siteHtml=sites.length?sites.map(([n,v])=>`<div class="fd-site-row"><div><div class="fd-site-top"><span>${esc(n)}</span></div><div class="fd-site-bar"><i style="width:${Math.max(8,Math.round(v/max*100))}%"></i></div></div><div class="fd-site-num">${v}건</div></div>`).join(''):'<div class="fd-no-summary">등록된 단지 일정이 없습니다.</div>';
     const busy=s.days.slice(0,5).map(x=>{const d=parseKey(x.k,viewDate.getFullYear());return `<div class="fd-busy"><time>${d.getMonth()+1}월 ${d.getDate()}일</time><span>${weekday(d)}</span><strong>${x.n}건</strong></div>`}).join('')||'<div class="fd-no-summary">일정이 있는 날짜가 없습니다.</div>';
-    box.innerHTML=`<div class="fd-kpis"><button type="button" class="fd-kpi" data-summary-type="all"><span>전체 일정</span><strong>${s.total}<small>건</small></strong></button><button type="button" class="fd-kpi" data-summary-type="head"><span>예상 인원</span><strong>${s.head}<small>명</small></strong></button><button type="button" class="fd-kpi" data-summary-type="gallery"><span>갤러리</span><strong>${s.g}<small>건</small></strong></button><button type="button" class="fd-kpi" data-summary-type="tour"><span>투어</span><strong>${s.t}<small>건</small></strong></button></div><div><div class="fd-section-label">단지별 일정</div><div class="fd-site-list">${siteHtml}</div></div><div><div class="fd-section-label">일정 많은 날</div><div class="fd-busy-list">${busy}</div></div>`;
+    box.innerHTML=`<div class="fd-kpis"><button type="button" class="fd-kpi" data-summary-type="all"><span>전체</span><strong>${s.total}<small>건</small></strong></button><button type="button" class="fd-kpi" data-summary-type="head"><span>예상인원</span><strong>${s.head}<small>명</small></strong></button><button type="button" class="fd-kpi" data-summary-type="gallery"><span>갤러리</span><strong>${s.g}<small>건</small></strong></button><button type="button" class="fd-kpi" data-summary-type="tour"><span>투어</span><strong>${s.t}<small>건</small></strong></button></div>`;
   }
   function renderSearch(){
     const input=q('#fdSearch'),out=q('#fdSearchResults');if(!input||!out)return;const term=input.value.trim().toLowerCase();if(!term){out.classList.remove('on');out.innerHTML='';return}let hits=[];const year=viewDate?viewDate.getFullYear():new Date().getFullYear();
@@ -8435,9 +8423,10 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
   }
   function wire(){
     q('#fdPrev').onclick=()=>setMonth(new Date(viewDate.getFullYear(),viewDate.getMonth()-1,1));q('#fdNext').onclick=()=>setMonth(new Date(viewDate.getFullYear(),viewDate.getMonth()+1,1));q('#fdToday').onclick=today;q('#fdTodayTop').onclick=today;
+    q('#fdMainTitle').ondblclick=()=>q('#fdEditTitle')?.click();
     q('#fdSearch').addEventListener('input',renderSearch);q('#fdSearch').addEventListener('keydown',e=>{if(e.key==='Escape'){q('#fdSearchResults').classList.remove('on');e.target.blur()}});
     const fmenu=q('#fdFilterMenu');q('#fdFilterBtn').onclick=e=>{e.stopPropagation();fmenu.classList.toggle('on')};
-    const admin=q('#fdAdminMenu');q('#fdAdminBtn').onclick=e=>{e.stopPropagation();admin.classList.toggle('on')};admin.addEventListener('click',e=>{const b=e.target.closest('[data-admin]');if(!b)return;admin.classList.remove('on');const a=b.dataset.admin;try{if(a==='save')saveCalendarData();else if(a==='capacity')openCapacitySettings();else if(a==='excel')exportExcel();else if(a==='print')window.print();else if(a==='backup')backupScheduleData();else if(a==='restore')restoreScheduleDataPrompt();else if(a==='password')changePassword()}catch(err){}});document.addEventListener('click',e=>{if(!e.target.closest('.fd-admin-wrap'))admin.classList.remove('on');if(!e.target.closest('.fd-search-wrap'))q('#fdSearchResults')?.classList.remove('on');if(!e.target.closest('.fd-filter-wrap'))fmenu?.classList.remove('on')});
+    const admin=q('#fdAdminMenu');q('#fdAdminBtn').onclick=e=>{e.stopPropagation();admin.classList.toggle('on')};admin.addEventListener('click',e=>{const b=e.target.closest('[data-admin]');if(!b)return;admin.classList.remove('on');const a=b.dataset.admin;try{if(a==='save')saveCalendarData();else if(a==='capacity')openCapacitySettings();else if(a==='excel')exportExcel();else if(a==='print')window.print();else if(a==='backup')backupScheduleData();else if(a==='restore')restoreScheduleDataPrompt();else if(a==='password')changePassword();else if(a==='print-all')printAllDates();else if(a==='home-guide')showHomeScreenGuide()}catch(err){}});document.addEventListener('click',e=>{if(!e.target.closest('.fd-admin-wrap'))admin.classList.remove('on');if(!e.target.closest('.fd-search-wrap'))q('#fdSearchResults')?.classList.remove('on');if(!e.target.closest('.fd-filter-wrap'))fmenu?.classList.remove('on')});
   }
   function render(){if(!desktop())return;build();if(!viewDate)viewDate=monthFromHidden();q('#fdMonthTitle').textContent=`${viewDate.getFullYear()}년 ${viewDate.getMonth()+1}월`;const s=monthCount();q('#fdMonthHint').textContent=`전체 ${s.total}건 · 예상 ${s.head}명`;renderFilters();renderCalendar();renderDetail();renderSummary();try{if(selectedKey)selectDate(selectedKey,false)}catch(e){}}
   function init(){if(!desktop())return;build();viewDate=monthFromHidden();const now=new Date();let preferred='';if(now.getFullYear()===viewDate.getFullYear()&&now.getMonth()===viewDate.getMonth())preferred=key(now);if(!preferred){const ks=monthKeys(viewDate.getFullYear(),viewDate.getMonth());preferred=ks.find(k=>{const x=totalRawEvents(k);return x.total>0})||((viewDate.getMonth()+1)+'-1')}selectedKey=preferred;try{currentDateKey=selectedKey;previewKey=selectedKey}catch(e){};render();
@@ -8464,70 +8453,10 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
 <style id="desktop-onepage-v6">
 @media (min-width:761px){
   /* v4 디자인은 유지하고, 화면 배치만 한 화면용으로 재정렬 */
-  .fd-content{max-width:1660px!important;padding:18px 22px 18px!important}
-  .fd-grid{grid-template-columns:minmax(760px,1.52fr) minmax(590px,.98fr)!important;gap:12px!important;align-items:stretch!important}
-  .fd-calendar-panel{height:592px!important}
-  .fd-right-stack{height:592px;display:grid;grid-template-rows:224px minmax(0,1fr);gap:12px;min-width:0}
-  .fd-right-top{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(0,.88fr);gap:12px;min-width:0}
-  .fd-right-top>.fd-panel{min-width:0;height:224px!important}
-  .fd-detail{padding:10px!important}
-  .fd-detail-top{padding-bottom:7px!important;margin-bottom:6px!important}
-  .fd-detail-date{font-size:15px!important}
-  .fd-detail-meta{margin-top:5px!important}
-  .fd-detail-list{gap:3px!important;max-height:102px!important}
-  .fd-event{min-height:32px!important;padding:3px 6px!important;grid-template-columns:32px minmax(0,1fr)!important}
-  .fd-event-copy strong{font-size:10px!important}.fd-event-copy span{font-size:8px!important}.fd-event-time{font-size:8.4px!important}
-  .fd-detail-actions{gap:5px!important;margin-top:7px!important;padding-top:7px!important}.fd-detail-actions button{height:27px!important;font-size:8.4px!important}
-  .fd-summary{padding:9px!important}.fd-kpis{gap:5px!important}.fd-kpi{min-height:48px!important;padding:7px!important}.fd-kpi strong{font-size:16px!important;margin-top:4px!important}
-  .fd-section-label{margin:9px 0 5px!important}.fd-site-list,.fd-busy-list{gap:3px!important}.fd-busy{height:24px!important}
 
   /* 오른쪽 빈 공간에 기존 하단 집계/체크리스트를 올려 배치 */
-  .fd-ops-panel{min-height:0!important;overflow:hidden!important}
-  .fd-ops-title{height:36px!important}.fd-ops-title span{font-size:8.5px!important}
-  #fdLegacyMount{height:calc(100% - 36px);min-height:0;padding:8px 9px 9px;overflow:hidden}
-  #fdLegacyMount .checklist-section{display:block!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;height:100%!important;min-height:0!important;overflow:hidden!important}
-  #fdLegacyMount .fd-legacy-layout{height:100%;display:grid;grid-template-rows:56px minmax(0,1fr) 50px;gap:7px;min-height:0}
-  #fdLegacyMount .fd-legacy-summary{min-height:0}
-  #fdLegacyMount .fd-legacy-body{display:grid;grid-template-columns:minmax(0,.92fr) minmax(0,1.08fr);gap:8px;min-height:0}
-  #fdLegacyMount .fd-legacy-card{border:1px solid #e4ebed;border-radius:9px;background:#fff;min-width:0;min-height:0;overflow:hidden}
-  #fdLegacyMount .fd-legacy-card-head{height:28px;display:flex;align-items:center;justify-content:space-between;padding:0 8px;border-bottom:1px solid #edf2f3;font-size:9px;font-weight:800;color:#36545c}
-  #fdLegacyMount .fd-legacy-card-body{padding:6px;height:calc(100% - 28px);min-height:0;overflow:hidden}
-  #fdLegacyMount .summary-bar{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:5px!important;margin:0!important;padding:0!important;background:transparent!important;border:0!important;box-shadow:none!important}
-  #fdLegacyMount .summary-card{min-height:56px!important;height:56px!important;padding:7px 9px!important;border-radius:8px!important;box-shadow:none!important}
-  #fdLegacyMount .summary-card .num{font-size:17px!important;line-height:1!important}.fd-legacy-summary .summary-card .label{font-size:8px!important}
-
-  #fdLegacyMount .managerFilterBar{display:grid!important;grid-template-columns:1fr 1fr auto!important;gap:4px!important;margin:0 0 5px!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important}
-  #fdLegacyMount .managerFilterBar .colFilterBtn,#fdLegacyMount .managerFilterBar .resetBtn{height:26px!important;min-height:26px!important;padding:0 6px!important;border-radius:7px!important;font-size:8px!important;box-shadow:none!important}
-  #fdLegacyMount #managerTable{height:calc(100% - 31px)!important;overflow:auto!important;border-radius:7px!important;border:1px solid #e5ecee!important}
-  #fdLegacyMount #managerTable table{width:100%!important;table-layout:fixed!important;border-collapse:collapse!important}
-  #fdLegacyMount #managerTable th{height:25px!important;padding:3px 4px!important;font-size:7.7px!important;white-space:nowrap!important}
-  #fdLegacyMount #managerTable td{height:25px!important;padding:3px 4px!important;font-size:7.8px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
-
-  #fdLegacyMount .filterbar{display:grid!important;grid-template-columns:1.3fr .55fr .55fr 1fr!important;gap:4px!important;margin:0 0 5px!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important}
-  #fdLegacyMount .filterbar select,#fdLegacyMount .filterbar button{height:26px!important;min-height:26px!important;width:100%!important;padding:0 6px!important;border-radius:7px!important;font-size:8px!important;box-shadow:none!important;margin:0!important}
-  #fdLegacyMount #checklistBody{height:calc(100% - 31px)!important;overflow:auto!important;border:1px solid #e5ecee!important;border-radius:7px!important}
-  #fdLegacyMount #checklistBody .sub-title{display:none!important}
-  #fdLegacyMount #checklistBody table{width:100%!important;min-width:560px!important;table-layout:fixed!important;border-collapse:collapse!important}
-  #fdLegacyMount #checklistBody th{height:25px!important;padding:3px 3px!important;font-size:7.5px!important;white-space:nowrap!important}
-  #fdLegacyMount #checklistBody td{height:25px!important;padding:3px 3px!important;font-size:7.7px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
-
-  #fdLegacyMount .fd-legacy-chart{border:1px solid #e4ebed;border-radius:9px;background:#fff;display:grid;grid-template-columns:132px 1fr;gap:7px;align-items:center;padding:5px 7px;min-height:0;overflow:hidden}
-  #fdLegacyMount .fd-chart-side{min-width:0}
-  #fdLegacyMount .fd-chart-label{font-size:8.5px;font-weight:800;color:#36545c;margin-bottom:4px}
-  #fdLegacyMount .chartWeekBar{display:flex!important;align-items:center!important;justify-content:flex-start!important;gap:4px!important;margin:0!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important}
-  #fdLegacyMount .chartWeekBar button{width:25px!important;height:23px!important;min-height:23px!important;padding:0!important;border-radius:6px!important;font-size:8px!important}
-  #fdLegacyMount #chartWeekLabel{font-size:8px!important;min-width:48px!important;text-align:center!important}
-  #fdLegacyMount #statsChart{height:38px!important;overflow:hidden!important;margin:0!important;transform-origin:left center}
-  #fdLegacyMount #statsChart *{font-size:7px!important}
 
   /* 기존 대형 제목은 compact panel에서 사용하지 않음 */
-  #fdLegacyMount .checklist-section>h2,#fdLegacyMount .checklist-section>h3{display:none!important}
-
-  @media (max-width:1420px){
-    .fd-content{padding-left:14px!important;padding-right:14px!important}
-    .fd-grid{grid-template-columns:minmax(690px,1.45fr) minmax(520px,1fr)!important}
-    .fd-right-top{grid-template-columns:minmax(0,1.08fr) minmax(0,.92fr)!important}
-  }
 }
 </style>
 <script id="desktop-onepage-v6-script">
@@ -8556,12 +8485,26 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
     checkCard.appendChild(el('div','fd-legacy-card-head','날짜별 체크리스트'));
     const checkBody=el('div','fd-legacy-card-body');
     if(filterbar)checkBody.appendChild(filterbar);if(checklist)checkBody.appendChild(checklist);checkCard.appendChild(checkBody);
+    managerCard.id='fdManagerPanel';checkCard.id='fdChecklistPanel';
+    managerCard.setAttribute('role','tabpanel');checkCard.setAttribute('role','tabpanel');
+    const tabs=el('div','fd-ops-tabs');tabs.setAttribute('role','tablist');tabs.setAttribute('aria-label','운영 현황 보기');
+    const managerTab=el('button','','담당자 집계'),checkTab=el('button','','방문 체크리스트');
+    for(const [button,id,panel] of [[managerTab,'fdManagerTab',managerCard],[checkTab,'fdChecklistTab',checkCard]]){
+      button.type='button';button.id=id;button.setAttribute('role','tab');button.setAttribute('aria-controls',panel.id);panel.setAttribute('aria-labelledby',id);
+    }
+    const choose=which=>{managerCard.hidden=which!=='manager';checkCard.hidden=which!=='checklist';managerTab.setAttribute('aria-selected',String(which==='manager'));checkTab.setAttribute('aria-selected',String(which==='checklist'));};
+    managerTab.onclick=()=>choose('manager');checkTab.onclick=()=>choose('checklist');
+    tabs.append(checkTab,managerTab);choose('checklist');
     body.append(managerCard,checkCard);
 
-    const chartWrap=el('div','fd-legacy-chart');
-    const side=el('div','fd-chart-side');side.appendChild(el('div','fd-chart-label','요일별 인원 현황'));if(chartBar)side.appendChild(chartBar);chartWrap.appendChild(side);if(chart)chartWrap.appendChild(chart);
-
-    sec.appendChild(layout);layout.append(summaryWrap,body,chartWrap);
+    const weekPanel=el('section','fd-panel fd-week-panel');weekPanel.id='fdWeekPanel';
+    const weekHead=el('div','fd-mini-head');weekHead.appendChild(el('h2','','요일별 인원 현황'));
+    if(chartBar)weekHead.appendChild(chartBar);
+    const chartStage=el('div','fd-week-chart');if(chart)chartStage.appendChild(chart);
+    weekPanel.append(weekHead,chartStage);
+    sec.appendChild(layout);layout.append(tabs,body);
+    document.querySelector('#freshDesktopApp .fd-left-stack')?.appendChild(weekPanel);
+    document.querySelector('#freshDesktopApp .fd-ops-title')?.appendChild(summaryWrap);
   }
   function init(){
     mountLegacyCompact();
@@ -8583,43 +8526,12 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
   .fd-title-line:focus{border-bottom-color:#138f86!important}
 
   /* 2) 세로 빈 공간을 달력/오른쪽 패널이 사용하도록 확장 */
-  .fd-content{max-width:1700px!important;padding-bottom:12px!important}
-  .fd-grid{height:calc(100vh - 148px)!important;min-height:680px!important;max-height:790px!important}
-  .fd-calendar-panel,.fd-right-stack{height:100%!important}
-  .fd-cal{height:calc(100% - 36px)!important;display:flex!important;flex-direction:column!important;padding-bottom:10px!important;box-sizing:border-box}
-  .fd-weekdays{flex:0 0 auto}
-  .fd-days{flex:1 1 auto!important;grid-template-rows:repeat(6,minmax(0,1fr))!important;min-height:0!important}
-  .fd-day{height:auto!important;min-height:0!important}
-  .fd-right-stack{grid-template-rows:292px minmax(0,1fr)!important}
-  .fd-right-top{height:292px!important;grid-template-columns:minmax(0,1.08fr) minmax(0,.92fr)!important}
-  .fd-right-top>.fd-panel{height:292px!important}
 
   /* 3) 선택일정 하단 버튼은 보조 기능답게 작고 짧게 */
-  .fd-detail{padding:9px!important}
-  .fd-detail-list{max-height:132px!important}
-  .fd-detail-actions{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:4px!important;margin-top:6px!important;padding-top:6px!important}
-  .fd-detail-actions button{height:23px!important;min-height:23px!important;padding:0 3px!important;border-radius:6px!important;font-size:7.8px!important;white-space:nowrap!important}
-  .fd-detail-actions button.danger{grid-column:1/-1!important;height:20px!important;min-height:20px!important;font-size:7.5px!important}
 
   /* 4) 월간집계: 단지별 일정이 항상 먼저 보이고 4개 수치는 클릭 가능 */
-  .fd-summary{height:calc(100% - 40px)!important;box-sizing:border-box!important;padding:8px 9px!important;overflow:auto!important}
-  .fd-kpis{gap:5px!important}
-  .fd-kpi{min-height:44px!important;height:44px!important;padding:6px 7px!important;border:0!important;text-align:left!important;font:inherit!important;cursor:pointer!important;transition:.12s ease!important}
-  .fd-kpi:hover{background:#eaf4f3!important;transform:translateY(-1px)}
-  .fd-kpi span{font-size:7.8px!important}.fd-kpi strong{font-size:15px!important;margin-top:3px!important}
-  .fd-section-label{margin:8px 0 4px!important;font-size:8.8px!important}
-  .fd-site-list{gap:3px!important}.fd-site-row{gap:5px!important}.fd-site-bar{margin-top:3px!important}
-  .fd-busy-list{gap:1px!important}.fd-busy{height:22px!important}
 
   /* 5) 현장 운영 현황의 참석/불참/예정은 작은 요약칩 형태 */
-  #fdLegacyMount .fd-legacy-layout{grid-template-rows:42px minmax(0,1fr) 44px!important;gap:6px!important}
-  #fdLegacyMount .fd-legacy-summary{display:flex!important;align-items:center!important;min-height:0!important}
-  #fdLegacyMount .summary-bar{display:grid!important;grid-template-columns:repeat(3,96px)!important;justify-content:start!important;gap:6px!important;width:auto!important}
-  #fdLegacyMount .summary-card{width:96px!important;min-width:96px!important;height:38px!important;min-height:38px!important;padding:5px 8px!important;border-radius:7px!important}
-  #fdLegacyMount .summary-card .num{font-size:15px!important;line-height:1!important}
-  #fdLegacyMount .summary-card .label{font-size:7.4px!important;margin-top:3px!important}
-  .fd-ops-title{height:34px!important}.fd-ops-title h2{font-size:11px!important}
-  #fdLegacyMount{height:calc(100% - 34px)!important;padding-top:7px!important}
 
   /* 월간 집계 상세 팝업 */
   .fd-summary-modal{position:fixed;inset:0;background:rgba(22,42,48,.28);display:none;align-items:center;justify-content:center;z-index:9999;padding:24px}
@@ -8644,7 +8556,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
     const title=document.getElementById('fdMainTitle'),sub=document.getElementById('fdSubtitleText');
     let savedTitle='',savedSub='';
     try{savedTitle=localStorage.getItem('fdDisplayTitle')||localStorage.getItem('site_title_v1')||'';savedSub=localStorage.getItem('fdCustomTitle')||''}catch(e){}
-    title.textContent=savedTitle||'현장 일정표';sub.textContent=savedSub;document.title=title.textContent;
+    title.textContent=(!savedTitle||savedTitle==='현장 일정표')?'일정표':savedTitle;sub.textContent=savedSub;document.title=title.textContent;
     edit.onclick=()=>{
       let dialog=document.getElementById('fdTitleDialog');
       if(!dialog){
@@ -8691,6 +8603,15 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
     for(let d=1;d<=n;d++){const k=key(m,d);let count=0,events=0;try{count=typeof computeDateHeadcount==='function'?computeDateHeadcount(k):0;events=(GALLERY_ROWS?.[k]||[]).length+(TOUR_ROWS?.[k]||[]).length}catch(e){}if(events||count)rows.push({date:d,count,events})}
     return rows;
   }
+  function monthAgendaMarkup(rows,y,m){
+    if(!rows.length)return '<div class="fd-summary-empty">해당 일정이 없습니다.</div>';
+    const days=new Map();
+    rows.forEach(row=>{if(!days.has(row.date))days.set(row.date,[]);days.get(row.date).push(row);});
+    return '<div class="agenda-overview"><span>일정 <b>'+rows.length+'</b>건</span><span>방문일 <b>'+days.size+'</b>일</span><span class="agenda-legend"><i></i>갤러리<i class="tour"></i>투어</span></div>'+[...days].map(([day,events])=>{
+      const weekday=['일','월','화','수','목','금','토'][new Date(y,m,day).getDay()];
+      return '<section class="agenda-day"><h4><time>'+String(m+1).padStart(2,'0')+'.'+String(day).padStart(2,'0')+'</time><span>'+weekday+'요일</span><small>'+events.length+'건</small></h4><div class="agenda-cards">'+events.map(r=>`<article class="agenda-card ${r.kind}"><div class="agenda-card-top"><time>${esc(r.time)}</time><span>${r.kind==='gallery'?'갤러리':'투어'}</span></div><strong class="agenda-site">${esc(r.site)}</strong><div class="agenda-person">${esc(r.name)}</div>${r.meta?`<p>${esc(r.meta)}</p>`:''}</article>`).join('')+'</div></section>';
+    }).join('');
+  }
   function openSummary(type){
     const modal=ensureModal(),body=modal.querySelector('#fdSummaryModalBody'),title=modal.querySelector('#fdSummaryModalTitle');const [y,m]=getYM();
     if(type==='head'){
@@ -8698,7 +8619,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
       body.innerHTML=rows.length?rows.map(r=>`<div class="fd-month-head-row"><time>${m+1}월 ${r.date}일</time><span>일정 ${r.events}건</span><strong>${r.count}명</strong></div>`).join(''):'<div class="fd-summary-empty">해당 월의 일정이 없습니다.</div>';
     }else{
       const kind=type==='gallery'?'gallery':type==='tour'?'tour':'all',rows=monthEvents(kind),label=type==='gallery'?'갤러리':type==='tour'?'투어':'전체 일정';title.textContent=`${y}년 ${m+1}월 ${label}`;
-      body.innerHTML=rows.length?rows.map(r=>`<div class="fd-month-detail-row ${r.kind}"><time>${m+1}/${r.date}</time><span class="kind">${r.kind==='gallery'?'갤러리':'투어'}</span><div class="fd-month-detail-main"><strong>${esc(r.site)} · ${esc(r.name)}</strong><span>${esc(r.meta||'')}</span></div><em>${esc(r.time)}</em></div>`).join(''):'<div class="fd-summary-empty">해당 일정이 없습니다.</div>';
+      body.innerHTML=monthAgendaMarkup(rows,y,m);
     }
     modal.classList.add('on');
   }
@@ -8710,81 +8631,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
 
 <style id="desktop-v9-original-layout-polish">
 @media(min-width:761px){
- #freshDesktopApp{font-family:"SUIT Variable","Apple SD Gothic Neo","Malgun Gothic",sans-serif!important;font-size:12px!important;letter-spacing:-.015em!important;line-height:1.5!important}
- #freshDesktopApp button,#freshDesktopApp input,#freshDesktopApp select,#freshDesktopApp table{font-family:inherit!important;letter-spacing:inherit!important}
- #freshDesktopApp .fd-topbar{min-height:78px!important;height:auto!important;padding:16px 24px!important;gap:16px!important}
- #freshDesktopApp .fd-brand{min-width:0!important;flex:1!important}
- #freshDesktopApp .fd-brand-inline{white-space:normal!important;gap:12px!important}
- #freshDesktopApp #fdMainTitle{font-size:20px!important;line-height:1.35!important;font-weight:700!important}
- #freshDesktopApp #fdSubtitleText{font-size:12px!important;color:#71858a!important;line-height:1.4!important;margin-top:3px!important}
- #freshDesktopApp #fdEditTitle{font-family:inherit!important;font-size:11px!important;min-height:30px!important;padding:4px 9px!important;border:1px solid #d6e2e2!important;border-radius:7px!important;background:#fff!important;color:#547477!important;white-space:nowrap!important;font-weight:500!important}
- #freshDesktopApp .fd-search input{font-size:12px!important}#freshDesktopApp .fd-top-action{font-size:12px!important;height:36px!important}
- #freshDesktopApp .fd-content{max-width:1760px!important;padding:20px 24px 28px!important}
- #freshDesktopApp .fd-controlbar{margin-bottom:14px!important;gap:16px!important}
- #freshDesktopApp .fd-month-title{font-size:21px!important;font-weight:700!important}
- #freshDesktopApp .fd-filter-btn,#freshDesktopApp .fd-today{font-size:12px!important;height:34px!important}
  /* Keep the original two-column hierarchy and definite panel heights. */
- #freshDesktopApp .fd-grid{display:grid!important;grid-template-columns:minmax(0,1.42fr) minmax(0,1fr)!important;grid-template-rows:none!important;gap:16px!important;height:820px!important;min-height:820px!important;max-height:none!important;align-items:stretch!important}
- #freshDesktopApp .fd-calendar-panel{height:820px!important;min-height:0!important;grid-column:auto!important;grid-row:auto!important}
- #freshDesktopApp .fd-right-stack{display:grid!important;grid-template-columns:minmax(0,1fr)!important;grid-template-rows:320px minmax(0,1fr)!important;height:820px!important;gap:14px!important;min-height:0!important}
- #freshDesktopApp .fd-right-top{display:grid!important;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr)!important;height:320px!important;gap:12px!important}
- #freshDesktopApp .fd-right-top>.fd-panel{height:320px!important;min-width:0!important}
- #freshDesktopApp .fd-panel{box-shadow:0 2px 6px rgba(25,56,60,.025)!important;border-radius:12px!important}
- #freshDesktopApp .fd-cal-top{height:38px!important}#freshDesktopApp .fd-cal-top span{font-size:11px!important;color:#71848a!important}
- #freshDesktopApp .fd-cal{height:calc(100% - 38px)!important;display:flex!important;flex-direction:column!important;padding:12px!important;box-sizing:border-box!important;min-height:0!important}
- #freshDesktopApp .fd-weekdays{flex:0 0 34px!important}
- #freshDesktopApp .fd-weekday{height:34px!important;font-size:12px!important;font-weight:600!important}
- #freshDesktopApp .fd-days{flex:1 1 0!important;min-height:0!important;grid-template-rows:repeat(6,minmax(0,1fr))!important}
- #freshDesktopApp .fd-day{height:auto!important;min-height:0!important;overflow:hidden!important}
- #freshDesktopApp .fd-daynum{font-size:13px!important;font-weight:650!important}
- #freshDesktopApp .fd-day.selected{box-shadow:inset 0 0 0 2px #3c9b92!important;background:#f0f8f6!important}
- #freshDesktopApp .fd-day-note{font-size:11px!important;line-height:1.4!important;white-space:nowrap!important;text-overflow:ellipsis!important;overflow:hidden!important;right:8px!important}
- #freshDesktopApp .fd-count{font-size:10px!important;height:20px!important;line-height:20px!important;padding:0 6px!important}
- #freshDesktopApp .fd-holiday{font-size:10px!important}
- #freshDesktopApp .fd-mini-head{height:40px!important;box-sizing:border-box!important;padding:0 13px!important}
- #freshDesktopApp .fd-mini-head h2{font-size:13px!important;font-weight:650!important}#freshDesktopApp .fd-mini-head>span{font-size:10px!important}
- #freshDesktopApp .fd-detail{height:calc(100% - 40px)!important;overflow:auto!important;padding:12px!important;box-sizing:border-box!important}
- #freshDesktopApp .fd-detail-date{font-size:16px!important;font-weight:700!important}
- #freshDesktopApp .fd-meta-pill{font-size:10px!important;height:23px!important}
- #freshDesktopApp .fd-detail-list{max-height:110px!important;overflow:auto!important;gap:6px!important}
- #freshDesktopApp .fd-event{min-height:54px!important;padding:7px!important;grid-template-columns:40px minmax(0,1fr)!important}
- #freshDesktopApp .fd-event-time{font-size:11px!important;font-weight:600!important}
- #freshDesktopApp .fd-event-copy strong{font-size:12px!important;line-height:1.4!important;font-weight:600!important;white-space:normal!important}
- #freshDesktopApp .fd-event-copy span{font-size:10.5px!important;line-height:1.5!important;white-space:normal!important;color:#7c9195!important}
- #freshDesktopApp .fd-empty{min-height:66px!important;padding:10px!important}#freshDesktopApp .fd-empty strong{font-size:11px!important;font-weight:500!important}#freshDesktopApp .fd-empty span{font-size:10px!important}
- #freshDesktopApp .fd-detail-actions{grid-template-columns:1fr 1fr!important;gap:5px!important;margin-top:8px!important;padding-top:8px!important}
- #freshDesktopApp .fd-detail-actions button,#freshDesktopApp .fd-detail-actions button.danger{height:31px!important;min-height:31px!important;font-size:10.5px!important;padding:3px 5px!important;font-weight:500!important}
- #freshDesktopApp .fd-summary{height:calc(100% - 40px)!important;padding:12px!important;overflow:auto!important;box-sizing:border-box!important}
- #freshDesktopApp .fd-kpi{min-height:52px!important;height:52px!important;padding:8px!important}
- #freshDesktopApp .fd-kpi span{font-size:10px!important}#freshDesktopApp .fd-kpi strong{font-size:19px!important;font-weight:700!important}#freshDesktopApp .fd-kpi small{font-size:10px!important}
- #freshDesktopApp .fd-section-label{font-size:11px!important;font-weight:600!important;margin:12px 0 7px!important}
- #freshDesktopApp .fd-site-top span,#freshDesktopApp .fd-site-num,#freshDesktopApp .fd-busy time,#freshDesktopApp .fd-busy span,#freshDesktopApp .fd-busy strong{font-size:10.5px!important;line-height:1.4!important}
- #freshDesktopApp .fd-busy{height:28px!important}#freshDesktopApp .fd-site-list{gap:8px!important}
- #freshDesktopApp .fd-ops-panel{height:100%!important;min-height:0!important;overflow:hidden!important}
- #freshDesktopApp #fdLegacyMount{height:calc(100% - 40px)!important;box-sizing:border-box!important;padding:12px!important;overflow:auto!important}
- #freshDesktopApp #fdLegacyMount .fd-legacy-layout{height:100%!important;grid-template-rows:60px minmax(220px,1fr) 62px!important;gap:12px!important}
- #freshDesktopApp #fdLegacyMount .fd-legacy-body{grid-template-columns:1fr 1.12fr!important;gap:10px!important}
- #freshDesktopApp #fdLegacyMount .summary-bar{grid-template-columns:repeat(3,minmax(0,105px))!important;gap:8px!important;width:100%!important}
- #freshDesktopApp #fdLegacyMount .summary-card{width:auto!important;min-width:0!important;height:56px!important;min-height:56px!important;padding:8px 10px!important}
- #freshDesktopApp #fdLegacyMount .summary-card .num{font-size:20px!important;font-weight:700!important;line-height:1.2!important}
- #freshDesktopApp #fdLegacyMount .summary-card .label{font-size:10px!important;margin-top:4px!important}
- #freshDesktopApp #fdLegacyMount .fd-legacy-card-head{height:34px!important;font-size:12px!important;font-weight:600!important;padding:0 10px!important}
- #freshDesktopApp #fdLegacyMount .fd-legacy-card-body{height:calc(100% - 34px)!important;padding:8px!important;box-sizing:border-box!important;overflow:auto!important}
- #freshDesktopApp #fdLegacyMount .managerFilterBar,#freshDesktopApp #fdLegacyMount .filterbar{display:flex!important;flex-wrap:wrap!important;gap:5px!important;margin-bottom:8px!important}
- #freshDesktopApp #fdLegacyMount .filterbar select{max-width:100%!important;min-width:0!important;flex:1 1 120px!important;width:auto!important}
- #freshDesktopApp #fdLegacyMount button,#freshDesktopApp #fdLegacyMount select{font-size:11px!important;height:30px!important;min-height:30px!important;padding:4px 7px!important;line-height:1.3!important;width:auto!important}
- #freshDesktopApp #fdLegacyMount #managerTable,#freshDesktopApp #fdLegacyMount #checklistBody{height:auto!important;max-height:230px!important;overflow:auto!important}
- #freshDesktopApp #fdLegacyMount table{table-layout:auto!important}
- #freshDesktopApp #fdLegacyMount #managerTable th,#freshDesktopApp #fdLegacyMount #managerTable td,#freshDesktopApp #fdLegacyMount #checklistBody th,#freshDesktopApp #fdLegacyMount #checklistBody td{font-size:11px!important;height:30px!important;padding:6px!important;font-weight:400!important;line-height:1.4!important}
- #freshDesktopApp #fdLegacyMount thead th{font-weight:600!important;background:#eef4f3!important;color:#3d6265!important}
- #freshDesktopApp #fdLegacyMount .empty-day{font-size:12px!important;line-height:1.5!important;padding:12px 6px!important}
- #freshDesktopApp #fdLegacyMount .fd-chart-label,#freshDesktopApp #fdLegacyMount #chartWeekLabel{font-size:11px!important}
- #freshDesktopApp #fdLegacyMount #statsChart *{font-size:9px!important}
-}
-@media(min-width:761px) and (max-width:1250px){
- #freshDesktopApp .fd-grid{grid-template-columns:minmax(0,1fr)!important;height:auto!important;max-height:none!important}
- #freshDesktopApp .fd-calendar-panel{height:650px!important}
- #freshDesktopApp .fd-right-stack{height:820px!important}
 }
 </style>
 <style id="desktop-v9-title-dialog"> #fdTitleDialog{width:min(480px,calc(100vw - 40px));box-sizing:border-box;border:1px solid #dbe4dd;border-radius:14px;padding:26px;font:14px/1.6 "Malgun Gothic","Apple SD Gothic Neo",sans-serif;color:#2b3c37}
@@ -8838,7 +8685,6 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
 #statusBody th,#statusBody td{white-space:nowrap!important;word-break:keep-all!important;overflow-wrap:normal!important;padding:9px 10px!important;line-height:1.5!important;height:auto!important;font-size:12px!important;}
 #statusBody .print-date-title{margin-top:12px!important;padding:8px 0!important;}
 .schedule-delete-button{border:1px solid #edcdcd;border-radius:6px;background:#fff6f6;color:#b64b4b;font:inherit;font-size:11px;padding:4px 8px;white-space:nowrap;cursor:pointer;}
-.fd-event-controls{display:flex;gap:8px;align-items:center;justify-content:flex-end;}
 @media(max-width:760px){#statusOverlay .modal{width:96vw!important;padding:16px 12px!important;}#statusBody th,#statusBody td{padding:8px!important;}}
 </style>
 
@@ -8878,10 +8724,76 @@ button.onclick=()=>{closeFormOverlay();fields.classList.remove('gallery-admin-ac
 })();
 </script>
 
+<style id="calendar-agenda-v12">
+#fdSummaryModal{padding:24px!important;box-sizing:border-box!important;background:rgba(20,43,49,.35)!important;backdrop-filter:blur(3px);}
+#fdSummaryModal .fd-summary-dialog{width:min(720px,calc(100vw - 48px))!important;max-height:82dvh!important;border:1px solid #dfe9e8!important;border-radius:18px!important;background:#fff!important;box-shadow:0 24px 80px #123b3d33!important;}
+#fdSummaryModal .fd-summary-dialog-head{height:60px!important;padding:0 20px!important;border-bottom:1px solid #e5edeb!important;gap:12px!important;background:#fff!important;}
+#fdSummaryModal .fd-summary-dialog-head strong{font-size:16px!important;font-weight:700!important;color:#254940!important;line-height:1.4!important;}
+#fdSummaryModal .fd-summary-dialog-head button{width:30px!important;height:30px!important;border:0!important;background:#f0f5f3!important;border-radius:50%!important;color:#607c72!important;font-size:14px!important;cursor:pointer;}
+#fdSummaryModal #fdSummaryModalBody{max-height:calc(82dvh - 60px)!important;padding:0 20px 20px!important;box-sizing:border-box!important;overflow:auto!important;background:#f6f8f7!important;scrollbar-width:thin;}
+#fdSummaryModal .agenda-overview{position:sticky;top:0;z-index:1;display:flex;align-items:center;gap:14px;padding:14px 0;background:#f6f8f7;border-bottom:1px solid #e4ebe8;color:#6d8078;font-size:12px;}
+#fdSummaryModal .agenda-overview b{color:#254940;font-weight:700;}
+#fdSummaryModal .agenda-legend{display:flex;align-items:center;gap:5px;margin-left:auto;font-size:10px;white-space:nowrap;}
+#fdSummaryModal .agenda-legend i{width:6px;height:6px;border-radius:50%;background:#28a18e;display:inline-block;}
+#fdSummaryModal .agenda-legend i.tour{background:#d99546;margin-left:7px;}
+#fdSummaryModal .agenda-day{margin:18px 0 0;}
+#fdSummaryModal .agenda-day h4{display:flex;align-items:baseline;gap:8px;margin:0 0 9px;font-weight:500;}
+#fdSummaryModal .agenda-day h4 time{font-size:19px;font-weight:750;letter-spacing:-.5px;color:#284b42;font-variant-numeric:tabular-nums;}
+#fdSummaryModal .agenda-day h4>span{font-size:11px;color:#798a83;}
+#fdSummaryModal .agenda-day h4 small{margin-left:auto;font-size:11px;color:#7a8d84;font-weight:400;}
+#fdSummaryModal .agenda-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;}
+#fdSummaryModal .agenda-card{position:relative;min-width:0;box-sizing:border-box;padding:13px 15px;border:1px solid #e0e9e5;border-radius:11px;background:#fff;box-shadow:0 2px 4px #214a3510;}
+#fdSummaryModal .agenda-card:before{content:'';position:absolute;left:0;top:15px;bottom:15px;width:3px;border-radius:0 3px 3px 0;background:#28a18e;}
+#fdSummaryModal .agenda-card.tour:before{background:#d99546;}
+#fdSummaryModal .agenda-card-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px;}
+#fdSummaryModal .agenda-card-top time{color:#244d43;font-size:13px;font-weight:750;line-height:1.3;font-variant-numeric:tabular-nums;}
+#fdSummaryModal .agenda-card-top>span{font-size:10px;color:#168b77;background:#edf7f3;padding:3px 7px;border-radius:5px;line-height:1.2;}
+#fdSummaryModal .agenda-card.tour .agenda-card-top>span{background:#fff4e8;color:#b17429;}
+#fdSummaryModal .agenda-site{display:block;margin:0;color:#354f46;font-size:12px;line-height:1.5;font-weight:600;overflow-wrap:anywhere;}
+#fdSummaryModal .agenda-person{margin-top:2px;color:#223e35;font-size:14px;font-weight:700;line-height:1.5;overflow-wrap:anywhere;}
+#fdSummaryModal .agenda-card p{margin:7px 0 0;padding-top:7px;border-top:1px solid #edf1ef;color:#83938b;font-size:11px;line-height:1.5;overflow-wrap:anywhere;}
+@media(max-width:520px){#fdSummaryModal{padding:12px!important;}#fdSummaryModal .fd-summary-dialog{width:calc(100vw - 24px)!important;border-radius:14px!important;}#fdSummaryModal .fd-summary-dialog-head{padding:0 14px!important;}#fdSummaryModal #fdSummaryModalBody{padding:0 14px 16px!important;}#fdSummaryModal .agenda-cards{grid-template-columns:minmax(0,1fr);}#fdSummaryModal .agenda-overview{gap:10px;font-size:11px;}#fdSummaryModal .agenda-card{padding:11px 14px;}#fdSummaryModal .agenda-card-top{margin-bottom:6px;}}
+
+</style>
+
+<style id="calendar-grouped-v14">
+#fdDaySchedulePopup{width:min(780px,calc(100vw - 32px))!important;max-height:82dvh!important;padding:0!important;border:1px solid #dce7df!important;border-radius:15px!important;background:#f5f7f5!important;box-shadow:0 20px 70px #173b3333!important;}
+#fdDaySchedulePopup::backdrop{background:#18372f66!important;}
+#fdDaySchedulePopup .fd-summary-dialog-head{height:56px!important;min-height:56px!important;padding:0 18px!important;background:#fff!important;border-bottom:1px solid #e3eae5!important;}
+#fdDaySchedulePopup .fd-summary-dialog-head strong{display:flex!important;align-items:center!important;gap:8px!important;padding:0!important;color:#294c3e!important;font-size:14px!important;line-height:1.4!important;}
+#fdDaySchedulePopup .day-tile-count{font-size:10px;color:#7f9186;background:#eff4ef;padding:3px 6px;border-radius:5px;font-weight:400;}
+#fdDaySchedulePopup .fd-summary-dialog-head>button{width:29px!important;height:29px!important;border:0!important;border-radius:50%!important;background:#f0f4f1!important;color:#6d8275!important;}
+#fdDaySchedulePopup .fd-summary-dialog-body{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:14px!important;padding:16px!important;max-height:calc(82dvh - 56px)!important;overflow:auto!important;align-items:start!important;box-sizing:border-box!important;background:#f5f7f5!important;scrollbar-width:thin;}
+#fdDaySchedulePopup .day-site-group{min-width:0;background:#fff;border:1px solid #e0e8e1;border-radius:11px;overflow:hidden;}
+#fdDaySchedulePopup .day-site-group>.day-site-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 13px;border-bottom:1px solid #e6ede7;background:#fff;}
+#fdDaySchedulePopup .day-site-group h3{margin:0;color:#304c3b;font-size:14px;font-weight:700;overflow-wrap:anywhere;}
+#fdDaySchedulePopup .day-site-group>.day-site-heading>span{white-space:nowrap;color:#8b9b8f;font-size:11px;}
+#fdDaySchedulePopup .day-time-group{margin:0;padding:0;}
+#fdDaySchedulePopup .day-time-group>h4{display:flex;align-items:center;gap:7px;margin:0;padding:8px 12px;background:#eef6f1;border-top:1px solid #e6ede7;color:#537b60;font-size:11px;font-weight:500;}
+#fdDaySchedulePopup .day-time-group:first-of-type>h4{border-top:0;}
+#fdDaySchedulePopup .day-time-group>h4 time{font-size:13px;color:#365c44;font-weight:750;}
+#fdDaySchedulePopup .day-time-group>h4 small{margin-left:auto;font-size:10px;color:#8a9f8e;}
+#fdDaySchedulePopup .day-time-group.tour>h4{background:#fbf4e9;color:#a17e45;}
+#fdDaySchedulePopup .day-time-group.tour>h4 time{color:#92713d;}
+#fdDaySchedulePopup .day-time-members{padding:0 12px;}
+#fdDaySchedulePopup .day-time-members .booking-event,#fdDaySchedulePopup .day-time-members .booking-event-wide:has(.booking-memo){display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:4px 9px!important;align-items:center!important;min-height:0!important;height:auto!important;margin:0!important;padding:10px 0!important;border:0!important;border-bottom:1px solid #edf1eb!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;}
+#fdDaySchedulePopup .day-time-members .booking-event:last-child{border-bottom:0!important;}
+#fdDaySchedulePopup .day-time-members :is(.booking-date,.booking-main time,.booking-main .booking-kind,.booking-main strong){display:none!important;}
+#fdDaySchedulePopup .day-time-members .booking-copy{grid-column:1!important;grid-row:1!important;width:auto!important;}
+#fdDaySchedulePopup .day-time-members .booking-main{display:block!important;line-height:1.4!important;}
+#fdDaySchedulePopup .day-time-members .booking-main b{display:block!important;font-size:12px!important;color:#354e3c!important;font-weight:650!important;line-height:1.4!important;white-space:normal!important;overflow-wrap:anywhere!important;}
+#fdDaySchedulePopup .day-time-members .booking-sub{display:flex!important;flex-wrap:wrap!important;gap:2px 6px!important;margin:4px 0 0!important;font-size:10px!important;line-height:1.5!important;color:#8b998d!important;}
+#fdDaySchedulePopup .day-time-members .booking-actions{display:flex!important;flex-direction:row!important;gap:4px!important;grid-column:2!important;grid-row:1!important;align-self:center!important;margin:0!important;padding:0!important;border:0!important;width:auto!important;}
+#fdDaySchedulePopup .day-time-members .booking-actions button{width:auto!important;min-width:30px!important;height:24px!important;min-height:24px!important;padding:2px 5px!important;border:1px solid #e3eae1!important;border-radius:5px!important;font-size:9px!important;line-height:1.4!important;background:#fff!important;color:#829782!important;}
+#fdDaySchedulePopup .day-time-members .booking-actions .booking-delete{border-color:#eee4e1!important;color:#b39791!important;}
+#fdDaySchedulePopup .day-time-members .booking-memo{grid-column:1/-1!important;grid-row:2!important;margin:3px 0 0!important;padding:6px 8px!important;background:#f7f9f5!important;border:0!important;border-radius:5px!important;font-size:10px!important;line-height:1.5!important;color:#788a76!important;}
+#fdDaySchedulePopup .day-time-members .booking-memo small{font-size:9px!important;}
+#fdDaySchedulePopup .fd-summary-empty{grid-column:1/-1;}
+@media(max-width:580px){#fdDaySchedulePopup{width:calc(100vw - 24px)!important;}#fdDaySchedulePopup .fd-summary-dialog-body{grid-template-columns:minmax(0,1fr)!important;padding:12px!important;gap:12px!important;}}
+
+</style>
 </body>
 <style id="calendar-shared-ui-style">.calendar-sync-status{display:block;font:11px/1.4 'Malgun Gothic',system-ui,sans-serif;color:#66857c;white-space:normal;overflow-wrap:anywhere;max-width:100%;margin-top:3px;}
-#freshDesktopApp .fd-brand{flex-wrap:wrap;gap:2px 10px;}
-#freshDesktopApp .fd-brand>.calendar-sync-status{flex-basis:100%;}
 @media(max-width:760px){.calendar-sync-status{font-size:10px;margin-top:5px;}}
 @media print{.calendar-sync-status{display:none!important;}}
 .calendar-conflict-panel{position:fixed;z-index:2147483000;bottom:84px;left:50%;transform:translateX(-50%);width:min(520px,calc(100% - 24px));box-sizing:border-box;padding:18px;border:1px solid #a6bdb5;border-radius:18px;background:#fff;color:#183b32;box-shadow:0 12px 48px #0004;max-height:65dvh;overflow:auto;font:14px/1.5 system-ui,sans-serif;}
@@ -9036,34 +8948,6 @@ button.onclick=()=>{closeFormOverlay();fields.classList.remove('gallery-admin-ac
 </script>
 </html>
 <style id="calendar-layout-repair-oct01">
-@media screen and (min-width:761px){
- #freshDesktopApp .fd-topbar{position:relative!important;inset:auto!important;display:flex!important;flex-wrap:wrap!important;box-sizing:border-box!important;width:100%!important;min-height:76px!important;padding:16px 24px!important;background:#fff!important;border-radius:0!important;}
- #freshDesktopApp .fd-topbar::before,#freshDesktopApp .fd-topbar::after{content:none!important;display:none!important;}
- #freshDesktopApp .fd-brand{position:static!important;flex:1 1 220px!important;min-width:0!important;padding:0!important;}
- #freshDesktopApp .fd-brand-copy,#freshDesktopApp .fd-brand-inline{position:static!important;display:flex!important;align-items:center!important;gap:12px!important;padding:0!important;}
- #freshDesktopApp #fdMainTitle{position:static!important;display:block!important;font-size:22px!important;line-height:1.4!important;white-space:normal!important;overflow-wrap:anywhere;}
- #freshDesktopApp .fd-search-wrap{flex:0 1 320px!important;min-width:160px!important;}
- #freshDesktopApp .fd-content{padding:20px 24px!important;}
- #freshDesktopApp .fd-controlbar{position:relative!important;display:flex!important;flex-wrap:wrap!important;min-height:44px!important;margin:0 0 16px!important;}
- #freshDesktopApp .fd-grid{height:auto!important;min-height:0!important;align-items:start!important;}
- #freshDesktopApp .fd-calendar-panel{height:760px!important;}
- #freshDesktopApp .fd-right-stack{height:auto!important;grid-template-rows:auto auto!important;}
- #freshDesktopApp .fd-right-top{height:auto!important;align-items:start!important;}
- #freshDesktopApp .fd-right-top>.fd-panel{height:auto!important;}
- #freshDesktopApp .fd-detail,#freshDesktopApp .fd-summary{height:auto!important;max-height:none!important;overflow:visible!important;}
- #freshDesktopApp .fd-detail-list{max-height:260px!important;overflow:auto!important;}
- #freshDesktopApp .fd-ops-panel,#freshDesktopApp #fdLegacyMount{height:auto!important;max-height:none!important;overflow:visible!important;}
- #freshDesktopApp #fdLegacyMount .fd-legacy-layout{height:auto!important;grid-template-rows:auto auto auto!important;}
- #freshDesktopApp #fdLegacyMount .fd-legacy-body{height:auto!important;align-items:start!important;}
- #freshDesktopApp #fdLegacyMount .fd-legacy-card-body{height:auto!important;max-height:none!important;overflow:visible!important;}
- #freshDesktopApp #fdLegacyMount #managerTable,#freshDesktopApp #fdLegacyMount #checklistBody{height:auto!important;max-height:320px!important;overflow:auto!important;}
- #freshDesktopApp #fdLegacyMount :is(#managerTable,#checklistBody) .table-scroll{height:auto!important;max-height:none!important;overflow:visible!important;}
- #freshDesktopApp #fdLegacyMount #statsChart{height:100px!important;}
-}
-@media screen and (min-width:761px) and (max-width:1250px){
- #freshDesktopApp .fd-grid{grid-template-columns:minmax(0,1fr)!important;}
- #freshDesktopApp .fd-calendar-panel{height:680px!important;}
-}
 </style>
 
 
@@ -9079,112 +8963,12 @@ document.addEventListener('click',function(e){
 },true);
 </script>
 <style id="desktop-single-screen-final">
-@media screen and (min-width:1100px){
- #freshDesktopApp{height:100dvh!important;min-height:0!important;display:flex!important;flex-direction:column!important;}
- #freshDesktopApp .fd-topbar{flex:0 0 58px!important;min-height:58px!important;height:58px!important;padding:8px 20px!important;flex-wrap:nowrap!important;}
- #freshDesktopApp .fd-content{flex:1 1 0!important;min-height:0!important;width:100%!important;max-width:none!important;box-sizing:border-box!important;display:flex!important;flex-direction:column!important;padding:10px 18px 14px!important;margin:0!important;}
- #freshDesktopApp .fd-controlbar{flex:0 0 42px!important;min-height:42px!important;margin:0 0 10px!important;padding:0!important;border:0!important;background:transparent!important;}
- #freshDesktopApp .fd-grid{flex:1 1 0!important;min-height:0!important;height:auto!important;display:grid!important;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr)!important;grid-template-rows:minmax(0,1fr)!important;gap:16px!important;}
- #freshDesktopApp .fd-calendar-panel{height:100%!important;min-height:0!important;grid-column:1!important;grid-row:1!important;}
- #freshDesktopApp .fd-right-stack{display:grid!important;grid-template-rows:minmax(0,.92fr) minmax(0,1fr)!important;min-height:0!important;height:100%!important;gap:12px!important;}
- #freshDesktopApp .fd-right-top{display:grid!important;grid-template-columns:minmax(0,1.25fr) minmax(220px,.8fr)!important;gap:12px!important;height:100%!important;min-height:0!important;}
- #freshDesktopApp .fd-right-top>.fd-panel{height:100%!important;min-height:0!important;display:flex!important;flex-direction:column!important;}
- #freshDesktopApp .fd-mini-head{height:32px!important;min-height:32px!important;flex:0 0 32px!important;padding:0 12px!important;}
- #freshDesktopApp .fd-detail{flex:1 1 0!important;min-height:0!important;height:auto!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;padding:8px 10px!important;}
- #freshDesktopApp .fd-detail-top{margin:0 0 5px!important;padding:0 0 5px!important;}
- #freshDesktopApp .fd-detail-date{font-size:15px!important;}
- #freshDesktopApp .fd-detail-list{flex:1 1 0!important;max-height:none!important;min-height:0!important;overflow:auto!important;gap:4px!important;}
- #freshDesktopApp .fd-event{flex-shrink:0!important;min-height:40px!important;padding:5px 7px!important;}
- #freshDesktopApp .fd-event-copy strong{font-size:12px!important;}
- #freshDesktopApp .fd-detail-actions{flex:0 0 auto!important;margin-top:5px!important;padding-top:5px!important;gap:4px!important;}
- #freshDesktopApp .fd-detail-actions button{height:27px!important;min-height:27px!important;}
- #freshDesktopApp .fd-summary{flex:1 1 0!important;min-height:0!important;height:auto!important;overflow:auto!important;padding:8px 10px!important;columns:auto!important;display:block!important;}
- #freshDesktopApp .fd-kpis{display:grid!important;grid-template-columns:1fr 1fr!important;gap:6px!important;}
- #freshDesktopApp .fd-kpi{height:48px!important;min-height:48px!important;padding:7px 9px!important;}
- #freshDesktopApp .fd-section-label{margin:8px 0 5px!important;}
- #freshDesktopApp .fd-ops-panel{height:100%!important;min-height:0!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;}
- #freshDesktopApp #fdLegacyMount{flex:1 1 0!important;min-height:0!important;height:auto!important;padding:8px!important;overflow:hidden!important;}
- #freshDesktopApp #fdLegacyMount .checklist-section{height:100%!important;min-height:0!important;}
- #freshDesktopApp #fdLegacyMount .fd-legacy-layout{height:100%!important;min-height:0!important;display:grid!important;grid-template-rows:38px minmax(0,1fr) 56px!important;gap:7px!important;}
- #freshDesktopApp #fdLegacyMount .summary-bar{display:flex!important;gap:8px!important;height:38px!important;}
- #freshDesktopApp #fdLegacyMount .summary-card{display:flex!important;align-items:center!important;gap:8px!important;height:36px!important;min-height:36px!important;width:110px!important;padding:5px 10px!important;}
- #freshDesktopApp #fdLegacyMount .summary-card .num{font-size:20px!important;}
- #freshDesktopApp #fdLegacyMount .fd-legacy-body{display:grid!important;grid-template-columns:minmax(0,.88fr) minmax(0,1.12fr)!important;gap:8px!important;min-height:0!important;}
- #freshDesktopApp #fdLegacyMount .fd-legacy-card{display:flex!important;flex-direction:column!important;min-height:0!important;}
- #freshDesktopApp #fdLegacyMount .fd-legacy-card-head{flex:0 0 28px!important;height:28px!important;}
- #freshDesktopApp #fdLegacyMount .fd-legacy-card-body{flex:1 1 0!important;min-height:0!important;height:auto!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;padding:5px!important;}
- #freshDesktopApp #fdLegacyMount :is(#managerTable,#checklistBody){flex:1 1 0!important;min-height:0!important;max-height:none!important;height:auto!important;overflow:auto!important;}
- #freshDesktopApp #fdLegacyMount :is(.filterbar,.managerFilterBar){flex:0 0 auto!important;margin:0 0 5px!important;gap:3px!important;}
- #freshDesktopApp #fdLegacyMount :is(#managerTable,#checklistBody) :is(.table-scroll,.table-wrap){height:auto!important;max-height:none!important;overflow:visible!important;}
- #freshDesktopApp #fdLegacyMount :is(td,th){padding:4px!important;height:25px!important;font-size:11px!important;}
- #freshDesktopApp #fdLegacyMount .fd-legacy-chart{display:flex!important;align-items:center!important;gap:10px!important;min-height:0!important;height:56px!important;}
- #freshDesktopApp #fdLegacyMount #statsChart{flex:1!important;min-width:0!important;height:50px!important;}
-}
 </style>
 <style id="desktop-right-four-panels">
-@media screen and (min-width:1100px){
- #freshDesktopApp .fd-right-stack{grid-template-rows:minmax(0,.78fr) minmax(0,1.22fr)!important;align-items:stretch!important;}
- #freshDesktopApp .fd-right-top{grid-template-columns:repeat(2,minmax(0,1fr))!important;align-items:stretch!important;gap:12px!important;}
- #freshDesktopApp .fd-detail-top{display:flex!important;align-items:center!important;justify-content:space-between!important;flex-wrap:wrap!important;gap:4px!important;}
- #freshDesktopApp .fd-detail-meta{margin:0!important;}
- #freshDesktopApp .fd-event{min-height:36px!important;padding:4px 6px!important;}
- #freshDesktopApp .fd-detail-actions button{height:25px!important;min-height:25px!important;}
- #freshDesktopApp #fdLegacyMount{padding:6px 0 0!important;}
- #freshDesktopApp .fd-ops-panel{border:0!important;background:transparent!important;box-shadow:none!important;}
- #freshDesktopApp .fd-ops-title{padding:0!important;}
- #freshDesktopApp #fdLegacyMount .fd-legacy-layout{align-items:stretch!important;grid-template-rows:36px minmax(0,1fr) 52px!important;gap:8px!important;}
- #freshDesktopApp #fdLegacyMount .fd-legacy-body{grid-template-columns:repeat(2,minmax(0,1fr))!important;align-items:stretch!important;align-content:stretch!important;gap:12px!important;height:100%!important;}
- #freshDesktopApp #fdLegacyMount .fd-legacy-card{height:100%!important;max-height:100%!important;box-sizing:border-box!important;align-self:stretch!important;background:#fff!important;}
- #freshDesktopApp #fdLegacyMount .fd-legacy-card-body{box-sizing:border-box!important;min-height:0!important;flex:1 1 0!important;overflow:hidden!important;}
- #freshDesktopApp #fdLegacyMount :is(#managerTable,#checklistBody){min-height:0!important;flex:1 1 0!important;overflow:auto!important;overscroll-behavior:contain;}
- #freshDesktopApp #fdLegacyMount .filterbar select{flex:1 1 90px!important;}
- #freshDesktopApp #fdLegacyMount .fd-legacy-chart{height:52px!important;}
-}
 </style>
 <style id="desktop-bottom-fit-repair">
-@media screen and (min-width:1100px){
- #freshDesktopApp,#freshDesktopApp *{box-sizing:border-box;}
- #freshDesktopApp .fd-right-stack{grid-template-rows:minmax(0,.72fr) minmax(0,1.28fr)!important;}
- #freshDesktopApp .fd-ops-title{flex:0 0 26px!important;min-height:26px!important;height:26px!important;}
- #freshDesktopApp #fdLegacyMount{flex:1 1 0!important;min-height:0!important;padding:0!important;}
- #freshDesktopApp #fdLegacyMount .checklist-section{height:100%!important;max-height:100%!important;min-height:0!important;margin:0!important;padding:0!important;}
- #freshDesktopApp #fdLegacyMount .fd-legacy-layout{height:100%!important;min-height:0!important;grid-template-rows:26px minmax(0,1fr) 82px!important;gap:6px!important;}
- #freshDesktopApp #fdLegacyMount .fd-legacy-summary{height:26px!important;min-height:0!important;}
- #freshDesktopApp #fdLegacyMount .summary-bar{display:flex!important;justify-content:flex-start!important;align-items:center!important;gap:6px!important;height:26px!important;min-height:0!important;}
- #freshDesktopApp #fdLegacyMount .summary-card{flex:0 0 auto!important;width:auto!important;min-width:74px!important;height:24px!important;min-height:24px!important;padding:2px 9px!important;gap:6px!important;border:1px solid #dce8e8!important;border-radius:5px!important;}
- #freshDesktopApp #fdLegacyMount .summary-card .num{font-size:15px!important;line-height:18px!important;margin:0!important;}
- #freshDesktopApp #fdLegacyMount .summary-card .label{font-size:10px!important;margin:0!important;}
- #freshDesktopApp #fdLegacyMount .fd-legacy-body{height:auto!important;min-height:0!important;overflow:hidden!important;}
- #freshDesktopApp #fdLegacyMount .fd-legacy-card{height:100%!important;min-height:0!important;}
- #freshDesktopApp #fdLegacyMount .fd-legacy-chart{height:82px!important;min-height:82px!important;padding:6px 8px!important;overflow:hidden!important;}
- #freshDesktopApp #fdLegacyMount .fd-chart-side{flex:0 0 125px!important;}
- #freshDesktopApp #fdLegacyMount #statsChart{height:70px!important;min-height:0!important;padding:0!important;}
- #freshDesktopApp #fdLegacyMount #statsChart .chart-bars{display:grid!important;grid-template-columns:repeat(7,minmax(0,1fr))!important;width:100%!important;max-width:none!important;height:70px!important;min-height:0!important;padding:2px 12px!important;gap:8px!important;align-items:stretch!important;box-sizing:border-box!important;}
- #freshDesktopApp #fdLegacyMount #statsChart .chart-col{display:grid!important;grid-template-rows:12px 38px 14px!important;justify-items:center!important;align-items:center!important;flex:1 1 0!important;min-width:0!important;height:64px!important;margin:0!important;padding:0!important;gap:0!important;}
- #freshDesktopApp #fdLegacyMount #statsChart .chart-bar-wrap{height:38px!important;min-height:0!important;align-self:end!important;max-width:20px!important;margin:0!important;}
- #freshDesktopApp #fdLegacyMount #statsChart .chart-count,#freshDesktopApp #fdLegacyMount #statsChart .chart-label{display:block!important;line-height:12px!important;height:12px!important;margin:0!important;padding:0!important;font-size:10px!important;white-space:nowrap!important;}
- #freshDesktopApp #fdLegacyMount #checklistBody table{width:100%!important;min-width:0!important;max-width:100%!important;table-layout:fixed!important;}
- #freshDesktopApp #fdLegacyMount #checklistBody :is(th,td){padding:4px 2px!important;font-size:10px!important;line-height:1.4!important;white-space:normal!important;overflow-wrap:anywhere!important;text-align:center!important;}
- #freshDesktopApp #fdLegacyMount #checklistBody :is(th,td):nth-child(1){width:10%!important;}
- #freshDesktopApp #fdLegacyMount #checklistBody :is(th,td):nth-child(2){width:15%!important;}
- #freshDesktopApp #fdLegacyMount #checklistBody :is(th,td):nth-child(3){width:12%!important;}
- #freshDesktopApp #fdLegacyMount #checklistBody :is(th,td):nth-child(4){width:16%!important;}
- #freshDesktopApp #fdLegacyMount #checklistBody :is(th,td):nth-child(5){width:10%!important;}
- #freshDesktopApp #fdLegacyMount #checklistBody :is(th,td):nth-child(6){width:14%!important;}
- #freshDesktopApp #fdLegacyMount #checklistBody :is(th,td):nth-child(7){width:15%!important;}
- #freshDesktopApp #fdLegacyMount #checklistBody :is(th,td):nth-child(8){width:8%!important;}
-}
 </style>
 <style id="desktop-selected-actions-column">
-@media screen and (min-width:1100px){
- #freshDesktopApp .fd-detail{display:grid!important;grid-template-columns:minmax(0,1fr) 126px!important;grid-template-rows:auto minmax(0,1fr)!important;column-gap:10px!important;row-gap:6px!important;align-items:stretch!important;}
- #freshDesktopApp .fd-detail-top{grid-column:1/-1!important;grid-row:1!important;margin:0!important;}
- #freshDesktopApp .fd-detail-list,#freshDesktopApp .fd-detail>.fd-empty{grid-column:1!important;grid-row:2!important;min-width:0!important;min-height:0!important;max-height:none!important;overflow:auto!important;align-self:stretch!important;}
- #freshDesktopApp .fd-detail-actions{grid-column:2!important;grid-row:2!important;display:grid!important;grid-template-columns:minmax(0,1fr)!important;grid-template-rows:repeat(4,28px)!important;align-content:start!important;gap:5px!important;margin:0!important;padding:0 0 0 9px!important;border-top:0!important;border-left:1px solid #e5eded!important;}
- #freshDesktopApp .fd-detail-actions button,#freshDesktopApp .fd-detail-actions button.danger{grid-column:1!important;height:28px!important;min-height:28px!important;width:100%!important;font-size:10px!important;padding:2px 3px!important;white-space:normal!important;line-height:1.2!important;}
- #freshDesktopApp .fd-event{grid-template-columns:30px minmax(0,1fr)!important;gap:5px!important;}
- #freshDesktopApp .fd-event-copy strong,#freshDesktopApp .fd-event-copy span{white-space:normal!important;overflow-wrap:anywhere!important;}
-}
 </style>
 <style>
 #fdScheduleDetails{width:min(680px,90vw);max-height:80vh;padding:0;border:1px solid #dce8e8;border-radius:12px;color:#16394f;background:white;box-shadow:0 18px 65px #16394f30;}
@@ -9199,15 +8983,12 @@ document.addEventListener('click',function(e){
 </style>
 
 <style id="calendar-delete-inline-chart-center-20261007">
-#freshDesktopApp .fd-event,#fdScheduleDetails .fd-event{display:grid!important;grid-template-columns:30px minmax(0,1fr) auto!important;gap:7px!important;align-items:center!important;}
-#freshDesktopApp .fd-event-time,#fdScheduleDetails .fd-event-time{grid-column:1!important;grid-row:1!important;}
-#freshDesktopApp .fd-event-copy,#fdScheduleDetails .fd-event-copy{grid-column:2!important;grid-row:1!important;min-width:0!important;}
-#freshDesktopApp .fd-event-controls,#fdScheduleDetails .fd-event-controls{grid-column:3!important;grid-row:1!important;align-self:start!important;display:flex!important;justify-content:flex-end!important;}
-#freshDesktopApp .fd-event-controls .fd-kind,#fdScheduleDetails .fd-event-controls .fd-kind{display:none!important;}
-#freshDesktopApp .fd-event-controls .schedule-delete-button,#fdScheduleDetails .fd-event-controls .schedule-delete-button{margin:0!important;padding:3px 7px!important;line-height:18px!important;font-size:10px!important;}
-#freshDesktopApp #fdLegacyMount .fd-chart-side{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:5px!important;text-align:center!important;align-self:stretch!important;}
-#freshDesktopApp #fdLegacyMount .fd-chart-label{width:100%!important;text-align:center!important;margin:0!important;}
-#freshDesktopApp #fdLegacyMount .chartWeekBar{justify-content:center!important;align-items:center!important;width:100%!important;}
+#fdScheduleDetails .fd-event{display:grid!important;grid-template-columns:30px minmax(0,1fr) auto!important;gap:7px!important;align-items:center!important;}
+#fdScheduleDetails .fd-event-time{grid-column:1!important;grid-row:1!important;}
+#fdScheduleDetails .fd-event-copy{grid-column:2!important;grid-row:1!important;min-width:0!important;}
+#fdScheduleDetails .fd-event-controls{grid-column:3!important;grid-row:1!important;align-self:start!important;display:flex!important;justify-content:flex-end!important;}
+#fdScheduleDetails .fd-event-controls .fd-kind{display:none!important;}
+#fdScheduleDetails .fd-event-controls .schedule-delete-button{margin:0!important;padding:3px 7px!important;line-height:18px!important;font-size:10px!important;}
 </style>
 
 <style id="calendar-current-month-only-20261007">
@@ -9220,8 +9001,6 @@ document.addEventListener('click',function(e){
 .fd-month-detail-main strong{font-size:14px!important;line-height:1.5!important;white-space:normal!important;}
 .fd-month-detail-main span{font-size:12px!important;line-height:1.5!important;white-space:normal!important;}
 .fd-month-detail-row time,.fd-month-detail-row .kind,.fd-month-detail-row em{font-size:12px!important;line-height:1.5!important;}
-#freshDesktopApp #fdLegacyMount .filterbar{display:flex!important;flex-wrap:wrap!important;gap:4px!important;}
-#freshDesktopApp #fdLegacyMount #checklistDanjiFilter,#freshDesktopApp #fdLegacyMount #managerFilter{flex:1 1 100px!important;min-width:80px!important;max-width:none!important;}
 </style>
 
 <script id="checklist-column-filter-buttons-20261007">
@@ -9241,56 +9020,20 @@ function toggleChecklistColumnFilter(kind){
 }
 </script>
 <style id="calendar-consistent-type-checklist-buttons-20261007">
-@media(min-width:761px){
-#freshDesktopApp{font-size:12px!important;line-height:1.5!important;}
-#freshDesktopApp :is(button,input,select){font-size:12px!important;}
-#freshDesktopApp :is(th,td),#freshDesktopApp #fdLegacyMount :is(th,td),#freshDesktopApp #fdLegacyMount #checklistBody :is(th,td){font-size:12px!important;line-height:1.5!important;padding:6px 4px!important;}
-#freshDesktopApp .fd-mini-head :is(h2,h3),#freshDesktopApp .fd-ops-title,#freshDesktopApp .fd-chart-label{font-size:13px!important;font-weight:600!important;}
-#freshDesktopApp .fd-event-copy strong,#freshDesktopApp .fd-event-time,#freshDesktopApp .fd-site-top,#freshDesktopApp .fd-site-num{font-size:12px!important;}
-#freshDesktopApp .fd-event-copy span,#freshDesktopApp .fd-detail-meta,#freshDesktopApp .fd-meta-pill,#freshDesktopApp .fd-day-note,#freshDesktopApp .fd-count,#freshDesktopApp .fd-holiday,#freshDesktopApp .fd-kpi span,#freshDesktopApp .fd-kpi small,#freshDesktopApp #fdMonthHint{font-size:11px!important;line-height:1.5!important;}
-#freshDesktopApp .fd-daynum,#freshDesktopApp .fd-weekday{font-size:13px!important;}
-#freshDesktopApp .fd-detail-date{font-size:14px!important;}
-#freshDesktopApp .fd-kpi strong{font-size:18px!important;}
-#freshDesktopApp #fdLegacyMount .colFilterBtn,#freshDesktopApp #fdLegacyMount .filterbar button,#freshDesktopApp #fdLegacyMount .filterbar select{font-size:12px!important;line-height:1.5!important;min-height:30px!important;height:30px!important;}
-#freshDesktopApp #fdLegacyMount .filterbar{justify-content:flex-start!important;align-items:center!important;overflow:visible!important;}
-#freshDesktopApp #fdLegacyMount .checklist-col-filter{flex:0 0 auto!important;position:relative!important;}
-#freshDesktopApp #fdLegacyMount .checklist-col-filter .colFilterBtn{padding:0 8px!important;border-radius:7px!important;}
-#freshDesktopApp #fdLegacyMount .colFilterDropdown{min-width:160px!important;font-size:12px!important;z-index:100!important;}
-}
 #checklistDanjiFilter,#managerFilter{display:none!important;}
 </style>
 
 <style id="calendar-type-finish-20261007">
-@media(min-width:761px){
-#freshDesktopApp #fdLegacyMount .fd-legacy-card-head,#freshDesktopApp #fdLegacyMount .fd-chart-label{font-size:13px!important;font-weight:600!important;}
-#freshDesktopApp #fdLegacyMount #chartWeekLabel{font-size:12px!important;}
-#freshDesktopApp #fdLegacyMount #statsChart .chart-label,#freshDesktopApp #fdLegacyMount #statsChart .chart-count{font-size:11px!important;}
-#freshDesktopApp .fd-site-top span,#freshDesktopApp .fd-busy time,#freshDesktopApp .fd-busy span,#freshDesktopApp .fd-busy strong{font-size:12px!important;}
-#freshDesktopApp .fd-mini-head>span{font-size:11px!important;}
-}
 </style>
 
 <style id="calendar-tables-matched-manager-lines-20261007">
 .calendar-manager-line{display:block!important;white-space:nowrap!important;word-break:keep-all!important;overflow-wrap:normal!important;}
-@media(min-width:761px){
-#freshDesktopApp #fdLegacyMount #managerTable th,#freshDesktopApp #fdLegacyMount #managerTable td,#freshDesktopApp #fdLegacyMount #checklistBody th,#freshDesktopApp #fdLegacyMount #checklistBody td{font-size:12px!important;line-height:1.5!important;font-weight:400!important;padding:6px 4px!important;vertical-align:middle!important;height:auto!important;}
-#freshDesktopApp #fdLegacyMount #managerTable td *,#freshDesktopApp #fdLegacyMount #checklistBody td *{font-size:inherit!important;line-height:inherit!important;}
-#freshDesktopApp #fdLegacyMount #managerTable th,#freshDesktopApp #fdLegacyMount #checklistBody th{font-weight:500!important;}
-#freshDesktopApp #fdLegacyMount #managerTable .mname,#freshDesktopApp #fdLegacyMount #checklistBody .calendar-manager-cell{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;}
-}
 </style>
 
 <style id="calendar-table-header-pickup-alignment-20261007">
-@media(min-width:761px){
-#freshDesktopApp #fdLegacyMount #managerTable thead th,#freshDesktopApp #fdLegacyMount #checklistBody thead th{height:36px!important;min-height:36px!important;padding:8px 3px!important;line-height:18px!important;white-space:nowrap!important;overflow-wrap:normal!important;word-break:keep-all!important;vertical-align:middle!important;}
-#freshDesktopApp #fdLegacyMount #checklistBody td.calendar-manager-cell{white-space:normal!important;}
-}
 </style>
 
 <style id="calendar-day-popup-layout">/* Leave more room for the selected schedule, totals and checklist on wide screens. */
-@media screen and (min-width:1251px){
- #freshDesktopApp .fd-grid{grid-template-columns:minmax(0,.85fr) minmax(0,1fr)!important;}
-}
 #fdDaySchedulePopup{padding:0;width:min(880px,calc(100vw - 32px));max-height:82dvh;box-sizing:border-box;color:#17343d;}
 #fdDaySchedulePopup::backdrop{background:rgba(16,42,51,.30);}
 #fdDaySchedulePopup .fd-summary-dialog-head{min-height:50px;height:auto;gap:12px;}
@@ -9456,7 +9199,7 @@ html.calendar-unlocked #lockScreen{display:none!important;}
   window.addEntryFlow=kind=>show(kind,previewKey);
   window.editEntryFlow=(kind,key,index)=>show(kind,key,Number(index));
   function card(event,key,date,options={}){
-    const kind=event.kind,editable=kind==='gallery'||kind==='tour',v=editable?read(kind,key,event.idx):null;
+    const kind=event.kind,hasRecord=kind==='gallery'||kind==='tour',editable=hasRecord&&!options.readOnly,v=hasRecord?read(kind,key,event.idx):null;
     const label=kind==='gallery'?CAT_LABEL.gallery:kind==='tour'?CAT_LABEL.tour:'휴관';
     const memo=(date||options.showMemo)?v?.memo||'':'';
     const sub=v?[value(v.ho),value(v.plus)?'동반 '+v.plus:'',value(v.spot),value(v.manager)?'담당 '+v.manager:''].filter(Boolean):[event.meta||''];
@@ -9483,6 +9226,526 @@ html.calendar-unlocked #lockScreen{display:none!important;}
     if((store[row.dataset.bookingKey]?.length||0)<before){document.getElementById('fdDaySchedulePopup')?.close();window.CalendarAdapter?.refresh();}
   });
   window.CalendarBooking={read,fields,card};
+})();
+
+</script>
+
+<style id="calendar-contrast-v15">
+/* Crisp white surfaces and dark ink replace the pale green wash. */
+#fdDaySchedulePopup{background:#f1f5f8!important;border-color:#c9d9e3!important;}
+#fdDaySchedulePopup .fd-summary-dialog-head{background:#fff!important;border-bottom-color:#d4e1e9!important;}
+#fdDaySchedulePopup .fd-summary-dialog-head strong{color:#163c50!important;}
+#fdDaySchedulePopup .fd-summary-dialog-body{background:#f1f5f8!important;}
+#fdDaySchedulePopup .day-site-group{background:#fff!important;border:1px solid #cbdce5!important;box-shadow:0 2px 5px #173b4d0b!important;}
+#fdDaySchedulePopup .day-site-group>.day-site-heading{display:flex!important;align-items:center!important;justify-content:space-between!important;position:static!important;min-height:0!important;height:auto!important;padding:12px 13px!important;margin:0!important;border:0!important;border-bottom:2px solid #087f82!important;border-radius:0!important;background:#fff!important;background-image:none!important;box-shadow:none!important;overflow:visible!important;}
+#fdDaySchedulePopup .day-site-heading:before,#fdDaySchedulePopup .day-site-heading:after{display:none!important;content:none!important;}
+#fdDaySchedulePopup .day-site-group h3{color:#193f54!important;font-size:14px!important;line-height:1.5!important;}
+#fdDaySchedulePopup .day-site-heading>span{color:#637c8c!important;}
+#fdDaySchedulePopup .day-time-group>h4{background:#eaf5f5!important;color:#167576!important;border-top-color:#d6e8e9!important;}
+#fdDaySchedulePopup .day-time-group>h4 time{color:#076d71!important;}
+#fdDaySchedulePopup .day-time-group>h4 small{color:#557e82!important;}
+#fdDaySchedulePopup .day-time-group.tour>h4{background:#fff2e3!important;color:#95601e!important;}
+#fdDaySchedulePopup .day-time-group.tour>h4 time{color:#9c601d!important;}
+#fdDaySchedulePopup .day-time-members .booking-event{grid-template-columns:minmax(0,1fr)!important;background:#fff!important;border-bottom-color:#dfe8ed!important;}
+#fdDaySchedulePopup .day-time-members .booking-main b{color:#23465a!important;font-size:12px!important;}
+#fdDaySchedulePopup .day-time-members .booking-sub{color:#5f7686!important;}
+#fdDaySchedulePopup .day-time-members .booking-actions{display:none!important;}
+#fdDaySchedulePopup .day-time-members .booking-memo{background:#f1f5f8!important;color:#536e7d!important;}
+#fdDaySchedulePopup .day-time-members .booking-memo small{color:#708694!important;}
+#fdSummaryModal .fd-summary-dialog-head strong,#fdSummaryModal .agenda-day h4 time{color:#193f54!important;}
+#fdSummaryModal #fdSummaryModalBody,#fdSummaryModal .agenda-overview{background:#f1f5f8!important;}
+#fdSummaryModal .agenda-person,#fdSummaryModal .agenda-site{color:#23465a!important;}#fdSummaryModal .agenda-card p{color:#5f7686!important;}
+
+</style>
+
+
+
+<style id="calendar-daily-roster-preserved">/* A literal two-column table per site, with one time cell per group. */
+#fdDaySchedulePopup{width:min(860px,calc(100vw - 32px))!important;border-radius:9px!important;}
+#fdDaySchedulePopup .fd-summary-dialog-head{height:60px!important;min-height:60px!important;background:#fff!important;}
+#fdDaySchedulePopup .fd-summary-dialog-head strong{font-size:18px!important;font-weight:700!important;}
+#fdDaySchedulePopup .fd-summary-dialog-body{gap:16px!important;padding:16px!important;background:#f3f5f7!important;}
+#fdDaySchedulePopup .day-site-group{border:0!important;border-radius:3px!important;background:#fff!important;overflow:hidden!important;}
+#fdDaySchedulePopup .day-site-group>.day-site-heading{background:#087f82!important;padding:10px 12px!important;border:0!important;}
+#fdDaySchedulePopup .day-site-heading h3{color:#fff!important;font-size:14px!important;}
+#fdDaySchedulePopup .day-site-heading>span{color:#e0f2f1!important;font-size:11px!important;}
+#fdDaySchedulePopup .day-roster-columns{display:grid;grid-template-columns:82px minmax(0,1fr);gap:0;padding:8px 0;background:#f7fafb;border-bottom:1px solid #e1e8ec;color:#5b7481;font-size:11px;font-weight:600;}
+#fdDaySchedulePopup .day-roster-columns>span{padding:0 12px;}
+#fdDaySchedulePopup .day-time-group{display:grid!important;grid-template-columns:82px minmax(0,1fr)!important;border-bottom:1px solid #e4ebef!important;background:#fff!important;}
+#fdDaySchedulePopup .day-time-group:last-child{border-bottom:0!important;}
+#fdDaySchedulePopup .day-time-group>h4,#fdDaySchedulePopup .day-time-group.tour>h4{display:flex!important;flex-direction:column!important;align-items:flex-start!important;justify-content:flex-start!important;gap:4px!important;margin:0!important;padding:12px!important;border:0!important;border-right:1px solid #e9eef0!important;background:#fff!important;color:#6c8390!important;}
+#fdDaySchedulePopup .day-time-group>h4 time{font-size:13px!important;color:#087f82!important;}
+#fdDaySchedulePopup .day-time-group.tour>h4 time{color:#aa6e28!important;}
+#fdDaySchedulePopup .day-time-group>h4>span{font-size:10px!important;color:#6c8390!important;}
+#fdDaySchedulePopup .day-time-group>h4 small{display:none!important;}
+#fdDaySchedulePopup .day-time-members{padding:0 12px!important;background:#fff!important;}
+#fdDaySchedulePopup .day-time-members .booking-copy{display:block!important;}
+#fdDaySchedulePopup .day-time-members .booking-event,#fdDaySchedulePopup .day-time-members .booking-event-wide:has(.booking-memo){padding:10px 0!important;background:#fff!important;}
+#fdDaySchedulePopup .day-time-members .booking-main b{font-size:13px!important;font-weight:500!important;}
+#fdDaySchedulePopup .day-time-members .booking-sub{font-size:11px!important;margin-top:3px!important;color:#6a7f8c!important;}
+#fdDaySchedulePopup .day-time-members .booking-memo{margin:5px 0 0!important;padding:0!important;background:transparent!important;font-size:11px!important;color:#6a7f8c!important;}
+#fdDaySchedulePopup .day-time-members .booking-memo small{display:inline!important;font-size:10px!important;}
+@media(max-width:580px){#fdDaySchedulePopup .fd-summary-dialog-head strong{font-size:16px!important;}#fdDaySchedulePopup .day-time-group,#fdDaySchedulePopup .day-roster-columns{grid-template-columns:74px minmax(0,1fr)!important;}}
+
+</style>
+
+
+
+
+
+
+
+
+
+<style id="calendar-layout-v22">
+
+</style>
+
+
+
+<style id="calendar-placement-v24">
+/* Placement only. Typography, colours and schedule behavior stay unchanged. */
+</style>
+
+<style id="calendar-layout-reset-v25">
+#freshDesktopApp{display:none;--fd-ink:#19364a;--fd-teal:#087f82;--fd-orange:#b97828;--fd-line:#d8e2e8;--fd-line2:#e7edf1;--fd-card:#fff;font-family:"Noto Sans KR","Malgun Gothic","Apple SD Gothic Neo",sans-serif;font-size:13px;line-height:1.5;color:#19364a;background:#f3f5f7;}
+#freshDesktopApp,#freshDesktopApp *{box-sizing:border-box;}
+#freshDesktopApp :is(button,input,select,textarea,table){font-family:inherit;font-size:12px;}
+#freshDesktopApp h2,#freshDesktopApp h3,#freshDesktopApp p{margin:0;}
+#freshDesktopApp .fd-content{width:min(100%,1640px);margin:auto;padding:18px 22px 26px;}
+#freshDesktopApp .fd-grid{display:grid;grid-template-columns:minmax(0,.95fr) minmax(0,1.05fr);gap:18px;align-items:start;}
+#freshDesktopApp .fd-panel{position:relative;min-width:0;min-height:0;height:auto;margin:0;padding:0;background:#fff;border:1px solid #d4e0e7;border-radius:10px;box-shadow:0 2px 6px #15394c08;overflow:visible;}
+#freshDesktopApp .fd-mini-head{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:38px;padding:8px 12px;background:#fff;border:0;border-bottom:1px solid #e2e9ee;border-radius:10px 10px 0 0;}
+#freshDesktopApp .fd-mini-head h2{font-size:13px;font-weight:650;color:#274b60;}
+#freshDesktopApp .fd-mini-head>span{font-size:11px;color:#7a8d99;}
+#freshDesktopApp .fd-right-stack{display:flex;flex-direction:column;gap:14px;min-width:0;height:auto;}
+#freshDesktopApp .fd-right-top{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:14px;align-items:stretch;}
+#freshDesktopApp .fd-calendar-panel{position:sticky;top:16px;}
+#freshDesktopApp .fd-cal-top{padding:10px 12px;text-align:right;color:#6c8290;font-size:11px;border-bottom:1px solid #e4ebef;}
+#freshDesktopApp .fd-cal{padding:12px;}
+#freshDesktopApp .fd-weekdays{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));background:#eef3f7;border:1px solid #d7e2e9;border-bottom:0;border-radius:6px 6px 0 0;}
+#freshDesktopApp .fd-weekday{text-align:center;padding:8px 0;font-size:12px;color:#526e80;}
+#freshDesktopApp .fd-weekday.sun{color:#c34d5b;}#freshDesktopApp .fd-weekday.sat{color:#3571b1;}
+#freshDesktopApp .fd-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));grid-auto-rows:92px;border-top:1px solid #d7e2e9;border-left:1px solid #d7e2e9;}
+#freshDesktopApp .fd-day{position:relative;display:block;width:100%;height:100%;min-width:0;padding:8px;border:0;border-right:1px solid #d7e2e9;border-bottom:1px solid #d7e2e9;background:#fff;text-align:right;cursor:pointer;color:#34536a;}
+#freshDesktopApp .fd-day:disabled{cursor:default;background:#fafbfc;}
+#freshDesktopApp .fd-day.selected{background:#eef8f8;box-shadow:inset 0 0 0 2px #087f82;}
+#freshDesktopApp .fd-daynum{position:absolute;right:8px;top:7px;font-size:13px;font-weight:600;}
+#freshDesktopApp .fd-day.today .fd-daynum{background:#087f82;color:#fff;border-radius:50%;padding:1px 5px;}
+#freshDesktopApp .fd-count{position:absolute;left:7px;top:7px;padding:1px 5px;font-size:10px;line-height:18px;background:#edf3f5;color:#547b86;border-radius:5px;}
+#freshDesktopApp .fd-day-note{position:absolute;left:7px;right:7px;bottom:17px;text-align:left;line-height:1.4;font-size:11px;}
+#freshDesktopApp .fd-day-site-title{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500;}
+#freshDesktopApp .fd-day-extra{display:block;font-size:10px;color:#7a8d99;}
+#freshDesktopApp .fd-dots{position:absolute;bottom:7px;left:7px;display:flex;gap:4px;}
+#freshDesktopApp .fd-dots i{width:4px;height:4px;border-radius:50%;background:#087f82;}
+#freshDesktopApp .fd-dots i.tour{background:#b97828;}
+#freshDesktopApp .fd-holiday{position:absolute;top:27px;right:7px;font-size:10px;color:#c65f65;}
+#freshDesktopApp #fdDetail{display:flex;flex-direction:column;gap:9px;height:auto;min-height:0;padding:11px;overflow:visible;}
+#freshDesktopApp .fd-detail-top{padding:0 0 8px;border-bottom:1px solid #e4eaee;}
+#freshDesktopApp .fd-detail-top>div{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+#freshDesktopApp .fd-detail-date{font-size:13px;font-weight:650;}
+#freshDesktopApp .fd-detail-meta{display:flex;gap:4px;}
+#freshDesktopApp .fd-meta-pill{display:inline-flex;align-items:center;gap:3px;padding:2px 5px;border-radius:4px;background:#edf2f5;font-size:10px;color:#657e8c;}
+#freshDesktopApp .fd-detail-list{display:flex;flex-direction:column;gap:6px;height:auto;max-height:none;overflow:visible;}
+#freshDesktopApp #fdDetail .booking-event{position:relative;display:block!important;margin:0!important;padding:9px 47px 9px 9px!important;background:#fff!important;min-height:0!important;border:1px solid #d9e5e9!important;border-left:3px solid #087f82!important;border-radius:6px!important;}
+#freshDesktopApp #fdDetail .booking-event.tour{border-left-color:#b97828!important;}
+#freshDesktopApp #fdDetail .booking-actions{position:absolute;right:5px;top:7px;display:flex!important;flex-direction:column!important;gap:4px!important;}
+#freshDesktopApp #fdDetail .booking-actions button{height:23px!important;min-height:23px!important;padding:1px 4px!important;font-size:10px!important;}
+#freshDesktopApp #fdDetail .booking-main :is(time,strong,b){font-size:12px!important;font-weight:600!important;}
+#freshDesktopApp #fdDetail .booking-sub{font-size:11px!important;line-height:1.5!important;color:#6c818d!important;}
+#freshDesktopApp .fd-detail-pager{display:flex;align-items:center;gap:4px;font-size:11px;color:#708794;}
+#freshDesktopApp .fd-detail-pager span{margin-right:auto;}
+#freshDesktopApp .fd-detail-pager button{height:26px;min-width:27px;border:1px solid #dce5ea;border-radius:5px;background:#fff;color:#456a7d;cursor:pointer;}
+#freshDesktopApp .fd-detail-pager button:disabled{opacity:.35;cursor:default;}
+#freshDesktopApp .fd-detail-actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding-top:8px;border-top:1px solid #e4eaee;}
+#freshDesktopApp .fd-detail-actions button{width:100%;min-width:0;min-height:29px;padding:3px 1px;background:#fff;border:1px solid #d7e3e9;border-radius:5px;color:#526f7f;font-size:10px;line-height:1.3;cursor:pointer;}
+#freshDesktopApp .fd-detail-actions button.danger{background:#fff8f6;border-color:#edceca;color:#b46b61;}
+#freshDesktopApp .fd-empty{padding:20px 10px;border:1px dashed #dce5e9;border-radius:6px;text-align:center;color:#8496a1;font-size:11px;}
+#freshDesktopApp .fd-empty strong,#freshDesktopApp .fd-empty span{display:block;font-weight:400;}
+#freshDesktopApp .fd-empty span{margin-top:4px;font-size:10px;}
+#freshDesktopApp .fd-summary{padding:11px;overflow:visible;height:auto;max-height:none;}
+#freshDesktopApp .fd-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));padding:7px 0;background:#f6f8fa;border:1px solid #e3eaee;border-radius:5px;}
+#freshDesktopApp .fd-kpi{display:flex;flex-direction:column;gap:2px;align-items:flex-start;min-width:0;padding:0 6px;border:0;border-right:1px solid #dce5eb;background:transparent;color:#23475b;cursor:pointer;}
+#freshDesktopApp .fd-kpi:last-child{border-right:0;}
+#freshDesktopApp .fd-kpi>span{font-size:10px;color:#718591;white-space:nowrap;}
+#freshDesktopApp .fd-kpi strong{font-size:18px;line-height:1.4;font-weight:650;}
+#freshDesktopApp .fd-kpi small{font-size:10px;margin-left:2px;font-weight:400;}
+#freshDesktopApp .fd-section-label{margin:11px 0 6px;font-size:11px;font-weight:600;color:#506f80;}
+#freshDesktopApp .fd-site-list,#freshDesktopApp .fd-busy-list{display:flex;flex-direction:column;gap:7px;}
+#freshDesktopApp .fd-site-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;}
+#freshDesktopApp .fd-site-top{margin-bottom:4px;font-size:11px;}
+#freshDesktopApp .fd-site-bar{height:3px;background:#eaf0f3;border-radius:3px;overflow:hidden;}
+#freshDesktopApp .fd-site-bar i{display:block;height:100%;background:#36a3a2;border-radius:3px;}
+#freshDesktopApp .fd-site-num{font-size:11px;color:#5e7a8a;}
+#freshDesktopApp .fd-busy{display:flex;align-items:center;gap:7px;min-height:24px;font-size:11px;}
+#freshDesktopApp .fd-busy time{flex:1;}
+#freshDesktopApp .fd-busy span{color:#8b9ca5;}
+#freshDesktopApp .fd-busy strong{color:#17858a;font-weight:500;}
+#freshDesktopApp .fd-no-summary{font-size:10px;color:#98a6ae;padding:6px 0;}
+#freshDesktopApp #fdLegacyMount{padding:10px 12px;overflow:visible;height:auto;}
+#freshDesktopApp #fdLegacyMount .checklist-section{display:block!important;margin:0!important;padding:0!important;border:0!important;height:auto!important;overflow:visible!important;}
+#freshDesktopApp #fdLegacyMount .checklist-section>h2,#freshDesktopApp #fdLegacyMount .checklist-section>h3{display:none!important;}
+#freshDesktopApp .fd-legacy-layout{display:flex;flex-direction:column;gap:0;min-height:0;height:auto;}
+#freshDesktopApp .fd-legacy-summary{margin:0 0 6px;}
+#freshDesktopApp #fdLegacyMount #summaryBar{display:flex!important;gap:6px!important;margin:0!important;padding:0!important;}
+#freshDesktopApp #fdLegacyMount .summary-card{display:flex!important;align-items:center!important;gap:5px!important;min-width:65px!important;height:26px!important;min-height:26px!important;margin:0!important;padding:3px 7px!important;}
+#freshDesktopApp #fdLegacyMount .summary-card .num{font-size:15px!important;}
+#freshDesktopApp .fd-ops-tabs{display:flex;border-bottom:1px solid #e0e8ed;}
+#freshDesktopApp .fd-ops-tabs button{padding:8px 9px;border:0;border-bottom:2px solid transparent;background:transparent;color:#718895;font-size:11px;cursor:pointer;}
+#freshDesktopApp .fd-ops-tabs button[aria-selected=true]{border-bottom-color:#087f82;color:#087f82;font-weight:650;}
+#freshDesktopApp .fd-legacy-card{display:block;min-width:0;height:auto;border:0;}
+#freshDesktopApp .fd-legacy-card[hidden]{display:none!important;}
+#freshDesktopApp .fd-legacy-card-head{display:none;}
+#freshDesktopApp .fd-legacy-card-body{display:block;height:auto;padding:8px 0 0;overflow:visible;}
+#freshDesktopApp #fdLegacyMount :is(#managerTable,#checklistBody){display:block!important;height:auto!important;min-height:0!important;max-height:none!important;overflow-x:auto!important;overflow-y:visible!important;}
+#freshDesktopApp #fdLegacyMount :is(.table-wrap,.table-scroll){height:auto!important;max-height:none!important;overflow:visible!important;}
+#freshDesktopApp #fdLegacyMount :is(.filterbar,.managerFilterBar){display:flex!important;flex-wrap:wrap!important;gap:5px!important;margin:0 0 7px!important;padding:0!important;}
+#freshDesktopApp #fdLegacyMount :is(button,select){font-family:inherit!important;font-size:11px!important;min-height:28px!important;line-height:1.4!important;}
+#freshDesktopApp #fdLegacyMount table{width:100%!important;min-width:580px!important;height:auto!important;table-layout:auto!important;border-collapse:collapse!important;}
+#freshDesktopApp #fdLegacyMount :is(th,td){position:static!important;height:auto!important;padding:8px 5px!important;font-size:12px!important;line-height:1.5!important;color:#31556b;word-break:keep-all!important;white-space:normal!important;overflow:visible!important;text-overflow:clip!important;}
+#freshDesktopApp #fdLegacyMount th{background:#eef4f7;color:#5a7789;white-space:nowrap!important;}
+#freshDesktopApp #fdWeekPanel{margin:0;padding:0;min-height:160px;height:auto;overflow:visible;}
+#freshDesktopApp #fdWeekPanel .fd-mini-head{flex-wrap:wrap;}
+#freshDesktopApp #fdWeekPanel .chartWeekBar{display:flex!important;align-items:center!important;justify-content:flex-end!important;gap:6px!important;width:auto!important;margin:0!important;padding:0!important;background:transparent!important;border:0!important;box-shadow:none!important;}
+#freshDesktopApp #fdWeekPanel .chartWeekBar button{height:26px!important;min-height:26px!important;width:28px!important;padding:0!important;font-size:11px!important;}
+#freshDesktopApp #fdWeekPanel #chartWeekLabel{display:block!important;min-width:105px!important;white-space:nowrap!important;text-align:center!important;font-size:11px!important;line-height:1.5!important;}
+#freshDesktopApp #fdWeekPanel .fd-week-chart{height:122px;min-height:122px;padding:12px 16px 16px;overflow:visible;}
+#freshDesktopApp #fdWeekPanel #statsChart{display:block!important;height:94px!important;min-height:94px!important;max-height:none!important;width:100%!important;margin:0!important;padding:0!important;overflow:visible!important;transform:none!important;}
+#freshDesktopApp #fdWeekPanel .chart-bars{display:grid!important;grid-template-columns:repeat(7,minmax(0,1fr))!important;gap:10px!important;height:94px!important;min-height:94px!important;padding:0!important;margin:0!important;align-items:stretch!important;overflow:visible!important;}
+#freshDesktopApp #fdWeekPanel .chart-col{display:grid!important;grid-template-rows:18px 54px 22px!important;min-width:0!important;height:94px!important;gap:0!important;padding:0!important;margin:0!important;overflow:visible!important;align-items:stretch!important;}
+#freshDesktopApp #fdWeekPanel .chart-count{display:block!important;position:static!important;height:18px!important;font-size:11px!important;line-height:18px!important;text-align:center!important;color:#496c7e!important;}
+#freshDesktopApp #fdWeekPanel .chart-bar-wrap{display:flex!important;align-items:flex-end!important;justify-content:center!important;height:54px!important;min-height:54px!important;padding:0!important;overflow:visible!important;background:transparent!important;}
+#freshDesktopApp #fdWeekPanel .chart-bar{display:block!important;width:12px!important;max-height:50px!important;margin:0!important;border-radius:4px 4px 0 0!important;background:#249c9b!important;}
+#freshDesktopApp #fdWeekPanel .chart-label{display:block!important;position:static!important;height:22px!important;min-height:22px!important;margin:0!important;padding:3px 0 0!important;overflow:visible!important;white-space:nowrap!important;font-size:12px!important;line-height:19px!important;text-align:center!important;color:#5a788a!important;}
+@media(min-width:761px){#freshDesktopApp{display:block!important;}}
+@media(max-width:1199px){#freshDesktopApp .fd-content{max-width:920px;}#freshDesktopApp .fd-grid{grid-template-columns:minmax(0,1fr);}#freshDesktopApp .fd-calendar-panel{position:static;}#freshDesktopApp .fd-days{grid-auto-rows:76px;}}
+@media(max-width:599px){#freshDesktopApp .fd-right-top{grid-template-columns:minmax(0,1fr);}#freshDesktopApp .fd-content{padding:12px;}#freshDesktopApp .fd-days{grid-auto-rows:67px;}}
+
+</style>
+
+<style id="calendar-single-screen-v26">
+/* Neutralize the legacy decorative header and the floating duplicate toolbar. */
+#freshDesktopApp>.fd-topbar{all:unset!important;box-sizing:border-box!important;display:flex!important;align-items:center!important;gap:10px!important;width:100%!important;height:52px!important;min-height:52px!important;padding:6px 18px!important;background:#fff!important;border-bottom:1px solid #d8e2e8!important;color:#19364a!important;font:inherit!important;position:relative!important;z-index:30!important;}
+#freshDesktopApp>.fd-topbar:before,#freshDesktopApp>.fd-topbar:after,#freshDesktopApp .fd-brand:before,#freshDesktopApp .fd-brand:after{display:none!important;content:none!important;}
+#freshDesktopApp .fd-brand{display:flex!important;align-items:center!important;min-width:0!important;gap:10px!important;}
+#freshDesktopApp .fd-brand-copy,#freshDesktopApp .fd-brand-inline{display:flex!important;align-items:center!important;gap:9px!important;}
+#freshDesktopApp #fdMainTitle{display:block!important;font-size:18px!important;line-height:1.3!important;}
+#freshDesktopApp #fdEditTitle{height:25px!important;min-height:25px!important;padding:2px 6px!important;font-size:10px!important;border:1px solid #dbe5eb!important;border-radius:5px!important;background:#fff!important;color:#69828f!important;}
+#freshDesktopApp .fd-search-wrap{min-width:160px;max-width:300px;margin-left:auto;}
+#freshDesktopApp .fd-content{padding:12px 18px!important;max-width:none!important;}
+#freshDesktopApp .fd-controlbar{min-height:34px!important;height:34px!important;margin:0!important;}
+#freshDesktopApp .fd-filterline{height:34px!important;}
+#freshDesktopApp .fd-right-stack{gap:12px!important;}
+#freshDesktopApp .fd-right-top{gap:12px!important;}
+#freshDesktopApp .fd-detail-panel{display:flex!important;flex-direction:column!important;min-height:0!important;overflow:hidden!important;}
+#freshDesktopApp .fd-detail-panel .fd-mini-head{flex:0 0 34px;min-height:34px;}
+#freshDesktopApp #fdDetail{flex:1 1 0!important;min-height:0!important;padding:8px!important;gap:6px!important;overflow:hidden!important;}
+#freshDesktopApp .fd-detail-top{padding-bottom:5px!important;}
+#freshDesktopApp .fd-detail-list{gap:5px!important;flex:none!important;overflow:visible!important;}
+#freshDesktopApp #fdDetail .booking-event{padding:7px 43px 7px 8px!important;min-height:54px!important;}
+#freshDesktopApp #fdDetail .booking-actions button{height:21px!important;min-height:21px!important;}
+#freshDesktopApp .fd-detail-pager{height:22px;min-height:22px;}
+#freshDesktopApp .fd-detail-pager button{height:22px;min-height:22px;}
+#freshDesktopApp .fd-detail-actions{margin-top:auto;}
+#freshDesktopApp .fd-summary-panel{min-height:0!important;overflow:hidden!important;}
+#freshDesktopApp .fd-summary{height:calc(100% - 38px)!important;min-height:0!important;overflow:auto!important;padding:9px!important;}
+#freshDesktopApp .fd-busy-details{margin-top:10px;}
+#freshDesktopApp .fd-busy-details summary{cursor:pointer;font-size:11px;color:#557688;}
+#freshDesktopApp .fd-busy-details[open] summary{margin-bottom:6px;}
+#freshDesktopApp .fd-ops-panel{display:flex!important;flex-direction:column!important;min-height:0!important;overflow:hidden!important;}
+#freshDesktopApp .fd-ops-panel>.fd-mini-head{flex:0 0 34px;min-height:34px;}
+#freshDesktopApp #fdLegacyMount{flex:1 1 0!important;min-height:0!important;overflow:hidden!important;padding:8px 10px!important;}
+#freshDesktopApp #fdLegacyMount .checklist-section{height:100%!important;min-height:0!important;overflow:hidden!important;}
+#freshDesktopApp .fd-legacy-layout{display:grid!important;grid-template-rows:27px 33px minmax(0,1fr)!important;gap:5px!important;height:100%!important;min-height:0!important;}
+#freshDesktopApp .fd-legacy-summary{margin:0!important;}
+#freshDesktopApp .fd-legacy-body{min-height:0!important;overflow:hidden!important;}
+#freshDesktopApp .fd-legacy-card:not([hidden]){display:flex!important;flex-direction:column!important;height:100%!important;min-height:0!important;overflow:hidden!important;}
+#freshDesktopApp .fd-legacy-card-body{display:flex!important;flex-direction:column!important;height:100%!important;min-height:0!important;overflow:hidden!important;padding-top:0!important;}
+#freshDesktopApp #fdLegacyMount :is(.filterbar,.managerFilterBar){flex:none!important;margin-bottom:5px!important;}
+#freshDesktopApp #fdLegacyMount :is(#managerTable,#checklistBody){flex:1 1 0!important;min-height:0!important;height:auto!important;max-height:none!important;overflow:auto!important;}
+#freshDesktopApp #fdLegacyMount table{min-width:570px!important;}
+#freshDesktopApp #fdLegacyMount th{position:sticky!important;top:0!important;z-index:1!important;}
+#freshDesktopApp #fdWeekPanel{min-height:0!important;height:152px!important;overflow:hidden!important;}
+#freshDesktopApp #fdWeekPanel .fd-mini-head{height:38px!important;min-height:38px!important;padding-top:5px!important;padding-bottom:5px!important;}
+#freshDesktopApp #fdWeekPanel .fd-week-chart{height:112px!important;min-height:112px!important;padding:8px 12px 10px!important;}
+/* Attendance preview is a compact date/site/time roster, without nested tables. */
+#statusOverlay .modal{width:min(880px,calc(100vw - 32px))!important;max-width:880px!important;max-height:84dvh!important;display:flex!important;flex-direction:column!important;gap:0!important;padding:0!important;border:1px solid #d8e3e9!important;border-radius:12px!important;overflow:hidden!important;background:#fff!important;box-shadow:0 20px 70px #183b4d33!important;}
+#statusOverlay .modal:before,#statusOverlay .modal:after{display:none!important;content:none!important;}
+#statusOverlay #statusTitle{flex:none!important;margin:0!important;padding:15px 48px 15px 18px!important;font-size:16px!important;line-height:1.5!important;border-bottom:1px solid #e1e9ee!important;color:#254b61!important;}
+#statusOverlay .close{position:absolute!important;right:12px!important;top:12px!important;width:28px!important;height:28px!important;border:0!important;border-radius:50%!important;background:#f0f5f7!important;color:#6d8794!important;}
+#statusOverlay #statusBody{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;align-items:start!important;gap:12px!important;padding:14px!important;margin:0!important;min-height:0!important;max-height:calc(84dvh - 55px)!important;overflow:auto!important;background:#f3f6f8!important;}
+#statusOverlay .print-date-block{margin:0!important;padding:0!important;min-width:0!important;background:#fff!important;border:1px solid #dbe5eb!important;border-radius:7px!important;overflow:hidden!important;}
+#statusOverlay .print-date-title{margin:0!important;padding:9px 11px!important;border:0!important;border-bottom:1px solid #e1e9ee!important;font-size:13px!important;font-weight:650!important;color:#254b61!important;}
+#statusOverlay .status-visit-group{margin:0;padding:0;border:0;}
+#statusOverlay .status-visit-heading{display:flex;align-items:center;gap:7px;margin:0;padding:8px 10px;background:#f0f6f8;border-top:1px solid #e1eaef;font-size:11px;color:#51768b;}
+#statusOverlay .status-visit-heading strong{font-size:12px;font-weight:600;color:#35596d;}
+#statusOverlay .status-visit-heading time{margin-left:auto;white-space:nowrap;font-size:12px;font-weight:650;color:#087f82;}
+#statusOverlay .status-visit-heading>span{font-size:10px;white-space:nowrap;}
+#statusOverlay .status-visit-heading .tour{color:#ad7735;}
+#statusOverlay .status-visit-people{padding:0 10px;}
+#statusOverlay .status-visit-people article{display:grid;grid-template-columns:92px minmax(0,1fr);gap:9px;padding:9px 0;border-bottom:1px solid #edf1f4;}
+#statusOverlay .status-visit-people article:last-child{border-bottom:0;}
+#statusOverlay .status-visit-people article>strong{font-size:12px;font-weight:600;line-height:1.5;color:#2b5067;overflow-wrap:anywhere;}
+#statusOverlay .status-visit-people article>div{font-size:11px;line-height:1.5;color:#738996;overflow-wrap:anywhere;}
+#statusOverlay .status-person-memo{margin:4px 0 0;padding:0;font-size:11px;color:#7a8e99;white-space:pre-wrap;}
+#statusOverlay .empty-msg{grid-column:1/-1;padding:30px;text-align:center;}
+@media screen and (min-width:1100px){
+ html,body{height:100%!important;max-height:100%!important;overflow:hidden!important;}
+ #appRoot,.wrap{height:100dvh!important;max-height:100dvh!important;min-height:0!important;overflow:hidden!important;}
+ #adminToolbar{display:none!important;}
+ #freshDesktopApp{display:grid!important;grid-template-rows:52px minmax(0,1fr)!important;height:100dvh!important;max-height:100dvh!important;min-height:0!important;overflow:hidden!important;}
+ #freshDesktopApp .fd-content{display:grid!important;grid-template-rows:34px minmax(0,1fr)!important;gap:10px!important;height:100%!important;min-height:0!important;overflow:hidden!important;}
+ #freshDesktopApp .fd-grid{grid-template-columns:minmax(0,1fr) minmax(0,1.1fr)!important;grid-template-rows:minmax(0,1fr)!important;height:100%!important;min-height:0!important;overflow:hidden!important;}
+ #freshDesktopApp .fd-calendar-panel{position:static!important;display:flex!important;flex-direction:column!important;height:100%!important;min-height:0!important;overflow:hidden!important;}
+ #freshDesktopApp .fd-cal-top{flex:0 0 34px;height:34px;min-height:34px;padding:5px 12px;}
+ #freshDesktopApp .fd-cal{flex:1 1 0;display:flex;flex-direction:column;min-height:0;padding:10px;}
+ #freshDesktopApp .fd-weekdays{flex:0 0 34px;min-height:34px;}
+ #freshDesktopApp .fd-days{flex:1 1 0;min-height:0;grid-template-rows:repeat(6,minmax(0,1fr));grid-auto-rows:minmax(0,1fr);}
+ #freshDesktopApp .fd-day{min-height:0;}
+ #freshDesktopApp .fd-right-stack{display:grid!important;grid-template-rows:minmax(0,.9fr) minmax(0,1fr) 152px!important;height:100%!important;min-height:0!important;gap:12px!important;overflow:hidden!important;}
+ #freshDesktopApp .fd-right-top{min-height:0!important;overflow:hidden!important;}
+ #freshDesktopApp .fd-right-top>.fd-panel{min-height:0!important;height:100%!important;max-height:100%!important;}
+}
+@media(max-width:599px){#statusOverlay #statusBody{grid-template-columns:minmax(0,1fr)!important;}#freshDesktopApp>.fd-topbar{padding:6px 10px!important;}#freshDesktopApp .fd-search-wrap{min-width:0;max-width:160px;}}
+
+</style>
+
+<style id="calendar-approved-canva-v27">
+/* Approved Canva DAHZLhNIpxg: 1920 × 1080, 40.8% calendar / 59.2% workspace. */
+@media screen and (min-width:761px){
+ html,body{margin:0!important;height:100%!important;overflow:hidden!important;}
+ #appRoot,.wrap{width:100%!important;height:100dvh!important;min-height:0!important;max-height:100dvh!important;padding:0!important;overflow:hidden!important;}
+ #adminToolbar{display:none!important;}
+ #freshDesktopApp{display:grid!important;grid-template-rows:60px minmax(0,1fr)!important;width:100%!important;height:100dvh!important;max-height:100dvh!important;min-height:0!important;background:#f5f7f8!important;color:#263e46!important;font:14px/1.45 'Noto Sans KR','Malgun Gothic','Apple SD Gothic Neo',sans-serif!important;overflow:hidden!important;}
+ #freshDesktopApp *{font-family:inherit!important;box-sizing:border-box!important;}
+ #freshDesktopApp :is(button,input,select){font-family:inherit!important;}
+ #freshDesktopApp>.fd-topbar{height:60px!important;min-height:60px!important;padding:0 24px!important;gap:12px!important;background:#fff!important;box-shadow:none!important;border-bottom:1px solid #dce3e7!important;}
+ #freshDesktopApp #fdMainTitle{font-size:26px!important;color:#263e46!important;font-weight:700!important;}
+ #freshDesktopApp .fd-brand-copy span,#freshDesktopApp #fdEditTitle{display:none!important;}
+ #freshDesktopApp .fd-brand{margin-right:auto!important;}
+ #freshDesktopApp .fd-search-wrap{width:250px!important;max-width:250px!important;min-width:0!important;margin-left:auto!important;}
+ #freshDesktopApp .fd-search{height:34px!important;padding:0 12px!important;border:1px solid #d7e0e4!important;border-radius:4px!important;box-shadow:none!important;background:#fff!important;}
+ #freshDesktopApp .fd-search input{font-size:13px!important;}
+ #freshDesktopApp .fd-search svg{width:15px!important;height:15px!important;}
+ #freshDesktopApp .fd-top-action{height:34px!important;min-height:34px!important;min-width:74px!important;border:1px solid #d7e0e4!important;border-radius:4px!important;background:white!important;font-size:13px!important;color:#40575f!important;}
+ #freshDesktopApp .fd-content{display:block!important;width:100%!important;max-width:none!important;height:100%!important;min-height:0!important;margin:0!important;padding:16px 24px 20px!important;overflow:hidden!important;}
+ #freshDesktopApp .fd-grid{display:grid!important;grid-template-columns:minmax(0,.408fr) minmax(0,.592fr)!important;grid-template-rows:minmax(0,1fr)!important;gap:16px!important;height:100%!important;min-height:0!important;overflow:visible!important;align-items:stretch!important;}
+ #freshDesktopApp .fd-left-stack{display:grid!important;grid-template-rows:minmax(0,.63fr) minmax(0,.37fr)!important;gap:14px!important;height:100%!important;min-height:0!important;min-width:0!important;}
+ #freshDesktopApp .fd-right-stack{display:grid!important;grid-template-rows:minmax(74px,.12fr) minmax(0,.40fr) minmax(0,.48fr)!important;gap:12px!important;height:100%!important;min-height:0!important;overflow:visible!important;}
+ #freshDesktopApp .fd-panel{position:relative!important;min-width:0!important;min-height:0!important;width:100%!important;height:100%!important;max-height:100%!important;margin:0!important;border:1px solid #d7dfe3!important;border-radius:6px!important;box-shadow:0 1px 4px #1d303909!important;background:#fff!important;overflow:hidden!important;}
+ #freshDesktopApp .fd-mini-head{height:42px!important;min-height:42px!important;padding:9px 14px!important;border:0!important;background:white!important;box-shadow:none!important;}
+ #freshDesktopApp .fd-mini-head h2{font-size:15px!important;color:#293e44!important;font-weight:650!important;}
+ /* Calendar: month navigation is part of its card, dates and badges are centered. */
+ #freshDesktopApp .fd-calendar-panel{display:flex!important;flex-direction:column!important;position:static!important;}
+ #freshDesktopApp .fd-cal-top{height:62px!important;min-height:62px!important;flex:0 0 62px!important;padding:12px 16px!important;display:block!important;border-bottom:1px solid #e3e8eb!important;}
+ #freshDesktopApp #fdMonthHint{display:none!important;}
+ #freshDesktopApp .fd-controlbar{display:flex!important;align-items:center!important;justify-content:space-between!important;height:36px!important;min-height:36px!important;width:100%!important;margin:0!important;gap:8px!important;}
+ #freshDesktopApp .fd-month-nav{display:grid!important;grid-template-columns:36px minmax(130px,1fr) 36px!important;align-items:center!important;gap:12px!important;width:75%!important;}
+ #freshDesktopApp .fd-month-title{text-align:center!important;font-size:26px!important;font-weight:650!important;color:#263e46!important;white-space:nowrap!important;}
+ #freshDesktopApp #fdToday{display:none!important;}
+ #freshDesktopApp .fd-iconbtn{width:36px!important;height:32px!important;min-height:32px!important;border:1px solid #dce3e6!important;border-radius:4px!important;background:#fff!important;font-size:17px!important;color:#637982!important;}
+ #freshDesktopApp .fd-filterline{height:34px!important;min-height:0!important;}
+ #freshDesktopApp .fd-filter-btn{height:32px!important;min-height:32px!important;border:1px solid #dce3e6!important;border-radius:4px!important;padding:0 12px!important;background:#fff!important;font-size:12px!important;color:#45585f!important;}
+ #freshDesktopApp .fd-filter-btn svg{width:14px!important;height:14px!important;}
+ #freshDesktopApp .fd-cal{display:flex!important;flex-direction:column!important;flex:1 1 0!important;min-height:0!important;padding:0 12px 12px!important;}
+ #freshDesktopApp .fd-weekdays{flex:0 0 32px!important;min-height:32px!important;border:0!important;border-bottom:1px solid #e9edef!important;border-radius:0!important;background:#fff!important;}
+ #freshDesktopApp .fd-weekday{padding:7px 0!important;font-size:12px!important;color:#4b5c63!important;}
+ #freshDesktopApp .fd-weekday.sun{color:#bf6c77!important;}#freshDesktopApp .fd-weekday.sat{color:#5d85a9!important;}
+ #freshDesktopApp .fd-days{flex:1 1 0!important;display:grid!important;grid-template-columns:repeat(7,minmax(0,1fr))!important;grid-template-rows:repeat(var(--fd-calendar-weeks,5),minmax(0,1fr))!important;grid-auto-rows:minmax(0,1fr)!important;min-height:0!important;border-top:0!important;border-left:0!important;}
+ #freshDesktopApp .fd-day{display:block!important;position:relative!important;width:100%!important;height:100%!important;min-height:0!important;padding:0!important;border:0!important;border-right:1px solid #f0f2f3!important;border-bottom:1px solid #f0f2f3!important;border-radius:0!important;background:#fff!important;box-shadow:none!important;text-align:center!important;}
+ #freshDesktopApp .fd-day.selected{background:#e8f3f1!important;box-shadow:inset 0 0 0 1.5px #188b87!important;}
+ #freshDesktopApp .fd-daynum{position:absolute!important;top:10px!important;left:0!important;right:0!important;text-align:center!important;font-size:16px!important;line-height:22px!important;font-weight:500!important;color:#31444c!important;}
+ #freshDesktopApp .fd-day.other .fd-daynum{color:#b8c1c6!important;}
+ #freshDesktopApp .fd-day.sun .fd-daynum{color:#b9747f!important;}#freshDesktopApp .fd-day.sat .fd-daynum{color:#5b82a9!important;}
+ #freshDesktopApp .fd-day.today .fd-daynum{background:transparent!important;color:#087f82!important;border-radius:0!important;padding:0!important;font-weight:750!important;}
+ #freshDesktopApp .fd-count{position:absolute!important;top:auto!important;bottom:10px!important;left:50%!important;right:auto!important;transform:translateX(-50%)!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;min-width:38px!important;height:24px!important;padding:0 6px!important;border-radius:4px!important;background:#168b87!important;color:#fff!important;font-size:13px!important;line-height:24px!important;font-weight:600!important;white-space:nowrap!important;}
+ #freshDesktopApp :is(.fd-day-note,.fd-dots){display:none!important;}
+ #freshDesktopApp .fd-holiday{top:auto!important;bottom:3px!important;right:2px!important;left:2px!important;font-size:9px!important;white-space:nowrap!important;}
+ /* Monthly overview: only the four compact, evenly spaced values. */
+ #freshDesktopApp .fd-summary-panel>.fd-mini-head{display:none!important;}
+ #freshDesktopApp #fdSummary{display:flex!important;align-items:center!important;padding:12px 10px!important;height:100%!important;max-height:100%!important;overflow:hidden!important;}
+ #freshDesktopApp .fd-kpis{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;width:100%!important;padding:0!important;border:0!important;border-radius:0!important;background:white!important;}
+ #freshDesktopApp .fd-kpi{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:0!important;height:62px!important;min-height:0!important;padding:0 28px!important;border:0!important;border-right:1px solid #dfe5e8!important;background:#fff!important;border-radius:0!important;color:#178783!important;}
+ #freshDesktopApp .fd-kpi:last-child{border-right:0!important;color:#b78d31!important;}
+ #freshDesktopApp .fd-kpi>span{font-size:12px!important;line-height:20px!important;color:#7d8b90!important;}
+ #freshDesktopApp .fd-kpi strong{font-size:36px!important;font-weight:700!important;line-height:36px!important;}
+ #freshDesktopApp .fd-kpi small{font-size:12px!important;font-weight:400!important;color:#798a91!important;margin-left:4px!important;}
+ /* Selected date: site/time groups, compact visitor lines, four equal actions. */
+ #freshDesktopApp .fd-detail-panel{display:flex!important;flex-direction:column!important;}
+ #freshDesktopApp .fd-detail-panel>.fd-mini-head{display:none!important;}
+ #freshDesktopApp #fdDetail{display:flex!important;flex-direction:column!important;gap:0!important;height:100%!important;min-height:0!important;padding:12px 14px!important;overflow:hidden!important;}
+ #freshDesktopApp .fd-detail-top{display:flex!important;align-items:center!important;gap:20px!important;flex:none!important;height:30px!important;min-height:30px!important;margin:0 0 7px!important;padding:0!important;border:0!important;}
+ #freshDesktopApp .fd-detail-date{font-size:16px!important;font-weight:650!important;color:#2a424a!important;}
+ #freshDesktopApp .fd-detail-total{font-size:12px!important;color:#368981!important;}
+ #freshDesktopApp .fd-detail-list{display:flex!important;flex-direction:column!important;flex:1 1 0!important;gap:0!important;min-height:0!important;overflow:auto!important;scrollbar-width:thin!important;}
+ #freshDesktopApp .fd-roster-group{display:grid!important;grid-template-columns:minmax(0,.24fr) minmax(0,.18fr) minmax(0,.58fr)!important;align-items:start!important;gap:8px!important;margin:0!important;padding:7px 2px!important;border:0!important;border-bottom:1px solid #e4e9eb!important;background:white!important;}
+ #freshDesktopApp .fd-roster-group:last-child{border-bottom:0!important;}
+ #freshDesktopApp .fd-roster-site{display:flex;align-items:center;gap:8px;min-width:0;font-size:12px;line-height:23px;}
+ #freshDesktopApp .fd-roster-site i{width:8px;height:8px;flex:none;border-radius:50%;background:#1c9690;}
+ #freshDesktopApp .fd-roster-site strong{font-size:12px;font-weight:550;overflow-wrap:anywhere;}
+ #freshDesktopApp .fd-roster-group.tour .fd-roster-site i{background:#c89b39;}
+ #freshDesktopApp .fd-roster-slot{display:flex;align-items:center;flex-wrap:wrap;gap:8px;line-height:23px;font-size:12px;}
+ #freshDesktopApp .fd-roster-slot time{color:#2f4147;font-weight:550;white-space:nowrap;}
+ #freshDesktopApp .fd-roster-slot>span{font-size:11px;line-height:18px;border:1px solid #a8c9c1;background:#edf7f3;color:#40897c;border-radius:8px;padding:0 5px;white-space:nowrap;}
+ #freshDesktopApp .tour .fd-roster-slot>span{border-color:#e4ce9a;background:#fff8e9;color:#a58234;}
+ #freshDesktopApp .fd-roster-people{min-width:0;}
+ #freshDesktopApp .fd-roster-person{display:grid;grid-template-columns:minmax(0,.14fr) minmax(0,.38fr) minmax(0,.48fr);gap:7px;min-height:24px;line-height:24px;font-size:12px;color:#455960;}
+ #freshDesktopApp .fd-roster-person strong{font-size:12px;font-weight:550;color:#263e46;overflow-wrap:anywhere;}
+ #freshDesktopApp .fd-roster-person>span{font-size:11px;color:#788a90;overflow-wrap:anywhere;}
+ #freshDesktopApp .fd-detail-actions{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;flex:none!important;gap:10px!important;margin:8px 0 0!important;padding:0!important;border:0!important;}
+ #freshDesktopApp .fd-detail-actions button{height:34px!important;min-height:34px!important;padding:4px!important;font-size:12px!important;font-weight:500!important;color:#40585f!important;background:#fff!important;border:1px solid #8fbbb5!important;border-radius:4px!important;}
+ #freshDesktopApp #fdAddTour{border-color:#ddc891!important;color:#b28d35!important;}
+ #freshDesktopApp .fd-detail-actions .danger{color:#40585f!important;background:white!important;border-color:#8fbbb5!important;}
+ #freshDesktopApp .fd-empty{display:flex;flex:1;align-items:center;justify-content:center;flex-direction:column;border:0!important;background:white!important;}
+ /* Operations: compact counters share the heading, tabs share the filter row. */
+ #freshDesktopApp .fd-ops-panel{display:flex!important;flex-direction:column!important;}
+ #freshDesktopApp .fd-ops-title{flex:0 0 42px!important;min-height:42px!important;height:42px!important;}
+ #freshDesktopApp .fd-ops-title>span{display:none!important;}
+ #freshDesktopApp .fd-legacy-summary{margin:0!important;margin-left:auto!important;}
+ #freshDesktopApp #fdLegacyMount{flex:1 1 0!important;min-height:0!important;overflow:hidden!important;padding:0 14px 8px!important;}
+ #freshDesktopApp #fdLegacyMount .checklist-section{height:100%!important;min-height:0!important;overflow:visible!important;}
+ #freshDesktopApp .fd-legacy-layout{display:grid!important;grid-template-rows:34px minmax(0,1fr)!important;gap:0!important;height:100%!important;min-height:0!important;}
+ #freshDesktopApp .fd-ops-tabs{display:flex!important;align-items:center!important;gap:14px!important;height:34px!important;padding:0!important;border:0!important;}
+ #freshDesktopApp .fd-ops-tabs button{height:32px!important;min-height:32px!important;padding:4px 2px!important;font-size:12px!important;line-height:22px!important;white-space:nowrap!important;}
+ #freshDesktopApp .fd-legacy-body,#freshDesktopApp .fd-legacy-card,#freshDesktopApp .fd-legacy-card-body{height:100%!important;min-height:0!important;overflow:hidden!important;}
+ #freshDesktopApp .fd-legacy-card:not([hidden]){display:block!important;}
+ #freshDesktopApp .fd-legacy-card-body{display:flex!important;flex-direction:column!important;padding:0!important;}
+ #freshDesktopApp #summaryBar{display:flex!important;gap:8px!important;padding:0!important;margin:0!important;background:none!important;}
+ #freshDesktopApp #summaryBar .summary-card{flex:none!important;display:flex!important;flex-direction:row-reverse!important;align-items:center!important;gap:4px!important;min-width:64px!important;height:25px!important;min-height:25px!important;margin:0!important;padding:2px 9px!important;background:#f4faf8!important;border:1px solid #b9d3cd!important;border-radius:13px!important;box-shadow:none!important;font-size:11px!important;}
+ #freshDesktopApp #summaryBar .summary-card .num{font-size:13px!important;line-height:18px!important;}
+ #freshDesktopApp #summaryBar .summary-card:nth-child(2){background:#fff6f6!important;border-color:#e7c6c6!important;}
+ #freshDesktopApp #summaryBar .summary-card:nth-child(3){background:white!important;border-color:#d7dfe3!important;}
+ #freshDesktopApp #summaryBar .summary-card:before,#freshDesktopApp #summaryBar .summary-card:after{display:none!important;content:none!important;}
+ #freshDesktopApp #fdLegacyMount :is(.filterbar,.managerFilterBar){position:absolute!important;right:14px!important;top:43px!important;display:flex!important;flex-wrap:nowrap!important;justify-content:flex-end!important;gap:4px!important;width:53%!important;min-width:0!important;height:30px!important;margin:0!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important;}
+ #freshDesktopApp #fdLegacyMount :is(button,select){height:27px!important;min-height:27px!important;border-radius:4px!important;font-size:11px!important;line-height:1.4!important;}
+ #freshDesktopApp #dateFilter{width:145px!important;flex:1 1 100px!important;min-width:80px!important;max-width:180px!important;font-size:11px!important;}
+ #freshDesktopApp #fdLegacyMount :is(#managerTable,#checklistBody){flex:1 1 0!important;display:block!important;min-height:0!important;height:auto!important;max-height:none!important;margin:0!important;padding:0!important;overflow:auto!important;border:0!important;border-radius:4px!important;box-shadow:none!important;scrollbar-width:thin!important;}
+ #freshDesktopApp #fdLegacyMount :is(.table-scroll,.table-wrap){height:auto!important;min-height:0!important;margin:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;overflow:visible!important;}
+ #freshDesktopApp #fdLegacyMount table{width:100%!important;min-width:0!important;table-layout:fixed!important;border:0!important;border-collapse:collapse!important;border-radius:0!important;background:#fff!important;box-shadow:none!important;}
+ #freshDesktopApp #fdLegacyMount :is(th,td){height:38px!important;min-height:0!important;padding:5px 5px!important;border:0!important;border-bottom:1px solid #edf0f1!important;background:#fff!important;font-size:12px!important;font-weight:400!important;color:#40555d!important;line-height:1.35!important;word-break:normal!important;overflow-wrap:anywhere!important;text-align:center!important;}
+ #freshDesktopApp #fdLegacyMount th{position:sticky!important;top:0!important;height:30px!important;background:#edf3f3!important;color:#657a82!important;font-size:11px!important;font-weight:550!important;}
+ #freshDesktopApp #fdLegacyMount tr{background:#fff!important;}
+ #freshDesktopApp #fdLegacyMount td :is(a,.person-name,.memo-target){font-size:12px!important;font-weight:400!important;color:#40555d!important;}
+ #freshDesktopApp #fdLegacyMount td input[type=checkbox]{width:14px!important;height:14px!important;min-height:0!important;margin:0!important;accent-color:#168b87!important;}
+ #freshDesktopApp .fd-table-pager{display:flex!important;align-items:center!important;justify-content:center!important;gap:32px!important;flex:0 0 30px!important;height:30px!important;margin-top:5px!important;font-size:12px!important;color:#536a74!important;}
+ #freshDesktopApp .fd-table-pager button{width:34px!important;height:25px!important;min-height:25px!important;padding:0!important;border:1px solid #d7e0e4!important;background:white!important;color:#82959c!important;font-size:15px!important;}
+ #freshDesktopApp .fd-table-pager button:disabled{opacity:.4!important;}
+ /* Weekly card: full card height, seven headings and an honest empty state. */
+ #freshDesktopApp #fdWeekPanel{display:flex!important;flex-direction:column!important;height:100%!important;min-height:0!important;overflow:hidden!important;}
+ #freshDesktopApp #fdWeekPanel>.fd-mini-head{height:46px!important;min-height:46px!important;flex:0 0 46px!important;padding:10px 14px!important;}
+ #freshDesktopApp #fdWeekPanel .chartWeekBar{width:auto!important;gap:8px!important;}
+ #freshDesktopApp #fdWeekPanel #chartWeekLabel{min-width:110px!important;font-size:12px!important;font-weight:500!important;}
+ #freshDesktopApp #fdWeekPanel .fd-week-chart{position:relative!important;flex:1 1 0!important;min-height:0!important;height:auto!important;padding:8px 14px 14px!important;overflow:hidden!important;}
+ #freshDesktopApp #fdWeekPanel #statsChart{height:100%!important;min-height:0!important;max-height:100%!important;}
+ #freshDesktopApp #fdWeekPanel .chart-bars{height:100%!important;min-height:0!important;border:0!important;background:white!important;box-shadow:none!important;}
+ #freshDesktopApp #fdWeekPanel .chart-col{height:100%!important;min-height:0!important;grid-template-rows:24px minmax(0,1fr) 24px!important;}
+ #freshDesktopApp #fdWeekPanel .chart-bar-wrap{height:100%!important;min-height:0!important;}
+ #freshDesktopApp #fdWeekPanel .chart-bar{max-height:100%!important;width:24px!important;}
+ #freshDesktopApp #fdWeekPanel .chart-label{font-size:12px!important;}
+ #freshDesktopApp .fd-chart-empty{display:none;position:absolute;inset:8px 14px 14px;flex-direction:column;align-items:center;justify-content:center;padding-top:28px;color:#a3afb5;}
+ #freshDesktopApp .fd-chart-empty-weekdays{position:absolute;left:0;right:0;top:0;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));text-align:center;color:#657980;font-size:12px;}
+ #freshDesktopApp .fd-chart-empty svg{width:48px;height:48px;margin-bottom:12px;fill:none;stroke:#d7dfe3;stroke-width:1.5;}
+ #freshDesktopApp .fd-chart-empty strong{font-size:15px;font-weight:500;color:#788a92;}
+ #freshDesktopApp .fd-chart-empty small{margin-top:5px;font-size:11px;color:#9ba9b0;}
+ #freshDesktopApp .fd-week-chart.is-empty .fd-chart-empty{display:flex;}
+ #freshDesktopApp .fd-week-chart.is-empty #statsChart{visibility:hidden!important;}
+}
+@media screen and (min-width:761px) and (max-width:1250px){
+ #freshDesktopApp .fd-content{padding:12px!important;}
+ #freshDesktopApp .fd-grid{gap:12px!important;grid-template-columns:minmax(0,.40fr) minmax(0,.60fr)!important;}
+ #freshDesktopApp .fd-kpi{padding:0 14px!important;}
+ #freshDesktopApp .fd-month-nav{gap:4px!important;grid-template-columns:28px minmax(90px,1fr) 28px!important;}
+ #freshDesktopApp .fd-month-title{font-size:18px!important;}
+ #freshDesktopApp .fd-roster-group{grid-template-columns:minmax(0,.25fr) minmax(0,.2fr) minmax(0,.55fr)!important;gap:4px!important;}
+ #freshDesktopApp .fd-roster-person{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:3px!important;}
+ #freshDesktopApp .fd-roster-person>span:last-child{grid-column:1/-1;font-size:10px;line-height:15px;}
+ #freshDesktopApp .fd-ops-tabs{gap:5px!important;}
+ #freshDesktopApp #fdLegacyMount :is(.filterbar,.managerFilterBar){width:49%!important;}
+ #freshDesktopApp #fdLegacyMount :is(.colFilter,#checklistDanjiFilter,#checklistManagerFilter){display:none!important;}
+}
+
+@media screen and (min-width:761px){
+ #freshDesktopApp #summaryBar .summary-card .label{margin:0!important;padding:0!important;font-size:11px!important;line-height:18px!important;font-weight:500!important;}
+ #freshDesktopApp #summaryBar .summary-card .num{margin:0!important;letter-spacing:0!important;font-weight:650!important;}
+ #freshDesktopApp #fdLegacyMount td span{font-weight:400!important;}
+}
+@media print{#checklistBody tbody>tr{display:table-row!important;}.fd-table-pager{display:none!important;}}
+
+
+/* Correct the measured differences between the approved frame and the user's screen. */
+@media screen and (min-width:1251px){
+ #freshDesktopApp .fd-roster-site{padding-left:clamp(20px,3vw,58px);}
+ #freshDesktopApp .fd-roster-site strong{font-size:15px!important;font-weight:500!important;line-height:26px!important;}
+ #freshDesktopApp .fd-roster-slot{font-size:15px!important;line-height:26px!important;}
+ #freshDesktopApp .fd-roster-person{min-height:26px!important;line-height:26px!important;}
+ #freshDesktopApp .fd-roster-person strong{font-size:15px!important;font-weight:500!important;}
+ #freshDesktopApp .fd-roster-group.tour .fd-roster-person{grid-template-columns:minmax(0,.30fr) minmax(0,.22fr) minmax(0,.48fr)!important;}
+ #freshDesktopApp .fd-roster-person>span{font-size:13px!important;line-height:26px!important;}
+ #freshDesktopApp .fd-roster-slot>span{font-size:12px!important;}
+ #freshDesktopApp .fd-detail-date{font-size:18px!important;}
+ #freshDesktopApp .fd-detail-total{font-size:13px!important;}
+ #freshDesktopApp .fd-kpi>span{font-size:14px!important;}
+ #freshDesktopApp .fd-mini-head h2{font-size:17px!important;}
+ #freshDesktopApp #fdLegacyMount :is(th,td){font-size:13px!important;}
+ #freshDesktopApp #fdLegacyMount td :is(span,a,.person-name,.memo-target){font-size:13px!important;color:#465c63!important;}
+}
+@media screen and (min-width:761px){
+ #freshDesktopApp .calendar-sync-status{display:none!important;}
+ #freshDesktopApp .fd-calendar-panel .fd-day.other{background:#fff!important;}
+ #freshDesktopApp .fd-day :is(.fd-holiday){font-size:10px!important;}
+ #freshDesktopApp .fd-kpi strong{line-height:42px!important;}
+ #freshDesktopApp .fd-kpi>span{align-self:center!important;}
+ #freshDesktopApp .fd-chart-empty svg{width:56px!important;height:56px!important;}
+ #freshDesktopApp .fd-roster-person[title]{cursor:default;}
+ #freshDesktopApp #fdDetail .fd-roster-group{padding-top:6px!important;padding-bottom:6px!important;}
+ #freshDesktopApp #fdLegacyMount .table-scroll{padding:0!important;}
+ #freshDesktopApp #fdLegacyMount .table-scroll:before,#freshDesktopApp #fdLegacyMount .table-scroll:after{content:none!important;display:none!important;}
+}
+</style>
+<script id="calendar-canva-roster-pagination">
+(function(){
+  const desktop=()=>matchMedia('(min-width:761px)').matches;
+  function install(){
+    const app=document.getElementById('freshDesktopApp');
+    const chart=app?.querySelector('#statsChart'),stage=chart?.closest('.fd-week-chart');
+    if(stage&&!stage.querySelector('.fd-chart-empty')){
+      const empty=document.createElement('div');empty.className='fd-chart-empty';
+      empty.innerHTML='<div class="fd-chart-empty-weekdays">'+['일','월','화','수','목','금','토'].map(d=>'<span>'+d+'</span>').join('')+'</div><svg viewBox="0 0 48 48" aria-hidden="true"><rect x="8" y="12" width="32" height="29" rx="3"/><path d="M8 20h32M16 7v10M32 7v10M15 26h4m5 0h4m5 0h2M15 33h4m5 0h4"/></svg><strong>집계 없음</strong><small>선택한 주에 집계된 방문 예정 인원이 없습니다.</small>';
+      stage.append(empty);
+      const sync=()=>stage.classList.toggle('is-empty',![...chart.querySelectorAll('.chart-count')].some(n=>Number(n.textContent)>0));
+      new MutationObserver(sync).observe(chart,{childList:true,subtree:true});sync();
+    }
+    const tableBody=app?.querySelector('#checklistBody');
+    if(tableBody&&!tableBody.dataset.canvaPages){
+      tableBody.dataset.canvaPages='1';
+      const pager=document.createElement('nav');pager.className='fd-table-pager';pager.setAttribute('aria-label','방문 체크리스트 페이지');
+      const previous=document.createElement('button'),label=document.createElement('span'),next=document.createElement('button');
+      previous.type=next.type='button';previous.textContent='‹';next.textContent='›';previous.setAttribute('aria-label','이전 명단');next.setAttribute('aria-label','다음 명단');
+      pager.append(previous,label,next);tableBody.after(pager);
+      let page=0,queued=false;
+      function paint(reset=false){
+        if(!desktop())return;
+        if(reset)page=0;
+        const rows=[...tableBody.querySelectorAll('tbody>tr')];
+        const perPage=Math.max(1,Math.min(6,Math.floor((tableBody.clientHeight-32)/38)));
+        const pages=Math.max(1,Math.ceil(rows.length/perPage));page=Math.min(page,pages-1);
+        rows.forEach((row,index)=>{row.style.display=index>=page*perPage&&index<(page+1)*perPage?'':'none';});
+        label.textContent=(page+1)+' / '+pages;previous.disabled=page===0;next.disabled=page===pages-1;
+        pager.style.visibility=rows.length?'visible':'hidden';
+      }
+      previous.onclick=()=>{page=Math.max(0,page-1);paint();};next.onclick=()=>{page++;paint();};
+      new MutationObserver(()=>{if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;paint(true);});}).observe(tableBody,{childList:true,subtree:true});
+      if(window.ResizeObserver)new ResizeObserver(()=>paint()).observe(tableBody);
+      requestAnimationFrame(()=>paint());
+    }
+    return Boolean(tableBody&&stage);
+  }
+  function start(){
+    if(!desktop())return;
+    if(install())return;
+    const observer=new MutationObserver(()=>{if(install())observer.disconnect();});observer.observe(document.body,{childList:true,subtree:true});
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
 })();
 
 </script>
