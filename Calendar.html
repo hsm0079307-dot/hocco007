@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta name="calendar-build" content="2026.10.27.29">
+<meta name="calendar-build" content="2026.10.27.30">
 <script id="calendar-shared-foundation">(function(){
  'use strict';
  const keys=['manual_schedule_data_v1','calendar_checkmarks_v1','person_memos_v1','staff_contacts_v1','category_labels_v1','capacity_date_override_v1','capacity_weekday_v1','capacity_weekend_v1','site_title_v1','site_subtitle_v1','footnote_comment_v1','fdDisplayTitle','fdCustomTitle'];
@@ -2106,13 +2106,16 @@ body :is(button,input,select,textarea,table),body svg text{font-family:var(--ui-
 </head>
 <body>
 <dialog id="lockScreen" aria-labelledby="pwTitle">
-  <h2 id="pwTitle">🔒 비밀번호 입력</h2>
-  <p>PC·모바일 공용 · 대시보드 관리자 비밀번호</p>
+  <section class="calendar-access-card">
+  <div class="calendar-access-brand">일정표</div>
+  <h2 id="pwTitle">관리자 로그인</h2>
+  <p>대시보드 관리자 비밀번호를 입력하세요.</p>
   <form id="lockForm" novalidate>
     <input type="password" id="pwInput" enterkeyhint="go" autocomplete="current-password" aria-label="비밀번호" placeholder="••••">
     <button type="submit" id="pwOpenBtn">열기</button>
   </form>
   <div class="err" id="pwErr" aria-live="polite"></div>
+  </section>
 </dialog>
 <script id="calendar-lock-simple-script">
 (function(){
@@ -5253,7 +5256,7 @@ function computeDateHeadcount(key){
   const wrapFn=(name)=>{const old=window[name]; if(typeof old!=='function'||old.__m13) return; const f=function(){const r=old.apply(this,arguments); setTimeout(renderShell,0); return r;}; f.__m13=true; window[name]=f;};
   ['applyRange','setThisMonth','setNextMonth','toggleCategory','toggleClosedFilter','toggleDanjiFilter','onScheduleDataChanged'].forEach(wrapFn);
 
-  function init(){ if(mq()) renderShell(); window.addEventListener('resize',()=>{ if(mq()) renderShell(); }); }
+  function init(){ if(mq()) renderShell(); let width=document.documentElement.clientWidth; window.addEventListener('resize',event=>{const next=document.documentElement.clientWidth;if(event.isTrusted&&next===width)return;width=next;if(mq()) renderShell();}); }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
 </script>
@@ -6829,7 +6832,13 @@ body.pro-show-legacy .checklist-section,body.pro-show-legacy .car{display:block!
   }
 
   function wrap(name){const old=window[name];if(typeof old!=='function'||old.__pro20)return;const fn=function(){const r=old.apply(this,arguments);setTimeout(render,0);return r};fn.__pro20=true;window[name]=fn}
-  function refreshSharedMobile(){
+  let proViewportWidth=document.documentElement.clientWidth;
+  function refreshSharedMobile(event){
+    if(event?.type==='resize'&&event.isTrusted){
+      const width=document.documentElement.clientWidth;
+      if(width===proViewportWidth)return;
+      proViewportWidth=width;
+    }
     const month=baseDate();
     const inMonth=k=>Number(String(k||'').split('-')[0])===month.getMonth()+1;
     const current=typeof currentDateKey==='string'?currentDateKey:'';
@@ -8965,6 +8974,49 @@ html,body{font-family:var(--ui-font)!important;font-size:var(--ui-type-body)!imp
 })();
 
 </script>
+
+<style id="calendar-mobile-width-stability">
+html:not(.calendar-unlocked) #lockScreen{align-items:center!important;justify-content:center!important;background:#f2f6f5!important;color:#203c38!important;gap:0!important;}
+#lockScreen .calendar-access-card{box-sizing:border-box;width:min(340px,100%);padding:24px;background:#fff;border:1px solid #dce7e3;border-radius:16px;box-shadow:0 12px 36px #173d3610;font-family:var(--ui-font);text-align:left;}
+#lockScreen .calendar-access-brand{display:inline-block;padding:6px 10px;margin-bottom:20px;border-radius:7px;background:#e7f4ed;color:#16805e;font-size:var(--ui-type-small,12px);font-weight:600;}
+#lockScreen #pwTitle{margin:0 0 8px!important;color:#203c38!important;font-size:var(--ui-type-title,18px)!important;font-weight:600!important;}
+#lockScreen .calendar-access-card>p{margin:0 0 20px!important;color:#71827d!important;font-size:var(--ui-type-small,12px)!important;line-height:1.6!important;}
+#lockScreen #lockForm{width:100%!important;max-width:100%!important;display:grid!important;gap:10px!important;}
+#lockScreen #pwInput{box-sizing:border-box!important;width:100%!important;min-width:0!important;height:44px!important;min-height:44px!important;margin:0!important;padding:0 12px!important;border:1px solid #cedbd6!important;border-radius:8px!important;background:#fff!important;color:#203c38!important;font-size:var(--ui-type-title,18px)!important;text-align:left!important;}
+#lockScreen #pwInput:focus{outline:2px solid #16805e!important;outline-offset:1px!important;}
+#lockScreen #pwOpenBtn{box-sizing:border-box!important;width:100%!important;height:42px!important;min-height:42px!important;margin:0!important;padding:0 12px!important;border:0!important;border-radius:8px!important;background:#16805e!important;color:#fff!important;font-size:var(--ui-type-body,14px)!important;font-weight:600!important;}
+#lockScreen #pwErr{margin:10px 0 0!important;font-size:var(--ui-type-small,12px)!important;color:#ba4e4e!important;}
+@media screen and (max-width:760px){
+html,body{width:100%!important;min-width:0!important;max-width:100%!important;margin:0!important;box-sizing:border-box!important;}
+body{padding-left:0!important;padding-right:0!important;}
+body>.wrap,#proCalendarApp,#proCalendarApp .pro-app-shell,#proCalendarApp .pro-main,#proCalendarApp .pro-main-card{width:100%!important;min-width:0!important;max-width:100%!important;margin-left:0!important;margin-right:0!important;box-sizing:border-box!important;}
+#proCalendarApp .pro-app-shell{display:block!important;overflow:visible!important;}
+#proCalendarApp .pro-main{padding:14px 12px 20px!important;}
+#proCalendarApp .pro-main-card{padding:0!important;}
+#proCalendarApp .pro-main-head{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important;width:100%!important;min-width:0!important;}
+#proCalendarApp .pro-main-head>div{min-width:0!important;flex:1 1 auto!important;}
+#proCalendarApp .pro-main-head .pro-title{font-size:var(--ui-type-title,18px)!important;line-height:1.4!important;}
+#proCalendarApp .pro-main-head p{font-size:var(--ui-type-small,12px)!important;line-height:1.5!important;white-space:normal!important;}
+#proCalendarApp #proManage{flex:0 0 auto!important;width:auto!important;min-width:34px!important;padding:0 7px!important;}
+#proCalendarApp .pro-monthbar{width:100%!important;min-width:0!important;display:grid!important;grid-template-columns:32px minmax(0,1fr) 32px 40px!important;gap:5px!important;box-sizing:border-box!important;}
+#proCalendarApp .pro-monthbar>:is(button,div){min-width:0!important;max-width:100%!important;margin:0!important;box-sizing:border-box!important;}
+#proCalendarApp #proMonthTitle{font-size:var(--ui-type-title,18px)!important;line-height:1.4!important;white-space:nowrap!important;}
+#proCalendarApp #proSiteRow{display:grid!important;grid-template-columns:minmax(0,1fr) 66px 56px!important;gap:5px!important;width:100%!important;min-width:0!important;max-width:100%!important;box-sizing:border-box!important;overflow:visible!important;}
+#proCalendarApp #proSiteRow .pro-v26-sitewrap{width:100%!important;min-width:0!important;max-width:100%!important;box-sizing:border-box!important;}
+#proCalendarApp #proSiteSelect{box-sizing:border-box!important;width:100%!important;min-width:0!important;max-width:100%!important;height:34px!important;min-height:34px!important;padding:0 25px 0 9px!important;font-size:var(--ui-type-small,12px)!important;border-radius:8px!important;}
+#proCalendarApp #proSiteSelect:focus{font-size:var(--ui-type-title,18px)!important;}
+#proCalendarApp #proSiteRow .pro-v26-cat{box-sizing:border-box!important;width:100%!important;min-width:0!important;max-width:100%!important;margin:0!important;padding:0 4px!important;gap:3px!important;font-size:var(--ui-type-small,12px)!important;}
+#proCalendarApp .pro-calendar,#proCalendarApp .pro-weekdays,#proCalendarApp .pro-days{box-sizing:border-box!important;width:100%!important;min-width:0!important;max-width:100%!important;}
+#proCalendarApp :is(.pro-weekdays,.pro-days){display:grid!important;grid-template-columns:repeat(7,minmax(0,1fr))!important;gap:2px!important;}
+#proCalendarApp :is(.pro-weekday,.pro-day){min-width:0!important;max-width:100%!important;width:100%!important;box-sizing:border-box!important;}
+#proCalendarApp .pro-day{height:62px!important;min-height:62px!important;padding:4px 1px!important;touch-action:pan-y!important;}
+#proCalendarApp .pro-v27-badges{left:0!important;right:0!important;bottom:3px!important;transform:none!important;width:100%!important;max-width:100%!important;white-space:normal!important;}
+#proCalendarApp .pro-v27-badge{height:auto!important;min-height:14px!important;max-width:100%!important;padding:1px 2px!important;font-size:var(--ui-type-small,12px)!important;line-height:1.2!important;white-space:normal!important;overflow-wrap:anywhere!important;text-align:center!important;}
+#proCalendarApp #proV27Schedule{min-width:0!important;max-width:100%!important;overflow-anchor:none!important;}
+#proCalendarApp :is(.pro-v27-agenda-row,.pro-v27-up-row,.pro-v27-agenda-main){min-width:0!important;max-width:100%!important;box-sizing:border-box!important;}
+#proCalendarApp .pro-v27-agenda-main :is(b,small){white-space:normal!important;overflow-wrap:anywhere!important;}
+}
+</style>
 </body>
 <style id="calendar-shared-ui-style">.calendar-sync-status{display:block;font:11px/1.4 'Malgun Gothic',system-ui,sans-serif;color:#66857c;white-space:normal;overflow-wrap:anywhere;max-width:100%;margin-top:3px;}
 @media(max-width:760px){.calendar-sync-status{font-size:10px;margin-top:5px;}}
@@ -9235,6 +9287,7 @@ html.calendar-unlocked #lockScreen{display:none!important;}
 </style>
 <script id="calendar-entrance-mobile-script">(function(){
  function resizeEntrance(){
+  if(document.documentElement.classList.contains('calendar-unlocked'))return;
   var viewport=window.visualViewport,root=document.documentElement;
   if(!viewport||!root.style)return;
   root.style.setProperty('--calendar-lock-height',Math.round(viewport.height)+'px');
