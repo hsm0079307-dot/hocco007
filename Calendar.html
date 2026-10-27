@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta name="calendar-build" content="2026.10.27.10">
+<meta name="calendar-build" content="2026.10.27.11">
 <script id="calendar-shared-foundation">(function(){
  'use strict';
  const keys=['manual_schedule_data_v1','calendar_checkmarks_v1','person_memos_v1','staff_contacts_v1','category_labels_v1','capacity_date_override_v1','capacity_weekday_v1','capacity_weekend_v1','site_title_v1','site_subtitle_v1','footnote_comment_v1','fdDisplayTitle','fdCustomTitle'];
@@ -2164,6 +2164,7 @@ html.calendar-unlocked #appRoot{display:block!important;}
     <h2 id="formTitle"></h2>
     <div id="formFields"></div>
     <div class="modal-actions">
+      <button type="button" class="booking-cancel" onclick="closeFormOverlay()">취소</button>
       <button onclick="submitForm()">저장</button>
     </div>
   </div>
@@ -8415,7 +8416,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
     q('#fdFullDetail').onclick=()=>{
       let dialog=document.getElementById('fdScheduleDetails');
       if(!dialog){dialog=document.createElement('dialog');dialog.id='fdScheduleDetails';document.body.appendChild(dialog);}
-      dialog.innerHTML=`<div class="fd-popup-head"><strong>${esc(dateLabel(d))} 일정 상세</strong><button type="button">닫기</button></div><div class="fd-popup-content">${list}</div>`;
+      dialog.innerHTML=`<div class="fd-popup-head"><strong>${esc(dateLabel(d))} 일정 상세</strong><button type="button">닫기</button></div><div class="fd-popup-content"><div class="fd-detail-list">${ev.map(event=>CalendarBooking.card(event,selectedKey,null,{showMemo:true})).join('')}</div></div>`;
       dialog.querySelector('button').onclick=()=>dialog.close();
       dialog.showModal();
     };
@@ -9347,22 +9348,30 @@ html.calendar-unlocked #lockScreen{display:none!important;}
 </script>
 
 <style id="calendar-booking-editor-style">/* Compact booking editor: site/time, unit/name/companions, staff/transport, notes. */
-#formOverlay.booking-editor .modal{width:min(490px,calc(100vw - 28px))!important;max-width:490px!important;max-height:calc(100dvh - 32px)!important;padding:20px!important;border-radius:16px!important;box-sizing:border-box!important;overflow:auto!important;}
-#formOverlay.booking-editor #formTitle{margin:0 36px 16px 0!important;font-size:16px!important;line-height:1.4!important;}
-#formOverlay.booking-editor #formFields{display:grid!important;grid-template-columns:repeat(6,minmax(0,1fr))!important;gap:12px 10px!important;}
+#formOverlay.booking-editor .modal{width:min(480px,calc(100vw - 28px))!important;max-width:480px!important;max-height:calc(100dvh - 32px)!important;padding:24px!important;border:1px solid #e1e8e3!important;border-radius:20px!important;background:#fff!important;box-shadow:0 20px 70px #183a3626!important;box-sizing:border-box!important;overflow:auto!important;}
+#formOverlay.booking-editor #formTitle{position:relative!important;margin:0 0 18px!important;padding:0 36px 15px 13px!important;border-bottom:1px solid #edf1ed!important;color:#294b40!important;font-size:17px!important;font-weight:700!important;letter-spacing:-.5px!important;line-height:1.4!important;}
+#formOverlay.booking-editor #formTitle::before{content:'';position:absolute;left:0;top:3px;width:4px;height:17px;background:#6a9b83;border-radius:3px;}
+#formOverlay.booking-editor .modal::before{display:none!important;}
+#formOverlay.booking-editor .close{position:absolute!important;top:18px!important;right:20px!important;width:28px!important;height:28px!important;min-height:28px!important;padding:0!important;border:1px solid #e5ece7!important;border-radius:50%!important;background:#fff!important;color:#85998d!important;font-size:15px!important;line-height:26px!important;}
+#formOverlay.booking-editor .close:hover{background:#f0f6f1!important;color:#416e55!important;}
+#formOverlay.booking-editor #formFields{display:grid!important;grid-template-columns:repeat(6,minmax(0,1fr))!important;gap:14px 10px!important;}
 #formOverlay.booking-editor .booking-field{min-width:0!important;margin:0!important;}
 #formOverlay.booking-editor .booking-field-danji{grid-column:span 4;}
 #formOverlay.booking-editor .booking-field-time{grid-column:span 2;}
 #formOverlay.booking-editor :is(.booking-field-ho,.booking-field-name,.booking-field-plus){grid-column:span 2;}
 #formOverlay.booking-editor :is(.booking-field-manager,.booking-field-spot){grid-column:span 3;}
 #formOverlay.booking-editor .booking-field-memo{grid-column:1/-1;}
-#formOverlay.booking-editor .field-label{display:block!important;margin:0 0 5px!important;font-size:11px!important;font-weight:600!important;color:#627b81!important;line-height:1.3!important;}
-#formOverlay.booking-editor #formFields :is(input,textarea){box-sizing:border-box!important;width:100%!important;min-width:0!important;margin:0!important;padding:8px 10px!important;border:1px solid #d9e5e8!important;border-radius:8px!important;background:#f8fbfc!important;color:#173c47!important;font:inherit!important;font-size:12px!important;line-height:1.4!important;box-shadow:none!important;}
+#formOverlay.booking-editor .field-label{display:block!important;margin:0 0 6px!important;font-size:11px!important;font-weight:600!important;color:#75887c!important;line-height:1.3!important;}
+#formOverlay.booking-editor #formFields :is(input,textarea){box-sizing:border-box!important;width:100%!important;min-width:0!important;margin:0!important;padding:8px 11px!important;border:1px solid #e0e8e1!important;border-radius:9px!important;background:#fff!important;color:#304f40!important;font:inherit!important;font-size:12px!important;line-height:1.4!important;box-shadow:none!important;transition:border-color .15s,background-color .15s!important;}
+#formOverlay.booking-editor #formFields :is(input,textarea)::placeholder{color:#a3afa7!important;font-size:11px!important;}
+#formOverlay.booking-editor :is(.booking-field-danji,.booking-field-time) input{background:#f2f7f3!important;border-color:#dce8df!important;font-weight:600!important;}
 #formOverlay.booking-editor #formFields input{height:36px!important;min-height:36px!important;}
-#formOverlay.booking-editor #formFields textarea{height:64px!important;min-height:64px!important;max-height:140px!important;resize:vertical!important;}
-#formOverlay.booking-editor #formFields :is(input,textarea):focus{outline:2px solid #9dc8c3!important;outline-offset:1px!important;background:white!important;}
-#formOverlay.booking-editor .modal-actions{margin-top:16px!important;}
-#formOverlay.booking-editor .modal-actions button{height:36px!important;min-height:36px!important;border-radius:8px!important;font-size:12px!important;}
+#formOverlay.booking-editor #formFields textarea{height:62px!important;min-height:62px!important;max-height:140px!important;resize:none!important;background:#fafbf8!important;}
+#formOverlay.booking-editor #formFields :is(input,textarea):focus{outline:2px solid #b7d3be!important;outline-offset:1px!important;border-color:#8db59b!important;background:white!important;}
+.booking-cancel{display:none!important;}
+#formOverlay.booking-editor .modal-actions{display:flex!important;justify-content:flex-end!important;gap:8px!important;margin-top:18px!important;padding-top:15px!important;border-top:1px solid #edf1ed!important;}
+#formOverlay.booking-editor .modal-actions button{width:106px!important;height:35px!important;min-height:35px!important;padding:6px 16px!important;border:1px solid #4d7b61!important;border-radius:8px!important;background:#4d7b61!important;color:#fff!important;font-size:12px!important;font-weight:600!important;box-shadow:none!important;}
+#formOverlay.booking-editor .modal-actions .booking-cancel{display:inline-block!important;width:68px!important;border-color:#e0e8e1!important;background:#fff!important;color:#7a8c80!important;}
 /* Clear information hierarchy and stable time widths; notes stay alongside on wide screens. */
 .booking-event{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:10px!important;align-items:start!important;padding:10px 12px!important;margin:0 0 8px!important;border:1px solid #dce8e8!important;border-left:3px solid #55aaa3!important;border-radius:9px!important;background:#f1f9f7!important;color:#183d49!important;box-sizing:border-box!important;}
 .booking-event.tour{background:#fff8ef!important;border-left-color:#d8a366!important;}
@@ -9446,10 +9455,10 @@ html.calendar-unlocked #lockScreen{display:none!important;}
   }
   window.addEntryFlow=kind=>show(kind,previewKey);
   window.editEntryFlow=(kind,key,index)=>show(kind,key,Number(index));
-  function card(event,key,date){
+  function card(event,key,date,options={}){
     const kind=event.kind,editable=kind==='gallery'||kind==='tour',v=editable?read(kind,key,event.idx):null;
     const label=kind==='gallery'?CAT_LABEL.gallery:kind==='tour'?CAT_LABEL.tour:'휴관';
-    const memo=v?.memo||'';
+    const memo=(date||options.showMemo)?v?.memo||'':'';
     const sub=v?[value(v.ho),value(v.plus)?'동반 '+v.plus:'',value(v.spot),value(v.manager)?'담당 '+v.manager:''].filter(Boolean):[event.meta||''];
     const attrs=editable?` data-booking-kind="${kind}" data-booking-key="${escape(key)}" data-booking-index="${event.idx}" title="더블클릭하여 일정 수정"`:'';
     return `<article class="booking-event ${date?'booking-event-wide':'booking-event-compact'} ${escape(kind)}"${attrs}>
