@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta name="calendar-build" content="2026.10.28.32">
+<meta name="calendar-build" content="2026.10.28.33">
 <script id="calendar-shared-foundation">(function(){
  'use strict';
  const keys=['manual_schedule_data_v1','calendar_checkmarks_v1','person_memos_v1','staff_contacts_v1','category_labels_v1','capacity_date_override_v1','capacity_weekday_v1','capacity_weekend_v1','site_title_v1','site_subtitle_v1','footnote_comment_v1','fdDisplayTitle','fdCustomTitle'];
@@ -6862,7 +6862,7 @@ body.pro-show-legacy .checklist-section,body.pro-show-legacy .car{display:block!
   }
   function renderDetail(){
     const body=document.getElementById('proDetailBody');if(!body)return;const ev=dayEvents(selectedKey),g=ev.filter(x=>x.kind==='gallery'),t=ev.filter(x=>x.kind==='tour'),head=headcount(selectedKey),cap=capacity(selectedKey),closed=GALLERY_CLOSED?.[selectedKey];
-    const group=(arr,kind,title)=>arr.length?`<section class="pro-group"><div class="pro-group-title ${kind}"><i class="pro-dot ${kind}"></i>${title} · ${arr.length}건</div><div class="pro-eventlist">${arr.map(e=>`<div class="pro-event ${kind}"><div class="pro-time">${esc(e.time)}</div><div><div class="pro-event-title">${esc(e.site)} &nbsp; ${esc(e.name)}</div><div class="pro-event-meta">${esc(e.meta||'상세 정보 없음')}</div></div><div class="pro-event-arr">›</div></div>`).join('')}</div></section>`:'';
+    const group=(arr,kind,title)=>arr.length?`<section class="pro-group"><div class="pro-group-title ${kind}"><i class="pro-dot ${kind}"></i>${title} · ${arr.length}건</div><div class="pro-eventlist">${arr.map(e=>`<div class="pro-event ${kind}"><div class="pro-time">${esc(e.time)}</div><div><div class="pro-event-title">${esc(e.site)} &nbsp; ${esc(e.name)}</div><div class="pro-event-meta">${esc(e.meta||'상세 정보 없음')}</div></div><button class="pro-event-arr pro-booking-edit" type="button" data-pro-record-kind="${e.kind}" data-pro-record-key="${esc(selectedKey)}" data-pro-record-index="${e.idx}" aria-label="${esc(e.name)} 일정 수정">›</button><button class="pro-event-comment" type="button" data-pro-comment-kind="${e.kind}" data-pro-record-key="${esc(selectedKey)}" data-pro-record-index="${e.idx}"><span>비고</span><span>${esc(personMemos[e.kind+'_'+selectedKey+'_'+e.idx]||'간단 코멘트 남기기')}</span></button></div>`).join('')}</div></section>`:'';
     body.innerHTML=`<div class="pro-detail-date">${esc(label(selectedKey))}</div><div class="pro-statrow"><div class="pro-stat">${svg.cal}<span>일정 <b>${ev.length}건</b></span></div><div class="pro-stat">${svg.people}<span>예상 인원 <b>${head}명</b></span></div></div>${closed?`<div class="pro-group"><div class="pro-group-title" style="color:#bd6074">휴관 / 이용불가</div><div class="pro-empty" style="padding:16px">${esc(closed)}</div></div>`:''}${group(g,'gallery','갤러리')}${group(t,'tour','투어')}${!ev.length&&!closed?'<div class="pro-empty">등록된 일정이 없습니다.</div>':''}<div class="pro-capacity"><span>정원 &nbsp;<b>${cap>0?cap+'명':'미설정'}${head>0?' · 현재 '+head+'명':''}</b></span><button type="button" id="proCapBtn">이 날짜 정원 설정 ›</button></div><div class="pro-actions"><button class="pro-add-gallery" id="proAddG" type="button">+ 갤러리 일정</button><button class="pro-add-tour" id="proAddT" type="button">+ 투어 일정</button><button class="pro-open-check" id="proOpenCheck" type="button">체크리스트 열기</button></div><div class="pro-secondary"><button id="proClosedBtn" type="button">${closed?'휴관 해제':'휴관 / 이용불가 지정'}</button></div>`;
     document.getElementById('proCapBtn').onclick=()=>{previewKey=selectedKey;if(typeof openDateCapacitySettings==='function')openDateCapacitySettings()};
     document.getElementById('proAddG').onclick=()=>{previewKey=selectedKey;if(typeof addEntryFlow==='function')addEntryFlow('gallery')};
@@ -9084,6 +9084,57 @@ html body #formOverlay.booking-editor #formFields textarea{box-sizing:border-box
 html body #formOverlay.booking-editor .modal-actions{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;box-sizing:border-box!important;width:100%!important;min-width:0!important;max-width:100%!important;margin:14px 0 0!important;padding:12px 3px 3px!important;border:0!important;border-top:1px solid #edf1ed!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;}
 html body #formOverlay.booking-editor .modal-actions>button{display:flex!important;align-items:center!important;justify-content:center!important;box-sizing:border-box!important;width:100%!important;min-width:0!important;max-width:100%!important;height:38px!important;min-height:38px!important;max-height:38px!important;margin:0!important;padding:0 10px!important;border-radius:8px!important;font-size:var(--ui-type-body,14px)!important;line-height:1.4!important;}
 </style>
+
+<style id="booking-card-comments-equal-actions">
+html body #formOverlay.booking-editor .modal-actions>button.booking-cancel,
+html body #formOverlay.booking-editor .modal-actions>button:not(.booking-cancel){display:flex!important;flex:1 1 0!important;align-items:center!important;justify-content:center!important;width:100%!important;min-width:0!important;max-width:none!important;height:38px!important;min-height:38px!important;max-height:38px!important;margin:0!important;padding:0 10px!important;box-sizing:border-box!important;}
+#proDetailBody .pro-event .pro-booking-edit{display:flex;align-items:center;justify-content:center;align-self:start;min-width:24px;min-height:38px;padding:0;border:0;border-radius:6px;background:transparent;color:#69818a;cursor:pointer;font:inherit;font-size:24px;}
+#proDetailBody .pro-event .pro-event-comment{grid-column:1/-1;display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;align-items:start;width:100%;min-width:0;margin:5px 0 0;padding:8px 0 0;border:0;border-top:1px solid #e8efed;background:transparent;color:#738780;text-align:left;font:inherit;font-size:var(--ui-type-small,12px);line-height:1.5;cursor:pointer;}
+#proDetailBody .pro-event-comment>span:last-child{min-width:0;color:#35564e;white-space:pre-wrap;overflow-wrap:anywhere;}
+#bookingCommentDialog{width:min(380px,calc(100vw - 28px));max-height:calc(100dvh - 28px);box-sizing:border-box;margin:auto;padding:20px;border:1px solid #dce6df;border-radius:14px;background:var(--card,#fff);color:var(--text-main,#25443a);font-family:var(--ui-font);overflow:auto;}
+#bookingCommentDialog::backdrop{background:#19382e66;}
+#bookingCommentDialog h2{margin:0 0 16px;font-size:var(--ui-type-title,18px);}
+#bookingCommentDialog label{display:block;margin:0 0 6px;font-size:var(--ui-type-small,12px);}
+#bookingCommentDialog textarea{box-sizing:border-box;width:100%;min-width:0;min-height:100px;padding:10px;border:1px solid #d4dfd8;border-radius:8px;background:var(--card,#fff);color:inherit;font-family:inherit;font-size:var(--ui-type-title,18px);resize:vertical;}
+#bookingCommentDialog .comment-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:14px;}
+#bookingCommentDialog .comment-actions button{box-sizing:border-box;min-width:0;width:100%;height:38px;padding:0 10px;border:1px solid #d4dfd8;border-radius:8px;background:#fff;color:#647d70;font-family:inherit;font-size:var(--ui-type-body,14px);}
+#bookingCommentDialog .comment-actions button[type=submit]{background:#4d7b61;border-color:#4d7b61;color:white;}
+</style>
+
+<script id="mobile-booking-card-actions">
+(()=>{
+ let dialog;
+ function openComment(kind,key,index){
+  const store=kind==='gallery'?GALLERY_ROWS:TOUR_ROWS,row=store[key]?.[index];if(!row)return;
+  const record=JSON.stringify(row),memoKey=kind+'_'+key+'_'+index,original=personMemos[memoKey]||'';
+  document.body.classList.remove('pro-sheet-open');
+  if(!dialog){
+   dialog=document.createElement('dialog');dialog.id='bookingCommentDialog';
+   dialog.innerHTML='<form><h2>비고</h2><label for="bookingCommentText">간단 코멘트</label><textarea id="bookingCommentText" rows="4" placeholder="방문 시 참고할 내용을 남겨주세요."></textarea><div class="comment-actions"><button type="button" data-comment-cancel>취소</button><button type="submit">저장</button></div></form>';
+   document.body.appendChild(dialog);dialog.querySelector('[data-comment-cancel]').onclick=()=>dialog.close();
+  }
+  const input=dialog.querySelector('textarea');input.value=original;
+  dialog.querySelector('form').onsubmit=event=>{
+   event.preventDefault();
+   const latest=(kind==='gallery'?GALLERY_ROWS:TOUR_ROWS)[key]?.[index];
+   if(JSON.stringify(latest)!==record||(personMemos[memoKey]||'')!==original){alert('일정 또는 비고가 변경되었습니다. 다시 열어주세요.');return;}
+   const text=input.value.trim();if(text)personMemos[memoKey]=text;else delete personMemos[memoKey];
+   persistMemos();dialog.close();onScheduleDataChanged();window.CalendarAdapter?.refresh();
+  };
+  dialog.showModal();
+ }
+ document.addEventListener('click',event=>{
+  const edit=event.target.closest?.('#proDetailBody [data-pro-record-kind]');
+  const note=event.target.closest?.('#proDetailBody [data-pro-comment-kind]');
+  if(!edit&&!note)return;
+  event.preventDefault();event.stopImmediatePropagation();
+  const button=edit||note,kind=edit?button.dataset.proRecordKind:button.dataset.proCommentKind,key=button.dataset.proRecordKey,index=Number(button.dataset.proRecordIndex);
+  if(!['gallery','tour'].includes(kind)||!key||!Number.isInteger(index))return;
+  if(note)openComment(kind,key,index);
+  else{document.body.classList.remove('pro-sheet-open');window.editEntryFlow?.(kind,key,index);}
+ },true);
+})();
+</script>
 </body>
 <style id="calendar-shared-ui-style">.calendar-sync-status{display:block;font:11px/1.4 'Malgun Gothic',system-ui,sans-serif;color:#66857c;white-space:normal;overflow-wrap:anywhere;max-width:100%;margin-top:3px;}
 @media(max-width:760px){.calendar-sync-status{font-size:10px;margin-top:5px;}}
