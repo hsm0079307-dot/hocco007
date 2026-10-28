@@ -20,7 +20,7 @@
 })();
 </script>
 
-<meta name="calendar-build" content="2026.10.28.70">
+<meta name="calendar-build" content="2026.10.28.71">
 <script id="calendar-shared-foundation">(function(){
  'use strict';
  const keys=['manual_schedule_data_v1','calendar_checkmarks_v1','person_memos_v1','staff_contacts_v1','category_labels_v1','capacity_date_override_v1','capacity_weekday_v1','capacity_weekend_v1','site_title_v1','site_subtitle_v1','footnote_comment_v1','fdDisplayTitle','fdCustomTitle'];
@@ -9282,6 +9282,10 @@ html body #formOverlay.booking-editor #formFields .booking-field-date>input[type
  apply(values){
   const F=CalendarFoundation;F.applying=true;
   try{
+   // A cloud snapshot is authoritative, including an empty Firebase object.
+   // Never seed the original example schedules while applying a deletion.
+   const schedule=values.manual_schedule_data_v1||{};
+   values={...values,manual_schedule_data_v1:{GALLERY_ROWS:schedule.GALLERY_ROWS||{},TOUR_ROWS:schedule.TOUR_ROWS||{},GALLERY_CLOSED:schedule.GALLERY_CLOSED||{}}};
    F.writeValues(values);loadScheduleData();
    checkState=values.calendar_checkmarks_v1||{};personMemos=values.person_memos_v1||{};
    staffList=values.staff_contacts_v1||[];dateCapacityOverrides=values.capacity_date_override_v1||{};
@@ -11025,5 +11029,11 @@ html body #freshDesktopApp #fdLegacyMount .fd-site-visits thead th{text-align:ce
 html body #fdDaySchedulePopup .day-roster-columns>span{text-align:center!important;}
 html body #fdDaySchedulePopup .day-time-group>h4,html body #fdDaySchedulePopup .day-time-group.tour>h4{align-items:center!important;text-align:center!important;padding-left:3px!important;padding-right:3px!important;}
 html body #fdDaySchedulePopup .day-time-group>h4 :is(time,span){white-space:nowrap!important;text-align:center!important;}
+}
+</style>
+
+<style id="desktop-calendar-date-top-right">
+@media(min-width:761px){
+ html body #freshDesktopApp .fd-day .fd-daynum{left:auto!important;right:8px!important;top:7px!important;width:auto!important;text-align:right!important;transform:none!important;}
 }
 </style>
