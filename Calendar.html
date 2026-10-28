@@ -6891,6 +6891,8 @@ body.pro-show-legacy .checklist-section,body.pro-show-legacy .car{display:block!
   }
   function renderSites(){
     const box=document.getElementById('proSiteRow');if(!box)return;
+    // Keep the mounted mobile selector in place while selecting a date.
+    if(matchMedia('(max-width:760px)').matches&&box.querySelector('#proSiteSelect'))return;
     const active=(typeof activeDanjiFilter!=='undefined')?activeDanjiFilter:new Set();
     box.innerHTML=`<button class="pro-chip ${active.size===0?'on':''}" type="button" data-site="">전체</button>`+allSites().map(s=>`<button class="pro-chip ${active.has(s)?'on':''}" type="button" data-site="${esc(s)}">${esc(s)}</button>`).join('');
     box.querySelectorAll('button').forEach(btn=>btn.onclick=()=>siteClick(btn.dataset.site||''));
@@ -6902,6 +6904,12 @@ body.pro-show-legacy .checklist-section,body.pro-show-legacy .car{display:block!
     const daysInMonth=new Date(y,m+1,0).getDate();
     const weeks=(first.getDay()+daysInMonth<=35)?5:6;
     box.dataset.weeks=String(weeks);
+    const calendarSignature=JSON.stringify([y,m,Array.from({length:daysInMonth},(_,i)=>dayEvents(`${m+1}-${i+1}`)),typeof GALLERY_CLOSED==='undefined'?{}:GALLERY_CLOSED]);
+    if(box.dataset.stableCalendarSignature===calendarSignature){
+      box.querySelectorAll('button.pro-day').forEach(button=>button.classList.toggle('selected',button.dataset.key===selectedKey));
+      return;
+    }
+    box.dataset.stableCalendarSignature=calendarSignature;
     let html='';
     for(let i=0;i<weeks*7;i++){
       const d=new Date(start);d.setDate(start.getDate()+i);const k=key(d),other=d.getMonth()!==m,ev=other?[]:dayEvents(k),g=ev.some(x=>x.kind==='gallery'),t=ev.some(x=>x.kind==='tour'),dow=d.getDay();
@@ -11140,5 +11148,16 @@ document.addEventListener('pointerdown',event=>{
 @media(max-width:760px){
  html body #proCalendarApp,html body #mobileCategoryDateList{overflow-anchor:none!important;}
  html body #mobileCategoryDateList{scroll-behavior:auto!important;}
+}
+</style>
+
+<script id="mobile-date-tap-prevent-focus-scroll">
+document.addEventListener('pointerdown',event=>{
+ if(matchMedia('(max-width:760px)').matches&&event.target.closest('#proDays button.pro-day'))event.preventDefault();
+},true);
+</script>
+<style id="mobile-date-tap-no-layout-animation">
+@media(max-width:760px){
+ html body #proDays .pro-day,html body #proDays .pro-daynum{transition:none!important;animation:none!important;}
 }
 </style>
