@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta name="calendar-build" content="2026.10.28.58">
+<meta name="calendar-build" content="2026.10.28.60">
 <script id="calendar-shared-foundation">(function(){
  'use strict';
  const keys=['manual_schedule_data_v1','calendar_checkmarks_v1','person_memos_v1','staff_contacts_v1','category_labels_v1','capacity_date_override_v1','capacity_weekday_v1','capacity_weekend_v1','site_title_v1','site_subtitle_v1','footnote_comment_v1','fdDisplayTitle','fdCustomTitle'];
@@ -8488,7 +8488,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
         <div class="fd-search-wrap"><div class="fd-search">${icons.search}<input id="fdSearch" type="search" autocomplete="off" placeholder="검색하세요."></div><div class="fd-search-results" id="fdSearchResults"></div></div>
         <button type="button" class="fd-top-action" id="fdTodayTop">오늘</button>
         <div class="fd-admin-wrap"><button type="button" class="fd-top-action" id="fdAdminBtn">${icons.tune}<span>관리</span></button><div class="fd-admin-menu" id="fdAdminMenu">
-          <button type="button" data-ui-font-open>전체 글꼴 변경</button><button data-admin="save">일정 저장</button><button data-admin="capacity">정원 설정</button><button data-admin="excel">엑셀 저장</button><button data-admin="print">인쇄</button><button data-admin="print-all">전체 인쇄</button><button data-admin="home-guide">홈화면 추가</button><button data-admin="backup">일정 백업</button><button data-admin="clear-all">일정 전체 삭제</button><button data-admin="restore">백업 불러오기</button><button data-admin="password">비밀번호 안내</button>
+          <button type="button" data-ui-font-open>전체 글꼴 변경</button><button data-admin="save">일정 저장</button><button data-admin="capacity">정원 설정</button><button data-admin="excel">엑셀 저장</button><button data-admin="print">인쇄</button><button data-admin="print-all">전체 인쇄</button><button data-admin="home-guide">홈화면 추가</button><button data-admin="backup">일정 백업</button><button data-admin="clear-all">일정 전체 삭제</button><button data-admin="restore">백업 불러오기</button><button data-admin="password">비밀번호 변경</button>
         </div></div>
       </header>
       <main class="fd-content">
@@ -8903,10 +8903,15 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
     openForm('관리',[],()=>{});
     document.getElementById('formOverlay').classList.add('gallery-admin-open');
     const fields=document.getElementById('formFields');fields.classList.add('gallery-admin-actions');
-    const actions=[['일정 저장',()=>saveCalendarData()],['정원 설정',()=>openCapacitySettings()],['엑셀 저장',()=>exportExcel()],['인쇄',()=>window.print()],['일정 백업',()=>backupScheduleData()],['백업 불러오기',()=>restoreScheduleDataPrompt()],['비밀번호 안내',()=>changePassword()],['전체 글꼴 변경',()=>window.DashboardTypography?.open()]];
+    const actions=[['일정 저장',()=>saveCalendarData()],['정원 설정',()=>openCapacitySettings()],['엑셀 저장',()=>exportExcel()],['인쇄',()=>window.print()],['일정 백업',()=>backupScheduleData()],['백업 불러오기',()=>restoreScheduleDataPrompt()],[matchMedia('(min-width:761px)').matches?'비밀번호 변경':'비밀번호 안내',()=>changePassword()],['전체 글꼴 변경',()=>window.DashboardTypography?.open()]];
     const paths=['<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h12l4 4v12a2 2 0 0 1-2 2zM7 3v6h10V3M7 21v-8h10v8"/>','<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M17 4a4 4 0 0 1 0 8m5 9v-2a4 4 0 0 0-3-3.9"/>','<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13l4 5m0-5-4 5"/>','<path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6zM18 12h.01"/>','<path d="M12 3v12m-4-4 4 4 4-4M4 16v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/>','<path d="M12 16V4m-4 4 4-4 4 4M4 16v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/>','<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V6a4 4 0 0 1 8 0v4M12 15v2"/>'];
     paths.push('<path d="M4 5h16M12 5v15M8 20h8"/>');
+    if(matchMedia('(min-width:761px)').matches){
+      actions.push(['일정 전체 삭제',()=>window.clearAllCalendarSchedules()]);
+      paths.push('<path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/>');
+    }
     actions.forEach(([label,run],index)=>{const button=document.createElement('button');button.type='button';
+      if(label==='일정 전체 삭제')button.dataset.calendarResetAction='true';
       const icon=document.createElement('span');icon.className='gallery-admin-icon';icon.setAttribute('aria-hidden','true');icon.innerHTML='<svg viewBox="0 0 24 24">'+paths[index]+'</svg>';
       const text=document.createElement('span');text.className='gallery-admin-label';text.textContent=label;
       const arrow=document.createElement('span');arrow.className='gallery-admin-chevron';arrow.setAttribute('aria-hidden','true');arrow.textContent='›';button.append(icon,text,arrow);
@@ -10702,4 +10707,69 @@ html body #freshDesktopApp #fdLegacyMount .fd-site-heading strong::before{conten
 html body #freshDesktopApp #fdLegacyMount .fd-site-heading strong{display:inline-flex!important;align-items:center!important;gap:7px!important;}
 html body #freshDesktopApp #fdLegacyMount .fd-site-heading strong::before{content:''!important;display:inline-block!important;flex:0 0 18px!important;width:18px!important;height:18px!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;transform:none!important;vertical-align:middle!important;background:transparent url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2218%22%20height%3D%2218%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23607f91%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M5%2021V4a1%201%200%200%201%201-1h10a1%201%200%200%201%201%201v17M3%2021h18M17%209h3v12M9%2021v-4h4v4%22%2F%3E%3Cpath%20d%3D%22M8%207h1m4%200h1M8%2010h1m4%200h1M8%2013h1m4%200h1%22%2F%3E%3C%2Fsvg%3E") center/18px 18px no-repeat!important;}
 }
+</style>
+
+<style id="desktop-management-reset-item">@media screen and (min-width:761px){html body #formOverlay .gallery-admin-actions button[data-calendar-reset-action]{margin-top:8px!important;border-top:1px solid #e8eeea!important;border-radius:0!important;color:#ad5a56!important;}html body #formOverlay .gallery-admin-actions button[data-calendar-reset-action] .gallery-admin-icon{color:#ad5a56!important;}}</style>
+
+<script id="desktop-shared-password-change">
+(()=>{
+ const endpoint='https://stately-sfogliatella-7ab674.netlify.app/api/password-access';
+ const sessionKey='calendar_shared_session_v1';
+ async function login(password){
+  const response=await fetch(endpoint+'?action=login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role:'admin',password,includeData:false}),signal:AbortSignal.timeout(20000)});
+  if(!response.ok)throw Error(response.status===429?'잠시 후 다시 시도해주세요.':'현재 관리자 비밀번호를 확인해주세요.');
+  const result=await response.json();if(result.role!=='admin'||typeof result.token!=='string'||!result.token||!Number.isFinite(Number(result.expiresAt))||Number(result.expiresAt)<=Date.now())throw Error('로그인 정보를 확인하지 못했습니다.');return result;
+ }
+ async function change(current,next,confirmation){
+  if(!current||!next.trim())throw Error('현재 비밀번호와 새 비밀번호를 입력해주세요.');
+  if(next.length>256)throw Error('새 비밀번호는 256자 이내로 입력해주세요.');
+  if(next!==confirmation)throw Error('새 비밀번호가 서로 다릅니다.');
+  if(current===next)throw Error('현재 비밀번호와 다른 새 비밀번호를 입력해주세요.');
+  const auth=await login(current),url=endpoint+'?action=data&path='+encodeURIComponent('/data/adminPasswordHash.json');
+  const check=await fetch(url,{headers:{Authorization:'Bearer '+auth.token,'X-Firebase-ETag':'true'},signal:AbortSignal.timeout(20000)});
+  if(!check.ok)throw Error('비밀번호 정보를 확인하지 못했습니다. 다시 시도해주세요.');
+  const etag=check.headers.get('etag');if(!etag)throw Error('변경 정보를 확인하지 못했습니다. 다시 시도해주세요.');
+  const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(next));
+  const hash=Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
+  const saved=await fetch(url,{method:'PUT',headers:{Authorization:'Bearer '+auth.token,'Content-Type':'application/json','If-Match':etag},body:JSON.stringify(hash),signal:AbortSignal.timeout(20000)});
+  if(!saved.ok)throw Error(saved.status===412?'다른 곳에서 비밀번호가 변경되었습니다. 다시 로그인해주세요.':'비밀번호를 변경하지 못했습니다. 다시 시도해주세요.');
+  let refreshed=false;
+  try{const session=await login(next);sessionStorage.setItem(sessionKey,JSON.stringify({role:'admin',token:session.token,expiresAt:Number(session.expiresAt)}));refreshed=true;}catch(_){sessionStorage.removeItem(sessionKey);}
+  try{localStorage.removeItem('calendar_password_v1');}catch(_){}
+  return {refreshed};
+ }
+ window.CalendarPasswordChange={change};
+ const original=changePassword;
+ changePassword=function(){
+  if(!matchMedia('(min-width:761px)').matches)return original();
+  let dialog=document.getElementById('calendarPasswordDialog');
+  if(!dialog){dialog=document.createElement('dialog');dialog.id='calendarPasswordDialog';dialog.setAttribute('aria-labelledby','calendarPasswordTitle');dialog.innerHTML='<form><div class="calendar-password-head"><h2 id="calendarPasswordTitle">관리자 비밀번호 변경</h2><button type="button" data-password-close aria-label="닫기">×</button></div><p>대시보드·PC·모바일에서 함께 사용하는 관리자 비밀번호가 변경됩니다.</p><label>현재 비밀번호<input name="current" type="password" autocomplete="current-password" required></label><label>새 비밀번호<input name="next" type="password" autocomplete="new-password" required></label><label>새 비밀번호 확인<input name="confirmation" type="password" autocomplete="new-password" required></label><div class="calendar-password-error" role="status" aria-live="polite"></div><div class="calendar-password-actions"><button type="button" data-password-cancel>취소</button><button type="submit">변경 저장</button></div></form>';document.body.appendChild(dialog);}
+  const form=dialog.querySelector('form'),error=dialog.querySelector('.calendar-password-error'),save=dialog.querySelector('[type="submit"]');form.reset();error.textContent='';save.disabled=false;save.textContent='변경 저장';
+  const close=()=>{if(!save.disabled)dialog.close();};dialog.querySelector('[data-password-close]').onclick=close;dialog.querySelector('[data-password-cancel]').onclick=close;
+  dialog.oncancel=event=>{if(save.disabled)event.preventDefault();};
+  form.onsubmit=async event=>{
+   event.preventDefault();if(save.disabled)return;save.disabled=true;save.textContent='변경 중…';error.textContent='';
+   const inputs=form.querySelectorAll('input');inputs.forEach(input=>input.readOnly=true);
+   try{const result=await change(form.elements.current.value,form.elements.next.value,form.elements.confirmation.value);form.reset();dialog.close();alert(result.refreshed?'관리자 비밀번호가 변경되었습니다. 다음 접속부터 새 비밀번호를 사용해주세요.':'비밀번호는 변경되었습니다. 새 비밀번호로 다시 로그인해주세요.');location.reload();}
+   catch(err){error.textContent=err.message||'연결을 확인한 뒤 다시 시도해주세요.';}
+   finally{save.disabled=false;save.textContent='변경 저장';inputs.forEach(input=>input.readOnly=false);}
+  };
+  dialog.showModal();form.elements.current.focus();
+ };
+})();
+</script>
+<style id="desktop-password-change-form">
+#calendarPasswordDialog{box-sizing:border-box;width:min(400px,calc(100vw - 40px));padding:22px;border:1px solid #dbe5e8;border-radius:12px;background:#fff;color:#365466;font-family:var(--ui-font,system-ui);box-shadow:0 20px 70px #183b4d33;}
+#calendarPasswordDialog::backdrop{background:#203a4480;backdrop-filter:blur(4px);}
+#calendarPasswordDialog .calendar-password-head{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+#calendarPasswordDialog h2{font-size:var(--ui-type-title,18px);margin:0;}
+#calendarPasswordDialog [data-password-close]{width:28px;height:28px;padding:0;border:1px solid #dce5e9;border-radius:50%;background:#fff;color:#718893;cursor:pointer;font-size:20px;}
+#calendarPasswordDialog p{font-size:var(--ui-type-small,12px);line-height:1.6;color:#7a8e98;margin:12px 0 18px;}
+#calendarPasswordDialog label{display:block;font-size:var(--ui-type-small,12px);margin:12px 0;color:#627e8a;}
+#calendarPasswordDialog input{box-sizing:border-box;width:100%;height:38px;padding:8px 10px;margin-top:5px;border:1px solid #d6e2e6;border-radius:6px;background:#fff;font:inherit;font-size:var(--ui-type-body,14px);color:#365466;}
+#calendarPasswordDialog .calendar-password-error{font-size:var(--ui-type-small,12px);line-height:1.5;color:#b46560;min-height:18px;}
+#calendarPasswordDialog .calendar-password-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;}
+#calendarPasswordDialog .calendar-password-actions button{height:36px;border:1px solid #d1dfe4;border-radius:6px;background:#fff;color:#617f8b;font:inherit;font-size:var(--ui-type-body,14px);cursor:pointer;}
+#calendarPasswordDialog .calendar-password-actions [type="submit"]{background:#4d7b68;border-color:#4d7b68;color:#fff;}
+#calendarPasswordDialog button:disabled{opacity:.6;cursor:wait;}
 </style>
