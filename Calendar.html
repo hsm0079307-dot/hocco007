@@ -6942,7 +6942,7 @@ body.pro-show-legacy .checklist-section,body.pro-show-legacy .car{display:block!
   function render(){
     build();
     const b=baseDate(); if(!selectedKey)selectedKey=pickSelectedForMonth(b);
-    document.getElementById('proTitle').textContent=sourceTitle();
+    document.getElementById('proTitle').textContent=matchMedia('(max-width:760px)').matches?'투어일정':sourceTitle();
     renderSites();renderCalendar();renderMini();renderDetail();
     const lg=document.getElementById('proLegendG'),lt=document.getElementById('proLegendT');if(lg)lg.classList.toggle('off',typeof activeCategories!=='undefined'&&!activeCategories.gallery);if(lt)lt.classList.toggle('off',typeof activeCategories!=='undefined'&&!activeCategories.tour);
   }
@@ -7764,6 +7764,12 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
 
     const nav=e.target.closest('.pro-bottomnav button');
     if(nav){
+      if(matchMedia('(max-width:760px)').matches&&window.calendarMobileBrowseKind){
+        e.preventDefault();e.stopImmediatePropagation();
+        const index=qa('.pro-bottomnav button').indexOf(nav);
+        if(index<3)window.calendarMobileBrowseKind(['schedule','gallery','tour'][index]);
+        return;
+      }
       const a=nav.dataset.mobile;
       if(a==='more'||a==='customer'||a==='check'||a==='schedule'){
         e.preventDefault();e.stopImmediatePropagation();
@@ -11053,5 +11059,28 @@ html body #fdDaySchedulePopup .day-time-group>h4 :is(time,span){white-space:nowr
  html body #proCalendarApp .pro-v27-badge:not(.closed)::before{content:"";display:block;width:7px;height:7px;border-radius:50%;background:#159e98;}
  html body #proCalendarApp .pro-v27-badge.tour::before{background:#efa34e;}
  html body #proCalendarApp .pro-v27-badge.both::after{content:"";display:block;width:7px;height:7px;border-radius:50%;background:#efa34e;}
+}
+</style>
+
+<script id="mobile-calendar-browse-navigation">
+(()=>{
+ window.calendarMobileBrowseKind=function(kind){
+  if(!matchMedia('(max-width:760px)').matches)return;
+  document.body.classList.remove('pro-sheet-open','pro-tools-open','pro-customer-open','pro-show-legacy');
+  const desired={gallery:kind!=='tour',tour:kind!=='gallery'};
+  for(const [name,id] of [['gallery','proLegendG'],['tour','proLegendT']]){
+   const button=document.getElementById(id);
+   if(button&&(!button.classList.contains('off'))!==desired[name])button.click();
+  }
+  document.querySelectorAll('.pro-bottomnav button').forEach((button,index)=>button.classList.toggle('active',index===['schedule','gallery','tour'].indexOf(kind)));
+ };
+})();
+</script>
+<style id="mobile-calendar-viewer-actions">
+@media(max-width:760px){
+ html body #proCalendarApp .pro-main-head>div>p{display:none!important;}
+ html body #proCalendarApp .pro-bottomnav{grid-template-columns:repeat(3,minmax(0,1fr))!important;}
+ html body #proCalendarApp .pro-bottomnav>button:last-child{display:none!important;}
+ html:not([data-calendar-access="owner"]) body :is(#proAddG,#proAddT,#proOpenCheck,.preview-v2-actions,.preview-v2-secondary){display:none!important;}
 }
 </style>
