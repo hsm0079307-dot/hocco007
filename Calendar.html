@@ -3,16 +3,16 @@
 <head>
 <script id="shared-login-request-guard">
 (()=>{
- const key='shared_password_login_cooldown_v1',pending=new Map();
- function deadline(){try{return Number(localStorage.getItem(key))||0;}catch{return 0;}}
- function message(until){const minutes=Math.max(1,Math.ceil((until-Date.now())/60000));return '로그인 시도 제한이 걸렸습니다. 약 '+minutes+'분 후 다시 시도해주세요. 대시보드와 캘린더에 같은 제한이 적용됩니다.';}
+ const key='password_login_cooldown_v2:',pending=new Map();
+ function deadline(role){try{return Number(localStorage.getItem(key+role))||0;}catch{return 0;}}
+ function message(until){const minutes=Math.max(1,Math.ceil((until-Date.now())/60000));return '로그인 시도 제한이 걸렸습니다. 약 '+minutes+'분 후 다시 시도해주세요. 이 로그인 유형의 요청은 제한 해제 후 다시 보냅니다.';}
  async function request(send,role,password){
-  const until=deadline();if(until>Date.now())throw Error(message(until));
+  const until=deadline(role);if(until>Date.now())throw Error(message(until));
   const copy=response=>typeof response.clone==='function'?response.clone():response;
   const id=role+'\u0000'+password;if(pending.has(id))return copy(await pending.get(id));
   const task=(async()=>{const response=await send();if(response.status===429){
    const retry=Number(response.headers?.get('retry-after')),expires=Date.now()+(retry>0?retry:900)*1000;
-   try{localStorage.setItem(key,String(expires));}catch(_){}throw Error(message(expires));
+   try{localStorage.setItem(key+role,String(expires));}catch(_){}throw Error(message(expires));
   }return response;})();pending.set(id,task);
   try{return copy(await task);}finally{if(pending.get(id)===task)pending.delete(id);}
  }
@@ -20,7 +20,7 @@
 })();
 </script>
 
-<meta name="calendar-build" content="2026.10.28.61">
+<meta name="calendar-build" content="2026.10.28.62">
 <script id="calendar-shared-foundation">(function(){
  'use strict';
  const keys=['manual_schedule_data_v1','calendar_checkmarks_v1','person_memos_v1','staff_contacts_v1','category_labels_v1','capacity_date_override_v1','capacity_weekday_v1','capacity_weekend_v1','site_title_v1','site_subtitle_v1','footnote_comment_v1','fdDisplayTitle','fdCustomTitle'];
@@ -218,29 +218,23 @@
 })(typeof window==='undefined'?globalThis:window);
 
 </script>
-<script id="calendar-auth">(function(){
+<script id="calendar-auth">(()=>{
  'use strict';
- const key='calendar_shared_session_v1',endpoint='https://stately-sfogliatella-7ab674.netlify.app/api/password-access';
- function current(){
-  try{const value=JSON.parse(sessionStorage.getItem(key)||'null');if(value?.role==='admin'&&typeof value.token==='string'&&value.token&&Number(value.expiresAt)>Date.now())return value;}catch{}
-  return null;
+ const viewKey='calendar_view_session_v1',ownerKey='calendar_owner_session_v1',endpoint='https://stately-sfogliatella-7ab674.netlify.app/.netlify/functions/password-access';
+ try{sessionStorage.removeItem('calendar_shared_session_v1');}catch(_){}
+ function read(key,role){try{const value=JSON.parse(sessionStorage.getItem(key)||'null');return value?.role===role&&typeof value.token==='string'&&value.token&&Number(value.expiresAt)>Date.now()?value:null;}catch{return null;}}
+ function current(){return read(ownerKey,'admin')||read(viewKey,'calendar');}
+ async function login(role,password){
+  const response=await window.SharedLoginGuard.request(()=>fetch(endpoint+'?action=login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role,password,includeData:false}),signal:AbortSignal.timeout(20000)}),role,password);
+  if(!response.ok){let reason;try{reason=(await response.json()).error;}catch(_){}
+   throw Error(reason==='CALENDAR_NOT_CONFIGURED'?'캘린더 공유 비밀번호가 아직 설정되지 않았습니다. 관리자 설정에서 먼저 지정해주세요.':response.status>=500?'로그인 서버에 연결하지 못했습니다.':role==='calendar'?'캘린더 공유 비밀번호를 확인해주세요. 대시보드 관리자 비밀번호와는 별도입니다.':'대시보드 관리자 비밀번호를 확인해주세요.');}
+  const result=await response.json();if(result.role!==role||typeof result.token!=='string'||!result.token||!Number.isFinite(Number(result.expiresAt))||Number(result.expiresAt)<=Date.now())throw Error('로그인 응답을 확인하지 못했습니다.');
+  return {role,token:result.token,expiresAt:Number(result.expiresAt)};
  }
- async function authenticate(password){
-  // Always verify the entered shared administrator password on the server.
-  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),20000);
-  try{
-   const response=await window.SharedLoginGuard.request(()=>fetch(endpoint+'?action=login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role:'admin',password,includeData:false}),signal:controller.signal}),'admin',password);
-   if(!response.ok)throw Error(response.status>=500?'로그인 서버에 연결하지 못했습니다. 잠시 후 다시 시도해주세요.':'관리자 비밀번호가 틀렸습니다. 대시보드 입장 비밀번호와는 별도입니다.');
-   const result=await response.json();
-   if(result?.role!=='admin'||typeof result.token!=='string'||!result.token||!Number.isFinite(Number(result.expiresAt))||Number(result.expiresAt)<=Date.now())throw Error('동기화 연결을 확인하지 못했습니다.');
-   const session={role:'admin',token:result.token,expiresAt:Number(result.expiresAt)};
-   sessionStorage.setItem(key,JSON.stringify(session));return session;
-  }finally{clearTimeout(timeout);}
- }
- window.CalendarAuthentication={current,authenticate};
-})();
-
-</script>
+ function rememberOwner(session){sessionStorage.setItem(ownerKey,JSON.stringify(session));window.dispatchEvent(new Event('calendar-access-changed'));return session;}
+ async function authenticate(password){const result=await login('calendar',password);sessionStorage.removeItem(ownerKey);sessionStorage.setItem(viewKey,JSON.stringify(result));window.dispatchEvent(new Event('calendar-access-changed'));return result;}
+ window.CalendarAuthentication={current,authenticate,authorizeOwner:async password=>rememberOwner(await login('admin',password)),rememberOwner,logoutOwner(){sessionStorage.removeItem(ownerKey);window.dispatchEvent(new Event('calendar-access-changed'));}};
+})();</script>
 
 
 <meta charset="UTF-8">
@@ -2193,10 +2187,10 @@ window.calendarTimeGroups=function(events){
 <dialog id="lockScreen" aria-labelledby="pwTitle">
   <section class="calendar-access-card">
   <div class="calendar-access-brand">일정표</div>
-  <h2 id="pwTitle">관리자 로그인</h2>
-  <p>대시보드 관리자 비밀번호를 입력하세요.</p>
+  <h2 id="pwTitle">캘린더 조회</h2>
+  <p>캘린더 공유 비밀번호를 입력하세요.</p>
   <form id="lockForm" novalidate>
-    <input type="password" id="pwInput" inputmode="numeric" pattern="[0-9]*" enterkeyhint="go" autocomplete="current-password" aria-label="관리자 비밀번호" placeholder="관리자 비밀번호">
+    <input type="password" id="pwInput" inputmode="numeric" pattern="[0-9]*" enterkeyhint="go" autocomplete="current-password" aria-label="캘린더 공유 비밀번호" placeholder="캘린더 공유 비밀번호">
     <button type="submit" id="pwOpenBtn">입장</button>
   </form>
   <div class="err" id="pwErr" aria-live="polite"></div>
@@ -2369,12 +2363,7 @@ window.calendarTimeGroups=function(events){
 </div>
 
 <script>
-const DEFAULT_PASSWORD = "0134";
-const PW_STORAGE_KEY = "calendar_password_v1";
-function getPassword(){
-  try{ return localStorage.getItem(PW_STORAGE_KEY) || DEFAULT_PASSWORD; }
-  catch(e){ return DEFAULT_PASSWORD; }
-}
+// Calendar entry is verified only by its separate server credential.
 function checkPassword(){
   if(typeof window.unlockCalendarNow === "function") return window.unlockCalendarNow();
   return false;
@@ -3492,7 +3481,7 @@ function submitForm(){
 }
 
 // ---- 비밀번호 변경 (폼 방식) ----
-function changePassword(){alert('PC와 모바일은 대시보드 관리자 비밀번호로 함께 연결됩니다. 비밀번호 변경은 대시보드에서 진행해주세요.');}
+function changePassword(){window.CalendarPasswordChange?.open?.();}
 
 // ---- 홈화면 추가 안내 ----
 function showHomeScreenGuide(){
@@ -7041,7 +7030,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
       '<button class="pro-tool-btn primary" data-act="save">일정 저장</button><button class="pro-tool-btn" data-act="capacity">정원 설정</button><button class="pro-tool-btn" data-act="excel">엑셀 저장</button>'+
       '<button class="pro-tool-btn" data-act="print">현재 화면 인쇄</button><button class="pro-tool-btn" data-act="printall">날짜별 전체 인쇄</button>'+
       '<button class="pro-tool-btn" data-act="backup">일정 백업</button><button class="pro-tool-btn" data-act="restore">백업 불러오기</button>'+
-      '<button class="pro-tool-btn" data-act="password">비밀번호 안내</button><button class="pro-tool-btn" data-act="home">홈화면 추가</button></div>';
+      '<button class="pro-tool-btn" data-act="password">공유 비밀번호 설정</button><button class="pro-tool-btn" data-act="home">홈화면 추가</button></div>';
     const customers=document.createElement('section');customers.className='pro-customer-sheet';customers.id='proCustomerSheet';
     customers.innerHTML='<div class="pro-tools-head"><strong>선택 날짜 고객</strong><button class="pro-tools-close" type="button">×</button></div><div id="proCustomerList" class="pro-customer-list"></div>';
     document.body.append(back,tools,customers);
@@ -8504,7 +8493,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
         <div class="fd-search-wrap"><div class="fd-search">${icons.search}<input id="fdSearch" type="search" autocomplete="off" placeholder="검색하세요."></div><div class="fd-search-results" id="fdSearchResults"></div></div>
         <button type="button" class="fd-top-action" id="fdTodayTop">오늘</button>
         <div class="fd-admin-wrap"><button type="button" class="fd-top-action" id="fdAdminBtn">${icons.tune}<span>관리</span></button><div class="fd-admin-menu" id="fdAdminMenu">
-          <button type="button" data-ui-font-open>전체 글꼴 변경</button><button data-admin="save">일정 저장</button><button data-admin="capacity">정원 설정</button><button data-admin="excel">엑셀 저장</button><button data-admin="print">인쇄</button><button data-admin="print-all">전체 인쇄</button><button data-admin="home-guide">홈화면 추가</button><button data-admin="backup">일정 백업</button><button data-admin="clear-all">일정 전체 삭제</button><button data-admin="restore">백업 불러오기</button><button data-admin="password">비밀번호 변경</button>
+          <button type="button" data-ui-font-open>전체 글꼴 변경</button><button data-admin="save">일정 저장</button><button data-admin="capacity">정원 설정</button><button data-admin="excel">엑셀 저장</button><button data-admin="print">인쇄</button><button data-admin="print-all">전체 인쇄</button><button data-admin="home-guide">홈화면 추가</button><button data-admin="backup">일정 백업</button><button data-admin="clear-all">일정 전체 삭제</button><button data-admin="restore">백업 불러오기</button><button data-admin="password">공유 비밀번호 설정</button>
         </div></div>
       </header>
       <main class="fd-content">
@@ -8919,7 +8908,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
     openForm('관리',[],()=>{});
     document.getElementById('formOverlay').classList.add('gallery-admin-open');
     const fields=document.getElementById('formFields');fields.classList.add('gallery-admin-actions');
-    const actions=[['일정 저장',()=>saveCalendarData()],['정원 설정',()=>openCapacitySettings()],['엑셀 저장',()=>exportExcel()],['인쇄',()=>window.print()],['일정 백업',()=>backupScheduleData()],['백업 불러오기',()=>restoreScheduleDataPrompt()],[matchMedia('(min-width:761px)').matches?'비밀번호 변경':'비밀번호 안내',()=>changePassword()],['전체 글꼴 변경',()=>window.DashboardTypography?.open()]];
+    const actions=[['일정 저장',()=>saveCalendarData()],['정원 설정',()=>openCapacitySettings()],['엑셀 저장',()=>exportExcel()],['인쇄',()=>window.print()],['일정 백업',()=>backupScheduleData()],['백업 불러오기',()=>restoreScheduleDataPrompt()],[matchMedia('(min-width:761px)').matches?'공유 비밀번호 설정':'공유 비밀번호 설정',()=>changePassword()],['전체 글꼴 변경',()=>window.DashboardTypography?.open()]];
     const paths=['<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h12l4 4v12a2 2 0 0 1-2 2zM7 3v6h10V3M7 21v-8h10v8"/>','<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M17 4a4 4 0 0 1 0 8m5 9v-2a4 4 0 0 0-3-3.9"/>','<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13l4 5m0-5-4 5"/>','<path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6zM18 12h.01"/>','<path d="M12 3v12m-4-4 4 4 4-4M4 16v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/>','<path d="M12 16V4m-4 4 4-4 4 4M4 16v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/>','<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V6a4 4 0 0 1 8 0v4M12 15v2"/>'];
     paths.push('<path d="M4 5h16M12 5v15M8 20h8"/>');
     if(matchMedia('(min-width:761px)').matches){
@@ -9263,16 +9252,11 @@ html body #formOverlay.booking-editor #formFields .booking-field-date>input[type
  'use strict';
  function init(){
   const F=window.CalendarFoundation,A=window.CalendarAdapter,C=window.CalendarSyncCore;if(!F||!A||!C)return;
-  const endpoint='https://stately-sfogliatella-7ab674.netlify.app/api/password-access';
+  const endpoint='https://stately-sfogliatella-7ab674.netlify.app/.netlify/functions/password-access';
   const path='/offices/__calendar_sync_v1__/year_'+F.year+'.json';
   const cacheKey='calendar_shared_cache_v1_'+F.year,backupKey='calendar_shared_backup_v1_'+F.year;
   let auth=null,timer=null,empty=false,conflict=null,active=false,lastMessage='이 기기에 저장됨',dismissedConflict='';
-  function loadAuthentication(){
-   try{const saved=JSON.parse(sessionStorage.getItem('calendar_shared_session_v1')||'null');
-    auth=saved?.role==='admin'&&typeof saved.token==='string'&&saved.token&&Number(saved.expiresAt)>Date.now()?saved:null;
-    if(!auth)sessionStorage.removeItem('calendar_shared_session_v1');
-   }catch{auth=null;}
-  }
+  function loadAuthentication(){auth=window.CalendarAuthentication.current();}
   loadAuthentication();
   function status(message){
    lastMessage=message;window.calendarSyncState={message,connected:!!auth,pending:client?.snapshot().dirty||false,conflict:!!conflict};
@@ -9322,12 +9306,13 @@ html body #formOverlay.booking-editor #formFields .booking-field-date>input[type
   }
   function errorMessage(error){
    if(error.code==='EDITING')return '입력 중 · 완료 후 자동 저장';
-   if(error.code==='AUTH'){auth=null;sessionStorage.removeItem('calendar_shared_session_v1');document.documentElement.classList.remove('calendar-unlocked');document.documentElement.removeAttribute('data-calendar-unlocked');const lock=document.getElementById('lockScreen');if(lock){lock.hidden=false;lock.removeAttribute('aria-hidden');if(typeof lock.showModal==='function'&&!lock.open)lock.showModal();}return '동기화 연결 만료 · 입장 비밀번호를 다시 입력해주세요';}
+   if(error.code==='AUTH'){auth=null;sessionStorage.removeItem('calendar_view_session_v1');sessionStorage.removeItem('calendar_owner_session_v1');document.documentElement.classList.remove('calendar-unlocked');document.documentElement.removeAttribute('data-calendar-unlocked');const lock=document.getElementById('lockScreen');if(lock){lock.hidden=false;lock.removeAttribute('aria-hidden');if(typeof lock.showModal==='function'&&!lock.open)lock.showModal();}return '동기화 연결 만료 · 입장 비밀번호를 다시 입력해주세요';}
    if(error.code==='CONFLICT')return error.path?'변경 내용 확인 필요 · 두 원본 보관됨':'다른 기기에서 저장 중 · 잠시 후 자동 재시도';
    return '이 기기에 보관됨 · 공유 저장 실패: '+error.message;
   }
   async function request(method,value,etag){
-   if(!auth){const error=Error('대시보드에서 일정을 열어주세요.');error.code='AUTH';throw error;}
+   if(!auth){const error=Error('캘린더 공유 비밀번호로 입장해주세요.');error.code='AUTH';throw error;}
+   if(auth.role==='calendar'&&method!=='GET')throw Error('관계자 계정은 조회만 가능합니다.');
    const url=new URL(endpoint);url.searchParams.set('action','data');url.searchParams.set('path',path);
    const headers={Authorization:'Bearer '+auth.token};if(method==='GET')headers['X-Firebase-ETag']='true';else{headers['Content-Type']='application/json';headers['If-Match']=etag;}
    const response=await fetch(url.href,{method,headers,cache:'no-store',body:method==='PUT'?JSON.stringify(value):undefined,signal:AbortSignal.timeout(20000)});
@@ -9348,7 +9333,8 @@ html body #formOverlay.booking-editor #formFields .booking-field-date>input[type
    if(!options.force&&A.editing())return {ok:false,message:'입력 중입니다. 입력을 마치면 자동 저장합니다.'};
    active=true;status('동기화 중…');
    try{
-    const result=await client.sync(options);empty=!!result.empty;clearConflict();
+    const result=await client.sync(auth.role==='calendar'?{discard:true}:options);empty=!!result.empty;clearConflict();
+    if(auth.role==='calendar'){if(empty)A.apply({manual_schedule_data_v1:{GALLERY_ROWS:{},TOUR_ROWS:{},GALLERY_CLOSED:{}},calendar_checkmarks_v1:{},person_memos_v1:{}});status('조회 전용 · 동기화 완료');return {ok:true,message:lastMessage};}
     if(empty){status('관리 → 일정 저장으로 동기화 시작');if(client.snapshot().dirty)queue();return {ok:false,message:lastMessage};}
     else if(client.snapshot().dirty){status('추가 변경 내용 저장 대기');queue();return {ok:false,message:lastMessage};}
     else{status('동기화 완료 · '+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}));return {ok:true,message:lastMessage};}
@@ -9358,13 +9344,14 @@ html body #formOverlay.booking-editor #formFields .booking-field-date>input[type
    }finally{active=false;}
   }
   function queue(){clearTimeout(timer);timer=setTimeout(()=>{if(auth)synchronize({initialize:empty});},800);}
-  F.onChange=()=>{client.edit(A.capture());status(auth?'변경 내용 저장 중…':'이 기기에 저장됨');queue();};
-  window.saveCalendarData=async()=>{try{
+  F.onChange=()=>{if(auth?.role==='calendar')return;client.edit(A.capture());status(auth?'변경 내용 저장 중…':'이 기기에 저장됨');queue();};
+  window.saveCalendarData=async()=>{if(auth?.role!=='admin'){alert('관계자 계정은 조회만 가능합니다.');return {ok:false};}try{
    A.persist();client.edit(A.capture());
    if(auth){const result=await synchronize({initialize:true,force:true,explicit:true});if(!result.conflict&&typeof window.alert==='function')window.alert(result.ok?'서버 저장 확인이 완료되었습니다. 다른 기기에서도 같은 일정이 표시됩니다.':result.message);return result;}
    else{status('이 기기에 저장됨 · 동기화는 다시 입장해 연결해주세요');if(typeof window.alert==='function')window.alert(lastMessage);return {ok:false,message:lastMessage};}
   }catch(error){status(errorMessage(error));}};
   F.ready=true;status(lastMessage);
+  window.addEventListener('calendar-access-changed',()=>loadAuthentication());
   window.addEventListener('calendar-entrance-unlocked',()=>{loadAuthentication();setTimeout(()=>synchronize(),0);});
   window.addEventListener('online',()=>synchronize());window.addEventListener('focus',()=>{loadAuthentication();synchronize();});
   setInterval(()=>{if(document.visibilityState==='visible')synchronize();},20000);
@@ -10729,44 +10716,34 @@ html body #freshDesktopApp #fdLegacyMount .fd-site-heading strong::before{conten
 
 <script id="desktop-shared-password-change">
 (()=>{
- const endpoint='https://stately-sfogliatella-7ab674.netlify.app/api/password-access';
- const sessionKey='calendar_shared_session_v1';
- async function login(password){
-  const response=await window.SharedLoginGuard.request(()=>fetch(endpoint+'?action=login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role:'admin',password,includeData:false}),signal:AbortSignal.timeout(20000)}),'admin',password);
-  if(!response.ok)throw Error(response.status===429?'잠시 후 다시 시도해주세요.':'현재 관리자 비밀번호를 확인해주세요.');
-  const result=await response.json();if(result.role!=='admin'||typeof result.token!=='string'||!result.token||!Number.isFinite(Number(result.expiresAt))||Number(result.expiresAt)<=Date.now())throw Error('로그인 정보를 확인하지 못했습니다.');return result;
- }
+ const endpoint='https://stately-sfogliatella-7ab674.netlify.app/.netlify/functions/password-access';
+ async function login(password){return window.CalendarAuthentication.authorizeOwner(password);}
  async function change(current,next,confirmation){
   if(!current||!next.trim())throw Error('현재 비밀번호와 새 비밀번호를 입력해주세요.');
   if(next.length>256)throw Error('새 비밀번호는 256자 이내로 입력해주세요.');
   if(next!==confirmation)throw Error('새 비밀번호가 서로 다릅니다.');
-  if(current===next)throw Error('현재 비밀번호와 다른 새 비밀번호를 입력해주세요.');
-  const auth=await login(current),url=endpoint+'?action=data&path='+encodeURIComponent('/data/adminPasswordHash.json');
-  const check=await fetch(url,{headers:{Authorization:'Bearer '+auth.token,'X-Firebase-ETag':'true'},signal:AbortSignal.timeout(20000)});
-  if(!check.ok)throw Error('비밀번호 정보를 확인하지 못했습니다. 다시 시도해주세요.');
-  const etag=check.headers.get('etag');if(!etag)throw Error('변경 정보를 확인하지 못했습니다. 다시 시도해주세요.');
+  if(current===next)throw Error('공유 비밀번호는 대시보드 관리자 비밀번호와 다르게 지정해주세요.');
+  const auth=await login(current),url=endpoint+'?action=calendar-password';
   const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(next));
   const hash=Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
-  const saved=await fetch(url,{method:'PUT',headers:{Authorization:'Bearer '+auth.token,'Content-Type':'application/json','If-Match':etag},body:JSON.stringify(hash),signal:AbortSignal.timeout(20000)});
-  if(!saved.ok)throw Error(saved.status===412?'다른 곳에서 비밀번호가 변경되었습니다. 다시 로그인해주세요.':'비밀번호를 변경하지 못했습니다. 다시 시도해주세요.');
-  let refreshed=false;
-  try{const session=await login(next);sessionStorage.setItem(sessionKey,JSON.stringify({role:'admin',token:session.token,expiresAt:Number(session.expiresAt)}));refreshed=true;}catch(_){sessionStorage.removeItem(sessionKey);}
-  try{localStorage.removeItem('calendar_password_v1');}catch(_){}
+  const saved=await fetch(url,{method:'PUT',headers:{Authorization:'Bearer '+auth.token,'Content-Type':'application/json'},body:JSON.stringify({hash}),signal:AbortSignal.timeout(20000)});
+  if(!saved.ok)throw Error(saved.status===400?'공유 비밀번호는 관리자 비밀번호와 다르게 지정해주세요.':'공유 비밀번호를 저장하지 못했습니다. 다시 시도해주세요.');
+  const refreshed=true;
   return {refreshed};
  }
  window.CalendarPasswordChange={change};
  const original=changePassword;
  changePassword=function(){
-  if(!matchMedia('(min-width:761px)').matches)return original();
+
   let dialog=document.getElementById('calendarPasswordDialog');
-  if(!dialog){dialog=document.createElement('dialog');dialog.id='calendarPasswordDialog';dialog.setAttribute('aria-labelledby','calendarPasswordTitle');dialog.innerHTML='<form><div class="calendar-password-head"><h2 id="calendarPasswordTitle">관리자 비밀번호 변경</h2><button type="button" data-password-close aria-label="닫기">×</button></div><p>대시보드·PC·모바일에서 함께 사용하는 관리자 비밀번호가 변경됩니다.</p><label>현재 비밀번호<input name="current" type="password" autocomplete="current-password" required></label><label>새 비밀번호<input name="next" type="password" autocomplete="new-password" required></label><label>새 비밀번호 확인<input name="confirmation" type="password" autocomplete="new-password" required></label><div class="calendar-password-error" role="status" aria-live="polite"></div><div class="calendar-password-actions"><button type="button" data-password-cancel>취소</button><button type="submit">변경 저장</button></div></form>';document.body.appendChild(dialog);}
+  if(!dialog){dialog=document.createElement('dialog');dialog.id='calendarPasswordDialog';dialog.setAttribute('aria-labelledby','calendarPasswordTitle');dialog.innerHTML='<form><div class="calendar-password-head"><h2 id="calendarPasswordTitle">캘린더 공유 비밀번호 설정</h2><button type="button" data-password-close aria-label="닫기">×</button></div><p>관계자는 이 비밀번호로 일정만 조회합니다. 대시보드 관리자 비밀번호는 변경되지 않습니다.</p><label>대시보드 관리자 비밀번호<input name="current" type="password" autocomplete="current-password" required></label><label>캘린더 공유 비밀번호<input name="next" type="password" autocomplete="new-password" required></label><label>공유 비밀번호 확인<input name="confirmation" type="password" autocomplete="new-password" required></label><div class="calendar-password-error" role="status" aria-live="polite"></div><div class="calendar-password-actions"><button type="button" data-password-cancel>취소</button><button type="submit">변경 저장</button></div></form>';document.body.appendChild(dialog);}
   const form=dialog.querySelector('form'),error=dialog.querySelector('.calendar-password-error'),save=dialog.querySelector('[type="submit"]');form.reset();error.textContent='';save.disabled=false;save.textContent='변경 저장';
   const close=()=>{if(!save.disabled)dialog.close();};dialog.querySelector('[data-password-close]').onclick=close;dialog.querySelector('[data-password-cancel]').onclick=close;
   dialog.oncancel=event=>{if(save.disabled)event.preventDefault();};
   form.onsubmit=async event=>{
    event.preventDefault();if(save.disabled)return;save.disabled=true;save.textContent='변경 중…';error.textContent='';
    const inputs=form.querySelectorAll('input');inputs.forEach(input=>input.readOnly=true);
-   try{const result=await change(form.elements.current.value,form.elements.next.value,form.elements.confirmation.value);form.reset();dialog.close();alert(result.refreshed?'관리자 비밀번호가 변경되었습니다. 다음 접속부터 새 비밀번호를 사용해주세요.':'비밀번호는 변경되었습니다. 새 비밀번호로 다시 로그인해주세요.');location.reload();}
+   try{const result=await change(form.elements.current.value,form.elements.next.value,form.elements.confirmation.value);form.reset();dialog.close();alert('캘린더 공유 비밀번호를 저장했습니다. 대시보드 관리자 비밀번호는 변경하지 않았습니다.');window.calendarUnlockOwner?.();}
    catch(err){error.textContent=err.message||'연결을 확인한 뒤 다시 시도해주세요.';}
    finally{save.disabled=false;save.textContent='변경 저장';inputs.forEach(input=>input.readOnly=false);}
   };
@@ -10788,4 +10765,63 @@ html body #freshDesktopApp #fdLegacyMount .fd-site-heading strong::before{conten
 #calendarPasswordDialog .calendar-password-actions button{height:36px;border:1px solid #d1dfe4;border-radius:6px;background:#fff;color:#617f8b;font:inherit;font-size:var(--ui-type-body,14px);cursor:pointer;}
 #calendarPasswordDialog .calendar-password-actions [type="submit"]{background:#4d7b68;border-color:#4d7b68;color:#fff;}
 #calendarPasswordDialog button:disabled{opacity:.6;cursor:wait;}
+</style>
+
+<script id="calendar-viewer-owner-permissions">
+(()=>{
+ const owner=()=>window.CalendarAuthentication.current()?.role==='admin';
+ function unlock(){
+  if(!owner())return;
+  document.documentElement.classList.add('calendar-unlocked');document.documentElement.setAttribute('data-calendar-unlocked','1');
+  const lock=document.getElementById('lockScreen'),app=document.getElementById('appRoot');if(lock){if(lock.open&&typeof lock.close==='function')lock.close();lock.hidden=true;lock.setAttribute('aria-hidden','true');}if(app){app.hidden=false;app.style.removeProperty('display');}
+  window.dispatchEvent(new Event('calendar-access-changed'));window.dispatchEvent(new Event('calendar-entrance-unlocked'));window.dispatchEvent(new Event('resize'));
+ }
+ window.calendarUnlockOwner=unlock;
+ let dialog;
+ function ownerLogin(){
+  if(!dialog){dialog=document.createElement('dialog');dialog.id='calendarOwnerLogin';dialog.innerHTML='<form><h2>캘린더 관리자</h2><p>관리자 인증 후 일정 편집과 공유 비밀번호 설정을 할 수 있습니다. 공유 비밀번호로는 관리자 입장이 불가능합니다.</p><label>대시보드 관리자 비밀번호<input type="password" name="password" autocomplete="current-password" required></label><div role="status" class="owner-login-error"></div><div class="owner-login-actions"><button type="button" data-owner-cancel>취소</button><button type="submit">관리자 입장</button></div><button type="button" data-owner-password>공유 비밀번호 설정</button></form>';document.body.appendChild(dialog);}
+  const form=dialog.querySelector('form'),input=form.querySelector('input'),error=form.querySelector('[role="status"]'),save=form.querySelector('[type="submit"]');form.reset();error.textContent='';save.disabled=false;
+  dialog.querySelector('[data-owner-cancel]').onclick=()=>dialog.close();dialog.querySelector('[data-owner-password]').onclick=()=>{dialog.close();changePassword();};
+  form.onsubmit=async event=>{event.preventDefault();if(save.disabled)return;save.disabled=true;error.textContent='';try{await window.CalendarAuthentication.authorizeOwner(input.value);input.value='';dialog.close();unlock();}catch(cause){error.textContent=cause.message;}finally{save.disabled=false;}};
+  dialog.showModal();input.focus();
+ }
+ function apply(){
+  const editable=owner();document.documentElement.setAttribute('data-calendar-access',editable?'owner':'viewer');
+  for(const container of document.querySelectorAll('#lockScreen,#freshDesktopApp .fd-topbar,#proCalendarApp .pro-main-head')){
+   if(container.querySelector('.calendar-owner-entry'))continue;
+   const button=document.createElement('button');button.type='button';button.className='calendar-owner-entry';button.textContent='관리자 입장';
+   button.onclick=()=>{if(owner()){window.CalendarAuthentication.logoutOwner();if(!window.CalendarAuthentication.current())location.reload();}else ownerLogin();};container.appendChild(button);
+  }
+  document.querySelectorAll('.calendar-owner-entry').forEach(button=>button.textContent=editable?'관리자 종료':'관리자 입장');
+  document.querySelectorAll('#appRoot input[type="checkbox"],#freshDesktopApp input[type="checkbox"]').forEach(input=>{if(!editable&&!input.disabled){input.dataset.calendarReadOnly='1';input.disabled=true;}else if(editable&&input.dataset.calendarReadOnly){input.disabled=false;delete input.dataset.calendarReadOnly;}});
+ }
+ function guard(){
+  for(const name of ['addEntryFlow','editEntryFlow','deleteEntry','toggleCheck','toggleCheckFromStatus','openMemoForm','editMemo','clearAllCalendarSchedules','restoreScheduleDataPrompt','openCapacitySettings','openDateCapacitySettings','toggleClosedDay','changeCatLabel','saveCalendarData','submitForm']){
+   const original=window[name];if(typeof original!=='function'||original.calendarOwnerGuard)continue;
+   const wrapped=function(...args){if(owner()||window.CalendarFoundation?.applying)return original.apply(this,args);if(name==='editEntryFlow'&&window.calendarOpenDesktopDay){window.calendarOpenDesktopDay(args[1]);return;}alert('관계자 계정은 일정 조회만 가능합니다. 관리자 입장 후 이용해주세요.');return false;};wrapped.calendarOwnerGuard=true;window[name]=wrapped;
+  }
+ }
+ function start(){let queued=false;new MutationObserver(()=>{if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;apply();});}).observe(document.body,{childList:true,subtree:true});apply();guard();setTimeout(guard,400);setTimeout(guard,1200);}
+ window.addEventListener('calendar-access-changed',()=>{apply();guard();});
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
+})();
+</script>
+<style id="calendar-viewer-owner-permissions-style">
+html[data-calendar-access="viewer"] :is(#fdAdminBtn,#proManage,#mobileAdminFab,#fdScheduleActions,.fd-row-edit,[data-booking-edit],[data-booking-delete],#proDetailBody [data-pro-comment-kind],#proDetailBody [data-pro-record-kind] .pro-comment-action,#proGalleryAdd,#proTourAdd,#proCapBtn,#proClosedBtn){display:none!important;}
+html[data-calendar-access="viewer"] #checklistBody input[type="checkbox"]{pointer-events:none!important;}
+.calendar-owner-entry{flex:none;align-self:center;min-height:30px;padding:5px 10px;border:1px solid #cddde2;border-radius:6px;background:#fff;color:#547181;font-family:var(--ui-font,system-ui);font-size:var(--ui-type-small,12px);cursor:pointer;}
+#lockScreen>.calendar-owner-entry{margin-top:12px;background:transparent;color:#426959;}
+#calendarOwnerLogin{width:min(380px,calc(100vw - 32px));padding:22px;border:1px solid #d7e3e5;border-radius:12px;background:#fff;color:#365466;box-sizing:border-box;font-family:var(--ui-font,system-ui);}
+#calendarOwnerLogin::backdrop{background:#203a4480;backdrop-filter:blur(4px);}
+#calendarOwnerLogin h2{font-size:var(--ui-type-title,18px);margin:0 0 10px;}
+#calendarOwnerLogin p,#calendarOwnerLogin label{font-size:var(--ui-type-small,12px);line-height:1.6;color:#728894;}
+#calendarOwnerLogin input{width:100%;height:38px;box-sizing:border-box;margin:6px 0;padding:8px;border:1px solid #cfdee3;border-radius:6px;font:inherit;}
+#calendarOwnerLogin .owner-login-error{font-size:var(--ui-type-small,12px);color:#b36a63;min-height:18px;}
+#calendarOwnerLogin .owner-login-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;}
+#calendarOwnerLogin button{min-height:34px;padding:6px 9px;border:1px solid #cfdee3;border-radius:6px;background:#fff;color:#4b6f7f;font:inherit;font-size:var(--ui-type-small,12px);cursor:pointer;}
+#calendarOwnerLogin [data-owner-password]{width:100%;margin-top:12px;}
+</style>
+
+<style id="calendar-readonly-controls-enforced">
+html[data-calendar-access="viewer"] body #freshDesktopApp :is(#fdAdminBtn,#fdScheduleActions,.fd-row-edit,[data-booking-edit],[data-booking-delete]),html[data-calendar-access="viewer"] body #proCalendarApp :is(#proManage,#proGalleryAdd,#proTourAdd,#proCapBtn,#proClosedBtn),html[data-calendar-access="viewer"] body #mobileAdminFab{display:none!important;}
 </style>
