@@ -20,7 +20,7 @@
 })();
 </script>
 
-<meta name="calendar-build" content="2026.10.28.62">
+<meta name="calendar-build" content="2026.10.28.63">
 <script id="calendar-shared-foundation">(function(){
  'use strict';
  const keys=['manual_schedule_data_v1','calendar_checkmarks_v1','person_memos_v1','staff_contacts_v1','category_labels_v1','capacity_date_override_v1','capacity_weekday_v1','capacity_weekend_v1','site_title_v1','site_subtitle_v1','footnote_comment_v1','fdDisplayTitle','fdCustomTitle'];
@@ -2056,12 +2056,22 @@ body :is(button,input,select,textarea,table),body svg text{font-family:var(--ui-
   {id:'gmarket',label:'지마켓 산스',family:'Dashboard Gmarket Sans',woff:'https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/GmarketSansMedium.woff'},
   {id:'gowun-dodum',label:'고운돋움',family:'Gowun Dodum',css:'https://fonts.googleapis.com/css2?family=Gowun+Dodum&display=swap'},
   {id:'maru-buri',label:'마루부리',family:'MaruBuri',css:'https://hangeul.pstatic.net/hangeul_static/css/maru-buri.css'},
-  {id:'noto-serif',label:'Noto Serif KR',family:'Noto Serif KR',css:'https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600&display=swap'}
+  {id:'noto-serif',label:'Noto Serif KR',family:'Noto Serif KR',css:'https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600&display=swap'},
+  {id:'ibm-plex-kr',label:'IBM Plex Sans KR',family:'IBM Plex Sans KR',css:'https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap'},
+  {id:'nanum-myeongjo',label:'나눔명조',family:'Nanum Myeongjo',css:'https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700&display=swap'},
+  {id:'gowun-batang',label:'고운바탕',family:'Gowun Batang',css:'https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&display=swap'},
+  {id:'hahmlet',label:'함렛',family:'Hahmlet',css:'https://fonts.googleapis.com/css2?family=Hahmlet:wght@400;500;600&display=swap'},
+  {id:'do-hyeon',label:'도현체',family:'Do Hyeon',css:'https://fonts.googleapis.com/css2?family=Do+Hyeon&display=swap'},
+  {id:'jua',label:'주아체',family:'Jua',css:'https://fonts.googleapis.com/css2?family=Jua&display=swap'},
+  {id:'sunflower',label:'해바라기체',family:'Sunflower',css:'https://fonts.googleapis.com/css2?family=Sunflower:wght@300;500;700&display=swap'},
+  {id:'gaegu',label:'개구체',family:'Gaegu',css:'https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&display=swap'},
+  {id:'dongle',label:'동글체',family:'Dongle',css:'https://fonts.googleapis.com/css2?family=Dongle:wght@400;700&display=swap'},
+  {id:'black-han-sans',label:'검은고딕',family:'Black Han Sans',css:'https://fonts.googleapis.com/css2?family=Black+Han+Sans&display=swap'}
  ];
  const find=id=>fonts.find(font=>font.id===id),root=document.documentElement,assets=new Map();let current=DEFAULT,sequence=0,status='';
  function stored(){try{return localStorage.getItem(KEY)||'';}catch{return '';}}
  function save(id){try{localStorage.setItem(KEY,id);return true;}catch{return false;}}
- function notify(message){status=message;document.querySelectorAll('[data-ui-font-status]').forEach(node=>node.textContent=message);document.querySelectorAll('[data-ui-font-select]').forEach(node=>node.value=current);}
+ function notify(message){status=message;document.querySelectorAll('[data-ui-font-status]').forEach(node=>node.textContent=message);document.querySelectorAll('[data-ui-font-select]').forEach(node=>node.value=current);comparisonState();}
  function resource(font){
   if(assets.has(font.id))return assets.get(font.id);
   const pending=new Promise((resolve,reject)=>{
@@ -2092,13 +2102,29 @@ body :is(button,input,select,textarea,table),body svg text{font-family:var(--ui-
   catch(error){if(revision===sequence)notify(font.label+' 다운로드 실패 · 기본 글꼴로 표시 중입니다. 다시 시도를 눌러주세요.');return false;}
  }
  function withPreference(value){const url=new URL(value,location.href);url.searchParams.set('uiFont',current);return url.href;}
+
+ function comparisonMarkup(){return '<div class="ui-font-compare-heading"><h3>'+fonts.length+'개 글꼴 비교</h3><button type="button" data-ui-font-load-previews>미리보기 모두 불러오기</button></div><div class="ui-font-compare-grid">'+fonts.map(font=>'<article class="ui-font-compare-card" data-ui-font-card="'+font.id+'"><div class="ui-font-compare-top"><strong>'+font.label+'</strong><button type="button" data-ui-font-apply="'+font.id+'" aria-pressed="false">전체 적용</button></div><p class="ui-font-sample ui-font-sample-heading">가는빌라 · 정비계획입안동의서</p><p class="ui-font-sample">현장 보고서와 일정을 확인합니다. 가나다 0123456789</p><small data-ui-font-preview-status>미리보기 대기</small></article>').join('')+'</div>';}
+ function comparisonState(){document.querySelectorAll('[data-ui-font-apply]').forEach(button=>{const selected=button.dataset.uiFontApply===current;button.setAttribute('aria-pressed',String(selected));button.textContent=selected?'선택됨':'전체 적용';});}
+ function installComparison(dialog){
+  const cards=[...dialog.querySelectorAll('[data-ui-font-card]')];
+  async function load(card){if(card.dataset.previewLoaded==='ready'||card.dataset.previewLoaded==='loading')return;
+   const font=find(card.dataset.uiFontCard),label=card.querySelector('[data-ui-font-preview-status]');card.dataset.previewLoaded='loading';label.textContent='글꼴 불러오는 중…';
+   try{await resource(font);card.dataset.previewLoaded='ready';label.textContent='미리보기 준비됨';}catch(_){card.dataset.previewLoaded='error';label.textContent='불러오기 실패 · 모두 불러오기로 다시 시도';}
+  }
+  cards.forEach(card=>{const font=find(card.dataset.uiFontCard);card.style.setProperty('--ui-font-preview',"'"+font.family+"',"+fallback);card.querySelector('[data-ui-font-apply]').onclick=async()=>{if(await set(font.id))void load(card);};});
+  dialog.querySelector('[data-ui-font-load-previews]').onclick=()=>cards.forEach(card=>void load(card));
+  if(typeof IntersectionObserver==='function'){
+   const observer=new IntersectionObserver(entries=>entries.forEach(entry=>{if(entry.isIntersecting){void load(entry.target);observer.unobserve(entry.target);}}),{root:dialog,rootMargin:'100px'});cards.forEach(card=>observer.observe(card));
+  }else cards.slice(0,4).forEach(card=>void load(card));
+  comparisonState();
+ }
  function open(){
   let dialog=document.getElementById('dashboardTypographyDialog');
   if(!dialog){
    dialog=document.createElement('dialog');dialog.id='dashboardTypographyDialog';dialog.setAttribute('aria-labelledby','dashboardTypographyTitle');
-   dialog.innerHTML='<form method="dialog" class="ui-font-head"><h2 id="dashboardTypographyTitle">전체 글꼴 변경</h2><button type="submit" aria-label="글꼴 설정 닫기">닫기</button></form><div class="ui-font-body"><label for="dashboardFontChoice">화면 전체에 사용할 글꼴</label><select id="dashboardFontChoice" data-ui-font-select>'+fonts.map(font=>'<option value="'+font.id+'">'+font.label+'</option>').join('')+'</select><div class="ui-font-sizes"><span>제목 <b>18px</b></span><span>본문 <b>14px</b></span><span>보조 <b>12px</b></span></div><section class="ui-font-preview"><h3>목동1단지 · 월간정리</h3><p>통합심의 결과를 확인하고 다음 방문 일정을 조율합니다.</p><p>조합원 1,882명 · 접촉률 34.1%</p><small>현장 상세 · 보고서 · 표 · 메뉴 · 팝업 · 일정표</small></section><p class="ui-font-status" data-ui-font-status role="status" aria-live="polite"></p><div class="ui-font-actions"><button type="button" data-ui-font-retry>다시 시도</button><button type="button" data-ui-font-reset>기본 글꼴(SUIT)</button></div><p class="ui-font-hint">선택하면 바로 적용됩니다. 글꼴 선택은 이 기기에 저장됩니다.</p></div>';
+   dialog.innerHTML='<form method="dialog" class="ui-font-head"><h2 id="dashboardTypographyTitle">전체 글꼴 변경</h2><button type="submit" aria-label="글꼴 설정 닫기">닫기</button></form><div class="ui-font-body"><label for="dashboardFontChoice">화면 전체에 사용할 글꼴</label><select id="dashboardFontChoice" data-ui-font-select>'+fonts.map(font=>'<option value="'+font.id+'">'+font.label+'</option>').join('')+'</select><div class="ui-font-sizes"><span>제목 <b>18px</b></span><span>본문 <b>14px</b></span><span>보조 <b>12px</b></span></div><section class="ui-font-preview"><h3>목동1단지 · 월간정리</h3><p>통합심의 결과를 확인하고 다음 방문 일정을 조율합니다.</p><p>조합원 1,882명 · 접촉률 34.1%</p><small>현장 상세 · 보고서 · 표 · 메뉴 · 팝업 · 일정표</small></section><p class="ui-font-status" data-ui-font-status role="status" aria-live="polite"></p><div class="ui-font-actions"><button type="button" data-ui-font-retry>다시 시도</button><button type="button" data-ui-font-reset>기본 글꼴(SUIT)</button></div><p class="ui-font-hint">선택하면 바로 적용됩니다. 글꼴 선택은 이 기기에 저장됩니다.</p>'+comparisonMarkup()+'</div>';
    dialog.querySelector('[data-ui-font-select]').addEventListener('change',event=>{void set(event.target.value);});dialog.querySelector('[data-ui-font-retry]').onclick=()=>{void set(current);};dialog.querySelector('[data-ui-font-reset]').onclick=()=>{void set(DEFAULT);};
-   dialog.addEventListener('click',event=>{if(event.target===dialog)dialog.close();});document.body.appendChild(dialog);
+   dialog.addEventListener('click',event=>{if(event.target===dialog)dialog.close();});document.body.appendChild(dialog);installComparison(dialog);
   }
   document.getElementById('fdAdminMenu')?.classList.remove('on');notify(status);if(!dialog.open)dialog.showModal();
  }
@@ -10824,4 +10850,22 @@ html[data-calendar-access="viewer"] #checklistBody input[type="checkbox"]{pointe
 
 <style id="calendar-readonly-controls-enforced">
 html[data-calendar-access="viewer"] body #freshDesktopApp :is(#fdAdminBtn,#fdScheduleActions,.fd-row-edit,[data-booking-edit],[data-booking-delete]),html[data-calendar-access="viewer"] body #proCalendarApp :is(#proManage,#proGalleryAdd,#proTourAdd,#proCapBtn,#proClosedBtn),html[data-calendar-access="viewer"] body #mobileAdminFab{display:none!important;}
+</style>
+
+<style id="expanded-font-comparison-gallery">
+#dashboardTypographyDialog{width:min(790px,calc(100vw - 24px))!important;max-width:790px!important;}
+#dashboardTypographyDialog .ui-font-head{position:sticky;top:0;z-index:2;background:var(--card,#fff);}
+#dashboardTypographyDialog .ui-font-compare-heading{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin:22px 0 10px;}
+#dashboardTypographyDialog .ui-font-compare-heading h3{margin:0;font-size:var(--ui-type-body,14px)!important;}
+#dashboardTypographyDialog .ui-font-compare-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
+#dashboardTypographyDialog .ui-font-compare-card{min-width:0;padding:12px;border:1px solid var(--line,#d8e2e3);border-radius:8px;background:var(--bg-side,#f6f9f8);}
+#dashboardTypographyDialog .ui-font-compare-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;}
+#dashboardTypographyDialog .ui-font-compare-top strong{font-size:var(--ui-type-small,12px)!important;}
+#dashboardTypographyDialog :is([data-ui-font-apply],[data-ui-font-load-previews]){min-height:28px;padding:4px 8px;border:1px solid var(--line,#d8e2e3);border-radius:5px;background:var(--card,#fff);color:var(--text-main,#263e46);font-size:var(--ui-type-small,12px)!important;cursor:pointer;}
+#dashboardTypographyDialog [data-ui-font-apply][aria-pressed="true"]{background:var(--accent-soft,#e4eeea);border-color:var(--accent,#5f8d7a);color:var(--text-main,#263e46);}
+#dashboardTypographyDialog .ui-font-compare-card .ui-font-sample{font-family:var(--ui-font-preview)!important;font-size:var(--ui-type-body,14px)!important;line-height:1.8!important;font-weight:400!important;margin:8px 0!important;word-break:keep-all;overflow-wrap:anywhere;color:var(--text-main,#263e46);}
+#dashboardTypographyDialog .ui-font-compare-card .ui-font-sample-heading{font-size:var(--ui-type-title,18px)!important;font-weight:500!important;}
+#dashboardTypographyDialog .ui-font-compare-card>[data-ui-font-preview-status]{display:block;font-size:var(--ui-type-small,12px)!important;line-height:1.5;color:var(--text-dim,#637b83);margin-top:10px;}
+#dashboardTypographyDialog .ui-font-compare-card[data-preview-loaded="loading"] .ui-font-sample{visibility:hidden;}
+@media(max-width:600px){#dashboardTypographyDialog .ui-font-compare-grid{grid-template-columns:minmax(0,1fr);}}
 </style>
