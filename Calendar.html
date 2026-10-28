@@ -11067,11 +11067,6 @@ html body #fdDaySchedulePopup .day-time-group>h4 :is(time,span){white-space:nowr
  window.calendarMobileBrowseKind=function(kind){
   if(!matchMedia('(max-width:760px)').matches)return;
   document.body.classList.remove('pro-sheet-open','pro-tools-open','pro-customer-open','pro-show-legacy');
-  const desired={gallery:kind!=='tour',tour:kind!=='gallery'};
-  for(const [name,id] of [['gallery','proLegendG'],['tour','proLegendT']]){
-   const button=document.getElementById(id);
-   if(button&&(!button.classList.contains('off'))!==desired[name])button.click();
-  }
   document.querySelectorAll('.pro-bottomnav button').forEach((button,index)=>button.classList.toggle('active',index===['schedule','gallery','tour'].indexOf(kind)));
   if(kind!=='schedule')window.calendarMobileDateList(kind);
  };
@@ -11092,25 +11087,36 @@ html body #fdDaySchedulePopup .day-time-group>h4 :is(time,span){white-space:nowr
  window.calendarMobileDateList=function(kind){
   let dialog=document.getElementById('mobileCategoryDateList');
   if(!dialog){dialog=document.createElement('dialog');dialog.id='mobileCategoryDateList';document.body.appendChild(dialog);}
-  const month=Number((document.getElementById('proMonthTitle')?.textContent||'').match(/(\d+)월/)?.[1])||new Date().getMonth()+1;
   const store=kind==='gallery'?GALLERY_ROWS:TOUR_ROWS;
   const groups=Object.entries(store).map(([key,rows])=>({key,rows})).filter(group=>group.rows.length).sort((a,b)=>{const [am,ad]=a.key.split('-').map(Number),[bm,bd]=b.key.split('-').map(Number);return am-bm||ad-bd;});
   const label=kind==='gallery'?'갤러리':'투어';
-  dialog.innerHTML='<header><strong>전체 '+label+' 일정</strong><button type="button" aria-label="닫기">×</button></header><div class="mobile-category-dates">'+(groups.map(group=>'<section><h3>'+group.key.replace('-','월 ')+'일</h3>'+group.rows.map(row=>{const gallery=kind==='gallery',name=gallery?row[2]:row[3],place=gallery?gallerySite(row):row[1],manager=gallery?row[4]:row[5],plus=gallery?row[3]:row[4];return '<button type="button" data-list-day="'+escape(group.key)+'"><time>'+escape(row[0])+'</time><span><b>'+escape(place)+' · '+escape(name)+'</b><small>'+escape([plus,manager?'담당 '+manager:''].filter(x=>x&&x!=='-').join(' · '))+'</small></span></button>';}).join('')+'</section>').join('')||'<p>등록된 '+label+' 일정이 없습니다.</p>')+'</div>';
-  dialog.querySelector('header button').onclick=()=>dialog.close();
+  dialog.innerHTML='<div class="mobile-category-list-head"><strong>전체 '+label+' 일정</strong><button type="button" aria-label="닫기">×</button></div><div class="mobile-category-dates">'+(groups.map(group=>'<section><h3>'+group.key.replace('-','월 ')+'일</h3>'+group.rows.map(row=>{const gallery=kind==='gallery',name=gallery?row[2]:row[3],place=gallery?gallerySite(row):row[1],manager=gallery?row[4]:row[5],plus=gallery?row[3]:row[4];return '<button type="button" data-list-day="'+escape(group.key)+'"><time>'+escape(row[0])+'</time><span><b>'+escape(place)+' · '+escape(name)+'</b><small>'+escape([plus,manager?'담당 '+manager:''].filter(x=>x&&x!=='-').join(' · '))+'</small></span></button>';}).join('')+'</section>').join('')||'<p>등록된 '+label+' 일정이 없습니다.</p>')+'</div>';
+  dialog.querySelector('.mobile-category-list-head button').onclick=()=>dialog.close();
   dialog.querySelectorAll('[data-list-day]').forEach(button=>button.onclick=()=>{dialog.close();window.openPreview?.(button.dataset.listDay);});
-  dialog.showModal();
+  if(!dialog.open)dialog.showModal();
  };
 })();
 </script>
 <style id="mobile-category-date-list-style">
 #mobileCategoryDateList{width:calc(100% - 24px);max-width:560px;max-height:85dvh;padding:0;border:1px solid #dce6e9;border-radius:18px;background:#fff;color:#23404d;font-family:var(--ui-font,system-ui);box-sizing:border-box;}
 #mobileCategoryDateList::backdrop{background:#20384177;backdrop-filter:blur(3px);}
-#mobileCategoryDateList header{display:flex;align-items:center;justify-content:space-between;padding:16px;border-bottom:1px solid #e4ecef;}
-#mobileCategoryDateList header button{width:32px;height:32px;border:0;border-radius:50%;background:#f0f5f5;color:#68838b;font-size:24px;}
+#mobileCategoryDateList .mobile-category-list-head{display:flex;align-items:center;justify-content:space-between;padding:16px;border-bottom:1px solid #e4ecef;}
+#mobileCategoryDateList .mobile-category-list-head button{width:32px;height:32px;border:0;border-radius:50%;background:#f0f5f5;color:#68838b;font-size:24px;}
 #mobileCategoryDateList .mobile-category-dates{padding:0 16px 16px;}
 #mobileCategoryDateList h3{font-size:14px;margin:20px 0 8px;color:#537684;}
 #mobileCategoryDateList section>button{display:flex;align-items:center;gap:14px;width:100%;padding:12px 0;text-align:left;background:none;border:0;border-bottom:1px solid #e8eef0;color:inherit;font:inherit;}
 #mobileCategoryDateList time{flex:0 0 58px;color:#168e89;font-size:14px;}
 #mobileCategoryDateList b{font-size:14px;}#mobileCategoryDateList small{display:block;margin-top:5px;font-size:12px;color:#7a8e97;}
+</style>
+
+<style id="mobile-category-list-plain-header-fix">
+html body #mobileCategoryDateList .mobile-category-list-head{display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:space-between!important;gap:12px!important;min-height:0!important;height:auto!important;padding:16px!important;margin:0!important;border:0!important;border-bottom:1px solid #e4ecef!important;border-radius:0!important;background:#fff!important;box-shadow:none!important;text-align:left!important;}
+html body #mobileCategoryDateList .mobile-category-list-head::before,html body #mobileCategoryDateList .mobile-category-list-head::after{display:none!important;content:none!important;}
+html body #mobileCategoryDateList .mobile-category-list-head strong{font-size:16px!important;line-height:24px!important;}
+html body #mobileCategoryDateList .mobile-category-list-head button{flex:0 0 32px!important;width:32px!important;min-width:32px!important;height:32px!important;padding:0!important;margin:0!important;display:flex!important;align-items:center!important;justify-content:center!important;border:0!important;border-radius:50%!important;background:#f0f5f5!important;box-shadow:none!important;}
+</style>
+
+<style id="mobile-category-list-lightweight-open">
+#mobileCategoryDateList::backdrop{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;}
+#mobileCategoryDateList .mobile-category-dates>section{content-visibility:auto;contain-intrinsic-size:auto 160px;}
 </style>
