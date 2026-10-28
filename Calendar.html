@@ -11093,7 +11093,17 @@ html body #fdDaySchedulePopup .day-time-group>h4 :is(time,span){white-space:nowr
   dialog.innerHTML='<div class="mobile-category-list-head"><strong>전체 '+label+' 일정</strong><button type="button" aria-label="닫기">×</button></div><div class="mobile-category-dates">'+(groups.map(group=>'<section><h3>'+group.key.replace('-','월 ')+'일</h3>'+group.rows.map(row=>{const gallery=kind==='gallery',name=gallery?row[2]:row[3],place=gallery?gallerySite(row):row[1],manager=gallery?row[4]:row[5],plus=gallery?row[3]:row[4];return '<button type="button" data-list-day="'+escape(group.key)+'"><time>'+escape(row[0])+'</time><span><b>'+escape(place)+' · '+escape(name)+'</b><small>'+escape([plus,manager?'담당 '+manager:''].filter(x=>x&&x!=='-').join(' · '))+'</small></span></button>';}).join('')+'</section>').join('')||'<p>등록된 '+label+' 일정이 없습니다.</p>')+'</div>';
   dialog.querySelector('.mobile-category-list-head button').onclick=()=>dialog.close();
   dialog.querySelectorAll('[data-list-day]').forEach(button=>button.onclick=()=>{dialog.close();window.openPreview?.(button.dataset.listDay);});
-  if(!dialog.open)dialog.showModal();
+  if(!dialog.open){
+   const pageY=window.scrollY,pageX=window.scrollX,body=document.body;
+   const properties=['position','top','left','right','width','overflow'];
+   const previous=properties.map(name=>[name,body.style.getPropertyValue(name),body.style.getPropertyPriority(name)]);
+   body.style.setProperty('position','fixed','important');body.style.setProperty('top',-pageY+'px','important');body.style.setProperty('left','0','important');body.style.setProperty('right','0','important');body.style.setProperty('width','100%','important');body.style.setProperty('overflow','hidden','important');
+   dialog.addEventListener('close',()=>{
+    for(const [name,value,priority] of previous){if(value)body.style.setProperty(name,value,priority);else body.style.removeProperty(name);}
+    const root=document.documentElement,behavior=root.style.scrollBehavior;root.style.scrollBehavior='auto';window.scrollTo(pageX,pageY);root.style.scrollBehavior=behavior;
+   },{once:true});
+   dialog.showModal();dialog.querySelector('.mobile-category-list-head button')?.focus({preventScroll:true});
+  }
  };
 })();
 </script>
@@ -11119,4 +11129,16 @@ html body #mobileCategoryDateList .mobile-category-list-head button{flex:0 0 32p
 <style id="mobile-category-list-lightweight-open">
 #mobileCategoryDateList::backdrop{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;}
 #mobileCategoryDateList .mobile-category-dates>section{content-visibility:auto;contain-intrinsic-size:auto 160px;}
+</style>
+
+<script id="mobile-bottom-nav-prevent-focus-scroll">
+document.addEventListener('pointerdown',event=>{
+ if(matchMedia('(max-width:760px)').matches&&event.target.closest('.pro-bottomnav button'))event.preventDefault();
+},true);
+</script>
+<style id="mobile-calendar-scroll-anchor-stability">
+@media(max-width:760px){
+ html body #proCalendarApp,html body #mobileCategoryDateList{overflow-anchor:none!important;}
+ html body #mobileCategoryDateList{scroll-behavior:auto!important;}
+}
 </style>
