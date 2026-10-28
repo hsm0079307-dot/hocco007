@@ -20,7 +20,7 @@
 })();
 </script>
 
-<meta name="calendar-build" content="2026.10.28.64">
+<meta name="calendar-build" content="2026.10.28.70">
 <script id="calendar-shared-foundation">(function(){
  'use strict';
  const keys=['manual_schedule_data_v1','calendar_checkmarks_v1','person_memos_v1','staff_contacts_v1','category_labels_v1','capacity_date_override_v1','capacity_weekday_v1','capacity_weekend_v1','site_title_v1','site_subtitle_v1','footnote_comment_v1','fdDisplayTitle','fdCustomTitle'];
@@ -227,7 +227,7 @@
  async function login(role,password){
   const response=await window.SharedLoginGuard.request(()=>fetch(endpoint+'?action=login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role,password,includeData:false}),signal:AbortSignal.timeout(20000)}),role,password);
   if(!response.ok){let reason;try{reason=(await response.json()).error;}catch(_){}
-   throw Error(reason==='CALENDAR_NOT_CONFIGURED'?'캘린더 공유 비밀번호가 아직 설정되지 않았습니다. 관리자 설정에서 먼저 지정해주세요.':response.status>=500?'로그인 서버에 연결하지 못했습니다.':role==='calendar'?'캘린더 공유 비밀번호를 확인해주세요. 대시보드 관리자 비밀번호와는 별도입니다.':'대시보드 관리자 비밀번호를 확인해주세요.');}
+   throw Error(reason==='CALENDAR_NOT_CONFIGURED'?'캘린더 비밀번호가 아직 없습니다. 대시보드 설정 → 계정 → 캘린더 비밀번호 설정에서 한 번만 지정해주세요.':response.status>=500?'로그인 서버에 연결하지 못했습니다.':role==='calendar'?'캘린더 공유 비밀번호를 확인해주세요. 대시보드 관리자 비밀번호와는 별도입니다.':'대시보드 관리자 비밀번호를 확인해주세요.');}
   const result=await response.json();if(result.role!==role||typeof result.token!=='string'||!result.token||!Number.isFinite(Number(result.expiresAt))||Number(result.expiresAt)<=Date.now())throw Error('로그인 응답을 확인하지 못했습니다.');
   return {role,token:result.token,expiresAt:Number(result.expiresAt)};
  }
@@ -8554,6 +8554,27 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
     qa('[data-site]',box).forEach(b=>b.onclick=()=>{siteFilter=(siteFilter===b.dataset.site?'':(b.dataset.site||''));render()});
     qa('[data-kind]',box).forEach(b=>b.onclick=()=>{if(b.dataset.kind==='gallery')showGallery=!showGallery;else showTour=!showTour;render()});
   }
+  function desktopDayCategorySummary(events){
+    const parts=[];
+    for(const kind of ['gallery','tour']){
+      const sites=new Map();
+      events.filter(event=>event.kind===kind).forEach(event=>{
+        const plus=event.raw?.[kind==='gallery'?3:4];
+        const people=1+(typeof parseCompanionCount==='function'?parseCompanionCount(plus):0);
+        const site=String(event.site||'미지정');sites.set(site,(sites.get(site)||0)+people);
+      });
+      if(!sites.size)continue;
+      const label=kind==='gallery'?'갤러리':'투어',icon=kind==='gallery'?'🖼️':'🚗';
+      const full=[...sites].map(([site,people])=>site+' '+people+'명').join(', ');
+      for(const [site,people] of sites){
+        const short=site.replace(/^목동/,'').replace(/아파트$/,'')+' '+people+'명';
+        parts.push('<span class="fd-day-kind '+kind+'" title="'+esc(label+' · '+site+' '+people+'명')+'"><span aria-hidden="true">'+icon+'</span><span>'+esc(short)+'</span></span>');
+      }
+    }
+    const closed=events.find(event=>event.kind==='closed');
+    if(closed)parts.push('<span class="fd-day-kind closed" title="'+esc(closed.name)+'">휴관</span>');
+    return parts.length?'<span class="fd-day-categories">'+parts.join('')+'</span>':'';
+  }
   function renderCalendar(){
     const days=q('#fdDays');if(!days||!viewDate)return;days.innerHTML='';
     const y=viewDate.getFullYear(),m=viewDate.getMonth(),first=new Date(y,m,1),start=new Date(y,m,1-first.getDay()),todayD=new Date();todayD.setHours(0,0,0,0);
@@ -8563,7 +8584,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
       const d=new Date(start);d.setDate(start.getDate()+i);const k=key(d),other=d.getMonth()!==m,raw=totalRawEvents(k),vis=rawEvents(k);const b=document.createElement('button');b.type='button';b.className='fd-day '+(other?'other ':'')+(d.getDay()===0?'sun ':'')+(d.getDay()===6?'sat ':'')+(k===selectedKey&&!other?'selected ':'')+(d.getTime()===todayD.getTime()?'today ':'');
       if(other){b.disabled=true;b.className='fd-day other';b.innerHTML='<span class="fd-daynum">'+d.getDate()+'</span>';b.setAttribute('aria-label',dateLabel(d));days.appendChild(b);continue;}
       let dots='';if(!other){if(showGallery&&((raw.g>0)||raw.c>0)&&(!siteFilter||(GALLERY_ROWS?.[k]||[]).some(r=>gallerySite(r)===siteFilter)))dots+=`<i class="${raw.c&&!raw.g?'c':'g'}"></i>`;if(showTour&&raw.t>0)dots+='<i class="t"></i>'}
-      const count=!other&&vis.length?`<span class="fd-count">${vis.length}건</span>`:'';
+      const count=desktopDayCategorySummary(vis);
       const holiday=!other?holidayName(d):'';
       if(holiday)b.classList.add('holiday');
       const holidayHtml=holiday?`<span class="fd-holiday">${esc(holiday)}</span>`:'';
@@ -8949,7 +8970,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
 button.onclick=()=>{closeFormOverlay();fields.classList.remove('gallery-admin-actions');try{run()}catch(error){alert('관리 기능을 실행하지 못했습니다. '+error.message)}};fields.append(button)});
     const save=document.querySelector('#formOverlay button[onclick="submitForm()"]');if(save)save.hidden=true;
   }
-  window.addEventListener('click',event=>{if(!event.target.closest('#fdAdminBtn,#proManage,#mobileAdminFab'))return;event.preventDefault();event.stopImmediatePropagation();management()},true);
+  window.addEventListener('click',event=>{if(!event.target.closest('#fdAdminBtn,#proManage,#mobileAdminFab'))return;event.preventDefault();event.stopImmediatePropagation();if(window.CalendarAuthentication?.current()?.role!=='admin'){window.calendarRequestEdit?.();return;}management()},true);
   const original=window.openForm;window.openForm=function(){document.getElementById('formOverlay')?.classList.remove('gallery-admin-open');document.getElementById('formFields')?.classList.remove('gallery-admin-actions');const save=document.querySelector('#formOverlay button[onclick="submitForm()"]');if(save)save.hidden=false;return original.apply(this,arguments)};
 })();
 </script>
@@ -9235,6 +9256,9 @@ html body #formOverlay.booking-editor #formFields .booking-field-date>input[type
 html body #formOverlay.booking-editor #formFields .booking-field-date>input[type=date]::-webkit-datetime-edit{display:inline-flex!important;align-items:center!important;min-height:36px!important;margin:0!important;padding:0!important;line-height:36px!important;}
 html body #formOverlay.booking-editor #formFields .booking-field-date>input[type=date]::-webkit-datetime-edit-fields-wrapper{display:inline-flex!important;align-items:center!important;margin:0!important;padding:0!important;}
 </style>
+
+
+
 </body>
 <style id="calendar-shared-ui-style">.calendar-sync-status{display:block;font:11px/1.4 'Malgun Gothic',system-ui,sans-serif;color:#66857c;white-space:normal;overflow-wrap:anywhere;max-width:100%;margin-top:3px;}
 @media(max-width:760px){.calendar-sync-status{font-size:10px;margin-top:5px;}}
@@ -10804,8 +10828,9 @@ html body #freshDesktopApp #fdLegacyMount .fd-site-heading strong::before{conten
  }
  window.calendarUnlockOwner=unlock;
  let dialog;
+ window.calendarRequestEdit=ownerLogin;
  function ownerLogin(){
-  if(!dialog){dialog=document.createElement('dialog');dialog.id='calendarOwnerLogin';dialog.innerHTML='<form><h2>캘린더 관리자</h2><p>관리자 인증 후 일정 편집과 공유 비밀번호 설정을 할 수 있습니다. 공유 비밀번호로는 관리자 입장이 불가능합니다.</p><label>대시보드 관리자 비밀번호<input type="password" name="password" autocomplete="current-password" required></label><div role="status" class="owner-login-error"></div><div class="owner-login-actions"><button type="button" data-owner-cancel>취소</button><button type="submit">관리자 입장</button></div><button type="button" data-owner-password>공유 비밀번호 설정</button></form>';document.body.appendChild(dialog);}
+  if(!dialog){dialog=document.createElement('dialog');dialog.id='calendarOwnerLogin';dialog.innerHTML='<form><h2>일정 편집</h2><p>일정 수정·저장은 본인 인증 후 사용할 수 있습니다. 공유 비밀번호는 조회 전용입니다.</p><label>대시보드 관리자 비밀번호<input type="password" name="password" autocomplete="current-password" required></label><div role="status" class="owner-login-error"></div><div class="owner-login-actions"><button type="button" data-owner-cancel>취소</button><button type="submit">편집 시작</button></div><button type="button" data-owner-password>공유 비밀번호 설정</button></form>';document.body.appendChild(dialog);}
   const form=dialog.querySelector('form'),input=form.querySelector('input'),error=form.querySelector('[role="status"]'),save=form.querySelector('[type="submit"]');form.reset();error.textContent='';save.disabled=false;
   dialog.querySelector('[data-owner-cancel]').onclick=()=>dialog.close();dialog.querySelector('[data-owner-password]').onclick=()=>{dialog.close();changePassword();};
   form.onsubmit=async event=>{event.preventDefault();if(save.disabled)return;save.disabled=true;error.textContent='';try{await window.CalendarAuthentication.authorizeOwner(input.value);input.value='';dialog.close();unlock();}catch(cause){error.textContent=cause.message;}finally{save.disabled=false;}};
@@ -10867,4 +10892,138 @@ html[data-calendar-access="viewer"] body #freshDesktopApp :is(#fdAdminBtn,#fdSch
 
 <style id="calendar-simple-password-entry-only">
 #lockScreen .calendar-owner-entry{display:none!important;}
+</style>
+
+<style id="calendar-entry-message-wrap">
+html body #lockScreen .calendar-access-card{height:auto!important;min-height:0!important;max-height:none!important;overflow:visible!important;flex:0 0 auto!important;}
+html body #lockScreen #pwErr{height:auto!important;min-height:0!important;max-height:none!important;white-space:normal!important;word-break:keep-all!important;overflow-wrap:anywhere!important;line-height:1.6!important;position:static!important;}
+</style>
+
+<style id="desktop-slate-surface-palette">
+/* Desktop surface treatment only: preserve every dimension, grouping and mobile rule. */
+@media screen and (min-width:761px){
+html body #freshDesktopApp{background:#e8eef4!important;color:#30465a!important;}
+html body #freshDesktopApp>.fd-topbar{background:#34485c!important;border-bottom-color:#455e75!important;box-shadow:0 2px 8px #24384e14!important;}
+html body #freshDesktopApp #fdMainTitle{color:#f5f8fc!important;}
+html body #freshDesktopApp .fd-top-action,html body #freshDesktopApp .fd-search{background:#f4f7fb!important;border-color:#c6d3df!important;color:#344d64!important;}
+html body #freshDesktopApp .fd-panel{background:#fbfdff!important;border-color:#cad6e2!important;box-shadow:0 3px 12px #30465e0c!important;}
+html body #freshDesktopApp .fd-cal-top{background:#e2eaf3!important;border-bottom-color:#cbd8e5!important;}
+html body #freshDesktopApp .fd-month-title{color:#304c68!important;}
+html body #freshDesktopApp .fd-weekday{background:#f0f4f9!important;}
+html body #freshDesktopApp .fd-day{background:#fbfdff!important;border-color:#e0e7ef!important;}
+html body #freshDesktopApp .fd-day.other{background:#f0f4f8!important;}
+html body #freshDesktopApp .fd-day:hover{background:#edf3fa!important;}
+html body #freshDesktopApp .fd-day.selected{background:#dce8f4!important;border-color:#6383a3!important;box-shadow:inset 0 0 0 1px #6383a3!important;}
+html body #freshDesktopApp .fd-count{background:#557795!important;color:#fff!important;}
+html body #freshDesktopApp .fd-mini-head{background:#e8eef6!important;}
+html body #freshDesktopApp .fd-kpi{border-color:#cedae5!important;}
+html body #freshDesktopApp .fd-kpi strong{color:#426a8c!important;}
+html body #freshDesktopApp .fd-kpi:last-child strong{color:#776980!important;}
+html body #freshDesktopApp .fd-ops-title{border-bottom-color:#d5e0eb!important;}
+html body #freshDesktopApp #fdOperationsFilters{background:#eaf0f7!important;border-color:#d3dfeb!important;}
+html body #freshDesktopApp #fdLegacyMount .fd-site-table table{border-color:#cedae6!important;}
+html body #freshDesktopApp #fdLegacyMount .fd-site-table thead th{background:#e5edf5!important;color:#526d86!important;border-bottom-color:#cad8e5!important;}
+html body #freshDesktopApp #fdLegacyMount .fd-site-table tbody td{background:#fff!important;border-bottom-color:#e0e8f0!important;}
+html body #freshDesktopApp #fdLegacyMount .fd-site-table tbody tr:nth-child(even) td{background:#f1f5fa!important;}
+html body #freshDesktopApp #fdLegacyMount .fd-site-visits .fd-visit-time{background:#eaf1f8!important;color:#426b8d!important;border-right-color:#d4dfeb!important;}
+html body #freshDesktopApp #fdLegacyMount .fd-site-table>.fd-site-heading{background:transparent!important;color:#344f69!important;}
+html body #freshDesktopApp #fdLegacyMount .fd-site-table>.fd-site-heading strong{color:#344f69!important;}
+html body #freshDesktopApp .fd-kind-manager-section h3,html body #freshDesktopApp .fd-kind-manager-section+section h3{background:#e7eef6!important;color:#526a81!important;}
+html body #freshDesktopApp #fdWeekPanel .chart-bar{background:#678bab!important;}
+html body #freshDesktopApp #fdWeekPanel .chart-col:hover{background:#eaf0f7!important;}
+html body #freshDesktopApp #summaryBar .summary-card{background:#eaf2f2!important;border-color:#c9dfdf!important;color:#527679!important;}
+html body #freshDesktopApp #summaryBar .summary-card:nth-child(2){background:#f7eeee!important;border-color:#e7d1d1!important;color:#a26b6f!important;}
+html body #freshDesktopApp #summaryBar .summary-card:nth-child(3){background:#eaf0f8!important;border-color:#ccdbee!important;color:#5f7da2!important;}
+}
+</style>
+
+<style id="calendar-management-entry-restored">
+/* A management entry remains available, but every mutation still requires owner authentication. */
+html[data-calendar-access="viewer"] body #freshDesktopApp #fdAdminBtn,
+html[data-calendar-access="viewer"] body #proCalendarApp #proManage{display:inline-flex!important;}
+@media screen and (min-width:761px){
+html body #freshDesktopApp>.fd-topbar #fdMainTitle{color:#f5f8fc!important;}
+html body #freshDesktopApp>.fd-topbar .fd-brand-copy{color:#f5f8fc!important;}
+}
+</style>
+
+<style id="desktop-alignment-roster-finish">
+@media screen and (min-width:761px){
+html body #freshDesktopApp #fdTodayTop{display:inline-flex!important;align-items:center!important;justify-content:center!important;text-align:center!important;padding:0 14px!important;line-height:normal!important;}
+/* A complete calendar outline, including both ends of the weekday row. */
+html body #freshDesktopApp .fd-weekdays{border:1px solid #d5e0eb!important;border-bottom:0!important;overflow:hidden!important;box-sizing:border-box!important;border-radius:6px 6px 0 0!important;}
+html body #freshDesktopApp .fd-days{border-top:1px solid #d5e0eb!important;border-left:1px solid #d5e0eb!important;box-sizing:border-box!important;}
+html body #freshDesktopApp .fd-day{border-right-color:#d5e0eb!important;border-bottom-color:#d5e0eb!important;box-sizing:border-box!important;}
+html body #freshDesktopApp .fd-holiday{position:absolute!important;left:3px!important;right:3px!important;top:auto!important;bottom:5px!important;width:auto!important;margin:0!important;padding:0!important;transform:none!important;text-align:center!important;line-height:16px!important;}
+/* Place all heading contents on the same vertical centre. */
+html body #freshDesktopApp #fdWeekPanel>.fd-mini-head{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:12px!important;height:48px!important;min-height:48px!important;flex:0 0 48px!important;padding:0 14px!important;}
+html body #freshDesktopApp #fdWeekPanel>.fd-mini-head h2{margin:0!important;line-height:24px!important;}
+html body #freshDesktopApp #fdWeekPanel .chartWeekBar{display:flex!important;align-items:center!important;justify-content:center!important;margin:0!important;padding:0!important;position:static!important;transform:none!important;height:28px!important;}
+html body #freshDesktopApp #fdWeekPanel #chartWeekLabel{display:flex!important;align-items:center!important;justify-content:center!important;height:28px!important;margin:0!important;padding:0!important;line-height:28px!important;}
+html body #freshDesktopApp .fd-ops-title{display:flex!important;align-items:center!important;min-height:48px!important;height:48px!important;flex:0 0 48px!important;padding:0 0 10px!important;background:transparent!important;}
+html body #freshDesktopApp .fd-ops-title h2{margin:0!important;padding:0!important;line-height:28px!important;}
+html body #freshDesktopApp .fd-legacy-summary,html body #freshDesktopApp #summaryBar{align-self:center!important;transform:none!important;position:static!important;top:auto!important;}
+/* Remove the extra rounded container around the checklist. */
+html body #freshDesktopApp #fdLegacyMount,
+html body #freshDesktopApp #fdLegacyMount :is(.checklist-section,.fd-legacy-body,.fd-legacy-card,.fd-legacy-card-body,.table-wrap,.table-scroll){background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;}
+html body #freshDesktopApp #fdLegacyMount .fd-site-table>.fd-site-heading{height:36px!important;min-height:36px!important;padding:7px 12px!important;background:#087f84!important;border:0!important;border-radius:5px 5px 0 0!important;color:#fff!important;}
+html body #freshDesktopApp #fdLegacyMount .fd-site-table>.fd-site-heading :is(strong,span){color:#fff!important;}
+html body #freshDesktopApp #fdLegacyMount .fd-site-heading strong::before{filter:brightness(0) invert(1)!important;}
+html body #freshDesktopApp #fdLegacyMount .fd-site-table table{border-collapse:separate!important;border-spacing:0!important;border:1px solid #dde6ed!important;border-top:0!important;border-radius:0 0 6px 6px!important;overflow:hidden!important;}
+html body #freshDesktopApp #fdLegacyMount .fd-site-table thead th{background:#f5f8fa!important;border-bottom:1px solid #dde6ed!important;}
+html body #freshDesktopApp #fdLegacyMount .fd-site-table thead th:first-child{border-radius:6px 0 0 0!important;}
+html body #freshDesktopApp #fdLegacyMount .fd-site-table thead th:last-child{border-radius:0 6px 0 0!important;}
+html body #freshDesktopApp #fdLegacyMount .fd-site-table tbody tr td,
+html body #freshDesktopApp #fdLegacyMount .fd-site-table tbody tr:nth-child(even) td,
+html body #freshDesktopApp #fdLegacyMount .fd-site-visits .fd-visit-time{background:#fff!important;border-bottom-color:#e2e9ef!important;}
+html body #freshDesktopApp #fdLegacyMount .fd-site-visits .fd-visit-time{color:#087f84!important;}
+}
+</style>
+
+<style id="calendar-category-day-summary-style">
+@media screen and (min-width:761px){
+html body #freshDesktopApp .fd-day-categories{position:absolute;left:4px;right:4px;top:32px;bottom:4px;display:flex;flex-direction:column;justify-content:center;gap:3px;text-align:left;overflow:hidden;}
+html body #freshDesktopApp .fd-day-kind{display:flex;align-items:center;gap:3px;min-width:0;padding:2px 3px;border-radius:4px;background:#edf3f8;color:#456882;font-size:10px;line-height:15px;}
+html body #freshDesktopApp .fd-day-kind>span:last-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+html body #freshDesktopApp .fd-day-kind.tour{background:#f2eef5;color:#786783;}
+html body #freshDesktopApp .fd-day-kind.closed{color:#b4616b;background:#f9eff1;}
+html body #freshDesktopApp .fd-holiday{left:50%!important;right:auto!important;width:calc(100% - 8px)!important;transform:translateX(-50%)!important;display:flex!important;justify-content:center!important;align-items:center!important;text-align:center!important;margin:0!important;}
+html body #freshDesktopApp .fd-day.holiday .fd-day-categories{bottom:22px!important;}
+}
+</style>
+<script id="calendar-consistent-category-icons">
+(()=>{
+ const excluded='script,style,textarea,input,select,option,[contenteditable="true"],.fd-day-categories';
+ function decorate(root){
+  const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let node;
+  while(node=walker.nextNode()){
+   if(!node.parentElement||node.parentElement.closest(excluded))continue;
+   let text=node.nodeValue;
+   if(text.length<=90&&/\d+차\s*투어/.test(text)){text=text.replace(/\d+차\s*투어/g,'투어');node.nodeValue=text;}
+   if(text.length>90||!/(갤러리|투어)/.test(text)||/[🖼🚗]/u.test(text))continue;
+   node.nodeValue=text.replace(/갤러리/g,'🖼️ 갤러리').replace(/((?:\d+차)?투어)/g,'🚗 $1');
+  }
+ }
+ function start(){
+  decorate(document.body);let scheduled=false;
+  new MutationObserver(records=>{if(!records.some(record=>record.type==='childList')||scheduled)return;scheduled=true;requestAnimationFrame(()=>{scheduled=false;decorate(document.body);});}).observe(document.body,{childList:true,subtree:true});
+ }
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
+})();
+</script>
+
+<style id="desktop-day-lines-time-centering">
+@media screen and (min-width:761px){
+html body #freshDesktopApp .fd-day-categories{top:34px!important;bottom:3px!important;justify-content:flex-start!important;gap:1px!important;overflow-x:hidden!important;overflow-y:auto!important;scrollbar-width:none!important;}
+html body #freshDesktopApp .fd-day-categories::-webkit-scrollbar{display:none!important;}
+html body #freshDesktopApp .fd-day-kind,html body #freshDesktopApp .fd-day-kind.tour,html body #freshDesktopApp .fd-day-kind.closed{background:transparent!important;border:0!important;border-radius:0!important;padding:0 2px!important;min-height:14px!important;flex-shrink:0!important;font-size:10px!important;line-height:14px!important;color:#456278!important;}
+html body #freshDesktopApp .fd-day-kind>span:last-child{overflow:visible!important;text-overflow:clip!important;white-space:normal!important;overflow-wrap:anywhere!important;}
+html body #freshDesktopApp #fdLegacyMount .fd-site-visits .fd-visit-time{width:76px!important;min-width:76px!important;text-align:center!important;padding-left:3px!important;padding-right:3px!important;}
+html body #freshDesktopApp #fdLegacyMount .fd-visit-time small{display:block!important;white-space:nowrap!important;word-break:keep-all!important;font-size:11px!important;line-height:18px!important;text-align:center!important;}
+html body #freshDesktopApp #fdLegacyMount .fd-site-visits th:first-child{width:76px!important;}
+html body #freshDesktopApp #fdLegacyMount .fd-site-visits thead th{text-align:center!important;}
+html body #fdDaySchedulePopup .day-roster-columns>span{text-align:center!important;}
+html body #fdDaySchedulePopup .day-time-group>h4,html body #fdDaySchedulePopup .day-time-group.tour>h4{align-items:center!important;text-align:center!important;padding-left:3px!important;padding-right:3px!important;}
+html body #fdDaySchedulePopup .day-time-group>h4 :is(time,span){white-space:nowrap!important;text-align:center!important;}
+}
 </style>
