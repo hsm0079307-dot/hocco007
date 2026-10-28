@@ -9723,7 +9723,7 @@ html.calendar-unlocked #lockScreen{display:none!important;}
     return `<article class="booking-event ${date?'booking-event-wide':'booking-event-compact'} ${escape(kind)}"${attrs}>
       ${date?`<div class="booking-date">${date.getMonth()+1}/${date.getDate()}</div>`:''}
       <div class="booking-copy"><div class="booking-main"><time>${escape(event.time)}</time><span class="booking-kind">${escape(label)}</span><strong>${escape(event.site)}</strong><b>${escape(event.name)}</b></div><div class="booking-sub">${sub.map(s=>`<span>${escape(s)}</span>`).join('')}</div></div>
-      ${memo?`<div class="booking-memo"><small>메모</small><span>${escape(memo)}</span></div>`:''}
+      ${memo?`<div class="booking-memo"><span>${escape(memo)}</span></div>`:''}
       ${editable?`<div class="booking-actions"><button type="button" data-booking-edit aria-label="${escape(event.name)} 일정 수정">수정</button><button type="button" data-booking-delete class="booking-delete" aria-label="${escape(event.name)} 일정 삭제">삭제</button></div>`:''}
     </article>`;
   }
@@ -10999,17 +10999,19 @@ html body #freshDesktopApp .fd-day.holiday .fd-day-categories{bottom:22px!import
 (()=>{
  const excluded='script,style,textarea,input,select,option,[contenteditable="true"],.fd-day-categories';
  function decorate(root){
+  const mobile=window.matchMedia('(max-width:760px)').matches;
   const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let node;
   while(node=walker.nextNode()){
    if(!node.parentElement||node.parentElement.closest(excluded))continue;
    let text=node.nodeValue;
    if(text.length<=90&&/\d+차\s*투어/.test(text)){text=text.replace(/\d+차\s*투어/g,'투어');node.nodeValue=text;}
+   if(mobile){const plain=text.replace(/(?:🖼️?|🚗)\s*(?=갤러리|투어)/gu,'');if(plain!==text)node.nodeValue=plain;continue;}
    if(text.length>90||!/(갤러리|투어)/.test(text)||/[🖼🚗]/u.test(text))continue;
    node.nodeValue=text.replace(/갤러리/g,'🖼️ 갤러리').replace(/((?:\d+차)?투어)/g,'🚗 $1');
   }
  }
  function start(){
-  decorate(document.body);let scheduled=false;
+  decorate(document.body);window.matchMedia('(max-width:760px)').addEventListener('change',()=>decorate(document.body));let scheduled=false;
   new MutationObserver(records=>{if(!records.some(record=>record.type==='childList')||scheduled)return;scheduled=true;requestAnimationFrame(()=>{scheduled=false;decorate(document.body);});}).observe(document.body,{childList:true,subtree:true});
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
@@ -11035,5 +11037,11 @@ html body #fdDaySchedulePopup .day-time-group>h4 :is(time,span){white-space:nowr
 <style id="desktop-calendar-date-top-right">
 @media(min-width:761px){
  html body #freshDesktopApp .fd-day .fd-daynum{left:auto!important;right:8px!important;top:7px!important;width:auto!important;text-align:right!important;transform:none!important;}
+}
+</style>
+
+<style id="mobile-calendar-plain-category-labels">
+@media(max-width:760px){
+ #proCalendarApp .pro-v27-badge{white-space:nowrap!important;word-break:keep-all!important;overflow-wrap:normal!important;}
 }
 </style>
