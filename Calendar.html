@@ -20,7 +20,7 @@
 })();
 </script>
 
-<meta name="calendar-build" content="2026.10.28.63">
+<meta name="calendar-build" content="2026.10.28.64">
 <script id="calendar-shared-foundation">(function(){
  'use strict';
  const keys=['manual_schedule_data_v1','calendar_checkmarks_v1','person_memos_v1','staff_contacts_v1','category_labels_v1','capacity_date_override_v1','capacity_weekday_v1','capacity_weekend_v1','site_title_v1','site_subtitle_v1','footnote_comment_v1','fdDisplayTitle','fdCustomTitle'];
@@ -2213,10 +2213,10 @@ window.calendarTimeGroups=function(events){
 <dialog id="lockScreen" aria-labelledby="pwTitle">
   <section class="calendar-access-card">
   <div class="calendar-access-brand">일정표</div>
-  <h2 id="pwTitle">캘린더 조회</h2>
-  <p>캘린더 공유 비밀번호를 입력하세요.</p>
+  <h2 id="pwTitle">일정표</h2>
+  <p>캘린더 비밀번호를 입력하세요.</p>
   <form id="lockForm" novalidate>
-    <input type="password" id="pwInput" inputmode="numeric" pattern="[0-9]*" enterkeyhint="go" autocomplete="current-password" aria-label="캘린더 공유 비밀번호" placeholder="캘린더 공유 비밀번호">
+    <input type="password" id="pwInput" inputmode="numeric" pattern="[0-9]*" enterkeyhint="go" autocomplete="current-password" aria-label="캘린더 비밀번호" placeholder="비밀번호">
     <button type="submit" id="pwOpenBtn">입장</button>
   </form>
   <div class="err" id="pwErr" aria-live="polite"></div>
@@ -10813,12 +10813,7 @@ html body #freshDesktopApp #fdLegacyMount .fd-site-heading strong::before{conten
  }
  function apply(){
   const editable=owner();document.documentElement.setAttribute('data-calendar-access',editable?'owner':'viewer');
-  for(const container of document.querySelectorAll('#lockScreen,#freshDesktopApp .fd-topbar,#proCalendarApp .pro-main-head')){
-   if(container.querySelector('.calendar-owner-entry'))continue;
-   const button=document.createElement('button');button.type='button';button.className='calendar-owner-entry';button.textContent='관리자 입장';
-   button.onclick=()=>{if(owner()){window.CalendarAuthentication.logoutOwner();if(!window.CalendarAuthentication.current())location.reload();}else ownerLogin();};container.appendChild(button);
-  }
-  document.querySelectorAll('.calendar-owner-entry').forEach(button=>button.textContent=editable?'관리자 종료':'관리자 입장');
+  document.querySelectorAll('.calendar-owner-entry').forEach(button=>button.remove());
   document.querySelectorAll('#appRoot input[type="checkbox"],#freshDesktopApp input[type="checkbox"]').forEach(input=>{if(!editable&&!input.disabled){input.dataset.calendarReadOnly='1';input.disabled=true;}else if(editable&&input.dataset.calendarReadOnly){input.disabled=false;delete input.dataset.calendarReadOnly;}});
  }
  function guard(){
@@ -10868,4 +10863,8 @@ html[data-calendar-access="viewer"] body #freshDesktopApp :is(#fdAdminBtn,#fdSch
 #dashboardTypographyDialog .ui-font-compare-card>[data-ui-font-preview-status]{display:block;font-size:var(--ui-type-small,12px)!important;line-height:1.5;color:var(--text-dim,#637b83);margin-top:10px;}
 #dashboardTypographyDialog .ui-font-compare-card[data-preview-loaded="loading"] .ui-font-sample{visibility:hidden;}
 @media(max-width:600px){#dashboardTypographyDialog .ui-font-compare-grid{grid-template-columns:minmax(0,1fr);}}
+</style>
+
+<style id="calendar-simple-password-entry-only">
+#lockScreen .calendar-owner-entry{display:none!important;}
 </style>
