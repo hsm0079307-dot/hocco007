@@ -1,7 +1,26 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta name="calendar-build" content="2026.10.28.60">
+<script id="shared-login-request-guard">
+(()=>{
+ const key='shared_password_login_cooldown_v1',pending=new Map();
+ function deadline(){try{return Number(localStorage.getItem(key))||0;}catch{return 0;}}
+ function message(until){const minutes=Math.max(1,Math.ceil((until-Date.now())/60000));return '로그인 시도 제한이 걸렸습니다. 약 '+minutes+'분 후 다시 시도해주세요. 대시보드와 캘린더에 같은 제한이 적용됩니다.';}
+ async function request(send,role,password){
+  const until=deadline();if(until>Date.now())throw Error(message(until));
+  const copy=response=>typeof response.clone==='function'?response.clone():response;
+  const id=role+'\u0000'+password;if(pending.has(id))return copy(await pending.get(id));
+  const task=(async()=>{const response=await send();if(response.status===429){
+   const retry=Number(response.headers?.get('retry-after')),expires=Date.now()+(retry>0?retry:900)*1000;
+   try{localStorage.setItem(key,String(expires));}catch(_){}throw Error(message(expires));
+  }return response;})();pending.set(id,task);
+  try{return copy(await task);}finally{if(pending.get(id)===task)pending.delete(id);}
+ }
+ window.SharedLoginGuard={request};
+})();
+</script>
+
+<meta name="calendar-build" content="2026.10.28.61">
 <script id="calendar-shared-foundation">(function(){
  'use strict';
  const keys=['manual_schedule_data_v1','calendar_checkmarks_v1','person_memos_v1','staff_contacts_v1','category_labels_v1','capacity_date_override_v1','capacity_weekday_v1','capacity_weekend_v1','site_title_v1','site_subtitle_v1','footnote_comment_v1','fdDisplayTitle','fdCustomTitle'];
@@ -207,14 +226,11 @@
   return null;
  }
  async function authenticate(password){
-  const inherited=current();
-  // A session handed over by the dashboard already has server authentication.
-  let localPassword='0134';try{localPassword=localStorage.getItem('calendar_password_v1')||localPassword;}catch{}
-  if(inherited&&password===localPassword)return inherited;
+  // Always verify the entered shared administrator password on the server.
   const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),20000);
   try{
-   const response=await fetch(endpoint+'?action=login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role:'admin',password,includeData:false}),signal:controller.signal});
-   if(!response.ok)throw Error(response.status===429?'잠시 후 다시 시도해주세요.':'PC·모바일 공유에는 대시보드 관리자 비밀번호를 입력해주세요.');
+   const response=await window.SharedLoginGuard.request(()=>fetch(endpoint+'?action=login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role:'admin',password,includeData:false}),signal:controller.signal}),'admin',password);
+   if(!response.ok)throw Error(response.status>=500?'로그인 서버에 연결하지 못했습니다. 잠시 후 다시 시도해주세요.':'관리자 비밀번호가 틀렸습니다. 대시보드 입장 비밀번호와는 별도입니다.');
    const result=await response.json();
    if(result?.role!=='admin'||typeof result.token!=='string'||!result.token||!Number.isFinite(Number(result.expiresAt))||Number(result.expiresAt)<=Date.now())throw Error('동기화 연결을 확인하지 못했습니다.');
    const session={role:'admin',token:result.token,expiresAt:Number(result.expiresAt)};
@@ -2180,7 +2196,7 @@ window.calendarTimeGroups=function(events){
   <h2 id="pwTitle">관리자 로그인</h2>
   <p>대시보드 관리자 비밀번호를 입력하세요.</p>
   <form id="lockForm" novalidate>
-    <input type="password" id="pwInput" inputmode="numeric" pattern="[0-9]*" enterkeyhint="go" autocomplete="current-password" aria-label="비밀번호" placeholder="비밀번호">
+    <input type="password" id="pwInput" inputmode="numeric" pattern="[0-9]*" enterkeyhint="go" autocomplete="current-password" aria-label="관리자 비밀번호" placeholder="관리자 비밀번호">
     <button type="submit" id="pwOpenBtn">입장</button>
   </form>
   <div class="err" id="pwErr" aria-live="polite"></div>
@@ -10716,7 +10732,7 @@ html body #freshDesktopApp #fdLegacyMount .fd-site-heading strong::before{conten
  const endpoint='https://stately-sfogliatella-7ab674.netlify.app/api/password-access';
  const sessionKey='calendar_shared_session_v1';
  async function login(password){
-  const response=await fetch(endpoint+'?action=login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role:'admin',password,includeData:false}),signal:AbortSignal.timeout(20000)});
+  const response=await window.SharedLoginGuard.request(()=>fetch(endpoint+'?action=login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role:'admin',password,includeData:false}),signal:AbortSignal.timeout(20000)}),'admin',password);
   if(!response.ok)throw Error(response.status===429?'잠시 후 다시 시도해주세요.':'현재 관리자 비밀번호를 확인해주세요.');
   const result=await response.json();if(result.role!=='admin'||typeof result.token!=='string'||!result.token||!Number.isFinite(Number(result.expiresAt))||Number(result.expiresAt)<=Date.now())throw Error('로그인 정보를 확인하지 못했습니다.');return result;
  }
