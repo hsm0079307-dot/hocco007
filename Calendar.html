@@ -6844,7 +6844,7 @@ body.pro-show-legacy .checklist-section,body.pro-show-legacy .car{display:block!
       <aside class="pro-detail-wrap"><section class="pro-detail-panel" id="proDetail"><button class="pro-detail-close" id="proDetailClose" type="button">×</button><div id="proDetailBody"></div></section></aside>
     </div>
     <div class="pro-backdrop" id="proBackdrop"></div>
-    <nav class="pro-bottomnav"><button class="active" data-mobile="schedule">${svg.cal}<span>일정</span></button><button data-mobile="gallery">${svg.people}<span>갤러리</span></button><button data-mobile="tour">${svg.chart}<span>투어</span></button><button data-mobile="more">${svg.tune}<span>더보기</span></button></nav>`;
+    <nav class="pro-bottomnav"><button class="active" data-mobile="schedule">${svg.cal}<span>일정</span></button><button data-mobile="gallery">${svg.people}<span>갤러리</span></button><button data-mobile="tour">${svg.chart}<span>투어</span></button><button data-mobile="managers">${svg.tune}<span>담당별</span></button></nav>`;
     wrap.insertBefore(app,wrap.firstChild);built=true;bind();
   }
 
@@ -7102,8 +7102,8 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
   function relabelBottomNav(){
     const nav=q('.pro-bottomnav');if(!nav)return;
     const bs=qa('.pro-bottomnav button');if(bs.length<4)return;
-    const labels=['일정','고객','체크리스트','더보기'];labels.forEach((t,i)=>{const sp=bs[i].querySelector('span');if(sp&&sp.textContent!==t)sp.textContent=t});
-    bs[0].dataset.mobile='schedule';bs[1].dataset.mobile='customer';bs[2].dataset.mobile='check';bs[3].dataset.mobile='more';
+    const labels=['일정','갤러리','투어','담당별'];labels.forEach((t,i)=>{const sp=bs[i].querySelector('span');if(sp&&sp.textContent!==t)sp.textContent=t});
+    bs[0].dataset.mobile='schedule';bs[1].dataset.mobile='gallery';bs[2].dataset.mobile='tour';bs[3].dataset.mobile='managers';
     bs.forEach(function(b){b.onclick=function(){
       bs.forEach(x=>x.classList.toggle('active',x===b));const a=b.dataset.mobile;
       if(a==='schedule'){document.body.classList.remove('pro-sheet-open','pro-show-legacy');window.scrollTo({top:0,behavior:'smooth'})}
@@ -7775,7 +7775,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
       if(matchMedia('(max-width:760px)').matches&&window.calendarMobileBrowseKind){
         e.preventDefault();e.stopImmediatePropagation();
         const index=qa('.pro-bottomnav button').indexOf(nav);
-        if(index<3)window.calendarMobileBrowseKind(['schedule','gallery','tour'][index]);
+        if(index<4)window.calendarMobileBrowseKind(['schedule','gallery','tour','managers'][index]);
         return;
       }
       const a=nav.dataset.mobile;
@@ -7793,7 +7793,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
 
   function relabelNav(){
     const bs=qa('.pro-bottomnav button');if(bs.length<4)return;
-    const cfg=[['schedule','일정'],['customer','고객'],['check','체크리스트'],['more','더보기']];
+    const cfg=[['schedule','일정'],['gallery','갤러리'],['tour','투어'],['managers','담당별']];
     cfg.forEach((x,i)=>{bs[i].dataset.mobile=x[0];const sp=q('span',bs[i]);if(sp&&sp.textContent!==x[1])sp.textContent=x[1]});
   }
 
@@ -8043,7 +8043,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
   function navIntent(){
     const bs=qa('.pro-bottomnav button');if(bs.length<4)return;
     // v25 may rewrite data-mobile; pointerdown repairs it before its click handler runs.
-    bs[0].dataset.mobile='schedule';bs[1].dataset.mobile='gallery';bs[2].dataset.mobile='tour';bs[3].dataset.mobile='more';
+    bs[0].dataset.mobile='schedule';bs[1].dataset.mobile='gallery';bs[2].dataset.mobile='tour';bs[3].dataset.mobile='managers';
   }
   function preNav(e){const b=e.target.closest('.pro-bottomnav button');if(!b)return;const bs=qa('.pro-bottomnav button');const i=bs.indexOf(b);if(i===1)b.dataset.mobile='gallery';else if(i===2)b.dataset.mobile='tour'}
   document.addEventListener('pointerdown',preNav,true);document.addEventListener('touchstart',preNav,true);
@@ -11075,8 +11075,8 @@ html body #fdDaySchedulePopup .day-time-group>h4 :is(time,span){white-space:nowr
  window.calendarMobileBrowseKind=function(kind){
   if(!matchMedia('(max-width:760px)').matches)return;
   document.body.classList.remove('pro-sheet-open','pro-tools-open','pro-customer-open','pro-show-legacy');
-  document.querySelectorAll('.pro-bottomnav button').forEach((button,index)=>button.classList.toggle('active',index===['schedule','gallery','tour'].indexOf(kind)));
-  if(kind!=='schedule')window.calendarMobileDateList(kind);
+  document.querySelectorAll('.pro-bottomnav button').forEach((button,index)=>button.classList.toggle('active',index===['schedule','gallery','tour','managers'].indexOf(kind)));
+  window.calendarMobileDateList(kind==='schedule'?'all':kind);
  };
 })();
 </script>
@@ -11089,16 +11089,53 @@ html body #fdDaySchedulePopup .day-time-group>h4 :is(time,span){white-space:nowr
 }
 </style>
 
+<script id="mobile-calendar-browse-data">
+(()=>{
+ const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const dateOrder=key=>{const [m,d]=key.split('-').map(Number);return m*100+d;};
+ function records(kind='all',filter={}){
+  const out=[];
+  for(const [type,store] of [['gallery',GALLERY_ROWS],['tour',TOUR_ROWS]]){
+   if(kind!=='all'&&kind!=='managers'&&type!==kind)continue;
+   for(const [key,rows] of Object.entries(store||{}))rows.forEach((row,index)=>{
+    const g=type==='gallery',site=String(g?gallerySite(row):row[1]||'현장 미입력'),manager=String(row[g?4:5]||'미지정').trim()||'미지정';
+    const status=rowStatus(type,key,index);
+    if(filter.site&&filter.site!==site||filter.manager&&filter.manager!==manager||filter.status&&filter.status!=='total'&&filter.status!==status)return;
+    out.push({kind:type,key,index,site,manager,status,time:row[0]||'-',name:row[g?2:3]||'성함 미입력',meta:[g?'':row[2],row[g?3:4],g?row[1]:'',manager==='미지정'?'':'담당 '+manager].filter(v=>v&&v!=='-').join(' · '),memo:personMemos[type+'_'+key+'_'+index]||''});
+   });
+  }
+  return out.sort((a,b)=>dateOrder(a.key)-dateOrder(b.key)||(window.calendarTimeOrder?.(a.time)||0)-(window.calendarTimeOrder?.(b.time)||0)||a.site.localeCompare(b.site,'ko'));
+ }
+ function agenda(rows){
+  if(!rows.length)return '<p class="mobile-browse-empty">해당 일정이 없습니다.</p>';
+  const dates=new Map();rows.forEach(row=>{if(!dates.has(row.key))dates.set(row.key,[]);dates.get(row.key).push(row);});
+  return '<div class="mobile-browse-summary">일정 '+rows.length+'건 · 방문일 '+dates.size+'일</div>'+[...dates].map(([key,items])=>{
+   const groups=new Map();items.forEach(item=>{const k=item.kind+'|'+item.site;if(!groups.has(k))groups.set(k,[]);groups.get(k).push(item);});
+   return '<section class="mobile-browse-date"><h3>'+esc(key.replace('-','월 ')+'일')+'<small>'+items.length+'건</small></h3>'+[...groups.values()].map(group=>{
+    const slots=new Map();group.forEach(row=>{const key=String(window.calendarTimeOrder?.(row.time)??row.time);if(!slots.has(key))slots.set(key,[]);slots.get(key).push(row);});
+    return '<section class="mobile-browse-site"><div class="mobile-browse-site-head"><b>'+esc(group[0].site)+'</b><span>'+ (group[0].kind==='gallery'?'갤러리':'투어')+'</span></div>'+[...slots.values()].map(slot=>'<div class="mobile-browse-time"><div><time>'+esc(window.calendarTimeLabel?.(slot[0].time)||slot[0].time)+'</time><small>'+slot.length+'건</small></div>'+slot.map(row=>'<button type="button" data-list-day="'+esc(row.key)+'"><span><b>'+esc(row.name)+'</b><small>'+esc(row.meta)+'</small>'+(row.memo?'<small class="mobile-browse-memo">'+esc(row.memo)+'</small>':'')+'</span></button>').join('')+'</div>').join('')+'</section>';
+   }).join('')+'</section>';
+  }).join('');
+ }
+ function managers(rows){
+  if(!rows.length)return '<p class="mobile-browse-empty">등록된 일정이 없습니다.</p>';
+  const sites=new Map();for(const row of rows){if(!sites.has(row.site))sites.set(row.site,{gallery:new Map(),tour:new Map()});const people=sites.get(row.site)[row.kind];if(!people.has(row.manager))people.set(row.manager,{attended:0,scheduled:0,noshow:0,total:0});const tally=people.get(row.manager);tally[row.status]++;tally.total++;}
+  return [...sites].sort((a,b)=>a[0].localeCompare(b[0],'ko',{numeric:true})).map(([site,kinds])=>'<section class="mobile-manager-site"><div class="mobile-manager-site-head">'+esc(site)+'</div><div class="mobile-manager-columns">'+['gallery','tour'].map(kind=>'<section><h3>'+ (kind==='gallery'?'갤러리':'투어')+'</h3><table><thead><tr><th>담당자</th><th>참석</th><th>예정</th><th>불참</th><th>합계</th></tr></thead><tbody>'+ (kinds[kind].size?[...kinds[kind]].sort((a,b)=>a[0].localeCompare(b[0],'ko')).map(([manager,tally])=>'<tr><td>'+esc(manager)+'</td>'+['attended','scheduled','noshow','total'].map(status=>'<td><button type="button" data-browse-manager="'+esc(manager)+'" data-browse-site="'+esc(site)+'" data-browse-kind="'+kind+'" data-browse-status="'+status+'"'+(!tally[status]?' disabled':'')+'>'+tally[status]+'</button></td>').join('')+'</tr>').join(''):'<tr><td colspan="5">등록된 일정 없음</td></tr>')+'</tbody></table></section>').join('')+'</div></section>').join('');
+ }
+ window.CalendarMobileBrowse={records,agenda,managers};
+})();
+</script>
+
 <script id="mobile-calendar-category-date-list">
 (()=>{
  const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
- window.calendarMobileDateList=function(kind){
+ window.calendarMobileDateList=function(kind,filter={}){
   let dialog=document.getElementById('mobileCategoryDateList');
   if(!dialog){dialog=document.createElement('dialog');dialog.id='mobileCategoryDateList';document.body.appendChild(dialog);}
-  const store=kind==='gallery'?GALLERY_ROWS:TOUR_ROWS;
-  const groups=Object.entries(store).map(([key,rows])=>({key,rows})).filter(group=>group.rows.length).sort((a,b)=>{const [am,ad]=a.key.split('-').map(Number),[bm,bd]=b.key.split('-').map(Number);return am-bm||ad-bd;});
-  const label=kind==='gallery'?'갤러리':'투어';
-  dialog.innerHTML='<div class="mobile-category-list-head"><strong>전체 '+label+' 일정</strong><button type="button" aria-label="닫기">×</button></div><div class="mobile-category-dates">'+(groups.map(group=>'<section><h3>'+group.key.replace('-','월 ')+'일</h3>'+group.rows.map(row=>{const gallery=kind==='gallery',name=gallery?row[2]:row[3],place=gallery?gallerySite(row):row[1],manager=gallery?row[4]:row[5],plus=gallery?row[3]:row[4];return '<button type="button" data-list-day="'+escape(group.key)+'"><time>'+escape(row[0])+'</time><span><b>'+escape(place)+' · '+escape(name)+'</b><small>'+escape([plus,manager?'담당 '+manager:''].filter(x=>x&&x!=='-').join(' · '))+'</small></span></button>';}).join('')+'</section>').join('')||'<p>등록된 '+label+' 일정이 없습니다.</p>')+'</div>';
+  const rows=window.CalendarMobileBrowse.records(kind,filter);
+  const label=kind==='managers'?'담당별 현황':kind==='gallery'?'전체 갤러리 일정':kind==='tour'?'전체 투어 일정':'전체 일정';
+  dialog.innerHTML='<div class="mobile-category-list-head"><strong>'+label+'</strong><button type="button" aria-label="닫기">×</button></div><div class="mobile-category-dates">'+(kind==='managers'?window.CalendarMobileBrowse.managers(rows):window.CalendarMobileBrowse.agenda(rows))+'</div>';
+  dialog.querySelectorAll('[data-browse-manager]').forEach(button=>button.onclick=()=>window.calendarMobileDateList(button.dataset.browseKind,{manager:button.dataset.browseManager,site:button.dataset.browseSite,status:button.dataset.browseStatus}));
   dialog.querySelector('.mobile-category-list-head button').onclick=()=>dialog.close();
   dialog.querySelectorAll('[data-list-day]').forEach(button=>button.onclick=()=>{dialog.close();window.openPreview?.(button.dataset.listDay);});
   if(!dialog.open){
@@ -11160,4 +11197,38 @@ document.addEventListener('pointerdown',event=>{
 @media(max-width:760px){
  html body #proDays .pro-day,html body #proDays .pro-daynum{transition:none!important;animation:none!important;}
 }
+</style>
+
+<style id="mobile-four-browse-tabs-and-lists">
+@media(max-width:760px){
+ html body #proCalendarApp .pro-bottomnav{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;}
+ html body #proCalendarApp .pro-bottomnav>button:last-child{display:flex!important;}
+ html[data-calendar-access="viewer"] body #proCalendarApp .pro-bottomnav>button{visibility:visible!important;pointer-events:auto!important;}
+}
+#mobileCategoryDateList .mobile-category-dates{padding:12px!important;}
+#mobileCategoryDateList .mobile-browse-summary{font-size:12px;color:#738995;padding:0 0 8px;border-bottom:1px solid #e1e9ee;}
+#mobileCategoryDateList .mobile-browse-date{margin-bottom:20px;content-visibility:auto;contain-intrinsic-size:auto 240px;}
+#mobileCategoryDateList .mobile-browse-date>h3{display:flex;align-items:center;justify-content:space-between;margin:12px 0 8px;color:#244d62;font-size:14px;}
+#mobileCategoryDateList h3>small{font-size:11px;font-weight:400;color:#82949c;}
+#mobileCategoryDateList .mobile-browse-site{border:1px solid #d7e3ea;border-radius:7px;overflow:hidden;margin:0 0 9px;background:#fff;}
+#mobileCategoryDateList .mobile-browse-site-head{display:flex;justify-content:space-between;align-items:center;padding:9px;background:#edf3f7;font-size:13px;color:#34596f;}
+#mobileCategoryDateList .mobile-browse-site-head>span{font-size:11px;}
+#mobileCategoryDateList .mobile-browse-time>div{display:flex;justify-content:space-between;padding:7px 9px;border-top:1px solid #e2eaf0;}
+#mobileCategoryDateList .mobile-browse-time>div time{flex:none;}
+#mobileCategoryDateList .mobile-browse-time>div small{margin:0;}
+#mobileCategoryDateList .mobile-browse-time>button{padding:9px!important;}
+#mobileCategoryDateList .mobile-browse-empty{font-size:13px;text-align:center;padding:24px 8px;color:#7c909b;}
+#mobileCategoryDateList .mobile-browse-memo{white-space:pre-wrap;}
+#mobileCategoryDateList .mobile-manager-site{border:1px solid #d7e3ea;border-radius:6px;overflow:hidden;margin-bottom:14px;}
+#mobileCategoryDateList .mobile-manager-site-head{background:#087f84;color:#fff;padding:9px;font-size:13px;font-weight:600;}
+#mobileCategoryDateList .mobile-manager-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));}
+#mobileCategoryDateList .mobile-manager-columns>section{min-width:0;}
+#mobileCategoryDateList .mobile-manager-columns>section+section{border-left:1px solid #d7e3ea;}
+#mobileCategoryDateList .mobile-manager-columns h3{margin:0!important;padding:9px 3px!important;text-align:center;background:#edf3f7;font-size:12px;}
+#mobileCategoryDateList .mobile-manager-columns table{width:100%;table-layout:fixed;border-collapse:collapse;}
+#mobileCategoryDateList .mobile-manager-columns :is(th,td){padding:8px 1px!important;font-size:10px!important;text-align:center!important;border-bottom:1px solid #e1e8ed;overflow-wrap:anywhere;}
+#mobileCategoryDateList .mobile-manager-columns :is(th,td):first-child{width:32%;}
+#mobileCategoryDateList .mobile-manager-columns td button{display:inline!important;width:auto!important;min-width:0!important;min-height:0!important;margin:0!important;padding:0!important;border:0!important;background:none!important;font-size:11px!important;color:#315c73;}
+#mobileCategoryDateList .mobile-manager-columns td button:not(:disabled){text-decoration:underline dotted;text-underline-offset:3px;}
+#mobileCategoryDateList .mobile-manager-columns td button:disabled{opacity:.5;}
 </style>
