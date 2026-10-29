@@ -20,7 +20,7 @@
 })();
 </script>
 
-<meta name="calendar-build" content="2026.10.28.71">
+<meta name="calendar-build" content="2026.10.29.72">
 <script id="calendar-shared-foundation">(function(){
  'use strict';
  const keys=['manual_schedule_data_v1','calendar_checkmarks_v1','person_memos_v1','staff_contacts_v1','category_labels_v1','capacity_date_override_v1','capacity_weekday_v1','capacity_weekend_v1','site_title_v1','site_subtitle_v1','footnote_comment_v1','fdDisplayTitle','fdCustomTitle'];
@@ -54,6 +54,47 @@
 })();
 
 </script>
+<script id="calendar-closure-journal">
+(()=>{
+ 'use strict';
+ const F=window.CalendarFoundation,prefix='calendar_closure_pending_v1_'+F.year+':',revisionKey='calendar_closure_revision_v1_'+F.year;
+ const generation=()=>F.native.get.call(localStorage,revisionKey)||'';
+ const touch=()=>F.native.set.call(localStorage,revisionKey,Date.now().toString(36)+'-'+Math.random().toString(36).slice(2));
+ const value=x=>typeof x==='string'&&x?x:null;
+ function list(){
+  const changes=[];
+  for(let i=0;i<localStorage.length;i++){
+   const key=localStorage.key(i);if(!key?.startsWith(prefix))continue;
+   try{const entry=JSON.parse(F.native.get.call(localStorage,key));
+    if(entry&&typeof entry.id==='string'&&/^\d{1,2}-\d{1,2}$/.test(entry.date)&&key===prefix+entry.date&&(entry.before===null||typeof entry.before==='string')&&(entry.after===null||typeof entry.after==='string'))changes.push(entry);
+   }catch{}
+  }
+  return changes;
+ }
+ function record(date,before,after){
+  before=value(before);after=value(after);if(before===after)return;
+  const key=prefix+date;let previous;
+  try{previous=JSON.parse(F.native.get.call(localStorage,key)||'null');}catch{}
+  const entry={id:Date.now().toString(36)+'-'+Math.random().toString(36).slice(2),date,before:previous?(after===previous.before?previous.after:previous.before):before,after};
+  // Even undoing a pending edit must survive an older in-flight upload.
+  F.native.set.call(localStorage,key,JSON.stringify(entry));touch();
+ }
+ function track(before,after){
+  if(F.applying)return;
+  for(const date of new Set([...Object.keys(before||{}),...Object.keys(after||{})]))record(date,before?.[date],after?.[date]);
+ }
+ function acknowledge(sent,confirmed){
+  const closed=confirmed?.manual_schedule_data_v1?.GALLERY_CLOSED||{};
+  for(const entry of sent){
+   const key=prefix+entry.date;let current;try{current=JSON.parse(F.native.get.call(localStorage,key)||'null');}catch{}
+   if(current?.id===entry.id&&value(closed[entry.date])===entry.after){F.native.remove.call(localStorage,key);touch();}
+  }
+ }
+ function discard(date,expected){const key=prefix+date;let entry;try{entry=JSON.parse(F.native.get.call(localStorage,key)||'null');}catch{}if(entry&&entry.after===value(expected)){F.native.remove.call(localStorage,key);touch();}}
+ window.CalendarClosureJournal={list,record,track,acknowledge,discard,prefix,generation};
+})();
+</script>
+
 <script id="calendar-shared-core">(function(root){
  'use strict';
  const clone=x=>x===undefined?undefined:JSON.parse(JSON.stringify(x));
@@ -142,6 +183,7 @@
   }catch(error){
    if(error.code==='CONFLICT'){
     error.values={base:clone(base),local:clone(local),remote:clone(remote)};
+    const closureDate=error.path?.match(/^\/manual_schedule_data_v1\/GALLERY_CLOSED\/(\d{1,2}-\d{1,2})$/)?.[1];if(closureDate){error.date=closureDate;error.kind='GALLERY_CLOSED';}
     const day=days.find(d=>error.path.startsWith('/manual_schedule_data_v1/'+d.kind+'/'+d.date+'/'));
     if(day){error.date=day.date;error.kind=day.kind;const suffix=error.path.slice(('/manual_schedule_data_v1/'+day.kind+'/'+day.date+'/').length);const id=suffix.match(/^(b:\d+)/)?.[1];
      if(id){error.row=clone(day.lists[0][Number(id.slice(2))]);}
@@ -182,6 +224,16 @@
   const client={
    edit(values){local=clone(values);changed();},
    snapshot(){return {base:clone(base),local:clone(local),initialized,dirty:!equal(base,local)};},
+   stageClosures(changes){
+    if(!changes.length)return;
+    for(const value of [base,local]){value.manual_schedule_data_v1??={};value.manual_schedule_data_v1.GALLERY_CLOSED??={};}
+    for(const change of changes){
+     const before=base.manual_schedule_data_v1.GALLERY_CLOSED,after=local.manual_schedule_data_v1.GALLERY_CLOSED;
+     if(change.before===null)delete before[change.date];else before[change.date]=change.before;
+     if(change.after===null)delete after[change.date];else after[change.date]=change.after;
+    }
+    changed();
+   },
    resolveConflict(detail,choice){if(!['local','remote'].includes(choice))throw Error('선택한 내용을 확인해주세요.');resolutions.set(detail.path,{detail:{path:detail.path,base:clone(detail.base),local:clone(detail.local),remote:clone(detail.remote)},choice});},
    pull({discard=false}={}){return client.sync({discard});},
    sync({initialize=false,discard=false}={}){
@@ -2541,6 +2593,12 @@ function saveCalendarData(){
 }
 
 function persistScheduleData(){
+  if(!CalendarFoundation.applying){
+    let previous;
+    try{previous=JSON.parse(localStorage.getItem(SCHEDULE_DATA_KEY)||'null');}catch{}
+    const before=previous?.GALLERY_CLOSED||(CalendarFoundation.year===2026?GALLERY_CLOSED_DEFAULT:{});
+    window.CalendarClosureJournal.track(before,GALLERY_CLOSED);
+  }
   localStorage.setItem(SCHEDULE_DATA_KEY, JSON.stringify({GALLERY_ROWS, TOUR_ROWS, GALLERY_CLOSED}));
 }
 loadScheduleData();
@@ -9344,6 +9402,14 @@ html body #formOverlay.booking-editor #formFields .booking-field-date>input[type
   }
   function readCache(){try{return JSON.parse(localStorage.getItem(cacheKey)||'null');}catch{return null;}}
   const existing=readCache(),initial=A.capture();
+  const closureJournal=window.CalendarClosureJournal;
+  // One-time import of explicit closures created before the pending-edit journal existed.
+  if(!existing&&auth?.role==='admin'&&closureJournal){
+   const defaults=F.year===2026&&typeof GALLERY_CLOSED_DEFAULT==='object'?GALLERY_CLOSED_DEFAULT:{};
+   for(const [date,reason] of Object.entries(initial.manual_schedule_data_v1?.GALLERY_CLOSED||{})){
+    if(reason!==defaults[date]&&!closureJournal.list().some(entry=>entry.date===date))closureJournal.record(date,null,reason);
+   }
+  }
   function backup(values=A.capture(),remote){
    const record={savedAt:new Date().toISOString(),year:F.year,values};if(remote)record.remote=remote;
    F.native.set.call(localStorage,backupKey,JSON.stringify(record));
@@ -9374,13 +9440,14 @@ html body #formOverlay.booking-editor #formFields .booking-field-date>input[type
    for(const [choice,title,value] of [['local','이 기기 내용',error.local],['remote','공유된 내용',error.remote]]){
     const option=document.createElement('div'),name=document.createElement('b'),body=document.createElement('pre'),button=document.createElement('button');
     name.textContent=title;body.textContent=preview(value);button.type='button';button.textContent=title+' 반영';
-    button.onclick=async()=>{try{backup(client.snapshot().local,error.values?.remote);client.resolveConflict(error,choice);clearConflict();await synchronize({force:true,explicit:true});}catch(cause){status('원본 보관에 실패했습니다. 기기 저장 공간을 확인해주세요.');}};
+    button.onclick=async()=>{try{backup(client.snapshot().local,error.values?.remote);client.resolveConflict(error,choice);if(choice==='remote'&&error.kind==='GALLERY_CLOSED')closureJournal?.discard(error.date,error.local);clearConflict();await synchronize({force:true,explicit:true});}catch(cause){status('원본 보관에 실패했습니다. 기기 저장 공간을 확인해주세요.');}};
     option.append(name,body,button);columns.append(option);
    }
    panel.append(columns);
    const later=document.createElement('button');later.type='button';later.className='calendar-conflict-later';later.textContent='나중에 확인';later.onclick=()=>{dismissedConflict=signature;panel.remove();};panel.append(later);document.body.append(panel);
   }
   function errorMessage(error){
+   if(error.code==='CLOSURE_RETRY')return '휴관 변경 확인 중 · 자동 재시도';
    if(error.code==='EDITING')return '입력 중 · 완료 후 자동 저장';
    if(error.code==='AUTH'){auth=null;sessionStorage.removeItem('calendar_view_session_v1');sessionStorage.removeItem('calendar_owner_session_v1');document.documentElement.classList.remove('calendar-unlocked');document.documentElement.removeAttribute('data-calendar-unlocked');const lock=document.getElementById('lockScreen');if(lock){lock.hidden=false;lock.removeAttribute('aria-hidden');if(typeof lock.showModal==='function'&&!lock.open)lock.showModal();}return '동기화 연결 만료 · 입장 비밀번호를 다시 입력해주세요';}
    if(error.code==='CONFLICT')return error.path?'변경 내용 확인 필요 · 두 원본 보관됨':'다른 기기에서 저장 중 · 잠시 후 자동 재시도';
@@ -9399,24 +9466,31 @@ html body #formOverlay.booking-editor #formFields .booking-field-date>input[type
   }
   const client=C.createClient({base:existing?.base||initial,local:initial,initialized:existing?.initialized||false,
    blocked:()=>A.editing(),
-   read:()=>request('GET'),write:(value,etag)=>request('PUT',value,etag),
+   read:async()=>{
+    const generation=closureJournal?.generation();const result=await request('GET');
+    if(generation!==closureJournal?.generation()){const error=Error('다른 탭의 휴관 변경 내용을 다시 확인합니다.');error.code='CLOSURE_RETRY';throw error;}
+    return result;
+   },write:(value,etag)=>request('PUT',value,etag),
    apply:values=>{if(!C.equal(values,A.capture())){backup();A.apply(values);}else A.refresh?.();},
    changed:state=>{try{F.native.set.call(localStorage,cacheKey,JSON.stringify(state));}catch{status('기기 저장 공간이 부족합니다. 백업을 내려받아 주세요.');}}
   });
   async function synchronize(options={}){
-   if(active)return {ok:false,message:'이전 저장을 처리 중입니다. 잠시 후 저장 완료를 확인해주세요.'};
+   if(active){queue();return {ok:false,message:'이전 저장을 처리 중입니다. 잠시 후 저장 완료를 확인해주세요.'};}
    if(!auth)return {ok:false,message:'입장 비밀번호로 서버에 다시 연결해주세요.'};
    if(!options.force&&A.editing())return {ok:false,message:'입력 중입니다. 입력을 마치면 자동 저장합니다.'};
    active=true;status('동기화 중…');
    try{
+    const pending=auth.role==='admin'?(closureJournal?.list()||[]):[];
+    client.stageClosures?.(pending);
     const result=await client.sync(auth.role==='calendar'?{discard:true}:options);empty=!!result.empty;clearConflict();
+    if(auth.role==='admin'&&!empty)closureJournal?.acknowledge(pending,client.snapshot().base);
     if(auth.role==='calendar'){if(empty)A.apply({manual_schedule_data_v1:{GALLERY_ROWS:{},TOUR_ROWS:{},GALLERY_CLOSED:{}},calendar_checkmarks_v1:{},person_memos_v1:{}});status('조회 전용 · 동기화 완료');return {ok:true,message:lastMessage};}
     if(empty){status('관리 → 일정 저장으로 동기화 시작');if(client.snapshot().dirty)queue();return {ok:false,message:lastMessage};}
     else if(client.snapshot().dirty){status('추가 변경 내용 저장 대기');queue();return {ok:false,message:lastMessage};}
     else{status('동기화 완료 · '+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}));return {ok:true,message:lastMessage};}
    }catch(error){
     if(error.code==='CONFLICT'&&error.path){try{backup(client.snapshot().local,error.values?.remote);}catch{status('원본 보관에 실패했습니다. 기기 저장 공간을 확인해주세요.');return {ok:false,message:lastMessage};}showConflict(error,{explicit:!!options.explicit});}
-    const message=errorMessage(error);status(message);return {ok:false,message,conflict:error.code==='CONFLICT'};
+    const message=errorMessage(error);status(message);if(error.code==='CLOSURE_RETRY')queue();return {ok:false,message,conflict:error.code==='CONFLICT'};
    }finally{active=false;}
   }
   function queue(){clearTimeout(timer);timer=setTimeout(()=>{if(auth)synchronize({initialize:empty});},800);}
@@ -9430,6 +9504,8 @@ html body #formOverlay.booking-editor #formFields .booking-field-date>input[type
   window.addEventListener('calendar-access-changed',()=>loadAuthentication());
   window.addEventListener('calendar-entrance-unlocked',()=>{loadAuthentication();setTimeout(()=>synchronize(),0);});
   window.addEventListener('online',()=>synchronize());window.addEventListener('focus',()=>{loadAuthentication();synchronize();});
+  window.addEventListener('storage',event=>{if(event.key?.startsWith(closureJournal?.prefix)&&auth?.role==='admin')queue();});
+  window.addEventListener('focusout',()=>{if(auth?.role==='admin'&&(client.snapshot().dirty||closureJournal?.list().length))queue();});
   setInterval(()=>{if(document.visibilityState==='visible')synchronize();},20000);
   if(auth)synchronize();
  }
