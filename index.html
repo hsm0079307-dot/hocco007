@@ -3034,7 +3034,7 @@ function briefReportMonthlyMarkup(value,esc,site,period){
    return text.replace(/\uE410(\d+)\uE411/g,(_,i)=>protectedValues[Number(i)]);
   }).join('\n');
  }
- function instruction(period){return '정리 기준일(한국시간): '+today()+'. 대상 보고월: '+period+'. 모든 항목의 일정 표현을 이 기준일과 대조하세요. 이미 날짜가 지난 행사에는 현재의 미래 일정처럼 예정·예정임·계획이라고 쓰지 말고 인물·행사 날짜·시간·내용만 중립적으로 남기세요. 예: 고선미 위원장, 10월 23일 17시 개소식(축하수건 200장, 홍보품 요청). 날짜가 지났다는 이유만으로 개최·참석·지원 완료를 추정하지 마세요. 실제 완료·취소·연기·변경은 더 늦은 근거 보고로 확인될 때만 반영하세요. 앞으로 남은 일정의 예정 표현은 유지하세요. 상대 날짜는 오늘이 아니라 근거 보고 작성일에 맞춰 해석하고, 연도·일자가 불명확하면 임의로 확정하지 마세요. 핵심 이슈뿐 아니라 경쟁사 활동·관계자 반응·후속 업무·추가 확인 항목도 모두 점검하세요.';}
+ function instruction(period){return '정리 기준일(한국시간): '+today()+'. 대상 보고월: '+period+'. 모든 항목의 일정 표현을 이 기준일과 대조하세요. 추가 보고만이 아니라 해당 현장의 전체 보고를 다시 대조하고, 같은 사안의 뒤 보고에 결정·변경·취소·실행 결과가 있으면 앞선 계획을 최신 근거로 갱신하세요. 결정·검토·진행은 무엇을 결정·검토·진행하는지 목적어를 원문 맥락에서 반드시 적으세요. 상대 날짜를 보고일 기준 절대 날짜로 풀어 쓰세요. 이미 날짜가 지난 행사에는 현재의 미래 일정처럼 예정·예정임·계획이라고 쓰지 말고 인물·행사 날짜·시간·내용만 중립적으로 남기세요. 예: 고선미 위원장, 10월 23일 17시 개소식(축하수건 200장, 홍보품 요청). 날짜가 지났다는 이유만으로 개최·참석·지원 완료를 추정하지 마세요. 실제 완료·취소·연기·변경은 더 늦은 근거 보고로 확인될 때만 반영하세요. 앞으로 남은 일정의 예정 표현은 유지하세요. 상대 날짜는 오늘이 아니라 근거 보고 작성일에 맞춰 해석하고, 연도·일자가 불명확하면 임의로 확정하지 마세요. 핵심 이슈뿐 아니라 경쟁사 활동·관계자 반응·후속 업무·추가 확인 항목도 모두 점검하세요.';}
  root.MonthlyBriefDateDisplay={format,today,instruction};
 })(typeof window==='undefined'?globalThis:window);
 </script>
@@ -10924,6 +10924,57 @@ function logs(site,ex){
 const api={events,logs,datedNotes,pid};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.MemberExcelReports=api;
 })(typeof window==='undefined'?globalThis:window);
 </script>
+<script id="reportBriefContextEngine">
+(function(root){
+'use strict';
+const topics=[['사무장 선임',/사무장.{0,12}(?:선임|선출|선정|모집|지원)|(?:선임|선출).{0,12}사무장/],['설계업체 선정',/설계업체.{0,10}선정/],['정비업체 선정',/정비업체.{0,10}선정/]];
+const iso=d=>d.toISOString().slice(0,10);
+function today(){return root.MonthlyBriefDateDisplay?root.MonthlyBriefDateDisplay.today():new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul'}).format(new Date());}
+function subject(text){return (topics.find(x=>x[1].test(text))||[])[0]||'';}
+function resolve(text,date){
+ if(!/^20\d\d-\d\d-\d\d$/.test(date||''))return String(text||'');
+ const base=new Date(date+'T00:00:00Z'),label=d=>`${d.getUTCFullYear()}년 ${d.getUTCMonth()+1}월 ${d.getUTCDate()}일`;
+ return String(text||'').replace(/내일|모레|오늘|어제|그제/g,w=>{const d=new Date(base);d.setUTCDate(d.getUTCDate()+({내일:1,모레:2,오늘:0,어제:-1,그제:-2}[w]));return label(d);});
+}
+function expired(text,now){
+ const dates=[...String(text).matchAll(/(20\d\d)년\s*(\d{1,2})월\s*(\d{1,2})일/g)].map(m=>`${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`);
+ return dates.length>0&&dates.every(d=>d<now);
+}
+function display(text,date,context='',now=today()){
+ let value=resolve(text,date),s=subject(context);
+ if(value.includes('(이후 실행 결과 별도 확인)'))return value;
+ const oldPlan=expired(value,now)&&/예정|하기로|계획/.test(value)&&!/취소|연기|변경|완료/.test(value);
+ // Restore the object only from the same source report, never from an unrelated report.
+ if(s&&!subject(value)&&/(?:이사|회의|모여).{0,24}결정/.test(value))value=value.replace(/결정/,s+' 여부 결정');
+ if(root.MonthlyBriefDateDisplay)value=root.MonthlyBriefDateDisplay.format(value,{period:date?.slice(0,7),today:now});
+ if(oldPlan)value=value.replace(/예정(?:이라고|이라|임)?(?:\s*함)?/g,'당시 계획으로 보고됨').replace(/당시 계획\s*당시 계획/g,'당시 계획')+' (이후 실행 결과 별도 확인)';
+ return value;
+}
+function prepare(logs,now=today()){
+ return (logs||[]).map(l=>{
+  const original=l._briefOriginalText||l.text||'',s=subject(original);
+  let text=display(original,l.date,original,now);
+  // A bare decision sentence needs the subject even when earlier paragraphs name it.
+  if(s)text=text.replace(/((?:이사들이?\s*모여|이사회에서)\s*)결정/g,'$1'+s+' 여부 결정');
+  return {...l,text,_briefOriginalText:original};
+ });
+}
+function reconcile(items,logs){
+ const reconciled=items.map(item=>{
+  const ref=item.refs?.[0],original=ref?.text||item.raw||'',s=subject(original);
+  let text=display(item.text,ref?.date||item.date,original);
+  if(s&&/(?:결정|선임|선정|선출)/.test(item.text)&&/예정|하기로|계획/.test(original)){
+   const later=(logs||[]).filter(l=>l.date>=(ref?.date||item.date)&&subject(l.text||'')===s&&/결정했|결정하였|결정했다고|인물로 결정|선정됐|선임됐|선출됐/.test(l.text||'')&&!/결정.{0,5}(?:안|못|취소)/.test(l.text||'')).sort((a,b)=>b.date.localeCompare(a.date))[0];
+   if(later){const result=String(later._briefOriginalText||later.text).split(/\n+|(?<=[.!?])\s+/).find(t=>/결정했|인물로 결정|선정됐|선임됐|선출됐/.test(t));if(result)return {...item,text:s+' 관련 후속 보고: '+display(result,later.date,later.text),topic:s,refs:[...(item.refs||[]),{date:later.date,name:later.contactName||later.owner||'',id:later.id||'',text:later._briefOriginalText||later.text}]};}
+  }
+  return {...item,text,topic:s&&item.topic==='기타'?s:item.topic};
+ });
+ const unique=new Map();for(const item of reconciled){const key=item.text.replace(/\s+/g,'');const old=unique.get(key);if(old){for(const ref of item.refs||[])if(!old.refs.some(r=>r.id===ref.id&&r.date===ref.date))old.refs.push(ref);}else unique.set(key,{...item,refs:[...(item.refs||[])]});}return [...unique.values()];
+}
+root.ReportBriefContext={resolve,display,prepare,reconcile,expired,subject,today};
+})(typeof window==='undefined'?globalThis:window);
+
+</script>
 <script id="hoccoBriefEngine">/* v13: source-grounded field brief. Complete sentences, stronger evidence weighting, no external AI calls. */
 (function(root){
 const clean=v=>String(v||'').trim(),norm=v=>clean(v).replace(/\s+/g,'');
@@ -11048,6 +11099,7 @@ function classify(text,role){
  return scores[key]>4?{key,score:scores[key]}:null;
 }
 function generate(logs,range){
+ const allLogs=logs;logs=typeof ReportBriefContext!=='undefined'?ReportBriefContext.prepare(logs):logs;
  const selected=logs.filter(l=>l.date>=range.start&&l.date<=range.end&&clean(l.text)).slice().sort((a,b)=>b.date.localeCompare(a.date));
  const out=Object.fromEntries(fields.map(([k])=>[k,[]])),seen=new Map();
  for(const l of selected){
@@ -11057,7 +11109,7 @@ function generate(logs,range){
    const short=pickClause(c.key,text,l.role||'');
    if(!short||short.length<5)continue;
    const identity=c.key+'|'+norm(short.replace(/[.!?…]/g,''));
-   const ref={date:l.date,name:l.contactName||l.owner||'',author:l.author||'',unit:l.unit||'',id:l.id||'',role:l.role||'',text};
+   const ref={date:l.date,name:l.contactName||l.owner||'',author:l.author||'',unit:l.unit||'',id:l.id||'',role:l.role||'',text:l._briefOriginalText||text};
    const old=seen.get(identity);
    if(old){old.refs.push(ref);if(c.score>old.score)old.score=c.score;continue;}
    const item={text:short,raw:text,refs:[ref],score:c.score,date:l.date,topic:topic(short)};
@@ -11075,7 +11127,7 @@ function generate(logs,range){
    topicCount.set(tag,cnt+1);picked.push({...item,topic:tag});
    if(picked.length>=6)break;
   }
-  sections[k]=picked;
+  sections[k]=typeof ReportBriefContext!=='undefined'?ReportBriefContext.reconcile(picked,allLogs):picked;
  }
  return{sections,count:selected.length,fields};
 }
@@ -23017,7 +23069,9 @@ function bfFollowupItems(logs,range){
  const negative=/(?:재방문|재접촉|연락|소개).{0,8}(?:계획|예정).{0,4}(?:없|아니)|방문.{0,8}(?:거절|사양)/;
  for(const l of (logs||[]).filter(l=>l.date>=range.start&&l.date<=range.end&&l.text&&!isTourBookingLog(l)).sort((a,b)=>String(b.date).localeCompare(String(a.date)))){
   const parts=String(l.text).replace(/\r/g,'').split(/\n+|(?<=[.!?])\s+(?=[가-힣A-Z])/).map(t=>t.trim()).filter(Boolean);
-  for(const text of parts){
+  for(const rawText of parts){
+   const text=typeof ReportBriefContext!=='undefined'?ReportBriefContext.display(rawText,l.date,l.text):rawText;
+   if(typeof ReportBriefContext!=='undefined'&&ReportBriefContext.expired(text,ReportBriefContext.today()))continue;
    if(negative.test(text))continue;
    if(intro.test(text)&&/(?:상담|통화|접촉|면담).{0,8}완료/.test(text)&&!contactPlan.test(text)&&!check.test(text))continue;
    const category=intro.test(text)?'소개 후 접촉 확인':contactPlan.test(text)?'재접촉 계획':check.test(text)?'추가 확인':null;

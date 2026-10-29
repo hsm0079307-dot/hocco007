@@ -20,16 +20,16 @@
 })();
 </script>
 
-<meta name="calendar-build" content="2026.10.29.72">
+<meta name="calendar-build" content="2026.10.29.74">
 <script id="calendar-shared-foundation">(function(){
  'use strict';
- const keys=['manual_schedule_data_v1','calendar_checkmarks_v1','person_memos_v1','staff_contacts_v1','category_labels_v1','capacity_date_override_v1','capacity_weekday_v1','capacity_weekend_v1','site_title_v1','site_subtitle_v1','footnote_comment_v1','fdDisplayTitle','fdCustomTitle'];
- const json=new Set(keys.slice(0,6));
+ const keys=['manual_schedule_data_v1','calendar_checkmarks_v1','person_memos_v1','staff_contacts_v1','category_labels_v1','capacity_date_override_v1','capacity_weekday_v1','capacity_weekend_v1','site_title_v1','site_subtitle_v1','footnote_comment_v1','fdDisplayTitle','fdCustomTitle','calendar_site_availability_v1'];
+ const json=new Set(keys.slice(0,6).concat('calendar_site_availability_v1'));
  const native={get:Storage.prototype.getItem,set:Storage.prototype.setItem,remove:Storage.prototype.removeItem};
  const today=()=>{const s=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());return new Date(s+'T12:00:00');};
  let initial=today();
  try{const requested=sessionStorage.getItem('calendar_open_month_v1');sessionStorage.removeItem('calendar_open_month_v1');if(/^\d{4}-\d{2}-\d{2}$/.test(requested||''))initial=new Date(requested+'T12:00:00');}catch{}
- const year=initial.getFullYear(),yearly=new Set(keys.slice(0,3).concat('capacity_date_override_v1'));
+ const year=initial.getFullYear(),yearly=new Set(keys.slice(0,3).concat('capacity_date_override_v1','calendar_site_availability_v1'));
  const actual=k=>yearly.has(k)?'calendar_year_'+year+':'+k:k,missing='__calendar_cloud_removed_v1__';
  const F={keys,json,native,year,initial,today,applying:false,ready:false,onChange:null};
  Storage.prototype.getItem=function(k){
@@ -3530,7 +3530,7 @@ function openForm(title, fields, callback){
   document.getElementById('formOverlay').classList.toggle('booking-editor',booking);
   document.querySelectorAll('#formOverlay [data-booking-editor-action]').forEach(button=>button.remove());
   const regularSave=document.querySelector('#formOverlay button[onclick="submitForm()"]');
-  if(regularSave){regularSave.disabled=false;regularSave.onclick=()=>submitForm();}
+  if(regularSave){regularSave.disabled=false;regularSave.hidden=false;regularSave.removeAttribute('hidden');regularSave.onclick=()=>submitForm();}
   fieldsEl.innerHTML=fields.map(f=>{
     const safe=s=>escText(String(s??'')).replace(/'/g,'&#39;').replace(/"/g,'&quot;');
     const label="<label class='field-label' for='ff-"+f.id+"'>"+safe(f.label)+"</label>";
@@ -6848,6 +6848,7 @@ body.pro-show-legacy .checklist-section,body.pro-show-legacy .car{display:block!
     const s=new Set();
     try{const hasGallery=typeof GALLERY_ROWS!=='undefined'&&Object.values(GALLERY_ROWS||{}).some(rs=>Array.isArray(rs)&&rs.length);if(hasGallery&&typeof GALLERY_DANJI!=='undefined'&&GALLERY_DANJI)gallerySites().forEach(site=>s.add(site))}catch(e){}
     if(typeof TOUR_ROWS!=='undefined')Object.values(TOUR_ROWS||{}).forEach(rs=>(rs||[]).forEach(r=>r[1]&&r[1]!=='-'&&s.add(r[1])));
+    try{Object.values(window.CalendarAvailability?.read()||{}).forEach(v=>v.site&&s.add(v.site));}catch(e){}
     return Array.from(s).filter(Boolean).slice(0,8);
   }
   function dayEvents(k){
@@ -7768,6 +7769,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
       const g=(typeof GALLERY_DANJI!=='undefined'?String(GALLERY_DANJI||'').trim():'');
       if(hasGallery)gallerySites().forEach(site=>set.add(site));
     }catch(e){}
+    try{Object.values(window.CalendarAvailability?.read()||{}).forEach(v=>v.site&&set.add(v.site));}catch(e){}
     return Array.from(set).sort((a,b)=>a.localeCompare(b,'ko',{numeric:true,sensitivity:'base'}));
   }
 
@@ -8041,6 +8043,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
       const hasGallery=Object.values(typeof GALLERY_ROWS!=='undefined'?(GALLERY_ROWS||{}):{}).some(rows=>Array.isArray(rows)&&rows.length);
       const g=(typeof GALLERY_DANJI!=='undefined'?String(GALLERY_DANJI||'').trim():'');if(hasGallery)gallerySites().forEach(site=>set.add(site));
     }catch(e){}
+    try{Object.values(window.CalendarAvailability?.read()||{}).forEach(v=>v.site&&set.add(v.site));}catch(e){}
     return Array.from(set).sort((a,b)=>a.localeCompare(b,'ko',{numeric:true,sensitivity:'base'}));
   }
   function activeSites(){try{return typeof activeDanjiFilter!=='undefined'?Array.from(activeDanjiFilter):[]}catch(e){return []}}
@@ -8544,6 +8547,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
     const s=new Set();
     try{if(typeof GALLERY_DANJI!=='undefined'&&Object.values(GALLERY_ROWS||{}).some(x=>Array.isArray(x)&&x.length))gallerySites().forEach(site=>s.add(site))}catch(e){}
     try{Object.values(TOUR_ROWS||{}).forEach(rs=>(rs||[]).forEach(r=>{if(r[1]&&r[1]!=='-')s.add(r[1])}))}catch(e){}
+    try{Object.values(window.CalendarAvailability?.read()||{}).forEach(v=>v.site&&s.add(v.site));}catch(e){}
     return Array.from(s).sort((a,b)=>String(a).localeCompare(String(b),'ko',{numeric:true}));
   }
   function rawEvents(k){
@@ -8664,6 +8668,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
       const d=new Date(start);d.setDate(start.getDate()+i);const k=key(d),other=d.getMonth()!==m,raw=totalRawEvents(k),vis=rawEvents(k);const b=document.createElement('button');b.type='button';b.className='fd-day '+(other?'other ':'')+(d.getDay()===0?'sun ':'')+(d.getDay()===6?'sat ':'')+(k===selectedKey&&!other?'selected ':'')+(d.getTime()===todayD.getTime()?'today ':'');
       if(other){b.disabled=true;b.className='fd-day other';b.innerHTML='<span class="fd-daynum">'+d.getDate()+'</span>';b.setAttribute('aria-label',dateLabel(d));days.appendChild(b);continue;}
       let dots='';if(!other){if(showGallery&&((raw.g>0)||raw.c>0)&&(!siteFilter||(GALLERY_ROWS?.[k]||[]).some(r=>gallerySite(r)===siteFilter)))dots+=`<i class="${raw.c&&!raw.g?'c':'g'}"></i>`;if(showTour&&raw.t>0)dots+='<i class="t"></i>'}
+      b.dataset.availabilityKey=k;
       const count=desktopDayCategorySummary(vis);
       const holiday=!other?holidayName(d):'';
       if(holiday)b.classList.add('holiday');
@@ -9035,7 +9040,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
     openForm('관리',[],()=>{});
     document.getElementById('formOverlay').classList.add('gallery-admin-open');
     const fields=document.getElementById('formFields');fields.classList.add('gallery-admin-actions');
-    const actions=[['일정 저장',()=>saveCalendarData()],['정원 설정',()=>openCapacitySettings()],['엑셀 저장',()=>exportExcel()],['인쇄',()=>window.print()],['일정 백업',()=>backupScheduleData()],['백업 불러오기',()=>restoreScheduleDataPrompt()],[matchMedia('(min-width:761px)').matches?'공유 비밀번호 설정':'공유 비밀번호 설정',()=>changePassword()],['전체 글꼴 변경',()=>window.DashboardTypography?.open()]];
+    const actions=[['현장별 가능 날짜·시간',()=>window.CalendarAvailability.open()],['갤러리 휴관 / 불가',()=>window.CalendarAvailability.open('closed')],['일정 저장',()=>saveCalendarData()],['정원 설정',()=>openCapacitySettings()],['엑셀 저장',()=>exportExcel()],['인쇄',()=>window.print()],['일정 백업',()=>backupScheduleData()],['백업 불러오기',()=>restoreScheduleDataPrompt()],[matchMedia('(min-width:761px)').matches?'공유 비밀번호 설정':'공유 비밀번호 설정',()=>changePassword()],['전체 글꼴 변경',()=>window.DashboardTypography?.open()]];
     const paths=['<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h12l4 4v12a2 2 0 0 1-2 2zM7 3v6h10V3M7 21v-8h10v8"/>','<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M17 4a4 4 0 0 1 0 8m5 9v-2a4 4 0 0 0-3-3.9"/>','<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13l4 5m0-5-4 5"/>','<path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6zM18 12h.01"/>','<path d="M12 3v12m-4-4 4 4 4-4M4 16v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/>','<path d="M12 16V4m-4 4 4-4 4 4M4 16v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/>','<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V6a4 4 0 0 1 8 0v4M12 15v2"/>'];
     paths.push('<path d="M4 5h16M12 5v15M8 20h8"/>');
     if(matchMedia('(min-width:761px)').matches){
@@ -9044,7 +9049,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
     }
     actions.forEach(([label,run],index)=>{const button=document.createElement('button');button.type='button';
       if(label==='일정 전체 삭제')button.dataset.calendarResetAction='true';
-      const icon=document.createElement('span');icon.className='gallery-admin-icon';icon.setAttribute('aria-hidden','true');icon.innerHTML='<svg viewBox="0 0 24 24">'+paths[index]+'</svg>';
+      const icon=document.createElement('span');icon.className='gallery-admin-icon';icon.setAttribute('aria-hidden','true');icon.innerHTML='<svg viewBox="0 0 24 24">'+(paths[index]||paths[0])+'</svg>';
       const text=document.createElement('span');text.className='gallery-admin-label';text.textContent=label;
       const arrow=document.createElement('span');arrow.className='gallery-admin-chevron';arrow.setAttribute('aria-hidden','true');arrow.textContent='›';button.append(icon,text,arrow);
 button.onclick=()=>{closeFormOverlay();fields.classList.remove('gallery-admin-actions');try{run()}catch(error){alert('관리 기능을 실행하지 못했습니다. '+error.message)}};fields.append(button)});
@@ -9339,6 +9344,119 @@ html body #formOverlay.booking-editor #formFields .booking-field-date>input[type
 
 
 
+<style id="calendar-site-availability-style">
+#calendarAvailabilityEditor{width:min(440px,calc(100vw - 28px));max-height:calc(100dvh - 40px);box-sizing:border-box;overflow:auto;border:1px solid #d1dde5;border-radius:16px;padding:20px;background:#fff;color:#244354;font:14px var(--ui-font,system-ui);box-shadow:0 20px 60px #18333d33;}
+#calendarAvailabilityEditor::backdrop{background:#233d4b66;}
+#calendarAvailabilityEditor header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px;}
+#calendarAvailabilityEditor h2{font-size:17px;margin:0;font-weight:700;}#calendarAvailabilityEditor header button{width:30px;height:30px;}
+#calendarAvailabilityEditor button{border:1px solid #d4e0e5;border-radius:8px;background:#fff;color:#36596b;padding:8px;cursor:pointer;font:inherit;}
+#calendarAvailabilityEditor .availability-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+#calendarAvailabilityEditor label{display:flex;flex-direction:column;gap:5px;min-width:0;font-size:12px;color:#647d8c;}
+#calendarAvailabilityEditor label[hidden]{display:none;}#calendarAvailabilityEditor input,#calendarAvailabilityEditor select{width:100%;min-width:0;height:40px;box-sizing:border-box;padding:8px;border:1px solid #cedde4;border-radius:8px;background:#f7fafc;color:#244354;font:16px var(--ui-font,system-ui);}
+#calendarAvailabilityEditor .availability-wide{grid-column:1/-1;}#calendarAvailabilityEditor footer{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px;}#calendarAvailabilityEditor footer button{height:40px;}#calendarAvailabilityEditor [type=submit]{background:#416f8c;border-color:#416f8c;color:white;}
+#calendarAvailabilityEditor .availability-help{font-size:12px;color:#6a8190;line-height:1.6;}#calendarAvailabilityEditor .availability-error{font-size:12px;color:#ba4e53;}#calendarAvailabilityEditor .availability-error:empty{display:none;}
+#calendarAvailabilityEditor .availability-list>div{display:flex;align-items:center;gap:6px;padding:10px 0;border-top:1px solid #e2eaef;}#calendarAvailabilityEditor .availability-list span{flex:1;font-size:13px;}#calendarAvailabilityEditor small{display:block;color:#6a8190;margin-top:3px;}#calendarAvailabilityEditor .availability-list button{font-size:12px;padding:6px;}
+#proCalendarApp .pro-day.has-site-availability,#freshDesktopApp .fd-day.has-site-availability{background:#e8f1fb!important;box-shadow:inset 0 -3px #739ac4!important;}
+#proCalendarApp .pro-day.has-site-availability.selected,#freshDesktopApp .fd-day.has-site-availability.selected{box-shadow:inset 0 -3px #739ac4, inset 0 0 0 1px #2d7f85!important;}
+.availability-day-note{margin:8px 0;padding:10px 12px;border:1px solid #cfdeed;border-radius:8px;background:#edf4fb;color:#3b617b;font-size:12px;line-height:1.6;}.availability-day-note strong,.availability-day-note span{display:block;}
+#calendarAvailabilityEditor .availability-slot-grid,.availability-day-note .availability-slot-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:8px;}
+.availability-day-note .availability-slot{display:flex;flex-direction:column;gap:3px;padding:8px;border:1px solid #d4e0eb;border-radius:7px;background:#fff;min-width:0;overflow-wrap:anywhere;}
+.availability-day-note .availability-slot b{font-size:13px;color:#355671;}.availability-day-note .availability-slot span{font-size:11px;}.availability-day-note .availability-slot small{font-size:11px;line-height:1.5;color:#667e8b;}
+.availability-day-note .availability-slot.other{background:#fff4e5;border-color:#e7cda7;}.availability-day-note .availability-slot.closed{background:#fff0f1;border-color:#e8c8ce;}.availability-day-note .availability-slot.unset{background:#f5f7f9;color:#8797a4;}
+#proCalendarApp .pro-day.has-gallery-external,#freshDesktopApp .fd-day.has-gallery-external{box-shadow:inset 0 -3px #c99655!important;}
+#proCalendarApp .pro-day.has-gallery-slot-closure,#freshDesktopApp .fd-day.has-gallery-slot-closure{box-shadow:inset 0 -3px #c77e88!important;}
+
+</style>
+<script id="calendar-site-availability">
+(()=>{
+'use strict';
+const KEY='calendar_site_availability_v1',F=window.CalendarFoundation,TIMES=['10:30','13:30','15:30'];
+const owner=()=>window.CalendarAuthentication?.current()?.role==='admin';
+const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const read=()=>{try{return JSON.parse(localStorage.getItem(KEY)||'{}');}catch{return {};}};
+const dateISO=key=>F.year+'-'+String(key||'1-1').split('-').map(x=>x.padStart(2,'0')).join('-');
+const dateKey=date=>date.slice(5).split('-').map(Number).join('-');
+const status=v=>v.status||'available';
+function time(value){const m=String(value||'').replace(/\s/g,'').match(/^(\d{1,2})(?::|시)(\d{1,2})?/);if(!m)return '';let h=+m[1];if(h<8)h+=12;return String(h).padStart(2,'0')+':'+String(m[2]||'00').padStart(2,'0');}
+function blockFor(date,slot){const key=/^\d{4}-/.test(date)?dateKey(date):date;const full=GALLERY_CLOSED[key];if(full)return {status:'closed',note:full};return Object.values(read()).find(v=>v.date===dateISO(key)&&v.kind==='gallery'&&status(v)!=='available'&&v.start===time(slot));}
+function slots(date){const key=dateKey(date),rows=Object.values(read()).filter(v=>v.date===date&&v.kind==='gallery');return TIMES.map(start=>{const blocked=blockFor(date,start);if(blocked)return {start,...blocked};const available=rows.find(v=>status(v)==='available'&&v.start===start);return available?{...available,start}:{start,status:'unset'};});}
+let dialog,mode='available',target='';
+function selected(){return (matchMedia('(max-width:760px)').matches?document.querySelector('.pro-day.selected')?.dataset.key:document.querySelector('#fdDays .fd-day.selected')?.dataset.availabilityKey)||previewKey||currentDateKey;}
+function refresh(){window.CalendarAdapter?.refresh();paint();}
+function configure(){
+ const f=dialog.querySelector('form'),closed=mode==='closed',gallery=closed||f.elements.kind.value==='gallery';
+ const show=(name,on)=>{f.elements[name].disabled=!on;f.elements[name].closest('label').hidden=!on;};
+ show('use',closed);show('site',!closed||f.elements.use.value==='other');show('kind',!closed);show('slot',gallery);show('start',!gallery);show('end',!gallery);
+ f.elements.slot.querySelector('[value=all]').disabled=!closed||!!target;
+ if(!closed&&f.elements.slot.value==='all')f.elements.slot.value='10:30';
+ dialog.querySelector('[data-site-caption]').textContent=closed?'사용하는 타사업지명':'현장명';
+ dialog.querySelector('.availability-help').textContent=closed?'타사업지 사용은 해당 타임만 이용불가로 표시합니다. 다른 타임은 유지됩니다. 종일 휴관은 종일을 선택하세요.':gallery?'갤러리는 10:30 · 13:30 · 15:30 세 타임으로 등록합니다.':'투어는 현장별 가능 시작·종료 시간을 등록합니다.';
+}
+function create(){
+ if(dialog)return;dialog=document.createElement('dialog');dialog.id='calendarAvailabilityEditor';
+ dialog.innerHTML='<form><header><h2></h2><button type="button" data-dismiss aria-label="닫기">×</button></header><div class="availability-fields"><label>날짜<input type="date" name="date" required></label><label>설정<select name="use"><option value="closed">휴관 / 이용불가</option><option value="other">타사업지 사용</option></select></label><label><span data-site-caption>현장명</span><input name="site" list="availabilitySites" required autocomplete="off"><datalist id="availabilitySites"></datalist></label><label>구분<select name="kind"><option value="gallery">갤러리</option><option value="tour">투어</option></select></label><label>갤러리 타임<select name="slot"><option value="10:30">10:30</option><option value="13:30">13:30</option><option value="15:30">15:30</option><option value="all">종일 (3타임 전체)</option></select></label><label>시작 시간<input type="time" name="start" required></label><label>종료 시간<input type="time" name="end" required></label><label class="availability-wide">내용<input name="note" maxlength="160" placeholder="예: 시설 점검 / 현장명 추가 안내"></label></div><p class="availability-error" role="alert"></p><p class="availability-help"></p><section class="availability-list"></section><footer><button type="button" data-dismiss>취소</button><button type="submit">저장</button></footer></form>';
+ document.body.append(dialog);dialog.querySelectorAll('[data-dismiss]').forEach(b=>b.onclick=()=>dialog.close());
+ const f=dialog.querySelector('form');f.elements.use.onchange=configure;f.elements.kind.onchange=configure;f.elements.date.onchange=list;
+ f.onsubmit=e=>{e.preventDefault();if(!owner())return;const v=Object.fromEntries(new FormData(f)),error=dialog.querySelector('.availability-error');error.textContent='';
+  const parsed=new Date(v.date+'T12:00:00');if(!/^\d{4}-\d{2}-\d{2}$/.test(v.date)||parsed.getFullYear()!==F.year){error.textContent=F.year+'년 안에서 날짜를 선택해주세요.';return;}
+  const gallery=mode==='closed'||v.kind==='gallery',key=dateKey(v.date),data=read();
+  if(mode!=='closed'&&!v.site?.trim()||mode==='closed'&&v.use==='other'&&!v.site?.trim()){error.textContent='현장명을 입력해주세요.';return;}
+  if(!gallery&&v.start>=v.end){error.textContent='종료 시간을 시작 시간보다 늦게 선택해주세요.';return;}
+  if(gallery&&v.slot!=='all'&&!TIMES.includes(v.slot)){error.textContent='갤러리 타임을 선택해주세요.';return;}
+  try{
+   if(target&&JSON.stringify(data[target])!==dialog.dataset.original){error.textContent='다른 기기에서 수정됐습니다. 다시 열어 확인해주세요.';return;}
+   if(mode==='closed'&&v.slot==='all'&&v.use==='closed'){
+    GALLERY_CLOSED[key]=v.note.trim()||'휴관';persistScheduleData();rebuildDATA();
+   }else{
+    const starts=gallery?(v.slot==='all'?TIMES:[v.slot]):[v.start];
+    for(const start of starts){
+     const prior=Object.entries(data).find(([id,r])=>id!==target&&r.date===v.date&&r.kind==='gallery'&&r.start===start&&status(r)!=='available');
+     if(gallery&&prior){error.textContent=start+'에 '+(status(prior[1])==='other'?'타사업지 사용':'휴관')+'이 이미 등록됐습니다. 아래 목록에서 수정해주세요.';return;}
+     if(mode==='available'&&gallery&&blockFor(v.date,start)){error.textContent=start+'은 휴관 / 타사업지 사용으로 지정됐습니다.';return;}
+    }
+    for(const start of starts){const entry={date:v.date,site:v.site?.trim()||'',kind:gallery?'gallery':v.kind,start,end:gallery?'':v.end,note:v.note.trim(),status:mode==='closed'?v.use:'available'};
+     const id=target||Object.keys(data).find(id=>['date','site','kind','start','end','status'].every(k=>(k==='status'?status(data[id]):data[id][k])===entry[k]))||crypto.randomUUID();data[id]=entry;}
+    localStorage.setItem(KEY,JSON.stringify(data));
+   }
+   dialog.close();if(mode==='closed'){try{onScheduleDataChanged();}catch(err){console.error(err);}}refresh();
+  }catch(err){error.textContent='이 기기에 저장하지 못했습니다. '+err.message;}
+ };
+}
+function list(){
+ const box=dialog.querySelector('.availability-list'),data=read(),date=dialog.querySelector('[name=date]').value;box.replaceChildren();
+ const entries=Object.entries(data).filter(([,v])=>v.date===date).sort((a,b)=>a[1].start.localeCompare(b[1].start));
+ if(GALLERY_CLOSED[dateKey(date)]){const row=document.createElement('div');row.innerHTML='<span>종일 휴관<small>'+esc(GALLERY_CLOSED[dateKey(date)])+'</small></span><button type="button">해제</button>';row.querySelector('button').onclick=()=>{if(!owner()||!confirm('종일 휴관 지정을 해제할까요?'))return;delete GALLERY_CLOSED[dateKey(date)];persistScheduleData();rebuildDATA();list();refresh();};box.append(row);}
+ for(const [id,v]of entries){const row=document.createElement('div'),state=status(v),label=state==='other'?'타사업지 사용':state==='closed'?'휴관 / 불가':'방문 가능';row.innerHTML='<span>'+esc(v.site||'갤러리')+' · '+label+'<small>'+esc(v.start+(v.end?'–'+v.end:''))+(v.note?' · '+esc(v.note):'')+'</small></span><button type="button">수정</button><button type="button">삭제</button>';const [edit,del]=row.querySelectorAll('button');edit.onclick=()=>open(state==='available'?'available':'closed',date,id);del.onclick=()=>{if(!owner())return;const latest=read();if(JSON.stringify(latest[id])!==JSON.stringify(v)){dialog.querySelector('.availability-error').textContent='수정된 내용입니다. 다시 확인해주세요.';list();return;}if(!confirm(v.start+' '+label+'을 삭제할까요?'))return;delete latest[id];localStorage.setItem(KEY,JSON.stringify(latest));list();refresh();};box.append(row);}
+}
+function open(type='available',date,id=''){
+ if(!owner()){alert('관리자 입장 후 이용해주세요.');return;}create();mode=type;target=id;
+ if(document.getElementById('formOverlay')?.classList.contains('on'))closeFormOverlay();document.body.classList.remove('pro-sheet-open');for(const id of ['fdDaySchedulePopup','fdScheduleDetails']){const d=document.getElementById(id);if(d?.open)d.close();}
+ const f=dialog.querySelector('form');f.reset();dialog.querySelector('.availability-error').textContent='';const entry=id?read()[id]:null;dialog.dataset.original=JSON.stringify(entry);
+ const day=date&&/^\d{4}-/.test(date)?date:dateISO(date||selected());
+ f.elements.date.value=entry?.date||day;f.elements.use.value=entry?.status==='other'?'other':'closed';f.elements.site.value=entry?.site||document.getElementById('proSiteSelect')?.value||'';f.elements.kind.value=entry?.kind||'gallery';f.elements.slot.value=TIMES.includes(entry?.start)?entry.start:'10:30';f.elements.start.value=entry?.start||'10:00';f.elements.end.value=entry?.end||'17:00';f.elements.note.value=entry?.note||'';
+ dialog.querySelector('h2').textContent=type==='closed'?'갤러리 휴관 / 타사업지 사용':'현장별 가능 날짜·시간';configure();const options=typeof gallerySiteSuggestions==='function'?gallerySiteSuggestions():[];dialog.querySelector('datalist').innerHTML=[...new Set([...options,...Object.values(read()).map(v=>v.site)].filter(Boolean))].map(s=>'<option value="'+esc(s)+'"></option>').join('');list();if(!dialog.open)dialog.showModal();dialog.querySelector('[data-dismiss]').focus({preventScroll:true});
+}
+function paint(){
+ const data=Object.values(read()),site=(matchMedia('(max-width:760px)').matches?document.getElementById('proSiteSelect')?.value:document.querySelector('#fdFilters [data-site].on')?.dataset.site)||'';
+ document.querySelectorAll('.pro-day,#fdDays .fd-day:not(.other)').forEach(b=>{
+  const k=b.dataset.key||b.dataset.availabilityKey;if(!k)return;const day=dateISO(k),rows=data.filter(v=>v.date===day&&status(v)==='available'&&(!site||v.site===site));
+  const visible=rows.filter(v=>v.kind!=='gallery'||!blockFor(day,v.start));const blocks=data.filter(v=>v.date===day&&status(v)!=='available');b.classList.toggle('has-site-availability',visible.length>0);b.classList.toggle('has-gallery-external',blocks.some(v=>status(v)==='other'));b.classList.toggle('has-gallery-slot-closure',blocks.some(v=>status(v)==='closed'));
+  const title=[...visible.map(v=>v.site+' '+(v.kind==='gallery'?'갤러리':'투어')+' '+v.start+(v.end?'–'+v.end:'')),...blocks.map(v=>v.start+' '+(status(v)==='other'?'타사업지 사용 · '+v.site:'휴관')+(v.note?' · '+v.note:''))].join('\n');if(b.dataset.availabilityTitle!==title){b.dataset.availabilityTitle=title;if(title)b.title=title;else b.removeAttribute('title');}
+ });
+ const key=selected(),date=dateISO(key),all=data.filter(v=>v.date===date),rows=all.filter(v=>status(v)==='available'&&v.kind!=='gallery'&&(!site||v.site===site));
+ const gallery=all.some(v=>v.kind==='gallery')||!!GALLERY_CLOSED[key];
+ const slotMarkup=gallery?'<strong>갤러리 타임별 이용 현황</strong><div class="availability-slot-grid">'+slots(date).map(v=>'<div class="availability-slot '+esc(v.status)+'"><b>'+v.start+'</b><span>'+(v.status==='other'?'타사업지 사용':v.status==='closed'?'휴관 / 불가':v.status==='available'?'방문 가능':'미지정')+'</span>'+(v.site?'<small>'+esc(v.site)+'</small>':'')+(v.note?'<small>'+esc(v.note)+'</small>':'')+'</div>').join('')+'</div>':'';
+ const markup=slotMarkup+(rows.length?'<strong>투어 방문 가능 시간</strong>'+rows.map(v=>'<span>'+esc(v.site)+' · '+esc(v.start+'–'+v.end)+'</span>').join(''):'');
+ for(const host of [document.querySelector('#proV27Schedule'),document.querySelector('#fdScheduleActions')?.parentElement]){if(!host)continue;let note=host.querySelector(':scope > .availability-day-note');if(!markup){note?.remove();continue;}if(!note){note=document.createElement('aside');note.className='availability-day-note';host.prepend(note);}if(note.innerHTML!==markup)note.innerHTML=markup;}
+}
+function init(){
+ const oldEditing=CalendarAdapter.editing;CalendarAdapter.editing=()=>!!dialog?.open||oldEditing();window.toggleClosedDay=()=>open('closed',dateISO(selected()));
+ let queued=false;const schedule=()=>{if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;paint();});};new MutationObserver(schedule).observe(document.body,{childList:true,subtree:true});window.addEventListener('calendar-data-applied',schedule);document.addEventListener('change',schedule);document.addEventListener('click',schedule);paint();
+}
+window.CalendarAvailability={open,read,paint,slots,blockFor,normalizeTime:time};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
+})();
+
+</script>
 </body>
 <style id="calendar-shared-ui-style">.calendar-sync-status{display:block;font:11px/1.4 'Malgun Gothic',system-ui,sans-serif;color:#66857c;white-space:normal;overflow-wrap:anywhere;max-width:100%;margin-top:3px;}
 @media(max-width:760px){.calendar-sync-status{font-size:10px;margin-top:5px;}}
@@ -9378,8 +9496,15 @@ html body #formOverlay.booking-editor #formFields .booking-field-date>input[type
  },
  persist(){persistScheduleData();persistCheck();persistMemos();persistStaff();persistCatLabel();persistDateCapacity();},
  refresh(){window.dispatchEvent(new Event('calendar-data-applied'));window.dispatchEvent(new Event('resize'));},
- editing(){return !!document.querySelector('#formOverlay.on,#memoOverlay.on,#lockScreen[open]:not([hidden])')||!!document.activeElement?.matches('input:not([type=checkbox]):not([type=radio]),textarea,[contenteditable=true]');}
+ editing(){
+  const visible=element=>!!element&&element.getClientRects().length>0&&getComputedStyle(element).visibility!=='hidden'&&!element.closest('[hidden],[inert]');
+  const panel=[...document.querySelectorAll('#formOverlay.on,#memoOverlay.on,#lockScreen[open]:not([hidden])')].some(visible);
+  const active=document.activeElement;
+  return panel||!!(visible(active)&&active.matches('input:not([type=checkbox]):not([type=radio]),textarea,[contenteditable=true]'));
+ }
+
 };
+
 
 </script>
 <script id="calendar-shared-ui">(function(){
@@ -9759,9 +9884,12 @@ html.calendar-unlocked #lockScreen{display:none!important;}
     };
     for(const id of ['fdScheduleDetails','fdDaySchedulePopup','fdMonthDetailsDialog']){const dialog=document.getElementById(id);if(dialog?.open)dialog.close();}
     previewKey=key;
-    openForm((kind==='gallery'?CAT_LABEL.gallery:CAT_LABEL.tour)+' 일정 '+(editing?'수정':'추가'),fields(current),v=>{
+    openForm((kind==='gallery'?CAT_LABEL.gallery:CAT_LABEL.tour)+' 일정 '+(editing?'수정':'추가'),fields(current).map(field=>kind==='gallery'&&field.id==='time'?{...field,options:['10:30','13:30','15:30']}:field),v=>{
       const targetStore=kind==='gallery'?GALLERY_ROWS:TOUR_ROWS;
       const targetKey=dateKey(v.date);if(!targetKey){alert('현재 달력 연도 안에서 날짜를 선택해 주세요.');return;}
+      if(kind==='gallery'&&(!editing||v.time!==current.time)&&!['10:30','13:30','15:30'].includes(window.CalendarAvailability?.normalizeTime(v.time))){alert('갤러리는 10:30, 13:30, 15:30 중에서 선택해주세요.');return;}
+      const galleryBlock=kind==='gallery'&&window.CalendarAvailability?.blockFor(v.date,v.time);
+      if(galleryBlock&&(!editing||targetKey!==key||v.time!==current.time)){alert('선택한 갤러리 타임은 '+(galleryBlock.status==='other'?'타사업지 사용 ('+galleryBlock.site+')':'휴관 / 이용불가')+'으로 지정됐습니다. 다른 타임을 선택해주세요.');return;}
       if(editing&&JSON.stringify(targetStore[key]?.[index])!==original){alert('편집 중 이 일정이 변경되었습니다. 최신 일정을 다시 열어 수정해 주세요.');return;}
       const row=kind==='gallery'?[v.time||'-',v.spot||'-',v.name||'-',v.plus||'-',v.manager||'-',v.danji||'',v.ho||'']:[v.time||'-',v.danji||'-',v.ho||'-',v.name||'-',v.plus||'-',v.manager||'-',v.spot||'-'];
       let target=index,checked;
