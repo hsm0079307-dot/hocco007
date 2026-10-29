@@ -3852,13 +3852,21 @@ function openCapacitySettings(){
 
 // 동반 표기에서 인원 수 추출: "외2명"→2, "오영순+1"→1, 그 외/-→0
 function parseCompanionCount(str){
-  if(!str) return 0;
-  let m = str.match(/외\s*(\d+)\s*명/);
-  if(m) return parseInt(m[1],10);
-  m = str.match(/\+\s*(\d+)/);
-  if(m) return parseInt(m[1],10);
-  return 0;
+  const text=String(str||'').trim();
+  if(!text||/^(?:-|없음|없|무|미정|미확인|확인중|없습니다|혼자|단독|0명?|동반없음|동반미정)$/.test(text.replace(/\s/g,'')))return 0;
+  let match=text.match(/외\s*(\d+)\s*명|\+\s*(\d+)|^(\d{1,2})(?:명)?(?=\s|[（(]|$)/);
+  if(match)return Number(match[1]||match[2]||match[3]||0);
+  if(/^\(?부부\)?$/.test(text))return 1;
+  const names=text.split(/[,，·+\/]|\s+/).map(name=>name.replace(/[（(][^）)]*[）)]/g,'').trim()).filter(Boolean);
+  return names.length&&names.every(name=>/^[가-힣]{2,4}$/.test(name))?names.length:0;
 }
+function calendarAttendanceSummary(key,events){
+  const rows=events||[...(GALLERY_ROWS[key]||[]).map(raw=>({kind:'gallery',raw})),...(TOUR_ROWS[key]||[]).map(raw=>({kind:'tour',raw}))];
+  let primary=0,companions=0;
+  rows.forEach(event=>{if(event.kind!=='gallery'&&event.kind!=='tour')return;primary++;companions+=parseCompanionCount(event.plus??event.raw?.[event.kind==='gallery'?3:4]);});
+  return {primary,companions,total:primary+companions};
+}
+function calendarAttendanceLabel(key,events){const n=calendarAttendanceSummary(key,events);return '총 참석 '+n.total+'명 (동반 '+n.companions+'명 포함)';}
 function computeDateHeadcount(key){
   let total = 0;
   (GALLERY_ROWS[key]||[]).forEach(r=>{ total += 1 + parseCompanionCount(r[3]); }); // r=[time,spot,name,plus,manager]
@@ -6935,7 +6943,7 @@ body.pro-show-legacy .checklist-section,body.pro-show-legacy .car{display:block!
   function renderDetail(){
     const body=document.getElementById('proDetailBody');if(!body)return;const ev=dayEvents(selectedKey),g=ev.filter(x=>x.kind==='gallery'),t=ev.filter(x=>x.kind==='tour'),head=headcount(selectedKey),cap=capacity(selectedKey),closed=GALLERY_CLOSED?.[selectedKey];
     const group=(arr,kind,title)=>arr.length?`<section class="pro-group"><div class="pro-group-title ${kind}"><i class="pro-dot ${kind}"></i>${title} · ${arr.length}건</div><div class="pro-eventlist">${arr.map(e=>`<div class="pro-event ${kind}"><div class="pro-time">${esc(e.time)}</div><div><div class="pro-event-title">${esc(e.site)} &nbsp; ${esc(e.name)}</div><div class="pro-event-meta">${esc(e.meta||'상세 정보 없음')}</div></div><button class="pro-event-arr pro-booking-edit" type="button" data-pro-record-kind="${e.kind}" data-pro-record-key="${esc(selectedKey)}" data-pro-record-index="${e.idx}" aria-label="${esc(e.name)} 일정 수정">›</button><button class="pro-event-comment" type="button" aria-label="코멘트 수정" data-pro-comment-kind="${e.kind}" data-pro-record-key="${esc(selectedKey)}" data-pro-record-index="${e.idx}"><span>${esc(personMemos[e.kind+'_'+selectedKey+'_'+e.idx]||'')}</span></button></div>`).join('')}</div></section>`:'';
-    body.innerHTML=`<div class="pro-detail-date">${esc(label(selectedKey))}</div><div class="pro-statrow"><div class="pro-stat">${svg.cal}<span>일정 <b>${ev.length}건</b></span></div><div class="pro-stat">${svg.people}<span>예상 인원 <b>${head}명</b></span></div></div>${closed?`<div class="pro-group"><div class="pro-group-title" style="color:#bd6074">휴관 / 이용불가</div><div class="pro-empty" style="padding:16px">${esc(closed)}</div></div>`:''}${group(g,'gallery','갤러리')}${group(t,'tour','투어')}${!ev.length&&!closed?'<div class="pro-empty">등록된 일정이 없습니다.</div>':''}<div class="pro-capacity"><span>정원 &nbsp;<b>${cap>0?cap+'명':'미설정'}${head>0?' · 현재 '+head+'명':''}</b></span><button type="button" id="proCapBtn">이 날짜 정원 설정 ›</button></div><div class="pro-actions"><button class="pro-add-gallery" id="proAddG" type="button">+ 갤러리 일정</button><button class="pro-add-tour" id="proAddT" type="button">+ 투어 일정</button><button class="pro-open-check" id="proOpenCheck" type="button">체크리스트 열기</button></div><div class="pro-secondary"><button id="proClosedBtn" type="button">${closed?'휴관 해제':'휴관 / 이용불가 지정'}</button></div>`;
+    body.innerHTML=`<div class="pro-detail-date">${esc(label(selectedKey))}</div><div class="pro-statrow"><div class="pro-stat">${svg.cal}<span>일정 <b>${ev.length}건</b></span></div><div class="pro-stat">${svg.people}<span>${esc(calendarAttendanceLabel(selectedKey,ev))}</span></div></div>${closed?`<div class="pro-group"><div class="pro-group-title" style="color:#bd6074">휴관 / 이용불가</div><div class="pro-empty" style="padding:16px">${esc(closed)}</div></div>`:''}${group(g,'gallery','갤러리')}${group(t,'tour','투어')}${!ev.length&&!closed?'<div class="pro-empty">등록된 일정이 없습니다.</div>':''}<div class="pro-capacity"><span>정원 &nbsp;<b>${cap>0?cap+'명':'미설정'}${head>0?' · 현재 '+head+'명':''}</b></span><button type="button" id="proCapBtn">이 날짜 정원 설정 ›</button></div><div class="pro-actions"><button class="pro-add-gallery" id="proAddG" type="button">+ 갤러리 일정</button><button class="pro-add-tour" id="proAddT" type="button">+ 투어 일정</button><button class="pro-open-check" id="proOpenCheck" type="button">체크리스트 열기</button></div><div class="pro-secondary"><button id="proClosedBtn" type="button">${closed?'휴관 해제':'휴관 / 이용불가 지정'}</button></div>`;
     document.getElementById('proCapBtn').onclick=()=>{previewKey=selectedKey;if(typeof openDateCapacitySettings==='function')openDateCapacitySettings()};
     document.getElementById('proAddG').onclick=()=>{previewKey=selectedKey;if(typeof addEntryFlow==='function')addEntryFlow('gallery')};
     document.getElementById('proAddT').onclick=()=>{previewKey=selectedKey;if(typeof addEntryFlow==='function')addEntryFlow('tour')};
@@ -7629,8 +7637,8 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
   function eventRows(k){
     const out=[];let filter=new Set();try{filter=(typeof activeDanjiFilter!=='undefined'&&activeDanjiFilter)||new Set()}catch(e){}
     let showG=true,showT=true;try{if(typeof activeCategories!=='undefined'){showG=activeCategories.gallery!==false;showT=activeCategories.tour!==false}}catch(e){}
-    if(showG){try{(GALLERY_ROWS?.[k]||[]).forEach(function(r){const site=gallerySite(r);if(filter.size&&!filter.has(site))return;out.push({kind:'gallery',time:r[0]||'일정',site:site,name:r[2]||'성명 미입력'})})}catch(e){}}
-    if(showT){try{(TOUR_ROWS?.[k]||[]).forEach(function(r){const site=r[1]||'현장 미입력';if(filter.size&&!filter.has(site))return;out.push({kind:'tour',time:r[0]||'일정',site:site,name:r[3]||'성명 미입력'})})}catch(e){}}
+    if(showG){try{(GALLERY_ROWS?.[k]||[]).forEach(function(r){const site=gallerySite(r);if(filter.size&&!filter.has(site))return;out.push({kind:'gallery',plus:r[3],time:r[0]||'일정',site:site,name:r[2]||'성명 미입력'})})}catch(e){}}
+    if(showT){try{(TOUR_ROWS?.[k]||[]).forEach(function(r){const site=r[1]||'현장 미입력';if(filter.size&&!filter.has(site))return;out.push({kind:'tour',plus:r[4],time:r[0]||'일정',site:site,name:r[3]||'성명 미입력'})})}catch(e){}}
     return out;
   }
   function selectedDate(){
@@ -8008,8 +8016,8 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
 
   function rowsFor(k){
     const out=[],filter=new Set(activeSites()),cat=categories();
-    try{if(cat.g)(GALLERY_ROWS?.[k]||[]).forEach(r=>{const site=gallerySite(r);if(filter.size&&!filter.has(site))return;out.push({kind:'gallery',time:r[0]||'일정',site,name:r[2]||'성명 미입력',meta:[r[1],r[3],r[4]?'담당 '+r[4]:''].filter(x=>x&&x!=='-').join(' · ')})})}catch(e){}
-    try{if(cat.t)(TOUR_ROWS?.[k]||[]).forEach(r=>{const site=r[1]||'현장 미입력';if(filter.size&&!filter.has(site))return;out.push({kind:'tour',time:r[0]||'일정',site,name:r[3]||'성명 미입력',meta:[r[2],r[4],r[5]?'담당 '+r[5]:''].filter(x=>x&&x!=='-').join(' · ')})})}catch(e){}
+    try{if(cat.g)(GALLERY_ROWS?.[k]||[]).forEach(r=>{const site=gallerySite(r);if(filter.size&&!filter.has(site))return;out.push({kind:'gallery',plus:r[3],time:r[0]||'일정',site,name:r[2]||'성명 미입력',meta:[r[1],r[3],r[4]?'담당 '+r[4]:''].filter(x=>x&&x!=='-').join(' · ')})})}catch(e){}
+    try{if(cat.t)(TOUR_ROWS?.[k]||[]).forEach(r=>{const site=r[1]||'현장 미입력';if(filter.size&&!filter.has(site))return;out.push({kind:'tour',plus:r[4],time:r[0]||'일정',site,name:r[3]||'성명 미입력',meta:[r[2],r[4],r[5]?'담당 '+r[5]:''].filter(x=>x&&x!=='-').join(' · ')})})}catch(e){}
     return out;
   }
   function keyOf(d){return `${d.getMonth()+1}-${d.getDate()}`}
@@ -8146,8 +8154,8 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
   function cats(){let g=true,t=true;try{g=activeCategories?.gallery!==false;t=activeCategories?.tour!==false}catch(e){}return {g,t}}
   function rowsFor(k){
     const out=[], filter=new Set(activeSites()), c=cats();
-    try{if(c.g)(GALLERY_ROWS?.[k]||[]).forEach(r=>{const site=gallerySite(r);if(filter.size&&!filter.has(site))return;out.push({kind:'gallery',time:r[0]||'일정',site,name:r[2]||'성명 미입력',meta:[r[1],r[3],r[4]?'담당 '+r[4]:''].filter(x=>x&&x!=='-').join(' · ')})})}catch(e){}
-    try{if(c.t)(TOUR_ROWS?.[k]||[]).forEach(r=>{const site=r[1]||'현장 미입력';if(filter.size&&!filter.has(site))return;out.push({kind:'tour',time:r[0]||'일정',site,name:r[3]||'성명 미입력',meta:[r[2],r[4],r[5]?'담당 '+r[5]:''].filter(x=>x&&x!=='-').join(' · ')})})}catch(e){}
+    try{if(c.g)(GALLERY_ROWS?.[k]||[]).forEach(r=>{const site=gallerySite(r);if(filter.size&&!filter.has(site))return;out.push({kind:'gallery',plus:r[3],time:r[0]||'일정',site,name:r[2]||'성명 미입력',meta:[r[1],r[3],r[4]?'담당 '+r[4]:''].filter(x=>x&&x!=='-').join(' · ')})})}catch(e){}
+    try{if(c.t)(TOUR_ROWS?.[k]||[]).forEach(r=>{const site=r[1]||'현장 미입력';if(filter.size&&!filter.has(site))return;out.push({kind:'tour',plus:r[4],time:r[0]||'일정',site,name:r[3]||'성명 미입력',meta:[r[2],r[4],r[5]?'담당 '+r[5]:''].filter(x=>x&&x!=='-').join(' · ')})})}catch(e){}
     return out;
   }
   function keyOf(d){return `${d.getMonth()+1}-${d.getDate()}`}
@@ -8198,7 +8206,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
     box.dataset.v27AgendaSignature=signature;
     const items=rows.map(x=>`<button type="button" class="pro-v27-agenda-row"><span class="pro-v27-kind ${x.kind}">${x.kind==='gallery'?'갤러리':'투어'}</span><time>${esc(x.time)}</time><span class="pro-v27-agenda-main"><b>${esc(x.site)}${x.name?' · '+esc(x.name):''}</b><small>${esc(x.meta||'')}</small></span><span class="pro-v27-arr">›</span></button>`).join('');
     const up=ups.length?`<div class="pro-v27-up-head"><strong>다가오는 일정</strong><span>다음 일정</span></div>${ups.map(x=>`<button type="button" class="pro-v27-up-row" data-key="${esc(x.key)}"><span class="pro-v27-up-date">${esc(compact(x.date))}</span><span class="pro-v27-kind ${x.kind}">${x.kind==='gallery'?'갤러리':'투어'}</span><span class="pro-v27-agenda-main"><b>${esc(x.time)} · ${esc(x.site)}</b><small>${esc(x.name)}</small></span><span class="pro-v27-arr">›</span></button>`).join('')}`:'';
-    box.innerHTML=`<div class="pro-v27-agenda-head"><div class="pro-v27-agenda-title">${isToday?'<span class="pro-v27-today-chip">오늘</span>':''}<strong>${esc(fmt(d))}</strong></div><span class="pro-v27-count">${rows.length}건</span></div>${closure}<div class="pro-v27-agenda-list">${items||'<div class="pro-v27-empty">등록된 일정이 없습니다.</div>'}${up}</div>`;
+    box.innerHTML=`<div class="pro-v27-agenda-head"><div class="pro-v27-agenda-title">${isToday?'<span class="pro-v27-today-chip">오늘</span>':''}<strong>${esc(fmt(d))}</strong><small class="pro-day-attendance-total">${esc(calendarAttendanceLabel(k,rows))}</small></div><span class="pro-v27-count">${rows.length}건</span></div>${closure}<div class="pro-v27-agenda-list">${items||'<div class="pro-v27-empty">등록된 일정이 없습니다.</div>'}${up}</div>`;
     qa('.pro-v27-agenda-row',box).forEach(b=>b.onclick=()=>document.body.classList.add('pro-sheet-open'));
     qa('.pro-v27-up-row',box).forEach(b=>b.onclick=()=>{const key=b.dataset.key,day=q(`.pro-day[data-key="${CSS.escape(key)}"]`);if(day){day.click()}else{try{const [m]=key.split('-').map(Number),base=d;let y=base.getFullYear();if(m<base.getMonth()+1)y++;const s=q('#rangeStart'),e=q('#rangeEnd');if(s)s.value=`${y}-${String(m).padStart(2,'0')}-01`;if(e)e.value=`${y}-${String(m).padStart(2,'0')}-${String(new Date(y,m,0).getDate()).padStart(2,'0')}`;if(typeof applyRange==='function')applyRange();setTimeout(()=>q(`.pro-day[data-key="${CSS.escape(key)}"]`)?.click(),100)}catch(err){}}});
   }
@@ -8636,7 +8644,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
       dialog.addEventListener('close',()=>q('#fdDays .fd-day.selected')?.focus({preventScroll:true}));
       document.body.appendChild(dialog);
     }
-    dialog.innerHTML=`<div class="fd-summary-dialog-head"><strong id="fdDayScheduleTitle">${esc(dateLabel(date))} 일정 <span class="day-tile-count">${events.length}건</span></strong><button type="button" aria-label="일정 팝업 닫기">✕</button></div><div class="fd-summary-dialog-body">${dayScheduleMarkup(date,events)}</div>`;
+    dialog.innerHTML=`<div class="fd-summary-dialog-head"><strong id="fdDayScheduleTitle">${esc(dateLabel(date))} 일정 <span class="day-attendance-total">${esc(calendarAttendanceLabel(k,events))}</span><span class="day-tile-count">${events.length}건</span></strong><button type="button" aria-label="일정 팝업 닫기">✕</button></div><div class="fd-summary-dialog-body">${dayScheduleMarkup(date,events)}</div>`;
     dialog.querySelector('button').onclick=()=>dialog.close();
     if(!dialog.open)dialog.showModal();
   }
@@ -11101,7 +11109,7 @@ html body #fdDaySchedulePopup .day-time-group>h4 :is(time,span){white-space:nowr
     const g=type==='gallery',site=String(g?gallerySite(row):row[1]||'현장 미입력'),manager=String(row[g?4:5]||'미지정').trim()||'미지정';
     const status=rowStatus(type,key,index);
     if(filter.site&&filter.site!==site||filter.manager&&filter.manager!==manager||filter.status&&filter.status!=='total'&&filter.status!==status)return;
-    out.push({kind:type,key,index,site,manager,status,time:row[0]||'-',name:row[g?2:3]||'성함 미입력',meta:[g?'':row[2],row[g?3:4],g?row[1]:'',manager==='미지정'?'':'담당 '+manager].filter(v=>v&&v!=='-').join(' · '),memo:personMemos[type+'_'+key+'_'+index]||''});
+    out.push({kind:type,key,index,site,manager,status,plus:row[g?3:4],time:row[0]||'-',name:row[g?2:3]||'성함 미입력',meta:[g?'':row[2],row[g?3:4],g?row[1]:'',manager==='미지정'?'':'담당 '+manager].filter(v=>v&&v!=='-').join(' · '),memo:personMemos[type+'_'+key+'_'+index]||''});
    });
   }
   return out.sort((a,b)=>dateOrder(a.key)-dateOrder(b.key)||(window.calendarTimeOrder?.(a.time)||0)-(window.calendarTimeOrder?.(b.time)||0)||a.site.localeCompare(b.site,'ko'));
@@ -11109,9 +11117,9 @@ html body #fdDaySchedulePopup .day-time-group>h4 :is(time,span){white-space:nowr
  function agenda(rows){
   if(!rows.length)return '<p class="mobile-browse-empty">해당 일정이 없습니다.</p>';
   const dates=new Map();rows.forEach(row=>{if(!dates.has(row.key))dates.set(row.key,[]);dates.get(row.key).push(row);});
-  return '<div class="mobile-browse-summary">일정 '+rows.length+'건 · 방문일 '+dates.size+'일</div>'+[...dates].map(([key,items])=>{
+  return '<div class="mobile-browse-summary">일정 '+rows.length+'건 · 방문일 '+dates.size+'일<br>'+esc(calendarAttendanceLabel('',rows))+'</div>'+[...dates].map(([key,items])=>{
    const groups=new Map();items.forEach(item=>{const k=item.kind+'|'+item.site;if(!groups.has(k))groups.set(k,[]);groups.get(k).push(item);});
-   return '<section class="mobile-browse-date"><h3>'+esc(key.replace('-','월 ')+'일')+'<small>'+items.length+'건</small></h3>'+[...groups.values()].map(group=>{
+   return '<section class="mobile-browse-date"><h3>'+esc(key.replace('-','월 ')+'일')+'<small>'+esc(calendarAttendanceLabel(key,items))+' · '+items.length+'건</small></h3>'+[...groups.values()].map(group=>{
     const slots=new Map();group.forEach(row=>{const key=String(window.calendarTimeOrder?.(row.time)??row.time);if(!slots.has(key))slots.set(key,[]);slots.get(key).push(row);});
     return '<section class="mobile-browse-site"><div class="mobile-browse-site-head"><b>'+esc(group[0].site)+'</b><span>'+ (group[0].kind==='gallery'?'갤러리':'투어')+'</span></div>'+[...slots.values()].map(slot=>'<div class="mobile-browse-time"><div><time>'+esc(window.calendarTimeLabel?.(slot[0].time)||slot[0].time)+'</time><small>'+slot.length+'건</small></div>'+slot.map(row=>'<div class="mobile-browse-entry" role="button" tabindex="0" data-list-day="'+esc(row.key)+'"><span><b>'+esc(row.name)+'</b><small>'+esc(row.meta)+'</small>'+(row.memo?'<small class="mobile-browse-memo">'+esc(row.memo)+'</small>':'')+'</span></div>').join('')+'</div>').join('')+'</section>';
    }).join('')+'</section>';
@@ -11256,4 +11264,15 @@ html body #mobileCategoryDateList .mobile-browse-entry>span{display:flex!importa
 html body #mobileCategoryDateList .mobile-browse-entry>span>b{display:inline!important;flex:0 0 auto!important;margin:0!important;}
 html body #mobileCategoryDateList .mobile-browse-entry>span>small:not(.mobile-browse-memo){display:inline!important;flex:1 1 170px!important;min-width:0!important;margin:0!important;}
 html body #mobileCategoryDateList .mobile-browse-entry>span>.mobile-browse-memo{display:block!important;flex:0 0 100%!important;width:100%!important;margin:4px 0 0!important;}
+</style>
+
+<style id="calendar-attendance-companion-labels">
+html body #fdDaySchedulePopup .fd-summary-dialog-head strong{flex-wrap:wrap!important;row-gap:4px!important;}
+html body #fdDaySchedulePopup .day-attendance-total{font-size:12px!important;line-height:20px!important;font-weight:500!important;color:#577485!important;}
+@media(max-width:760px){
+ html body #proV27Schedule .pro-v27-agenda-title{flex-wrap:wrap!important;row-gap:4px!important;}
+ html body #proV27Schedule .pro-day-attendance-total{display:block!important;flex:0 0 100%!important;margin:2px 0 0!important;font-size:12px!important;line-height:18px!important;font-weight:400!important;color:#6b8592!important;}
+ html body #proDetailBody .pro-statrow .pro-stat{height:auto!important;min-height:36px!important;padding:8px 11px!important;white-space:normal!important;}
+ html body #mobileCategoryDateList .mobile-browse-date>h3{flex-wrap:wrap!important;gap:4px 8px!important;}
+}
 </style>
