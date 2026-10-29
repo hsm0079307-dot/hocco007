@@ -11113,7 +11113,7 @@ html body #fdDaySchedulePopup .day-time-group>h4 :is(time,span){white-space:nowr
    const groups=new Map();items.forEach(item=>{const k=item.kind+'|'+item.site;if(!groups.has(k))groups.set(k,[]);groups.get(k).push(item);});
    return '<section class="mobile-browse-date"><h3>'+esc(key.replace('-','월 ')+'일')+'<small>'+items.length+'건</small></h3>'+[...groups.values()].map(group=>{
     const slots=new Map();group.forEach(row=>{const key=String(window.calendarTimeOrder?.(row.time)??row.time);if(!slots.has(key))slots.set(key,[]);slots.get(key).push(row);});
-    return '<section class="mobile-browse-site"><div class="mobile-browse-site-head"><b>'+esc(group[0].site)+'</b><span>'+ (group[0].kind==='gallery'?'갤러리':'투어')+'</span></div>'+[...slots.values()].map(slot=>'<div class="mobile-browse-time"><div><time>'+esc(window.calendarTimeLabel?.(slot[0].time)||slot[0].time)+'</time><small>'+slot.length+'건</small></div>'+slot.map(row=>'<button type="button" data-list-day="'+esc(row.key)+'"><span><b>'+esc(row.name)+'</b><small>'+esc(row.meta)+'</small>'+(row.memo?'<small class="mobile-browse-memo">'+esc(row.memo)+'</small>':'')+'</span></button>').join('')+'</div>').join('')+'</section>';
+    return '<section class="mobile-browse-site"><div class="mobile-browse-site-head"><b>'+esc(group[0].site)+'</b><span>'+ (group[0].kind==='gallery'?'갤러리':'투어')+'</span></div>'+[...slots.values()].map(slot=>'<div class="mobile-browse-time"><div><time>'+esc(window.calendarTimeLabel?.(slot[0].time)||slot[0].time)+'</time><small>'+slot.length+'건</small></div>'+slot.map(row=>'<div class="mobile-browse-entry" role="button" tabindex="0" data-list-day="'+esc(row.key)+'"><span><b>'+esc(row.name)+'</b><small>'+esc(row.meta)+'</small>'+(row.memo?'<small class="mobile-browse-memo">'+esc(row.memo)+'</small>':'')+'</span></div>').join('')+'</div>').join('')+'</section>';
    }).join('')+'</section>';
   }).join('');
  }
@@ -11137,7 +11137,10 @@ html body #fdDaySchedulePopup .day-time-group>h4 :is(time,span){white-space:nowr
   dialog.innerHTML='<div class="mobile-category-list-head"><strong>'+label+'</strong><button type="button" aria-label="닫기">×</button></div><div class="mobile-category-dates">'+(kind==='managers'?window.CalendarMobileBrowse.managers(rows):window.CalendarMobileBrowse.agenda(rows))+'</div>';
   dialog.querySelectorAll('[data-browse-manager]').forEach(button=>button.onclick=()=>window.calendarMobileDateList(button.dataset.browseKind,{manager:button.dataset.browseManager,site:button.dataset.browseSite,status:button.dataset.browseStatus}));
   dialog.querySelector('.mobile-category-list-head button').onclick=()=>dialog.close();
-  dialog.querySelectorAll('[data-list-day]').forEach(button=>button.onclick=()=>{dialog.close();window.openPreview?.(button.dataset.listDay);});
+  dialog.querySelectorAll('[data-list-day]').forEach(row=>{
+   row.onclick=()=>{dialog.close();window.openPreview?.(row.dataset.listDay);};
+   row.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();row.click();}};
+  });
   if(!dialog.open){
    const pageY=window.scrollY,pageX=window.scrollX,body=document.body;
    const properties=['position','top','left','right','width','overflow'];
@@ -11205,30 +11208,45 @@ document.addEventListener('pointerdown',event=>{
  html body #proCalendarApp .pro-bottomnav>button:last-child{display:flex!important;}
  html[data-calendar-access="viewer"] body #proCalendarApp .pro-bottomnav>button{visibility:visible!important;pointer-events:auto!important;}
 }
-#mobileCategoryDateList .mobile-category-dates{padding:12px!important;}
-#mobileCategoryDateList .mobile-browse-summary{font-size:12px;color:#738995;padding:0 0 8px;border-bottom:1px solid #e1e9ee;}
-#mobileCategoryDateList .mobile-browse-date{margin-bottom:20px;content-visibility:auto;contain-intrinsic-size:auto 240px;}
-#mobileCategoryDateList .mobile-browse-date>h3{display:flex;align-items:center;justify-content:space-between;margin:12px 0 8px;color:#244d62;font-size:14px;}
-#mobileCategoryDateList h3>small{font-size:11px;font-weight:400;color:#82949c;}
-#mobileCategoryDateList .mobile-browse-site{border:1px solid #d7e3ea;border-radius:7px;overflow:hidden;margin:0 0 9px;background:#fff;}
-#mobileCategoryDateList .mobile-browse-site-head{display:flex;justify-content:space-between;align-items:center;padding:9px;background:#edf3f7;font-size:13px;color:#34596f;}
-#mobileCategoryDateList .mobile-browse-site-head>span{font-size:11px;}
-#mobileCategoryDateList .mobile-browse-time>div{display:flex;justify-content:space-between;padding:7px 9px;border-top:1px solid #e2eaf0;}
-#mobileCategoryDateList .mobile-browse-time>div time{flex:none;}
-#mobileCategoryDateList .mobile-browse-time>div small{margin:0;}
-#mobileCategoryDateList .mobile-browse-time>button{padding:9px!important;}
-#mobileCategoryDateList .mobile-browse-empty{font-size:13px;text-align:center;padding:24px 8px;color:#7c909b;}
-#mobileCategoryDateList .mobile-browse-memo{white-space:pre-wrap;}
-#mobileCategoryDateList .mobile-manager-site{border:1px solid #d7e3ea;border-radius:6px;overflow:hidden;margin-bottom:14px;}
-#mobileCategoryDateList .mobile-manager-site-head{background:#087f84;color:#fff;padding:9px;font-size:13px;font-weight:600;}
-#mobileCategoryDateList .mobile-manager-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));}
-#mobileCategoryDateList .mobile-manager-columns>section{min-width:0;}
-#mobileCategoryDateList .mobile-manager-columns>section+section{border-left:1px solid #d7e3ea;}
-#mobileCategoryDateList .mobile-manager-columns h3{margin:0!important;padding:9px 3px!important;text-align:center;background:#edf3f7;font-size:12px;}
-#mobileCategoryDateList .mobile-manager-columns table{width:100%;table-layout:fixed;border-collapse:collapse;}
-#mobileCategoryDateList .mobile-manager-columns :is(th,td){padding:8px 1px!important;font-size:10px!important;text-align:center!important;border-bottom:1px solid #e1e8ed;overflow-wrap:anywhere;}
-#mobileCategoryDateList .mobile-manager-columns :is(th,td):first-child{width:32%;}
-#mobileCategoryDateList .mobile-manager-columns td button{display:inline!important;width:auto!important;min-width:0!important;min-height:0!important;margin:0!important;padding:0!important;border:0!important;background:none!important;font-size:11px!important;color:#315c73;}
-#mobileCategoryDateList .mobile-manager-columns td button:not(:disabled){text-decoration:underline dotted;text-underline-offset:3px;}
-#mobileCategoryDateList .mobile-manager-columns td button:disabled{opacity:.5;}
+html body #mobileCategoryDateList{width:calc(100% - 24px)!important;max-width:560px!important;max-height:82svh!important;padding:0!important;border:1px solid #d9e4e9!important;border-radius:16px!important;background:#fff!important;box-shadow:0 16px 44px #19394b22!important;color:#254659!important;overflow:hidden!important;}
+html body #mobileCategoryDateList[open]{display:flex!important;flex-direction:column!important;}
+html body #mobileCategoryDateList .mobile-category-list-head{flex:none!important;padding:14px 16px!important;min-height:58px!important;}
+html body #mobileCategoryDateList .mobile-category-list-head button{outline:none!important;transform:none!important;}
+html body #mobileCategoryDateList .mobile-category-list-head button:focus-visible{outline:2px solid #8fafbd!important;outline-offset:1px!important;}
+html body #mobileCategoryDateList .mobile-category-dates{padding:12px 14px 16px!important;min-height:0!important;overflow:auto!important;overscroll-behavior:contain!important;-webkit-overflow-scrolling:touch;}
+html body #mobileCategoryDateList .mobile-category-dates>section{content-visibility:visible!important;contain:none!important;contain-intrinsic-size:none!important;}
+html body #mobileCategoryDateList :is(.mobile-browse-summary,.mobile-browse-date,.mobile-browse-time,.mobile-manager-columns>section){background:transparent!important;box-shadow:none!important;border-radius:0!important;}
+html body #mobileCategoryDateList .mobile-browse-summary{font-size:12px!important;line-height:18px!important;color:#7a8f9b!important;padding:0 0 10px!important;border-bottom:1px solid #e5ecef!important;}
+html body #mobileCategoryDateList .mobile-browse-date{margin:0 0 18px!important;}
+html body #mobileCategoryDateList .mobile-browse-date:last-child{margin-bottom:0!important;}
+html body #mobileCategoryDateList .mobile-browse-date>h3{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important;margin:15px 0 8px!important;padding:0!important;font-size:14px!important;line-height:20px!important;font-weight:650!important;color:#284c60!important;}
+html body #mobileCategoryDateList h3>small{font-size:11px!important;line-height:18px!important;margin:0!important;color:#8596a0!important;font-weight:400!important;}
+html body #mobileCategoryDateList .mobile-browse-site{background:#fff!important;border:1px solid #d9e5eb!important;border-radius:8px!important;overflow:hidden!important;margin:0 0 10px!important;padding:0!important;box-shadow:none!important;}
+html body #mobileCategoryDateList :is(.mobile-browse-site-head,.mobile-manager-site-head){display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important;min-height:36px!important;padding:8px 11px!important;background:#087f84!important;background-image:none!important;color:#fff!important;font-size:13px!important;font-weight:600!important;border:0!important;border-radius:0!important;box-shadow:none!important;}
+html body #mobileCategoryDateList .mobile-browse-site-head b{font-size:13px!important;color:#fff!important;}
+html body #mobileCategoryDateList .mobile-browse-site-head>span{font-size:11px!important;color:#e2f0f0!important;white-space:nowrap!important;}
+html body #mobileCategoryDateList .mobile-browse-time>div:not(.mobile-browse-entry){display:flex!important;align-items:center!important;justify-content:space-between!important;padding:8px 11px!important;border-top:1px solid #e2ebef!important;border-bottom:1px solid #e8eff2!important;background:#f3f7f9!important;}
+html body #mobileCategoryDateList .mobile-browse-time>div time{flex:none!important;font-size:13px!important;line-height:18px!important;color:#1d7481!important;}
+html body #mobileCategoryDateList .mobile-browse-time>div>small{margin:0!important;font-size:11px!important;color:#8596a0!important;}
+html body #mobileCategoryDateList .mobile-browse-time>.mobile-browse-entry{display:block!important;box-sizing:border-box!important;width:100%!important;max-width:100%!important;min-width:0!important;min-height:0!important;height:auto!important;margin:0!important;padding:11px!important;background:#fff!important;background-image:none!important;border:0!important;border-bottom:1px solid #e8eef1!important;border-radius:0!important;box-shadow:none!important;text-align:left!important;cursor:pointer!important;}
+html body #mobileCategoryDateList .mobile-browse-entry:last-child{border-bottom:0!important;}
+html body #mobileCategoryDateList .mobile-browse-entry>span{display:block!important;width:100%!important;min-width:0!important;text-align:left!important;}
+html body #mobileCategoryDateList .mobile-browse-entry b{display:block!important;font-size:14px!important;line-height:20px!important;font-weight:600!important;color:#254659!important;text-align:left!important;}
+html body #mobileCategoryDateList .mobile-browse-entry small{display:block!important;font-size:12px!important;line-height:19px!important;color:#7a8c98!important;margin:4px 0 0!important;text-align:left!important;white-space:normal!important;overflow-wrap:anywhere!important;}
+html body #mobileCategoryDateList .mobile-browse-entry .mobile-browse-memo{color:#527484!important;white-space:pre-wrap!important;}
+html body #mobileCategoryDateList .mobile-browse-empty{font-size:13px!important;text-align:center!important;padding:24px 8px!important;color:#7c909b!important;}
+html body #mobileCategoryDateList .mobile-manager-site{margin:0 0 14px!important;padding:0!important;border:1px solid #d9e5eb!important;border-radius:8px!important;overflow:hidden!important;background:#fff!important;box-shadow:none!important;}
+html body #mobileCategoryDateList .mobile-manager-columns{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:0!important;}
+html body #mobileCategoryDateList .mobile-manager-columns>section{min-width:0!important;margin:0!important;padding:0!important;border:0!important;}
+html body #mobileCategoryDateList .mobile-manager-columns>section+section{border-top:1px solid #d9e5eb!important;}
+html body #mobileCategoryDateList .mobile-manager-columns h3{display:flex!important;justify-content:flex-start!important;margin:0!important;padding:9px 11px!important;font-size:12px!important;line-height:18px!important;background:#f2f6f8!important;color:#567286!important;border:0!important;border-radius:0!important;}
+html body #mobileCategoryDateList .mobile-manager-columns table{display:table!important;box-sizing:border-box!important;width:100%!important;max-width:100%!important;min-width:0!important;table-layout:fixed!important;border-collapse:collapse!important;border-spacing:0!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;overflow:visible!important;box-shadow:none!important;background:#fff!important;}
+html body #mobileCategoryDateList .mobile-manager-columns :is(thead,tbody,tr){background:#fff!important;border-radius:0!important;box-shadow:none!important;}
+html body #mobileCategoryDateList .mobile-manager-columns :is(th,td){box-sizing:border-box!important;height:auto!important;min-height:0!important;padding:10px 3px!important;text-align:center!important;vertical-align:middle!important;border:0!important;border-bottom:1px solid #e7eef2!important;border-radius:0!important;background:#fff!important;box-shadow:none!important;font-size:12px!important;line-height:18px!important;color:#466778!important;overflow-wrap:anywhere!important;}
+html body #mobileCategoryDateList .mobile-manager-columns th{font-size:11px!important;color:#8496a0!important;font-weight:500!important;}
+html body #mobileCategoryDateList .mobile-manager-columns :is(th,td):first-child{width:32%!important;text-align:left!important;padding-left:11px!important;}
+html body #mobileCategoryDateList .mobile-manager-columns td[colspan]{width:auto!important;text-align:center!important;padding:14px 8px!important;font-size:12px!important;color:#8b9ba4!important;}
+html body #mobileCategoryDateList .mobile-manager-columns td button{display:inline!important;width:auto!important;max-width:none!important;min-width:24px!important;min-height:24px!important;height:auto!important;padding:0!important;margin:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;font-size:12px!important;line-height:24px!important;color:#315c73!important;transform:none!important;}
+html body #mobileCategoryDateList .mobile-manager-columns td button:not(:disabled){text-decoration:underline dotted #9eb7c2!important;text-underline-offset:3px!important;}
+html body #mobileCategoryDateList .mobile-manager-columns td button:disabled{opacity:1!important;color:#a2afb7!important;}
 </style>
