@@ -11117,7 +11117,7 @@ html body #fdDaySchedulePopup .day-time-group>h4 :is(time,span){white-space:nowr
  function agenda(rows){
   if(!rows.length)return '<p class="mobile-browse-empty">해당 일정이 없습니다.</p>';
   const dates=new Map();rows.forEach(row=>{if(!dates.has(row.key))dates.set(row.key,[]);dates.get(row.key).push(row);});
-  return '<div class="mobile-browse-summary">일정 '+rows.length+'건 · 방문일 '+dates.size+'일<br>'+esc(calendarAttendanceLabel('',rows))+'</div>'+[...dates].map(([key,items])=>{
+  return '<div class="mobile-browse-summary"><span>일정 '+rows.length+'건 · 방문일 '+dates.size+'일</span><span>'+esc(calendarAttendanceLabel('',rows))+'</span></div>'+[...dates].map(([key,items])=>{
    const groups=new Map();items.forEach(item=>{const k=item.kind+'|'+item.site;if(!groups.has(k))groups.set(k,[]);groups.get(k).push(item);});
    return '<section class="mobile-browse-date"><h3>'+esc(key.replace('-','월 ')+'일')+'<small>'+esc(calendarAttendanceLabel(key,items))+' · '+items.length+'건</small></h3>'+[...groups.values()].map(group=>{
     const slots=new Map();group.forEach(row=>{const key=String(window.calendarTimeOrder?.(row.time)??row.time);if(!slots.has(key))slots.set(key,[]);slots.get(key).push(row);});
@@ -11274,5 +11274,25 @@ html body #fdDaySchedulePopup .day-attendance-total{font-size:12px!important;lin
  html body #proV27Schedule .pro-day-attendance-total{display:block!important;flex:0 0 100%!important;margin:2px 0 0!important;font-size:12px!important;line-height:18px!important;font-weight:400!important;color:#6b8592!important;}
  html body #proDetailBody .pro-statrow .pro-stat{height:auto!important;min-height:36px!important;padding:8px 11px!important;white-space:normal!important;}
  html body #mobileCategoryDateList .mobile-browse-date>h3{flex-wrap:wrap!important;gap:4px 8px!important;}
+}
+</style>
+
+<style id="desktop-day-attendance-middle-position">
+@media(min-width:761px){
+ html body #fdDaySchedulePopup .fd-summary-dialog-head>strong{flex:1!important;min-width:0!important;}
+ html body #fdDaySchedulePopup .day-attendance-total{margin-left:clamp(36px,9vw,100px)!important;}
+}
+</style>
+
+<style id="mobile-attendance-one-line-placement">
+@media(max-width:760px){
+ html body #proV27Schedule .pro-v27-agenda-head{display:flex!important;align-items:center!important;gap:6px!important;}
+ html body #proV27Schedule .pro-v27-agenda-title{display:flex!important;flex:1!important;min-width:0!important;flex-wrap:nowrap!important;align-items:center!important;gap:6px!important;}
+ html body #proV27Schedule .pro-v27-agenda-title>strong{font-size:13px!important;white-space:nowrap!important;flex:none!important;}
+ html body #proV27Schedule .pro-v27-today-chip{flex:none!important;font-size:11px!important;}
+ html body #proV27Schedule .pro-day-attendance-total{display:inline!important;flex:0 1 auto!important;min-width:0!important;margin:0!important;font-size:11px!important;line-height:18px!important;white-space:nowrap!important;}
+ html body #proV27Schedule .pro-v27-count{flex:none!important;align-self:center!important;}
+ html body #mobileCategoryDateList .mobile-browse-summary{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:7px!important;font-size:11px!important;line-height:18px!important;white-space:nowrap!important;}
+ html body #mobileCategoryDateList .mobile-browse-summary>span{display:inline!important;min-width:0!important;font-size:inherit!important;line-height:inherit!important;white-space:nowrap!important;}
 }
 </style>
