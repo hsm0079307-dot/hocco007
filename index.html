@@ -47374,3 +47374,38 @@ html body.ux383 .bf-monthly-freshness{margin:0!important;padding:7px 12px!import
 html body.ux383:not(.theme-dark) .rival-report-logo-row .rival-choice-symbol[data-company="DL"] img{filter:brightness(0)!important;}
 html body.ux383.theme-dark .rival-report-logo-row .rival-choice-symbol[data-company="DL"] img{filter:brightness(0) invert(1)!important;}
 </style>
+
+<style id="calendar-readable-text-final">
+html body.ux383 #detailBody#detailBody .mgr-breakdown-wrap .mgr-cal-dayhead,
+html body.ux383 #detailBody#detailBody .mgr-breakdown-wrap .mgr-cal-cell .mgr-cal-daynum,
+html body.ux383 #detailBody#detailBody .mgr-breakdown-wrap .mgr-cal-cell .mgr-cal-summary-main,
+html body.ux383 #detailBody#detailBody .mgr-breakdown-wrap .mgr-cal-cell .mi-date-reports-btn{
+ color:var(--calendar-readable-ink,var(--text-main))!important;
+ -webkit-text-fill-color:var(--calendar-readable-ink,var(--text-main))!important;
+ opacity:1!important;text-shadow:none!important;
+}
+html body.ux383 #detailBody#detailBody .mgr-breakdown-wrap .mgr-cal-cell .mgr-cal-summary-main{display:block!important;visibility:visible!important;font-weight:700!important;}
+</style>
+<script id="calendar-readable-text-engine">
+(()=>{
+'use strict';
+const luminance=rgb=>rgb.map(v=>v/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4).reduce((sum,v,i)=>sum+v*[.2126,.7152,.0722][i],0);
+function rgb(value){const m=value.match(/[\d.]+/g);return m?m.map(Number):[255,255,255,0];}
+function background(el){let out=[255,255,255],chain=[];for(let n=el;n;n=n.parentElement)chain.unshift(n);for(const n of chain){const v=rgb(getComputedStyle(n).backgroundColor),alpha=v.length>3?v[3]:1;out=out.map((x,i)=>Math.round(v[i]*alpha+x*(1-alpha)));}return out;}
+function ink(el){const l=luminance(background(el)),dark=(l+.05)/.05,light=1.05/(l+.05);return dark>=light?'#000000':'#ffffff';}
+function refresh(){
+ for(const cell of document.querySelectorAll('.mgr-breakdown-wrap .mgr-cal-cell:not(.mgr-cal-empty),.mgr-breakdown-wrap .mgr-cal-dayhead')){
+  const color=ink(cell);if(cell.style.getPropertyValue('--calendar-readable-ink')!==color)cell.style.setProperty('--calendar-readable-ink',color,'important');
+  const elements=cell.matches('.mgr-cal-dayhead')?[cell]:cell.querySelectorAll('.mgr-cal-daynum,.mgr-cal-summary-main,.mgr-cal-summary-main *, .mi-date-reports-btn');
+  for(const el of elements){if(el.style.getPropertyValue('color')!==color)el.style.setProperty('color',color,'important');if(el.style.getPropertyValue('-webkit-text-fill-color')!==color)el.style.setProperty('-webkit-text-fill-color',color,'important');}
+ }
+}
+let queued=false;function queue(){if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;refresh();});}
+function init(){
+ const observer=new MutationObserver(queue);observer.observe(document.head,{childList:true,subtree:true,characterData:true});observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['class','data-custom-colors']});
+ document.addEventListener('click',queue);document.addEventListener('input',queue);document.addEventListener('transitionend',queue);window.addEventListener('resize',queue);refresh();
+}
+window.CalendarTextContrast={refresh,background,ink};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
+})();
+
+</script>
