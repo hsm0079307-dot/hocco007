@@ -2973,9 +2973,9 @@ function briefContextDisplay(value,site){
  return text;
 }
 
-function briefReportMonthlyMarkup(value,esc,site){
+function briefReportMonthlyMarkup(value,esc,site,period){
  value=MonthlyBriefReview.review(value);
- const text=briefReportBody(briefContextDisplay(value,site),true),lines=text.split(/\r?\n/),bullet=/^\s*(?:[•●◦▪‣∙·]\s*|[-*]\s+)/;
+ const text=briefReportBody(MonthlyBriefDateDisplay.format(briefContextDisplay(value,site),{period}),true),lines=text.split(/\r?\n/),bullet=/^\s*(?:[•●◦▪‣∙·]\s*|[-*]\s+)/;
  if(!lines.some(line=>bullet.test(line)))return '<div class="bf-manual">'+esc(text)+'</div>';
  const items=[],intro=[];
  for(const line of lines){
@@ -2987,6 +2987,57 @@ function briefReportMonthlyMarkup(value,esc,site){
 }
 </script>
 
+<script id="monthlyBriefDateDisplayEngine">(function(root){
+ 'use strict';
+ function today(){const p=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()),v=k=>p.find(x=>x.type===k).value;return v('year')+'-'+v('month')+'-'+v('day');}
+ function iso(y,m,d){const dt=new Date(Date.UTC(y,m-1,d));return dt.getUTCFullYear()===y&&dt.getUTCMonth()===m-1&&dt.getUTCDate()===d?y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0'):null;}
+ function format(value,options={}){
+  const now=options.today||today(),period=options.period||'',year=Number(period.slice(0,4))||Number(now.slice(0,4));
+  return String(value||'').split('\n').map(line=>{
+   const sources=[...line.matchAll(/[（(［\[][^）)］\]]*\bR[0-9a-f]{4,}\b[^）)］\]]*[）)］\]]/gi)].map(m=>m[0]),sourceDates=[...new Set(sources.flatMap(x=>x.match(/20\d{2}-\d{2}-\d{2}/g)||[]))];
+   const reference=sourceDates.length===1?sourceDates[0]:null,baseYear=reference?Number(reference.slice(0,4)):year,baseMonth=reference?Number(reference.slice(5,7)):Number(period.slice(5,7));
+   const protectedValues=[];let text=line.replace(/“[^”]*”|‘[^’]*’|「[^」]*」|『[^』]*』|"[^"\n]*"|[（(［\[][^）)］\]]*\bR[0-9a-f]{4,}\b[^）)］\]]*[）)］\]]/gi,m=>{protectedValues.push(m);return '\uE410'+(protectedValues.length-1)+'\uE411';});
+   const dates=[];
+   for(const m of text.matchAll(/(?:(내년|올해|금년|작년|전년)\s*|(?:(\d{4}|\d{2})\s*년\s*))?(\d{1,2})\s*월\s*(\d{1,2})\s*일|\b(20\d{2})\s*[-./]\s*(\d{1,2})\s*[-./]\s*(\d{1,2})(?:\.)?/g)){
+    let y=m[5]?Number(m[5]):m[2]?Number(m[2])+(m[2].length===2?2000:0):baseYear,month=Number(m[6]||m[3]),day=Number(m[7]||m[4]);
+    if(m[1])y=baseYear+(/내년/.test(m[1])?1:/작년|전년/.test(m[1])?-1:0);
+    // A bare January date in a late-year report is ambiguous, not proof of an expired plan.
+    if(!m[1]&&!m[2]&&!m[5]&&baseMonth-month>6)continue;
+    const date=iso(y,month,day);if(date)dates.push({start:m.index,end:m.index+m[0].length,date});
+   }
+   for(const m of text.matchAll(/(?:(내년|올해|금년|작년|전년)\s*|(?:(\d{4}|\d{2})\s*년\s*))?(\d{1,2})\s*월/g)){
+    if(dates.some(d=>m.index>=d.start&&m.index<d.end))continue;
+    let y=m[2]?Number(m[2])+(m[2].length===2?2000:0):baseYear,month=Number(m[3]);if(m[1])y=baseYear+(/내년/.test(m[1])?1:/작년|전년/.test(m[1])?-1:0);
+    if(month<1||month>12||(!m[1]&&!m[2]&&baseMonth-month>6))continue;
+    const last=new Date(Date.UTC(y,month,0));dates.push({start:m.index,end:m.index+m[0].length,date:last.toISOString().slice(0,10)});
+   }
+   if(reference)for(const m of text.matchAll(/다음\s*주|내주|다음\s*달|내달/g)){
+    const d=new Date(reference+'T12:00:00Z');if(/주/.test(m[0]))d.setUTCDate(d.getUTCDate()+7-((d.getUTCDay()+6)%7)+6);else{d.setUTCMonth(d.getUTCMonth()+2,0);}
+    dates.push({start:m.index,end:m.index+m[0].length,date:d.toISOString().slice(0,10)});
+   }
+   if(reference)for(const m of text.matchAll(/내일|모레|오늘/g)){const d=new Date(reference+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+(m[0]==='내일'?1:m[0]==='모레'?2:0));dates.push({start:m.index,end:m.index+m[0].length,date:d.toISOString().slice(0,10)});}
+   dates.sort((a,b)=>a.start-b.start);
+   text=text.replace(/(?:할\s*)?(?:예정(?:되어\s*있(?:음|다)|돼\s*있(?:음|다)|임|이다|됨)?|계획(?:임|이다)?)/g,(state,offset,whole)=>{
+    const boundary=Math.max(whole.lastIndexOf('\n',offset),whole.lastIndexOf(';',offset));
+    const sentence=whole.slice(0,offset).match(/(?:[。!?]|\.(?=\s+[가-힣]))[^。!?]*$/);const start=sentence?whole.slice(0,offset).lastIndexOf(sentence[0])+1:boundary+1;
+    let date=dates.filter(d=>d.start>=Math.max(start,boundary+1)&&d.end<=offset).at(-1);
+    if(!date){const following=dates.find(d=>d.start>offset&&d.start-offset<20);if(following&&/^[\s(（:]*$/.test(whole.slice(offset+state.length,following.start)))date=following;}
+    if(!date||date.date>=now)return state;
+    if(/^(?:이었|였|이던|이었다|이라고|이라며|대로|과는|과\s)/.test(whole.slice(offset+state.length)))return state;
+    const between=whole.slice(date.end,offset);if(/예정|계획/.test(between))return state;
+    const prefix=whole.slice(Math.max(start,boundary+1),offset);
+    if(/(?:기존|당초|취소|연기|철회|변경|미확인|확인\s*필요|여부|아니|없음)/.test(prefix))return state;
+    // Keep an action neutral: a past scheduled visit is not evidence of an actual visit.
+    if(/(?:방문|참석|연락|접촉|면담|상담|착공|준공|접수|선정|개최|진행|추진)\s*(?:할\s*)?$/.test(prefix))return /\s$/.test(prefix)?'일정':' 일정';
+    return '';
+   }).replace(/[ \t]{2,}/g,' ').replace(/[ \t]+([,，.。;])/g,'$1').replace(/[ \t]+$/,'');
+   return text.replace(/\uE410(\d+)\uE411/g,(_,i)=>protectedValues[Number(i)]);
+  }).join('\n');
+ }
+ function instruction(period){return '정리 기준일(한국시간): '+today()+'. 대상 보고월: '+period+'. 모든 항목의 일정 표현을 이 기준일과 대조하세요. 이미 날짜가 지난 행사에는 현재의 미래 일정처럼 예정·예정임·계획이라고 쓰지 말고 인물·행사 날짜·시간·내용만 중립적으로 남기세요. 예: 고선미 위원장, 10월 23일 17시 개소식(축하수건 200장, 홍보품 요청). 날짜가 지났다는 이유만으로 개최·참석·지원 완료를 추정하지 마세요. 실제 완료·취소·연기·변경은 더 늦은 근거 보고로 확인될 때만 반영하세요. 앞으로 남은 일정의 예정 표현은 유지하세요. 상대 날짜는 오늘이 아니라 근거 보고 작성일에 맞춰 해석하고, 연도·일자가 불명확하면 임의로 확정하지 마세요. 핵심 이슈뿐 아니라 경쟁사 활동·관계자 반응·후속 업무·추가 확인 항목도 모두 점검하세요.';}
+ root.MonthlyBriefDateDisplay={format,today,instruction};
+})(typeof window==='undefined'?globalThis:window);
+</script>
 <script id="monthlyBriefEventReviewEngine">
 (function(root){
  const instruction='추가 보고만 반영하는 요청에서도 모든 현장의 해당 월 전체 기존 보고·신규 보고·기존 월간정리를 빠짐없이 함께 검토하세요. 신규 보고만 보고 결과를 작성하지 마세요. 월간정리는 기존 중요 내용에 최신 변경사항을 반영하는 누적 현황입니다. 새 보고에서 다시 언급하지 않았다는 이유만으로 기존 중요 결정·사업 쟁점·공사비·계약 조건·위험·주요 인물 입장·미해결 후속 과제를 삭제하지 마세요. 기존 중요 사실은 유지하고, 같은 사실의 날짜·시간·장소·수량·진행상태·최종 결정만 보고 작성일이 더 늦은 근거로 갱신하세요. 새 중요 사안은 추가하고 반복 방문·인사 등 중요하지 않은 반복은 축약하세요. 해결·취소·철회가 명시된 사안은 현재 상태로 갱신하고 미해결 과제로 계속 나열하지 마세요. 예정일이 지났다는 이유만으로 완료 처리하지 마세요. 중복 검토는 최초 정리뿐 아니라 추가 보고 반영·재정리 때마다 전체 기존 요약과 새 원문을 대상으로 반복하세요. 현장별로 같은 개소식·총회·설명회·회의·입찰 등 동일 행사를 날짜·장소·주최자·내용·근거 보고번호로 대조한 뒤 한 항목으로 통합하세요. 같은 행사에 관한 준비·완료·참석·후원 등은 해당 행사 항목 안에 묶고 고유 사실과 출처를 모두 남기세요. 사무실 이전일과 개소식일은 같은 장소여도 다른 사실이므로 한 항목 안에서 각각의 날짜와 상태를 명시하세요. 같은 종류라도 날짜·장소·주최자가 다른 행사는 합치지 마세요. 동일 행사의 날짜·시간·장소·진행상태가 변경되었으면 행사일이 아닌 보고 작성일이 더 늦은 보고를 기준으로 갱신하세요. 취소·연기·변경 보고는 이전 예정을 대체하고 이전의 낡은 일정·상태를 결과에 함께 남기지 마세요. 기존 보고의 내용 중 최신 보고와 충돌하지 않는 준비사항·참석자 등 고유 정보만 통합하세요. 보고일이 같거나 최신 보고의 대상을 식별할 수 없을 때만 출처별 내용을 확인 대상으로 남기세요. 핵심 이슈·관계자 반응·후속 업무 사이의 같은 사실 반복도 검토해 주 항목에 한 번만 적고, 다른 항목에는 고유 반응·후속 조치만 남기세요. 최종 출력 전에 모든 현장의 행사 중복과 누락을 다시 점검하세요.';
@@ -3139,7 +3190,7 @@ function buildFull(sites,month,getLogs){
  });
  const responseInstruction='반드시 다음 형식의 JSON 코드 블록 하나로 답하세요. format은 hocco-monthly-brief-v1, month는 '+month+'입니다. sites는 현장별 객체 배열이며 각 객체는 office(사업소), siteId(문자열 ID), siteName(현장명), sections를 가집니다. sections에는 issue, competitor, executive, next, check 다섯 키를 모두 넣고 각각 요약 문장 문자열 배열로 작성하세요. 근거 보고번호·보고일은 해당 문장 끝에 붙이세요. 내용이 없는 항목은 빈 배열로, 보고 내용이 없는 현장은 sites에서 제외하세요. 아래 현장 식별 목록의 office/siteId/siteName은 정확히 복사하세요.\n현장 식별 목록: '+JSON.stringify(groups.map(g=>({office:g.site.office||'',siteId:String(g.site.id||''),siteName:g.site.name||''})));
  const header=month+' 전체 현장 월간 보고서\n대상: 전체 사업소·전체 현장 (담당자·현장 화면 필터 미적용)\n현장 '+groups.length+'곳 / 보고 있는 현장 '+active+'곳 / 보고 '+total+'건 / 내용 있는 보고 '+withText+'건';
- return {text:prompt+'\n'+MonthlyBriefReview.instruction+'\n\n'+responseInstruction+'\n\n--- 보고 원문 시작 ---\n'+header+'\n\n'+blocks.join('\n\n━━━━━━━━━━━━━━━━━━━━\n\n')+'\n\n--- 보고 원문 끝 ---',total,withText,active,sites:groups.length};
+ return {text:prompt+'\n'+MonthlyBriefReview.instruction+'\n'+(typeof MonthlyBriefDateDisplay!=='undefined'?MonthlyBriefDateDisplay.instruction(month):'')+'\n\n'+responseInstruction+'\n\n--- 보고 원문 시작 ---\n'+header+'\n\n'+blocks.join('\n\n━━━━━━━━━━━━━━━━━━━━\n\n')+'\n\n--- 보고 원문 끝 ---',total,withText,active,sites:groups.length};
 }
 
 
@@ -16143,7 +16194,7 @@ window.addEventListener('resize', ()=>{
     const sections=[...groups].sort((a,b)=>b[0].localeCompare(a[0])).map(([month,rows])=>{
       const heading=showMonths?`<div class="management-note-month">${years.size>1?esc(month.slice(2,4))+'년 ':''}${Number(month.slice(5))}월:</div>`:'';
       return `<section class="management-note-month-group">${heading}${rows.map(({item,index})=>{
-        const text=briefReportBody(contactReportNoteDisplay(briefContextDisplay(item.text,site)),true).trim(),ending='';
+        const text=briefReportBody(contactReportNoteDisplay(MonthlyBriefDateDisplay.format(briefContextDisplay(item.text,site),{period:item.month})),true).trim(),ending='';
         return `<div class="management-note-item"><a href="#" class="management-note-link" data-management-note="${esc(siteId)}" data-note-index="${index}">• ${esc(text+ending)}</a> ${disclosure(item)}</div>`;
       }).join('')}</section>`;
     }).join('');
@@ -23018,7 +23069,7 @@ function buildSiteReportBrief(site,requestedRange,requestedMode){
  const sectionIcon={issue:'●',competitor:'◇',executive:'○',next:'→'}[key]||'•';
  const mobileMore=''; // v151: 항목별 기존 더보기만 사용해 중복 버튼 제거
  const emptyMonthSection=mode==='month'&&!String(override?.sections[key]||'').trim();
- return `<section class="bf-section bf-section-${key}${emptyMonthSection?' bf-section-empty':''}"><h3><span class="bf-section-icon" aria-hidden="true">${sectionIcon}</span><span>${sectionLabel}</span>${checkButton}</h3>${mode==='month'?(emptyMonthSection?'<p class="bf-empty bf-monthly-empty-hint">등록된 정리 없음</p>':briefReportMonthlyMarkup(override?.sections[key]||'',esc,site)):manual?`<div class="bf-manual">${esc(reportStyleText(override.sections[key]||'직접 작성된 내용이 없습니다.'))}</div><p class="bf-meta">수정 ${esc(override.updatedAt?.slice(0,16).replace('T',' ')||'')} · ${esc(override.author||'관리자')}</p>`:(key==='next'?bfFollowupMarkup(site,range):topItems.length?topItems.map(itemHtml).join('')+(extraItems.length?`<details class="bf-extra"><summary>추가 핵심 ${extraItems.length}개</summary>${extraItems.map(itemHtml).join('')}</details>`:''):(key==='competitor'?'<p class="bf-empty">해당 기간 보고에서 경쟁사 활동 근거를 찾지 못함.</p>':'<p class="bf-empty">이 기간 보고서에서 이 항목을 뒷받침하는 구체적인 내용을 찾지 못했습니다.</p>'))}${sourceGroup}${mobileMore}</section>`;
+ return `<section class="bf-section bf-section-${key}${emptyMonthSection?' bf-section-empty':''}"><h3><span class="bf-section-icon" aria-hidden="true">${sectionIcon}</span><span>${sectionLabel}</span>${checkButton}</h3>${mode==='month'?(emptyMonthSection?'<p class="bf-empty bf-monthly-empty-hint">등록된 정리 없음</p>':briefReportMonthlyMarkup(override?.sections[key]||'',esc,site,range.start.slice(0,7))):manual?`<div class="bf-manual">${esc(reportStyleText(override.sections[key]||'직접 작성된 내용이 없습니다.'))}</div><p class="bf-meta">수정 ${esc(override.updatedAt?.slice(0,16).replace('T',' ')||'')} · ${esc(override.author||'관리자')}</p>`:(key==='next'?bfFollowupMarkup(site,range):topItems.length?topItems.map(itemHtml).join('')+(extraItems.length?`<details class="bf-extra"><summary>추가 핵심 ${extraItems.length}개</summary>${extraItems.map(itemHtml).join('')}</details>`:''):(key==='competitor'?'<p class="bf-empty">해당 기간 보고에서 경쟁사 활동 근거를 찾지 못함.</p>':'<p class="bf-empty">이 기간 보고서에서 이 항목을 뒷받침하는 구체적인 내용을 찾지 못했습니다.</p>'))}${sourceGroup}${mobileMore}</section>`;
  }).join('')}</div></section>`;
 }
 async function bfSaveField(site,field,baseline,value){
@@ -47240,4 +47291,9 @@ html body.ux383 .bf-monthly-freshness{margin:0!important;padding:7px 12px!import
 #dashboardColorDialog .color-recommend small{display:block;font-size:11px!important;margin-top:3px;}
 #dashboardColorDialog .color-recommend-swatches{display:flex;gap:3px;flex-shrink:0;}
 #dashboardColorDialog .color-recommend-swatches i{width:14px;height:22px;border-radius:4px;}
+</style>
+
+<style id="dl-logo-theme-contrast">
+html body.ux383:not(.theme-dark) .rival-report-logo-row .rival-choice-symbol[data-company="DL"] img{filter:brightness(0)!important;}
+html body.ux383.theme-dark .rival-report-logo-row .rival-choice-symbol[data-company="DL"] img{filter:brightness(0) invert(1)!important;}
 </style>
