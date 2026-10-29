@@ -47261,7 +47261,19 @@ html body.ux383:not(.theme-dark) #masterPanel .project-progress-header-flow .pro
  ['올리브 크림','#f4f5ee','#fffef8','#627348','#ae7a26','#2d3228','#424d38','#c0ce9c','#e5bc74'],
  ['코발트 실버','#eff3f9','#ffffff','#365f9a','#9c7b45','#212d41','#31445f','#aac6f0','#d8c293']
  ];
- const recommendationPool=[...presets,...recommendationExtras],recommendationCursor={light:-1,dark:-1};
+ const additionalPalettes=[
+ ['스카이 슬레이트','#eef5fb','#ffffff','#3e7096','#a97521','#253344','#354a60','#a5c7e5','#e1b975'],
+ ['페트롤','#edf5f4','#ffffff','#2d6d70','#a47a38','#23383b','#344f52','#a4d0ce','#dfc08c'],
+ ['세이지','#f1f5ef','#ffffff','#526d50','#96712f','#29372d','#3c5040','#bdd3b0','#dfbf80'],
+ ['테라코타','#f9f2ed','#fffdfb','#a45e46','#997127','#3b2c28','#553f37','#e0b7a6','#dfc187'],
+ ['베리','#f8f0f6','#ffffff','#975676','#9e7627','#392b36','#513c4e','#ddb4d0','#e4c38a'],
+ ['인디고','#f0f1f9','#ffffff','#575e9a','#a0782f','#292d43','#3b4260','#b8bfe8','#e2c087'],
+ ['라일락 그레이','#f4f2f7','#ffffff','#776786','#a27c36','#302d39','#454052','#d1bedc','#dec18d'],
+ ['차콜 앰버','#f3f3f1','#ffffff','#56616b','#a36b1e','#282f36','#3b4650','#c1cdd7','#e8bd71'],
+ ['크림 블루','#f7f5ee','#fffef9','#4b708d','#a47d34','#2e3440','#424c5d','#bacde0','#e2c38d'],
+ ['딥 오션','#eef4f8','#ffffff','#315f7e','#a97832','#20303e','#304659','#9fc4df','#e3bf82']
+ ];
+ const recommendationPool=[...presets,...recommendationExtras,...additionalPalettes],recommendationCursor={light:-1,dark:-1};
  function nextRecommendation(mode,existing){
   for(let attempt=0;attempt<recommendationPool.length;attempt++){
    const index=recommendationCursor[mode]=(recommendationCursor[mode]+1)%recommendationPool.length,p=recommendationPool[index],i=mode==='dark'?5:1;
@@ -47271,20 +47283,31 @@ html body.ux383:not(.theme-dark) #masterPanel .project-progress-header-flow .pro
  }
  let saved={};try{saved=sanitize(JSON.parse(localStorage.getItem(KEY)||'{}'));}catch{}
  let draft=null,dialog,style;
- const ink=hex=>{const n=hex.slice(1).match(/../g).map(v=>parseInt(v,16)/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4);return n[0]*.2126+n[1]*.7152+n[2]*.0722>.36?'#20313d':'#f1f5f9';};
+ const rgb=hex=>hex.slice(1).match(/../g).map(v=>parseInt(v,16));
+ const lum=hex=>{const n=rgb(hex).map(v=>v/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4);return n[0]*.2126+n[1]*.7152+n[2]*.0722;};
+ const contrast=(a,b)=>{const x=lum(a),y=lum(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05);};
+ const ink=hex=>contrast('#20313d',hex)>=7?'#20313d':contrast('#f1f5f9',hex)>=7?'#f1f5f9':['#20313d','#f1f5f9','#000000','#ffffff'].sort((a,b)=>contrast(b,hex)-contrast(a,hex))[0];
+ const mix=(a,b,ratio)=>'#'+rgb(a).map((n,i)=>Math.round(n*ratio+rgb(b)[i]*(1-ratio)).toString(16).padStart(2,'0')).join('');
+ const readable=(color,bg)=>{const text=ink(bg);for(let step=0;step<=20;step++){const c=mix(text,color,step/20);if(contrast(c,bg)>=4.5)return c;}return text;};
+
  function paint(values){
   style??=document.head.appendChild(Object.assign(document.createElement('style'),{id:'dashboard-user-colors-applied'}));
   document.body.toggleAttribute('data-custom-colors',Object.keys(values).length>0);
   style.textContent=Object.entries(values).map(([mode,c])=>{
-   const root='html body.ux383'+(mode==='dark'?'.theme-dark':':not(.theme-dark)')+'[data-custom-colors]',text=ink(c.card),accentInk=ink(c.accent);
+   const root='html body.ux383'+(mode==='dark'?'.theme-dark':':not(.theme-dark)')+'[data-custom-colors]',text=ink(c.card),accentInk=ink(c.accent),soft=mix(c.accent,c.card,.14),soft2=mix(c.accent,c.card,.22),accentText=readable(c.accent,c.card),line=mix(text,c.card,.22);
    const sel=items=>items.map(x=>root+' '+x).join(',');
-   return root+'{--bg-main:'+c.background+'!important;--ui-page-bg:'+c.background+'!important;--bg-side:'+c.card+'!important;--bg-side-2:'+c.card+'!important;--card:'+c.card+'!important;--card-hover:'+c.card+'!important;--ui-card-body:'+c.card+'!important;--ui-card-head:'+c.card+'!important;--ui-card-heading-bg:'+c.card+'!important;--accent:'+c.accent+'!important;--accent-soft:'+c.accent+'!important;--accent-soft-2:'+c.accent+'!important;--accent-ink:'+accentInk+'!important;--accent-border:'+c.accent+'!important;--text-main:'+text+'!important;--text-dim:'+text+'!important;--gw-soft:'+c.card+'!important;--gw-soft-2:'+c.card+'!important;background:'+c.background+'!important;color:'+text+'!important;}'+
-   sel(['#masterPanel .detail-tabs .dtab.active','#detailBody .mgr-subtabs .mgr-subtab.active','#masterList .name-item.active','#contactReportModalBox .report-view-tab.active-toggle','button.active-toggle','button[aria-pressed="true"]'])+'{background:'+c.accent+'!important;background-image:none!important;border-color:'+c.accent+'!important;color:'+accentInk+'!important;box-shadow:none!important;}'+
-   sel(['#detailBody .detail-quad-box .spec-heading','#detailBody .bf-section>h3'])+'{color:'+c.accent+'!important;}'+
+   return root+'{--bg-main:'+c.background+'!important;--ui-page-bg:'+c.background+'!important;--bg-side:'+c.card+'!important;--bg-side-2:'+c.card+'!important;--card:'+c.card+'!important;--card-hover:'+mix(c.accent,c.card,.05)+'!important;--ui-card-body:'+c.card+'!important;--ui-card-head:'+c.card+'!important;--ui-card-heading-bg:'+c.card+'!important;--accent:'+c.accent+'!important;--accent-soft:'+soft+'!important;--accent-soft-2:'+soft2+'!important;--accent-ink:'+accentInk+'!important;--accent-border:'+accentText+'!important;--accent-text:'+accentText+'!important;--line:'+line+'!important;--text-main:'+text+'!important;--text-dim:'+text+'!important;--gw-soft:'+c.card+'!important;--gw-soft-2:'+c.card+'!important;background:'+c.background+'!important;color:'+text+'!important;}'+
+   sel(['#masterPanel#masterPanel .detail-tabs .dtab.active','#detailBody .mgr-subtabs .mgr-subtab.active','#masterList .name-item.active','#contactReportModalBox .report-view-tab.active-toggle','button.active-toggle','button[aria-pressed="true"]'])+'{background:'+c.accent+'!important;background-image:none!important;border-color:'+c.accent+'!important;color:'+accentInk+'!important;box-shadow:none!important;}'+
+   sel(['#detailBody .detail-quad-box .spec-heading','#detailBody .bf-section>h3'])+'{color:'+accentText+'!important;}'+
    sel(['#detailBody .detail-quad-box .spec-line::before'])+'{background:'+c.accent+'!important;}'+
-   sel(['#masterPanel .detail-head-info .project-progress-mobile[class*="project-progress-"]'])+'{background:'+c.card+'!important;color:'+c.gold+'!important;border-color:'+c.gold+'!important;}'+
+   sel(['#masterPanel .detail-head-info .project-progress-mobile[class*="project-progress-"]'])+'{background:'+c.card+'!important;color:'+readable(c.gold,c.card)+'!important;border-color:'+readable(c.gold,c.card)+'!important;}'+
    sel(['#detailBody button.overview-audit-dot[class]'])+'{color:'+c.gold+'!important;}'+sel(['#detailBody button.overview-audit-dot::before'])+'{background:'+c.gold+'!important;}'+
    sel(['#contactReportBody .visit-matrix-panel .rm-table th','#contactReportBody .visit-matrix-panel .rm-table td','#detailBody .rc-app .rc-control-panel','#detailBody .rc-app .rc-quick-tools','#detailBody .rc-app .rc-toolbar'])+'{background:'+c.card+'!important;background-image:none!important;color:'+text+'!important;}'+
+   sel(['#detailBody .mgr-breakdown-wrap .mgr-cal-cell.has-log','#detailBody .mgr-breakdown-wrap .mgr-cal-cell.mobile-selected'])+'{background:'+soft+'!important;color:'+ink(soft)+'!important;border-color:'+line+'!important;}'+
+   sel(['#detailBody .mgr-breakdown-wrap .mgr-cal-dayhead'])+'{background:'+soft2+'!important;color:'+ink(soft2)+'!important;opacity:1!important;}'+
+   sel(['#detailBody .mgr-breakdown-wrap .mgr-cal-cell.has-log .mgr-cal-daynum','#detailBody .mgr-breakdown-wrap .mgr-cal-cell.has-log .mgr-cal-summary-main','#detailBody .mgr-breakdown-wrap .mgr-cal-cell.has-log .mi-date-reports-btn','#detailBody .mgr-breakdown-wrap .mgr-cal-cell.has-log .mi-date-reports-btn *'])+'{color:'+ink(soft)+'!important;opacity:1!important;}'+
+   sel(['#masterPanel#masterPanel .detail-tabs .dtab.active *','#detailBody .mgr-subtabs .mgr-subtab.active *'])+'{color:'+accentInk+'!important;}'+
+   sel(['#masterPanel#masterPanel .detail-tabs .dtab.active b','#masterPanel#masterPanel .detail-tabs .dtab.active small','#masterPanel#masterPanel .detail-tabs .dtab.active .badge','#masterPanel#masterPanel .detail-tabs .dtab.active .tab-count'])+'{background:transparent!important;color:'+accentInk+'!important;}'+
    sel(['#detailBody .rc-app.rc-studio .rc-top-row [data-rc-save]','#detailBody .rc-app.rc-studio .rc-toolbar [data-rc-ai-start]'])+'{background:'+c.accent+'!important;border-color:'+c.accent+'!important;color:'+accentInk+'!important;}';
   }).join('\n');
  }
@@ -47292,7 +47315,7 @@ html body.ux383:not(.theme-dark) #masterPanel .project-progress-header-flow .pro
  function open(){
   draft=structuredClone(saved);
   if(!dialog){dialog=document.createElement('dialog');dialog.id='dashboardColorDialog';document.body.appendChild(dialog);}
-  dialog.innerHTML='<div class="color-head"><strong>화면 색상 변경</strong><button type="button" data-color-close aria-label="닫기">×</button></div><div class="color-body"><div class="color-modes"><button type="button" data-color-mode="light">라이트</button><button type="button" data-color-mode="dark">다크</button></div><p>모드별로 색을 따로 저장합니다. 이 기기의 모바일·데스크톱 화면에 적용됩니다.</p><button type="button" class="color-recommend" data-color-recommend><span><b>추천 조합</b><small>누를 때마다 다른 조합 보기</small></span><span class="color-recommend-swatches" aria-hidden="true"></span><span aria-hidden="true">↻</span></button><div class="color-presets">'+presets.map((p,i)=>'<button type="button" data-color-preset="'+i+'"><i style="background:'+p[current()==='dark'?7:3]+'"></i>'+p[0]+'</button>').join('')+'</div><div class="color-inputs">'+[['background','전체 배경'],['card','박스·표 배경'],['accent','강조색·아이콘'],['gold','노란색 포인트']].map(([key,label])=>'<label>'+label+'<input type="color" data-color-field="'+key+'"></label>').join('')+'</div><small role="status" id="dashboardColorStatus">색을 고르면 화면에서 바로 확인할 수 있습니다.</small></div><div class="color-actions"><button type="button" data-color-reset>현재 모드 초기화</button><button type="button" data-color-cancel>취소</button><button type="button" data-color-save>저장</button></div>';
+  dialog.innerHTML='<div class="color-head"><strong>화면 색상 변경</strong><button type="button" data-color-close aria-label="닫기">×</button></div><div class="color-body"><div class="color-modes"><button type="button" data-color-mode="light">라이트</button><button type="button" data-color-mode="dark">다크</button></div><p>모드별로 색을 따로 저장합니다. 이 기기의 모바일·데스크톱 화면에 적용됩니다.</p><button type="button" class="color-recommend" data-color-recommend><span><b>추천 조합</b><small>누를 때마다 다른 조합 보기</small></span><span class="color-recommend-swatches" aria-hidden="true"></span><span aria-hidden="true">↻</span></button><div class="color-presets">'+recommendationPool.map((p,i)=>'<button type="button" data-color-preset="'+i+'"><i style="background:'+p[current()==='dark'?7:3]+'"></i>'+p[0]+'</button>').join('')+'</div><div class="color-inputs">'+[['background','전체 배경'],['card','박스·표 배경'],['accent','강조색·아이콘'],['gold','노란색 포인트']].map(([key,label])=>'<label>'+label+'<input type="color" data-color-field="'+key+'"></label>').join('')+'</div><small role="status" id="dashboardColorStatus">색을 고르면 화면에서 바로 확인할 수 있습니다.</small></div><div class="color-actions"><button type="button" data-color-reset>현재 모드 초기화</button><button type="button" data-color-cancel>취소</button><button type="button" data-color-save>저장</button></div>';
   const refresh=()=>{const mode=current(),c=draft[mode]||defaults[mode];dialog.querySelectorAll('[data-color-field]').forEach(input=>input.value=c[input.dataset.colorField]);dialog.querySelectorAll('[data-color-mode]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.colorMode===mode)));};
   dialog.querySelectorAll('[data-color-mode]').forEach(button=>button.onclick=()=>{if(current()!==button.dataset.colorMode)document.getElementById('themeToggleBtn')?.click();refresh();});
   dialog.querySelector('[data-color-recommend]').onclick=()=>{
@@ -47301,7 +47324,7 @@ html body.ux383:not(.theme-dark) #masterPanel .project-progress-header-flow .pro
    dialog.querySelector('.color-recommend-swatches').innerHTML=Object.values(pick.colors).map(color=>'<i style="background:'+color+'"></i>').join('');
    dialog.querySelector('[role="status"]').textContent='추천 '+(pick.index+1)+'/'+pick.total+' · '+pick.name+' — 다시 누르면 다음 조합입니다. 마음에 들면 저장하세요.';
   };
-  dialog.querySelectorAll('[data-color-preset]').forEach(button=>button.onclick=()=>{const p=presets[+button.dataset.colorPreset],i=current()==='dark'?5:1;draft[current()]={background:p[i],card:p[i+1],accent:p[i+2],gold:p[i+3]};paint(draft);refresh();});
+  dialog.querySelectorAll('[data-color-preset]').forEach(button=>button.onclick=()=>{const p=recommendationPool[+button.dataset.colorPreset],i=current()==='dark'?5:1;draft[current()]={background:p[i],card:p[i+1],accent:p[i+2],gold:p[i+3]};paint(draft);refresh();});
   dialog.querySelectorAll('[data-color-field]').forEach(input=>input.oninput=()=>{const mode=current();draft[mode]={...(draft[mode]||defaults[mode]),[input.dataset.colorField]:input.value};paint(draft);});
   dialog.querySelector('[data-color-reset]').onclick=()=>{delete draft[current()];paint(draft);refresh();};
   dialog.querySelector('[data-color-save]').onclick=()=>{try{localStorage.setItem(KEY,JSON.stringify(draft));saved=structuredClone(draft);draft=null;dialog.close();}catch{dialog.querySelector('[role="status"]').textContent='저장 공간을 확인해 주세요. 색 설정을 저장하지 못했습니다.';}};
@@ -47310,7 +47333,7 @@ html body.ux383:not(.theme-dark) #masterPanel .project-progress-header-flow .pro
   refresh();dialog.showModal();
  }
  function init(){paint(saved);document.getElementById('dashboardColorSettings')?.addEventListener('click',open);}
- window.DashboardColors={sanitize,ink,nextRecommendation};
+ window.DashboardColors={sanitize,ink,contrast,mix,readable,nextRecommendation};
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
 </script>
