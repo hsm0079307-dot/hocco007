@@ -20,7 +20,7 @@
 })();
 </script>
 
-<meta name="calendar-build" content="2026.10.29.74">
+<meta name="calendar-build" content="2026.10.30.75">
 <script id="calendar-shared-foundation">(function(){
  'use strict';
  const keys=['manual_schedule_data_v1','calendar_checkmarks_v1','person_memos_v1','staff_contacts_v1','category_labels_v1','capacity_date_override_v1','capacity_weekday_v1','capacity_weekend_v1','site_title_v1','site_subtitle_v1','footnote_comment_v1','fdDisplayTitle','fdCustomTitle','calendar_site_availability_v1'];
@@ -8265,7 +8265,9 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
     const signature=JSON.stringify([k,rows,isToday,closedText,ups.map(x=>[x.key,x.time,x.site,x.name,x.kind])]);
     if(box.dataset.v27AgendaSignature===signature&&q('.pro-v27-agenda-head',box))return;
     box.dataset.v27AgendaSignature=signature;
-    const items=rows.map(x=>`<button type="button" class="pro-v27-agenda-row"><span class="pro-v27-kind ${x.kind}">${x.kind==='gallery'?'갤러리':'투어'}</span><time>${esc(x.time)}</time><span class="pro-v27-agenda-main"><b>${esc(x.site)}${x.name?' · '+esc(x.name):''}</b><small>${esc(x.meta||'')}</small></span><span class="pro-v27-arr">›</span></button>`).join('');
+    const groups=new Map();
+    rows.forEach(x=>{const time=window.CalendarAvailability?.normalizeTime(x.time)||x.time,key=JSON.stringify([x.kind,time,x.site]);if(!groups.has(key))groups.set(key,{...x,time,visitors:[]});groups.get(key).visitors.push(x)});
+    const items=Array.from(groups.values()).sort((a,b)=>(window.calendarTimeOrder?.(a.time)||0)-(window.calendarTimeOrder?.(b.time)||0)).map(g=>`<section class="pro-time-group"><header><span class="pro-v27-kind ${g.kind}">${g.kind==='gallery'?'갤러리':'투어'}</span><time>${esc(g.time)}</time><strong>${esc(g.site)}</strong><small>${g.visitors.length}건</small></header><div>${g.visitors.map(x=>`<button type="button" class="pro-v27-agenda-row"><span class="pro-v27-agenda-main"><b>${esc(x.name)}</b><small>${esc(x.meta||'')}</small></span><span class="pro-v27-arr">›</span></button>`).join('')}</div></section>`).join('');
     const up=ups.length?`<div class="pro-v27-up-head"><strong>다가오는 일정</strong><span>다음 일정</span></div>${ups.map(x=>`<button type="button" class="pro-v27-up-row" data-key="${esc(x.key)}"><span class="pro-v27-up-date">${esc(compact(x.date))}</span><span class="pro-v27-kind ${x.kind}">${x.kind==='gallery'?'갤러리':'투어'}</span><span class="pro-v27-agenda-main"><b>${esc(x.time)} · ${esc(x.site)}</b><small>${esc(x.name)}</small></span><span class="pro-v27-arr">›</span></button>`).join('')}`:'';
     box.innerHTML=`<div class="pro-v27-agenda-head"><div class="pro-v27-agenda-title">${isToday?'<span class="pro-v27-today-chip">오늘</span>':''}<strong>${esc(fmt(d))}</strong><small class="pro-day-attendance-total">${esc(calendarAttendanceLabel(k,rows))}</small></div><span class="pro-v27-count">${rows.length}건</span></div>${closure}<div class="pro-v27-agenda-list">${items||'<div class="pro-v27-empty">등록된 일정이 없습니다.</div>'}${up}</div>`;
     qa('.pro-v27-agenda-row',box).forEach(b=>b.onclick=()=>document.body.classList.add('pro-sheet-open'));
@@ -8639,24 +8641,18 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
     qa('[data-kind]',box).forEach(b=>b.onclick=()=>{if(b.dataset.kind==='gallery')showGallery=!showGallery;else showTour=!showTour;render()});
   }
   function desktopDayCategorySummary(events){
-    const parts=[];
-    for(const kind of ['gallery','tour']){
-      const sites=new Map();
-      events.filter(event=>event.kind===kind).forEach(event=>{
-        const plus=event.raw?.[kind==='gallery'?3:4];
-        const people=1+(typeof parseCompanionCount==='function'?parseCompanionCount(plus):0);
-        const site=String(event.site||'미지정');sites.set(site,(sites.get(site)||0)+people);
-      });
-      if(!sites.size)continue;
-      const label=kind==='gallery'?'갤러리':'투어',icon=kind==='gallery'?'🖼️':'🚗';
-      const full=[...sites].map(([site,people])=>site+' '+people+'명').join(', ');
-      for(const [site,people] of sites){
-        const short=site.replace(/^목동/,'').replace(/아파트$/,'')+' '+people+'명';
-        parts.push('<span class="fd-day-kind '+kind+'" title="'+esc(label+' · '+site+' '+people+'명')+'"><span aria-hidden="true">'+icon+'</span><span>'+esc(short)+'</span></span>');
-      }
+    const groups=new Map();
+    for(const event of events){
+      if(!['gallery','tour'].includes(event.kind))continue;
+      const kind=event.kind,slot=window.CalendarAvailability?.normalizeTime(event.time)||String(event.time||'시간 미정'),site=String(event.site||'미지정');
+      const id=JSON.stringify([slot,kind,site]);if(!groups.has(id))groups.set(id,{slot,kind,site,people:0});
+      const plus=event.raw?.[kind==='gallery'?3:4];groups.get(id).people+=1+(typeof parseCompanionCount==='function'?parseCompanionCount(plus):0);
     }
-    const closed=events.find(event=>event.kind==='closed');
-    if(closed)parts.push('<span class="fd-day-kind closed" title="'+esc(closed.name)+'">휴관</span>');
+    const parts=[...groups.values()].sort((a,b)=>(window.calendarTimeOrder?.(a.slot)||0)-(window.calendarTimeOrder?.(b.slot)||0)||a.kind.localeCompare(b.kind)||a.site.localeCompare(b.site,'ko')).map(({slot,kind,site,people})=>{
+      const label=kind==='gallery'?'갤러리':'투어',icon=kind==='gallery'?'🖼️':'🚗',short=site.replace(/^목동/,'').replace(/아파트$/,'');
+      return '<span class="fd-day-kind '+kind+'" title="'+esc(slot+' · '+label+' · '+site+' '+people+'명')+'"><time>'+esc(slot)+'</time><span class="fd-day-kind-icon" aria-hidden="true">'+icon+'</span><span>'+esc(short+' '+people+'명')+'</span></span>';
+    });
+    const closed=events.find(event=>event.kind==='closed');if(closed)parts.push('<span class="fd-day-kind closed" title="'+esc(closed.name)+'">휴관</span>');
     return parts.length?'<span class="fd-day-categories">'+parts.join('')+'</span>':'';
   }
   function renderCalendar(){
@@ -10713,9 +10709,9 @@ html body #freshDesktopApp #fdWeekPanel .chart-label{grid-row:2!important;align-
     if(manager){cells[0].remove();cells[1].remove();}
     else{
      const metadata=document.createElement('div');metadata.className='fd-visitor-meta';
-     for(const [index,label] of [[2,'동호수'],[4,'동반'],[5,'담당'],[6,'픽업/자가']]){
+     for(const [index,label] of [[2,'동호수'],[4,'동반'],[5,'담당'],[6,'']]){
       if(!cells[index].textContent.trim()||cells[index].textContent.trim()==='-')continue;
-      const item=document.createElement('span');item.textContent=label+' ';while(cells[index].firstChild)item.appendChild(cells[index].firstChild);metadata.appendChild(item);
+      const item=document.createElement('span');item.textContent=label?label+' ':'';while(cells[index].firstChild)item.appendChild(cells[index].firstChild);metadata.appendChild(item);
      }
      cells[3].appendChild(metadata);cells[3].classList.add('fd-visitor-name');
      const record=(row.dataset.rowkey||'').match(/^(gallery|tour)_(\d+-\d+)_(\d+)$/);
@@ -11498,5 +11494,37 @@ html body #fdDaySchedulePopup .day-attendance-total{font-size:12px!important;lin
  html body #proV27Schedule .pro-v27-count{flex:none!important;align-self:center!important;}
  html body #mobileCategoryDateList .mobile-browse-summary{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:7px!important;font-size:11px!important;line-height:18px!important;white-space:nowrap!important;}
  html body #mobileCategoryDateList .mobile-browse-summary>span{display:inline!important;min-width:0!important;font-size:inherit!important;line-height:inherit!important;white-space:nowrap!important;}
+}
+</style>
+
+<style id="desktop-calendar-time-lines">
+@media(min-width:761px){
+html body #freshDesktopApp .fd-day-kind:not(.closed){display:grid!important;grid-template-columns:max-content minmax(0,1fr)!important;align-items:start!important;gap:0 3px!important;padding:0!important;font-size:10px!important;line-height:13px!important;}
+html body #freshDesktopApp .fd-day-kind time{font-family:inherit!important;font-size:10px!important;line-height:13px!important;font-weight:600!important;white-space:nowrap!important;font-variant-numeric:tabular-nums;}
+html body #freshDesktopApp .fd-day-kind .fd-day-kind-icon{font-size:10px!important;line-height:13px!important;}
+html body #freshDesktopApp .fd-day-kind>span:last-child{grid-column:1/-1!important;white-space:nowrap!important;overflow-wrap:normal!important;font-size:10px!important;line-height:12px!important;}
+html body #freshDesktopApp .fd-day-categories{top:29px!important;gap:3px!important;}
+}
+</style>
+
+<style id="mobile-agenda-time-groups">
+@media(max-width:760px){
+#proV27Schedule .pro-time-group{padding:9px 0 0;border-top:1px solid #e7edef;margin-top:7px;}
+#proV27Schedule .pro-time-group>header{display:flex;align-items:center;gap:8px;padding:0 1px 5px;color:#214257;}
+#proV27Schedule .pro-time-group>header time{font-size:12px;font-weight:750;white-space:nowrap;}
+#proV27Schedule .pro-time-group>header strong{font-size:12px;font-weight:750;min-width:0;}
+#proV27Schedule .pro-time-group>header>small{margin-left:auto;font-size:11px;color:#8799a3;white-space:nowrap;}
+#proV27Schedule .pro-time-group .pro-v27-agenda-row{display:grid!important;grid-template-columns:minmax(0,1fr) 12px!important;min-height:47px;padding:8px 2px 8px 12px!important;border-top:1px solid #f0f4f5!important;border-radius:0!important;}
+#proV27Schedule .pro-time-group .pro-v27-agenda-main b{font-size:12px!important;}
+#proV27Schedule .pro-time-group .pro-v27-agenda-main small{font-size:11px!important;line-height:1.5;white-space:normal!important;}
+}
+</style>
+
+<style id="mobile-agenda-group-header-reset">
+@media(max-width:760px){
+#proCalendarApp #proV27Schedule .pro-time-group>header{display:flex!important;flex-direction:row!important;justify-content:flex-start!important;align-items:center!important;gap:8px!important;height:auto!important;min-height:0!important;padding:0 1px 6px!important;margin:0!important;background:none!important;background-image:none!important;border:0!important;border-radius:0!important;box-shadow:none!important;text-align:left!important;overflow:visible!important;}
+#proCalendarApp #proV27Schedule .pro-time-group>header:before,#proCalendarApp #proV27Schedule .pro-time-group>header:after{content:none!important;display:none!important;}
+#proCalendarApp #proV27Schedule .pro-time-group>header>*{position:static!important;transform:none!important;margin-top:0!important;margin-bottom:0!important;}
+#proCalendarApp #proV27Schedule .pro-time-group>header strong{flex:1!important;}
 }
 </style>
