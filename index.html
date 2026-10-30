@@ -17942,14 +17942,31 @@ function renderDetailPanel(site){
     const siteManageMenuBtn = document.getElementById('siteManageMenuBtn');
     const siteManagePanel = document.getElementById('siteManagePanel');
     if(siteManageWrap && siteManageMenuBtn && siteManagePanel){
+      // Put this menu in the browser top layer so horizontal tab scrolling
+      // and the fixed-height detail header cannot clip it.
+      const useTopLayer=typeof siteManagePanel.showPopover==='function';
+      if(useTopLayer)siteManagePanel.setAttribute('popover','manual');
+      const positionSiteManagePanel=()=>{
+        const rect=siteManageMenuBtn.getBoundingClientRect(),width=176;
+        const left=Math.max(8,Math.min(rect.left,innerWidth-width-8));
+        const top=Math.max(8,Math.min(rect.bottom+5,innerHeight-siteManagePanel.offsetHeight-8));
+        for(const [key,value]of Object.entries({position:'fixed',left:left+'px',top:top+'px',right:'auto',bottom:'auto',width:width+'px',margin:'0',transform:'none'}))siteManagePanel.style.setProperty(key,value,'important');
+      };
       const closeSiteManagePanel = ()=>{
+        if(useTopLayer&&siteManagePanel.matches(':popover-open'))siteManagePanel.hidePopover();
         siteManagePanel.style.display = 'none';
-        siteManageWrap.classList.remove('open');
+        siteManageWrap.classList.remove('open');siteManageMenuBtn.setAttribute('aria-expanded','false');
       };
       const openSiteManagePanel = ()=>{
         siteManagePanel.style.display = 'block';
-        siteManageWrap.classList.add('open');
+        if(useTopLayer)siteManagePanel.showPopover();
+        else document.body.append(siteManagePanel);
+        positionSiteManagePanel();siteManageWrap.classList.add('open');siteManageMenuBtn.setAttribute('aria-expanded','true');
       };
+      siteManageMenuBtn.setAttribute('aria-haspopup','menu');siteManageMenuBtn.setAttribute('aria-expanded','false');
+      window.addEventListener('resize',()=>{if(siteManageWrap.classList.contains('open'))positionSiteManagePanel();});
+      document.addEventListener('scroll',()=>{if(siteManageWrap.classList.contains('open'))positionSiteManagePanel();},true);
+      siteManagePanel.addEventListener('keydown',e=>{if(e.key==='Escape'){closeSiteManagePanel();siteManageMenuBtn.focus();}});
       siteManageMenuBtn.addEventListener('click',(e)=>{
         e.preventDefault();
         e.stopPropagation();
@@ -17961,7 +17978,7 @@ function renderDetailPanel(site){
         if(e.target.closest('.menu-item-btn')) closeSiteManagePanel();
       });
       document.addEventListener('click',(e)=>{
-        if(!siteManageWrap.contains(e.target)) closeSiteManagePanel();
+        if(!siteManageWrap.contains(e.target)&&!siteManagePanel.contains(e.target)) closeSiteManagePanel();
       });
     }
 
@@ -47409,3 +47426,20 @@ window.CalendarTextContrast={refresh,background,ink};if(document.readyState==='l
 })();
 
 </script>
+
+<style id="site-manage-unclipped-menu">
+body #siteManagePanel#siteManagePanel{box-sizing:border-box!important;height:auto!important;min-height:0!important;max-height:calc(100dvh - 16px)!important;overflow:auto!important;padding:6px!important;border:1px solid var(--line,#ccd8df)!important;border-radius:9px!important;background:var(--card,#fff)!important;box-shadow:0 8px 24px #1c344b26!important;z-index:2147483000!important;}
+body #siteManagePanel#siteManagePanel .menu-item-btn{display:flex!important;align-items:center!important;justify-content:flex-start!important;width:100%!important;min-height:34px!important;height:auto!important;box-sizing:border-box!important;margin:0!important;padding:8px 10px!important;text-align:left!important;white-space:nowrap!important;border:0!important;border-radius:5px!important;font-size:12px!important;line-height:18px!important;background:transparent!important;color:var(--text,#29475c)!important;}
+body #siteManagePanel#siteManagePanel .menu-item-btn:hover{background:var(--accent-soft,#eaf2f7)!important;}
+body #siteManagePanel#siteManagePanel .canva-danger-item{color:#b64d52!important;}
+</style>
+<style>body #siteManagePanel#siteManagePanel{outline:none!important;}body #siteManagePanel#siteManagePanel:focus-visible{outline:none!important;}</style>
+<style id="site-manage-readable-theme">
+body.theme-dark #siteManagePanel#siteManagePanel{background:#334657!important;border-color:#698195!important;}
+body.theme-dark #siteManagePanel#siteManagePanel .menu-item-btn,body.theme-dark #siteManagePanel#siteManagePanel .menu-item-btn *{color:#f1f6fb!important;-webkit-text-fill-color:#f1f6fb!important;opacity:1!important;}
+body.theme-dark #siteManagePanel#siteManagePanel .menu-item-btn:hover{background:#496276!important;}
+body.theme-dark #siteManagePanel#siteManagePanel .canva-danger-item,body.theme-dark #siteManagePanel#siteManagePanel .canva-danger-item *{color:#ffb9b9!important;-webkit-text-fill-color:#ffb9b9!important;}
+body:not(.theme-dark) #siteManagePanel#siteManagePanel{background:#fff!important;border-color:#c7d3df!important;}
+body:not(.theme-dark) #siteManagePanel#siteManagePanel .menu-item-btn,body:not(.theme-dark) #siteManagePanel#siteManagePanel .menu-item-btn *{color:#203c52!important;-webkit-text-fill-color:#203c52!important;opacity:1!important;}
+body:not(.theme-dark) #siteManagePanel#siteManagePanel .canva-danger-item,body:not(.theme-dark) #siteManagePanel#siteManagePanel .canva-danger-item *{color:#a63741!important;-webkit-text-fill-color:#a63741!important;}
+</style>
