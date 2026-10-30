@@ -2,22 +2,8 @@
 <html lang="ko">
 <head>
 <script id="shared-login-request-guard">
-(()=>{
- const key='password_login_cooldown_v2:',pending=new Map();
- function deadline(role){try{return Number(localStorage.getItem(key+role))||0;}catch{return 0;}}
- function message(until){const minutes=Math.max(1,Math.ceil((until-Date.now())/60000));return '로그인 시도 제한이 걸렸습니다. 약 '+minutes+'분 후 다시 시도해주세요. 이 로그인 유형의 요청은 제한 해제 후 다시 보냅니다.';}
- async function request(send,role,password){
-  const until=deadline(role);if(until>Date.now())throw Error(message(until));
-  const copy=response=>typeof response.clone==='function'?response.clone():response;
-  const id=role+'\u0000'+password;if(pending.has(id))return copy(await pending.get(id));
-  const task=(async()=>{const response=await send();if(response.status===429){
-   const retry=Number(response.headers?.get('retry-after')),expires=Date.now()+(retry>0?retry:900)*1000;
-   try{localStorage.setItem(key+role,String(expires));}catch(_){}throw Error(message(expires));
-  }return response;})();pending.set(id,task);
-  try{return copy(await task);}finally{if(pending.get(id)===task)pending.delete(id);}
- }
- window.SharedLoginGuard={request};
-})();
+(()=>{const pending=new Map();try{for(const k of Object.keys(localStorage)){if(k.startsWith('password_login_cooldown_v2:'))localStorage.removeItem(k);}}catch(_){}
+window.SharedLoginGuard={async request(send,role,password){const id=role+'\u0000'+password;const copy=r=>r.clone?r.clone():r;if(pending.has(id))return copy(await pending.get(id));const task=Promise.resolve().then(send);pending.set(id,task);try{return copy(await task);}finally{if(pending.get(id)===task)pending.delete(id);}}};})();
 </script>
 
 <meta name="calendar-build" content="2026.10.30.75">
@@ -8612,9 +8598,9 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
         <div class="fd-grid">
           <div class="fd-left-stack"><section class="fd-panel fd-calendar-panel"><div class="fd-cal-top">        <div class="fd-controlbar">
           <div class="fd-month-nav"><button class="fd-iconbtn" id="fdPrev" type="button">‹</button><div class="fd-month-title" id="fdMonthTitle"></div><button class="fd-iconbtn" id="fdNext" type="button">›</button><button class="fd-today" id="fdToday" type="button">오늘</button></div>
-          <div class="fd-filterline"><div class="fd-filter-wrap"><button type="button" class="fd-filter-btn" id="fdFilterBtn">${icons.tune}<span>필터</span><i class="fd-filter-dot" aria-hidden="true"></i></button><div class="fd-filter-menu" id="fdFilterMenu"><div id="fdFilters"></div></div></div></div>
+          <div class="fd-filterline"><button type="button" id="fdAvailableBtn" title="가능 날짜와 시간 설정"><i aria-hidden="true"></i>가능</button><div class="fd-filter-wrap"><button type="button" class="fd-filter-btn" id="fdFilterBtn">${icons.tune}<span>필터</span><i class="fd-filter-dot" aria-hidden="true"></i></button><div class="fd-filter-menu" id="fdFilterMenu"><div id="fdFilters"></div></div></div></div>
         </div>
-<span id="fdMonthHint"></span></div><div class="fd-cal"><div class="fd-weekdays"><div class="fd-weekday sun">일</div><div class="fd-weekday">월</div><div class="fd-weekday">화</div><div class="fd-weekday">수</div><div class="fd-weekday">목</div><div class="fd-weekday">금</div><div class="fd-weekday sat">토</div></div><div class="fd-days" id="fdDays"></div></div></section></div>
+<span id="fdMonthHint"></span></div><div class="fd-cal"><div class="fd-weekdays"><div class="fd-weekday">월</div><div class="fd-weekday">화</div><div class="fd-weekday">수</div><div class="fd-weekday">목</div><div class="fd-weekday">금</div><div class="fd-weekday sat">토</div><div class="fd-weekday sun">일</div></div><div class="fd-days" id="fdDays"></div></div></section></div>
           <div class="fd-right-stack">
             <section class="fd-panel fd-summary-panel" aria-label="월간 요약"><div class="fd-mini-head"><h2>월간 집계</h2><span id="fdSummaryBadge"></span></div><div class="fd-summary" id="fdSummary"></div></section>
             <section class="fd-panel fd-detail-panel"><div class="fd-mini-head"><h2>선택 일정</h2></div><div class="fd-detail" id="fdDetail"></div></section>
@@ -8657,14 +8643,14 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
   }
   function renderCalendar(){
     const days=q('#fdDays');if(!days||!viewDate)return;days.innerHTML='';
-    const y=viewDate.getFullYear(),m=viewDate.getMonth(),first=new Date(y,m,1),start=new Date(y,m,1-first.getDay()),todayD=new Date();todayD.setHours(0,0,0,0);
-    const weeks=Math.max(5,Math.ceil((first.getDay()+new Date(y,m+1,0).getDate())/7));
+    const y=viewDate.getFullYear(),m=viewDate.getMonth(),first=new Date(y,m,1),start=new Date(y,m,1-(first.getDay()+6)%7),todayD=new Date();todayD.setHours(0,0,0,0);
+    const weeks=Math.max(5,Math.ceil(((first.getDay()+6)%7+new Date(y,m+1,0).getDate())/7));
     days.style.setProperty("--fd-calendar-weeks",String(weeks));
     for(let i=0;i<weeks*7;i++){
       const d=new Date(start);d.setDate(start.getDate()+i);const k=key(d),other=d.getMonth()!==m,raw=totalRawEvents(k),vis=rawEvents(k);const b=document.createElement('button');b.type='button';b.className='fd-day '+(other?'other ':'')+(d.getDay()===0?'sun ':'')+(d.getDay()===6?'sat ':'')+(k===selectedKey&&!other?'selected ':'')+(d.getTime()===todayD.getTime()?'today ':'');
       if(other){b.disabled=true;b.className='fd-day other';b.innerHTML='<span class="fd-daynum">'+d.getDate()+'</span>';b.setAttribute('aria-label',dateLabel(d));days.appendChild(b);continue;}
       let dots='';if(!other){if(showGallery&&((raw.g>0)||raw.c>0)&&(!siteFilter||(GALLERY_ROWS?.[k]||[]).some(r=>gallerySite(r)===siteFilter)))dots+=`<i class="${raw.c&&!raw.g?'c':'g'}"></i>`;if(showTour&&raw.t>0)dots+='<i class="t"></i>'}
-      b.dataset.availabilityKey=k;
+      b.dataset.availabilityKey=k;b.__dayEvents=vis;
       const count=desktopDayCategorySummary(vis);
       const holiday=!other?holidayName(d):'';
       if(holiday)b.classList.add('holiday');
@@ -9366,7 +9352,7 @@ html body #formOverlay.booking-editor #formFields .booking-field-date>input[type
 <script id="calendar-site-availability">
 (()=>{
 'use strict';
-const KEY='calendar_site_availability_v1',F=window.CalendarFoundation,TIMES=['10:30','13:30','15:30'];
+const KEY='calendar_site_availability_v1',F=window.CalendarFoundation,TIMES=['10:30','13:30','15:00'];
 const owner=()=>window.CalendarAuthentication?.current()?.role==='admin';
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const read=()=>{try{return JSON.parse(localStorage.getItem(KEY)||'{}');}catch{return {};}};
@@ -9386,11 +9372,11 @@ function configure(){
  f.elements.slot.querySelector('[value=all]').disabled=!closed||!!target;
  if(!closed&&f.elements.slot.value==='all')f.elements.slot.value='10:30';
  dialog.querySelector('[data-site-caption]').textContent=closed?'사용하는 타사업지명':'현장명';
- dialog.querySelector('.availability-help').textContent=closed?'타사업지 사용은 해당 타임만 이용불가로 표시합니다. 다른 타임은 유지됩니다. 종일 휴관은 종일을 선택하세요.':gallery?'갤러리는 10:30 · 13:30 · 15:30 세 타임으로 등록합니다.':'투어는 현장별 가능 시작·종료 시간을 등록합니다.';
+ dialog.querySelector('.availability-help').textContent=closed?'타사업지 사용은 해당 타임만 이용불가로 표시합니다. 다른 타임은 유지됩니다. 종일 휴관은 종일을 선택하세요.':gallery?'갤러리는 10:30 · 13:30 · 15:00 세 타임으로 등록합니다.':'투어는 현장별 가능 시작·종료 시간을 등록합니다.';
 }
 function create(){
  if(dialog)return;dialog=document.createElement('dialog');dialog.id='calendarAvailabilityEditor';
- dialog.innerHTML='<form><header><h2></h2><button type="button" data-dismiss aria-label="닫기">×</button></header><div class="availability-fields"><label>날짜<input type="date" name="date" required></label><label>설정<select name="use"><option value="closed">휴관 / 이용불가</option><option value="other">타사업지 사용</option></select></label><label><span data-site-caption>현장명</span><input name="site" list="availabilitySites" required autocomplete="off"><datalist id="availabilitySites"></datalist></label><label>구분<select name="kind"><option value="gallery">갤러리</option><option value="tour">투어</option></select></label><label>갤러리 타임<select name="slot"><option value="10:30">10:30</option><option value="13:30">13:30</option><option value="15:30">15:30</option><option value="all">종일 (3타임 전체)</option></select></label><label>시작 시간<input type="time" name="start" required></label><label>종료 시간<input type="time" name="end" required></label><label class="availability-wide">내용<input name="note" maxlength="160" placeholder="예: 시설 점검 / 현장명 추가 안내"></label></div><p class="availability-error" role="alert"></p><p class="availability-help"></p><section class="availability-list"></section><footer><button type="button" data-release hidden>휴관 해제</button><button type="button" data-dismiss>취소</button><button type="submit">저장</button></footer></form>';
+ dialog.innerHTML='<form><header><h2></h2><button type="button" data-dismiss aria-label="닫기">×</button></header><div class="availability-fields"><label>날짜<input type="date" name="date" required></label><label>설정<select name="use"><option value="closed">휴관 / 이용불가</option><option value="other">타사업지 사용</option></select></label><label><span data-site-caption>현장명</span><input name="site" list="availabilitySites" required autocomplete="off"><datalist id="availabilitySites"></datalist></label><label>구분<select name="kind"><option value="gallery">갤러리</option><option value="tour">투어</option></select></label><label>갤러리 타임<select name="slot"><option value="10:30">10:30</option><option value="13:30">13:30</option><option value="15:00">15:00</option><option value="all">종일 (3타임 전체)</option></select></label><label>시작 시간<input type="time" name="start" required></label><label>종료 시간<input type="time" name="end" required></label><label class="availability-wide">내용<input name="note" maxlength="160" placeholder="예: 시설 점검 / 현장명 추가 안내"></label></div><p class="availability-error" role="alert"></p><p class="availability-help"></p><section class="availability-list"></section><footer><button type="button" data-release hidden>휴관 해제</button><button type="button" data-dismiss>취소</button><button type="submit">저장</button></footer></form>';
  document.body.append(dialog);dialog.querySelectorAll('[data-dismiss]').forEach(b=>b.onclick=()=>dialog.close());
  dialog.querySelector('[data-release]').onclick=()=>{if(!owner())return;const data=read(),date=dialog.querySelector('[name=date]').value;if(target&&data[target]){delete data[target];localStorage.setItem(KEY,JSON.stringify(data));}else if(GALLERY_CLOSED[dateKey(date)]){delete GALLERY_CLOSED[dateKey(date)];persistScheduleData();rebuildDATA();}else return;dialog.close();try{onScheduleDataChanged();}catch(e){}refresh();};
  const f=dialog.querySelector('form');f.elements.use.onchange=configure;f.elements.kind.onchange=configure;f.elements.date.onchange=list;
@@ -9421,7 +9407,7 @@ function create(){
 }
 function list(){
  const box=dialog.querySelector('.availability-list'),data=read(),date=dialog.querySelector('[name=date]').value;box.replaceChildren();
- const entries=Object.entries(data).filter(([,v])=>v.date===date).sort((a,b)=>a[1].start.localeCompare(b[1].start));
+ const entries=Object.entries(data).filter(([,v])=>v.date===date&&v.kind!=='date-color').sort((a,b)=>a[1].start.localeCompare(b[1].start));
  if(GALLERY_CLOSED[dateKey(date)]){const row=document.createElement('div');row.innerHTML='<span>종일 휴관<small>'+esc(GALLERY_CLOSED[dateKey(date)])+'</small></span><button type="button">해제</button>';row.querySelector('button').onclick=()=>{if(!owner()||!confirm('종일 휴관 지정을 해제할까요?'))return;delete GALLERY_CLOSED[dateKey(date)];persistScheduleData();rebuildDATA();list();refresh();};box.append(row);}
  for(const [id,v]of entries){const row=document.createElement('div'),state=status(v),label=state==='other'?'타사업지 사용':state==='closed'?'휴관 / 불가':'방문 가능';row.innerHTML='<span>'+esc(v.site||'갤러리')+' · '+label+'<small>'+esc(v.start+(v.end?'–'+v.end:''))+(v.note?' · '+esc(v.note):'')+'</small></span><button type="button">수정</button><button type="button">삭제</button>';const [edit,del]=row.querySelectorAll('button');edit.onclick=()=>open(state==='available'?'available':'closed',date,id);del.onclick=()=>{if(!owner())return;const latest=read();if(JSON.stringify(latest[id])!==JSON.stringify(v)){dialog.querySelector('.availability-error').textContent='수정된 내용입니다. 다시 확인해주세요.';list();return;}if(!confirm(v.start+' '+label+'을 삭제할까요?'))return;delete latest[id];localStorage.setItem(KEY,JSON.stringify(latest));list();refresh();};box.append(row);}
 }
@@ -9434,7 +9420,7 @@ function open(type='available',date,id=''){
  dialog.querySelector('h2').textContent=type==='closed'?'갤러리 휴관 / 타사업지 사용':'현장별 가능 날짜·시간';configure();const options=typeof gallerySiteSuggestions==='function'?gallerySiteSuggestions():[];dialog.querySelector('datalist').innerHTML=[...new Set([...options,...Object.values(read()).map(v=>v.site)].filter(Boolean))].map(s=>'<option value="'+esc(s)+'"></option>').join('');list();if(!dialog.open)dialog.showModal();dialog.querySelector('[data-dismiss]').focus({preventScroll:true});
 }
 function paint(){
- const data=Object.values(read()),site=(matchMedia('(max-width:760px)').matches?document.getElementById('proSiteSelect')?.value:document.querySelector('#fdFilters [data-site].on')?.dataset.site)||'';
+ const data=Object.values(read()).filter(v=>v.kind!=='date-color'),site=(matchMedia('(max-width:760px)').matches?document.getElementById('proSiteSelect')?.value:document.querySelector('#fdFilters [data-site].on')?.dataset.site)||'';
  document.querySelectorAll('.pro-day,#fdDays .fd-day:not(.other)').forEach(b=>{
   const k=b.dataset.key||b.dataset.availabilityKey;if(!k)return;const day=dateISO(k),rows=data.filter(v=>v.date===day&&status(v)==='available'&&(!site||v.site===site));
   const visible=rows.filter(v=>v.kind!=='gallery'||!blockFor(day,v.start));const blocks=data.filter(v=>v.date===day&&status(v)!=='available');b.classList.toggle('has-site-availability',visible.length>0);b.classList.toggle('has-gallery-external',blocks.some(v=>status(v)==='other'));b.classList.toggle('has-gallery-slot-closure',blocks.some(v=>status(v)==='closed'));
@@ -9456,7 +9442,108 @@ window.CalendarAvailability={open,read,paint,slots,blockFor,normalizeTime:time};
 })();
 
 </script>
-</body>
+
+<style id="calendar-available-key">
+#freshDesktopApp .fd-filterline{display:flex!important;align-items:center!important;gap:8px!important;}
+#freshDesktopApp #fdAvailableBtn{display:inline-flex!important;align-items:center;justify-content:center;gap:6px;width:auto!important;min-width:64px;height:32px;padding:0 9px;border:1px solid #8cb3ce;border-radius:5px;background:#edf5fb;color:#244b68;font-size:12px;white-space:nowrap;}
+#fdAvailableBtn i{width:12px;height:12px;border-radius:3px;background:#c8e0f2;border:1px solid #6695b7;}
+html body #freshDesktopApp #fdDays .fd-day.has-site-availability{background:#dcecf8!important;box-shadow:inset 0 -3px #6695b7!important;color:#203d53!important;}
+html body #freshDesktopApp #fdDays .fd-day.has-site-availability.selected{box-shadow:inset 0 0 0 2px #386e96!important;}
+</style>
+<script id="calendar-available-key-js">
+(()=>{document.addEventListener('click',e=>{if(!e.target.closest('#fdAvailableBtn'))return;
+const day=document.querySelector('#fdDays .fd-day.selected')?.dataset.availabilityKey;
+window.CalendarAvailability?.open('available',day);
+});})();
+</script>
+<style id="simple-date-colors">#dateColorMenu{position:fixed;z-index:2147483647;display:flex;gap:4px;padding:7px;background:white;border:1px solid #c6d4e0;border-radius:8px;box-shadow:0 5px 18px #243c5424;color:#253b50;}
+#dateColorMenu button{display:flex;align-items:center;gap:5px;padding:7px 9px;border:1px solid transparent;border-radius:5px;background:transparent;color:#253b50;font-size:12px;white-space:nowrap;}
+#dateColorMenu button.on{border-color:#5888b0;background:#edf4fa;}
+#dateColorMenu i{width:11px;height:11px;border-radius:3px;}.blue{background:#84b7e3}.red{background:#e7a0a0}
+html body #freshDesktopApp #fdDays .fd-day.selected,html body #freshDesktopApp #fdDays .fd-day:focus,html body #freshDesktopApp #fdDays .fd-day:focus-visible{background:#fbfdff!important;outline:none!important;box-shadow:inset 0 0 0 1px #64829a!important;}
+html body #freshDesktopApp #fdDays .fd-day:hover{background:#f0f5fa!important;}
+html body #freshDesktopApp #fdDays .fd-day[data-date-color="blue"],html body #freshDesktopApp #fdDays .fd-day[data-date-color="blue"]:hover{background:#d9eafb!important;box-shadow:inset 0 -3px #699fca!important;}
+html body #freshDesktopApp #fdDays .fd-day[data-date-color="red"],html body #freshDesktopApp #fdDays .fd-day[data-date-color="red"]:hover{background:#fbe1e1!important;box-shadow:inset 0 -3px #cf8585!important;}
+html body #freshDesktopApp #fdDays .fd-day:active{transform:none!important;}
+.calendar-color-painting #fdDays .fd-day{cursor:crosshair!important;}
+</style><script id="simple-date-colors-js">(()=>{const KEY='calendar_site_availability_v1',TIMES=['10:30','13:30','15:00'];let mode='',slot='all',panel;
+const owner=()=>window.CalendarAuthentication?.current()?.role==='admin';
+const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function read(){try{return JSON.parse(localStorage.getItem(KEY)||'{}')}catch{return {}}}
+function iso(key){return CalendarFoundation.year+'-'+key.split('-').map(x=>x.padStart(2,'0')).join('-');}
+function summary(events,key){
+ const date=iso(key),data=read(),mark=data['date-color:'+date],records=Object.values(data).filter(v=>v.date===date&&v.kind!=='date-color');
+ const gallery=events.filter(v=>v.kind==='gallery'),tour=events.filter(v=>v.kind==='tour');
+ const hasGallery=gallery.length||mark&&mark.color!=='none'||mark?.slots&&Object.keys(mark.slots).length||records.some(v=>v.kind==='gallery')||window.GALLERY_CLOSED?.[key];
+ let html='',states=[];
+ if(hasGallery){
+  const times=[...new Set([...TIMES,...gallery.map(v=>CalendarAvailability.normalizeTime(v.time)||v.time)])].sort();
+  const lines=times.map(time=>{
+   const booked=gallery.filter(v=>(CalendarAvailability.normalizeTime(v.time)||v.time)===time),block=CalendarAvailability.blockFor(date,time),specific=mark?.slots?.[time],color=specific||mark?.color;
+   let state='unset',text='미지정';
+   if(block){state='red';text=block.status==='other'?'타사업지 사용':'불가';}
+   else if(booked.length){state='booked';const sites=new Map();for(const v of booked){const n=1+(typeof parseCompanionCount==='function'?parseCompanionCount(v.raw?.[3]):0);sites.set(v.site,(sites.get(v.site)||0)+n);}text=[...sites].map(([site,n])=>String(site||'현장 미지정').replace(/^목동/,'').replace(/아파트$/,'')+' '+n+'명').join(', ');}
+   else if(color==='red'){state='red';text='불가';}
+   else if(color==='blue'||records.some(v=>v.status==='available'&&v.kind==='gallery'&&v.start===time)){state='blue';text='가능';}
+   states.push(state);return '<span class="fd-slot-line '+state+'"><time>'+esc(time)+'</time><span> - '+esc(text)+'</span></span>';
+  });
+  const closed=mark?.closed===true;
+  html='<span class="fd-gallery-title">🖼️ 갤러리'+(closed?' (마감)':'')+'</span>'+lines.join('');
+ }
+ for(const v of tour)html+='<span class="fd-slot-line tour"><time>'+esc(CalendarAvailability.normalizeTime(v.time)||v.time)+'</time><span> 🚗 '+esc(v.site||'투어')+'</span></span>';
+ return {html,state:mark?.closed===true?'red':states.includes('blue')?'blue':mark?.color==='red'?'red':mark?.color==='none'?'none':''};
+}
+function paint(){document.querySelectorAll('#fdDays .fd-day:not(.other)').forEach(b=>{const key=b.dataset.availabilityKey;if(!key)return;const view=summary(b.__dayEvents||[],key);let box=b.querySelector('.fd-day-categories');if(!box&&view.html){box=document.createElement('span');box.className='fd-day-categories';b.append(box);}if(box&&box.innerHTML!==view.html)box.innerHTML=view.html;if(b.dataset.dateColor!==view.state)b.dataset.dateColor=view.state;});}
+function close(){panel?.remove();panel=null;}
+function menu(button){if(panel){close();return;}panel=document.createElement('div');panel.id='dateColorMenu';panel.innerHTML='<select aria-label="색을 표시할 시간"><option value="all">세 타임 전체</option>'+TIMES.map(t=>'<option>'+t+'</option>').join('')+'</select><button data-color="blue"><i class="blue"></i>가능</button><button data-color="red"><i class="red"></i>불가</button><button data-color="closed">마감 지정</button><button data-color="clear">지우기</button><button data-color="">완료</button>';document.body.append(panel);const r=button.getBoundingClientRect();panel.style.top=(r.bottom+6)+'px';panel.style.left=Math.max(8,Math.min(r.left,innerWidth-420))+'px';const select=panel.querySelector('select');select.value=slot;select.onchange=()=>slot=select.value;panel.querySelectorAll('button').forEach(b=>{b.classList.toggle('on',b.dataset.color===mode);b.onclick=()=>{mode=b.dataset.color;document.body.classList.toggle('calendar-color-painting',!!mode);close();if(mode)menu(button);};});}
+document.addEventListener('click',e=>{const button=e.target.closest('#fdAvailableBtn');if(button){e.preventDefault();e.stopImmediatePropagation();if(owner())menu(button);return;}const day=e.target.closest('#fdDays .fd-day:not(.other)');if(day&&mode&&owner()){e.preventDefault();e.stopImmediatePropagation();const date=iso(day.dataset.availabilityKey),data=read(),id='date-color:'+date,record=data[id]||{date,kind:'date-color',status:'mark'};const color=mode==='clear'?'none':mode==='closed'?'red':mode;if(mode==='closed'){record.closed=true;record.color='red';}else if(slot==='all'){record.closed=false;record.color=color;delete record.slots;}else{record.slots={...record.slots,[slot]:color};}data[id]=record;localStorage.setItem(KEY,JSON.stringify(data));paint();return;}if(panel&&!panel.contains(e.target))close();},true);
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){mode='';document.body.classList.remove('calendar-color-painting');close();}});
+let queued=false;new MutationObserver(()=>{if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;paint();const b=document.getElementById('fdAvailableBtn');if(b&&b.textContent!=='가능 / 불가'){b.innerHTML='<i aria-hidden="true"></i>가능 / 불가';b.title='파란색 가능 · 빨간색 불가';}});}).observe(document.body,{childList:true,subtree:true});window.addEventListener('calendar-data-applied',paint);paint();
+})();</script><style>html body #freshDesktopApp #fdDays .fd-day[data-date-color="none"]{background:#fbfdff!important;box-shadow:none!important;}html body #freshDesktopApp #fdDays .fd-day[data-date-color="none"].selected{box-shadow:inset 0 0 0 1px #64829a!important;}</style><style id="calendar-slot-cell-summary">
+html body #freshDesktopApp #fdDays .fd-day{padding:5px 4px!important;overflow:auto!important;}
+html body #freshDesktopApp #fdDays .fd-day-categories{display:flex!important;position:static!important;flex-direction:column!important;align-items:stretch!important;gap:1px!important;margin:3px 0 0!important;width:100%!important;}
+#freshDesktopApp .fd-gallery-title{font-size:11px;line-height:15px;font-weight:600;text-align:left;white-space:nowrap;color:#273e50;}
+#freshDesktopApp .fd-slot-line{display:flex!important;align-items:baseline;flex-wrap:wrap;gap:0;font-size:10px;line-height:14px;color:#273e50;text-align:left;white-space:normal!important;}
+#freshDesktopApp .fd-slot-line time{flex:0 0 auto;font:inherit!important;}
+#freshDesktopApp .fd-slot-line.blue{background:none;color:#245f91;}#freshDesktopApp .fd-slot-line.red{background:none;color:#9f3d40;}
+#dateColorMenu select{font-size:12px;max-width:115px;border:1px solid #c6d4e0;border-radius:4px;background:white;color:#253b50;}
+#freshDesktopApp #fdDays .fd-day-note,#freshDesktopApp #fdDays .fd-dots{display:none!important;}
+</style>
+<style id="desktop-calendar-room-for-slots">
+@media(min-width:761px){
+html body #freshDesktopApp{--desktop-bottom-panel-height:clamp(140px,20vh,185px);}
+html body #freshDesktopApp .fd-grid{grid-template-columns:minmax(0,1.35fr) minmax(0,1fr)!important;}
+html body #freshDesktopApp #fdDays{grid-auto-rows:minmax(88px,1fr)!important;grid-template-rows:repeat(var(--fd-calendar-weeks,6),minmax(88px,1fr))!important;overflow:visible!important;}
+html body #freshDesktopApp #fdDays .fd-day{overflow:hidden!important;min-height:88px!important;padding:4px 5px!important;display:flex!important;flex-direction:column!important;align-items:stretch!important;justify-content:flex-start!important;}
+html body #freshDesktopApp #fdDays .fd-daynum{position:static!important;display:block!important;float:none!important;align-self:stretch!important;text-align:right!important;width:auto!important;min-height:16px!important;height:16px!important;line-height:16px!important;margin:0!important;}
+html body #freshDesktopApp #fdDays .fd-day-categories{margin:1px 0 0!important;gap:0!important;flex:0 0 auto!important;overflow:visible!important;}
+html body #freshDesktopApp #fdDays .fd-gallery-title{font-size:11px!important;line-height:14px!important;min-height:14px;}
+html body #freshDesktopApp #fdDays .fd-slot-line{flex-wrap:nowrap!important;font-size:11px!important;line-height:14px!important;min-height:14px;}
+html body #freshDesktopApp #fdDays .fd-slot-line time{flex:0 0 34px!important;}
+html body #freshDesktopApp #fdDays .fd-slot-line>span{white-space:normal!important;overflow-wrap:anywhere;font:inherit!important;line-height:inherit!important;}
+}
+</style>
+<style id="calendar-compact-month-fit">
+@media(min-width:761px){
+html body #freshDesktopApp{--desktop-bottom-panel-height:150px!important;}
+html body #freshDesktopApp .fd-cal-top{height:42px!important;min-height:42px!important;flex:0 0 42px!important;padding:5px 12px!important;box-sizing:border-box!important;}
+html body #freshDesktopApp .fd-controlbar{height:30px!important;min-height:30px!important;}
+html body #freshDesktopApp .fd-month-title{font-size:18px!important;}
+html body #freshDesktopApp .fd-calendar-panel{overflow:hidden!important;}
+html body #freshDesktopApp .fd-weekdays{height:28px!important;min-height:28px!important;flex:0 0 28px!important;}
+html body #freshDesktopApp .fd-weekday{padding:5px 0!important;}
+html body #freshDesktopApp #fdDays{grid-template-rows:repeat(var(--fd-calendar-weeks,6),minmax(0,1fr))!important;grid-auto-rows:minmax(0,1fr)!important;overflow:hidden!important;}
+html body #freshDesktopApp #fdDays .fd-day{min-height:0!important;padding:2px 4px!important;box-sizing:border-box!important;}
+}
+@media(min-width:761px) and (max-height:800px){
+html body #freshDesktopApp{--desktop-bottom-panel-height:105px!important;}
+html body #freshDesktopApp .fd-content{padding-top:10px!important;padding-bottom:10px!important;}
+html body #freshDesktopApp .fd-left-stack{gap:10px!important;}
+html body #freshDesktopApp #fdDays .fd-daynum{height:13px!important;min-height:13px!important;line-height:13px!important;font-size:11px!important;}
+html body #freshDesktopApp #fdDays .fd-gallery-title{font-size:10px!important;line-height:11px!important;min-height:11px!important;}
+html body #freshDesktopApp #fdDays .fd-slot-line{font-size:10px!important;line-height:11px!important;min-height:11px!important;}
+}
+</style></body>
 <style id="calendar-shared-ui-style">.calendar-sync-status{display:block;font:11px/1.4 'Malgun Gothic',system-ui,sans-serif;color:#66857c;white-space:normal;overflow-wrap:anywhere;max-width:100%;margin-top:3px;}
 @media(max-width:760px){.calendar-sync-status{font-size:10px;margin-top:5px;}}
 @media print{.calendar-sync-status{display:none!important;}}
@@ -9662,7 +9749,7 @@ document.addEventListener('click',function(e){
 <style id="desktop-selected-actions-column">
 </style>
 <style>
-#fdScheduleDetails{width:min(680px,90vw);max-height:80vh;padding:0;border:1px solid #dce8e8;border-radius:12px;color:#16394f;background:white;box-shadow:0 18px 65px #16394f30;}
+#fdScheduleDetails{width:min(688px,90vw);max-height:80vh;padding:0;border:1px solid #dce8e8;border-radius:12px;color:#16394f;background:white;box-shadow:0 18px 65px #16394f30;}
 #fdScheduleDetails::backdrop{background:#102a4355;}
 #fdScheduleDetails .fd-popup-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #e5eded;}
 #fdScheduleDetails .fd-popup-head button{padding:6px 12px;background:white;border:1px solid #dce8e8;border-radius:6px;cursor:pointer;}
@@ -9687,7 +9774,7 @@ document.addEventListener('click',function(e){
 </style>
 
 <style id="calendar-month-popup-readable-checklist-20261007">
-.fd-summary-dialog{width:min(880px,94vw)!important;}
+.fd-summary-dialog{width:min(888px,94vw)!important;}
 .fd-month-detail-row{grid-template-columns:64px 60px minmax(0,1fr) 65px!important;min-height:60px!important;padding:9px 8px!important;gap:10px!important;}
 .fd-month-detail-main strong{font-size:14px!important;line-height:1.5!important;white-space:normal!important;}
 .fd-month-detail-main span{font-size:12px!important;line-height:1.5!important;white-space:normal!important;}
@@ -9725,7 +9812,7 @@ function toggleChecklistColumnFilter(kind){
 </style>
 
 <style id="calendar-day-popup-layout">/* Leave more room for the selected schedule, totals and checklist on wide screens. */
-#fdDaySchedulePopup{padding:0;width:min(880px,calc(100vw - 32px));max-height:82dvh;box-sizing:border-box;color:#17343d;}
+#fdDaySchedulePopup{padding:0;width:min(888px,calc(100vw - 32px));max-height:82dvh;box-sizing:border-box;color:#17343d;}
 #fdDaySchedulePopup::backdrop{background:rgba(16,42,51,.30);}
 #fdDaySchedulePopup .fd-summary-dialog-head{min-height:50px;height:auto;gap:12px;}
 #fdDaySchedulePopup .fd-summary-dialog-head strong{padding:12px 0;line-height:1.5;}
@@ -9783,7 +9870,7 @@ html.calendar-unlocked #lockScreen{display:none!important;}
 </script>
 
 <style id="calendar-booking-editor-style">/* Compact booking editor: site/time, unit/name/companions, staff/transport, notes. */
-#formOverlay.booking-editor .modal{width:min(480px,calc(100vw - 28px))!important;max-width:480px!important;max-height:calc(100dvh - 32px)!important;padding:24px!important;border:1px solid #e1e8e3!important;border-radius:20px!important;background:#fff!important;box-shadow:0 20px 70px #183a3626!important;box-sizing:border-box!important;overflow:auto!important;}
+#formOverlay.booking-editor .modal{width:min(488px,calc(100vw - 28px))!important;max-width:488px!important;max-height:calc(100dvh - 32px)!important;padding:24px!important;border:1px solid #e1e8e3!important;border-radius:20px!important;background:#fff!important;box-shadow:0 20px 70px #183a3626!important;box-sizing:border-box!important;overflow:auto!important;}
 #formOverlay.booking-editor #formTitle{position:relative!important;margin:0 0 18px!important;padding:0 36px 15px 13px!important;border-bottom:1px solid #edf1ed!important;color:#294b40!important;font-size:17px!important;font-weight:700!important;letter-spacing:-.5px!important;line-height:1.4!important;}
 #formOverlay.booking-editor #formTitle::before{content:'';position:absolute;left:0;top:3px;width:4px;height:17px;background:#6a9b83;border-radius:3px;}
 #formOverlay.booking-editor .modal::before{display:none!important;}
@@ -9883,10 +9970,10 @@ html.calendar-unlocked #lockScreen{display:none!important;}
     };
     for(const id of ['fdScheduleDetails','fdDaySchedulePopup','fdMonthDetailsDialog']){const dialog=document.getElementById(id);if(dialog?.open)dialog.close();}
     previewKey=key;
-    openForm((kind==='gallery'?CAT_LABEL.gallery:CAT_LABEL.tour)+' 일정 '+(editing?'수정':'추가'),fields(current).map(field=>kind==='gallery'&&field.id==='time'?{...field,options:['10:30','13:30','15:30']}:field),v=>{
+    openForm((kind==='gallery'?CAT_LABEL.gallery:CAT_LABEL.tour)+' 일정 '+(editing?'수정':'추가'),fields(current).map(field=>kind==='gallery'&&field.id==='time'?{...field,options:['10:30','13:30','15:00']}:field),v=>{
       const targetStore=kind==='gallery'?GALLERY_ROWS:TOUR_ROWS;
       const targetKey=dateKey(v.date);if(!targetKey){alert('현재 달력 연도 안에서 날짜를 선택해 주세요.');return;}
-      if(kind==='gallery'&&(!editing||v.time!==current.time)&&!['10:30','13:30','15:30'].includes(window.CalendarAvailability?.normalizeTime(v.time))){alert('갤러리는 10:30, 13:30, 15:30 중에서 선택해주세요.');return;}
+      if(kind==='gallery'&&(!editing||v.time!==current.time)&&!['10:30','13:30','15:00'].includes(window.CalendarAvailability?.normalizeTime(v.time))){alert('갤러리는 10:30, 13:30, 15:00 중에서 선택해주세요.');return;}
       const galleryBlock=kind==='gallery'&&window.CalendarAvailability?.blockFor(v.date,v.time);
       if(galleryBlock&&(!editing||targetKey!==key||v.time!==current.time)){alert('선택한 갤러리 타임은 '+(galleryBlock.status==='other'?'타사업지 사용 ('+galleryBlock.site+')':'휴관 / 이용불가')+'으로 지정됐습니다. 다른 타임을 선택해주세요.');return;}
       if(editing&&JSON.stringify(targetStore[key]?.[index])!==original){alert('편집 중 이 일정이 변경되었습니다. 최신 일정을 다시 열어 수정해 주세요.');return;}
@@ -10026,7 +10113,7 @@ html.calendar-unlocked #lockScreen{display:none!important;}
 #fdDaySchedulePopup .day-time-members .booking-sub{font-size:11px!important;margin-top:3px!important;color:#6a7f8c!important;}
 #fdDaySchedulePopup .day-time-members .booking-memo{margin:5px 0 0!important;padding:0!important;background:transparent!important;font-size:11px!important;color:#6a7f8c!important;}
 #fdDaySchedulePopup .day-time-members .booking-memo small{display:inline!important;font-size:10px!important;}
-@media(max-width:580px){#fdDaySchedulePopup .fd-summary-dialog-head strong{font-size:16px!important;}#fdDaySchedulePopup .day-time-group,#fdDaySchedulePopup .day-roster-columns{grid-template-columns:74px minmax(0,1fr)!important;}}
+@media(max-width:588px){#fdDaySchedulePopup .fd-summary-dialog-head strong{font-size:16px!important;}#fdDaySchedulePopup .day-time-group,#fdDaySchedulePopup .day-roster-columns{grid-template-columns:74px minmax(0,1fr)!important;}}
 
 </style>
 
@@ -10142,7 +10229,7 @@ html.calendar-unlocked #lockScreen{display:none!important;}
 #freshDesktopApp #fdLegacyMount :is(.table-wrap,.table-scroll){height:auto!important;max-height:none!important;overflow:visible!important;}
 #freshDesktopApp #fdLegacyMount :is(.filterbar,.managerFilterBar){display:flex!important;flex-wrap:wrap!important;gap:5px!important;margin:0 0 7px!important;padding:0!important;}
 #freshDesktopApp #fdLegacyMount :is(button,select){font-family:inherit!important;font-size:11px!important;min-height:28px!important;line-height:1.4!important;}
-#freshDesktopApp #fdLegacyMount table{width:100%!important;min-width:580px!important;height:auto!important;table-layout:auto!important;border-collapse:collapse!important;}
+#freshDesktopApp #fdLegacyMount table{width:100%!important;min-width:588px!important;height:auto!important;table-layout:auto!important;border-collapse:collapse!important;}
 #freshDesktopApp #fdLegacyMount :is(th,td){position:static!important;height:auto!important;padding:8px 5px!important;font-size:12px!important;line-height:1.5!important;color:#31556b;word-break:keep-all!important;white-space:normal!important;overflow:visible!important;text-overflow:clip!important;}
 #freshDesktopApp #fdLegacyMount th{background:#eef4f7;color:#5a7789;white-space:nowrap!important;}
 #freshDesktopApp #fdWeekPanel{margin:0;padding:0;min-height:160px;height:auto;overflow:visible;}
@@ -10210,7 +10297,7 @@ html.calendar-unlocked #lockScreen{display:none!important;}
 #freshDesktopApp #fdWeekPanel .fd-mini-head{height:38px!important;min-height:38px!important;padding-top:5px!important;padding-bottom:5px!important;}
 #freshDesktopApp #fdWeekPanel .fd-week-chart{height:112px!important;min-height:112px!important;padding:8px 12px 10px!important;}
 /* Attendance preview is a compact date/site/time roster, without nested tables. */
-#statusOverlay .modal{width:min(880px,calc(100vw - 32px))!important;max-width:880px!important;max-height:84dvh!important;display:flex!important;flex-direction:column!important;gap:0!important;padding:0!important;border:1px solid #d8e3e9!important;border-radius:12px!important;overflow:hidden!important;background:#fff!important;box-shadow:0 20px 70px #183b4d33!important;}
+#statusOverlay .modal{width:min(888px,calc(100vw - 32px))!important;max-width:888px!important;max-height:84dvh!important;display:flex!important;flex-direction:column!important;gap:0!important;padding:0!important;border:1px solid #d8e3e9!important;border-radius:12px!important;overflow:hidden!important;background:#fff!important;box-shadow:0 20px 70px #183b4d33!important;}
 #statusOverlay .modal:before,#statusOverlay .modal:after{display:none!important;content:none!important;}
 #statusOverlay #statusTitle{flex:none!important;margin:0!important;padding:15px 48px 15px 18px!important;font-size:16px!important;line-height:1.5!important;border-bottom:1px solid #e1e9ee!important;color:#254b61!important;}
 #statusOverlay .close{position:absolute!important;right:12px!important;top:12px!important;width:28px!important;height:28px!important;border:0!important;border-radius:50%!important;background:#f0f5f7!important;color:#6d8794!important;}
@@ -10359,7 +10446,7 @@ html.calendar-unlocked #lockScreen{display:none!important;}
  #freshDesktopApp #summaryBar .summary-card:before,#freshDesktopApp #summaryBar .summary-card:after{display:none!important;content:none!important;}
  #freshDesktopApp #fdLegacyMount :is(.filterbar,.managerFilterBar){position:absolute!important;right:14px!important;top:43px!important;display:flex!important;flex-wrap:nowrap!important;justify-content:flex-end!important;gap:4px!important;width:53%!important;min-width:0!important;height:30px!important;margin:0!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important;}
  #freshDesktopApp #fdLegacyMount :is(button,select){height:27px!important;min-height:27px!important;border-radius:4px!important;font-size:11px!important;line-height:1.4!important;}
- #freshDesktopApp #dateFilter{width:145px!important;flex:1 1 100px!important;min-width:80px!important;max-width:180px!important;font-size:11px!important;}
+ #freshDesktopApp #dateFilter{width:145px!important;flex:1 1 100px!important;min-width:88px!important;max-width:188px!important;font-size:11px!important;}
  #freshDesktopApp #fdLegacyMount :is(#managerTable,#checklistBody){flex:1 1 0!important;display:block!important;min-height:0!important;height:auto!important;max-height:none!important;margin:0!important;padding:0!important;overflow:auto!important;border:0!important;border-radius:4px!important;box-shadow:none!important;scrollbar-width:thin!important;}
  #freshDesktopApp #fdLegacyMount :is(.table-scroll,.table-wrap){height:auto!important;min-height:0!important;margin:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;overflow:visible!important;}
  #freshDesktopApp #fdLegacyMount table{width:100%!important;min-width:0!important;table-layout:fixed!important;border:0!important;border-collapse:collapse!important;border-radius:0!important;background:#fff!important;box-shadow:none!important;}
@@ -10681,7 +10768,7 @@ html body #freshDesktopApp #fdLegacyMount #fdOperationsFilters :is(.filterbar,.m
 html body #freshDesktopApp .fd-ops-panel:has(#fdManagerTab[aria-selected="true"]) #fdOperationsFilters .fd-filter-check{display:none!important;}
 html body #freshDesktopApp .fd-ops-panel:has(#fdChecklistTab[aria-selected="true"]) #fdOperationsFilters .fd-filter-manager{display:none!important;}
 html body #freshDesktopApp #fdOperationsFilters :is(button,select){height:32px!important;min-height:32px!important;margin:0!important;padding:4px 10px!important;border:1px solid #d6e0e8!important;border-radius:6px!important;background:#fff!important;font-size:var(--ui-type-small,12px)!important;}
-html body #freshDesktopApp #fdOperationsFilters #dateFilter{flex:1 1 180px!important;width:auto!important;min-width:150px!important;max-width:280px!important;}
+html body #freshDesktopApp #fdOperationsFilters #dateFilter{flex:1 1 188px!important;width:auto!important;min-width:150px!important;max-width:288px!important;}
 html body #freshDesktopApp #fdLegacyMount table :is(th,td){font-size:var(--ui-type-body,14px)!important;line-height:1.5!important;}
 html body #freshDesktopApp #fdLegacyMount table thead th{font-size:var(--ui-type-small,12px)!important;font-weight:600!important;}
 html body #freshDesktopApp #fdLegacyMount tr[data-fd-site-tone] .fd-site-cell{font-weight:600!important;border-left:3px solid #84a3b7!important;background:#edf3f7!important;color:#4d7087!important;}
@@ -10836,7 +10923,7 @@ html body #statusOverlay .status-visit-heading{border:0!important;border-radius:
 
 <style id="desktop-summary-height-final">
 @media screen and (min-width:761px){
-html body #freshDesktopApp .fd-right-stack{grid-template-rows:80px minmax(0,1fr)!important;}
+html body #freshDesktopApp .fd-right-stack{grid-template-rows:88px minmax(0,1fr)!important;}
 html body #freshDesktopApp #fdSummary{padding-top:8px!important;padding-bottom:8px!important;box-sizing:border-box!important;}
 html body #freshDesktopApp .fd-kpi{height:48px!important;}
 }
@@ -11001,7 +11088,6 @@ html body #freshDesktopApp #fdLegacyMount .fd-site-heading strong::before{conten
   if(!current||!next.trim())throw Error('현재 비밀번호와 새 비밀번호를 입력해주세요.');
   if(next.length>256)throw Error('새 비밀번호는 256자 이내로 입력해주세요.');
   if(next!==confirmation)throw Error('새 비밀번호가 서로 다릅니다.');
-  if(current===next)throw Error('공유 비밀번호는 대시보드 관리자 비밀번호와 다르게 지정해주세요.');
   const auth=await login(current),url=endpoint+'?action=calendar-password';
   const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(next));
   const hash=Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
@@ -11015,7 +11101,7 @@ html body #freshDesktopApp #fdLegacyMount .fd-site-heading strong::before{conten
  changePassword=function(){
 
   let dialog=document.getElementById('calendarPasswordDialog');
-  if(!dialog){dialog=document.createElement('dialog');dialog.id='calendarPasswordDialog';dialog.setAttribute('aria-labelledby','calendarPasswordTitle');dialog.innerHTML='<form><div class="calendar-password-head"><h2 id="calendarPasswordTitle">캘린더 공유 비밀번호 설정</h2><button type="button" data-password-close aria-label="닫기">×</button></div><p>관계자는 이 비밀번호로 일정만 조회합니다. 대시보드 관리자 비밀번호는 변경되지 않습니다.</p><label>대시보드 관리자 비밀번호<input name="current" type="password" autocomplete="current-password" required></label><label>캘린더 공유 비밀번호<input name="next" type="password" autocomplete="new-password" required></label><label>공유 비밀번호 확인<input name="confirmation" type="password" autocomplete="new-password" required></label><div class="calendar-password-error" role="status" aria-live="polite"></div><div class="calendar-password-actions"><button type="button" data-password-cancel>취소</button><button type="submit">변경 저장</button></div></form>';document.body.appendChild(dialog);}
+  if(!dialog){dialog=document.createElement('dialog');dialog.id='calendarPasswordDialog';dialog.setAttribute('aria-labelledby','calendarPasswordTitle');dialog.innerHTML='<form><div class="calendar-password-head"><h2 id="calendarPasswordTitle">캘린더 공유 비밀번호 설정</h2><button type="button" data-password-close aria-label="닫기">×</button></div><p>관계자는 이 비밀번호로 일정만 조회합니다. 대시보드 관리자 비밀번호는 변경되지 않습니다.</p><label>캘린더 관리자 비밀번호<input name="current" type="password" autocomplete="current-password" required></label><label>캘린더 공유 비밀번호<input name="next" type="password" autocomplete="new-password" required></label><label>공유 비밀번호 확인<input name="confirmation" type="password" autocomplete="new-password" required></label><div class="calendar-password-error" role="status" aria-live="polite"></div><div class="calendar-password-actions"><button type="button" data-password-cancel>취소</button><button type="submit">변경 저장</button></div></form>';document.body.appendChild(dialog);}
   const form=dialog.querySelector('form'),error=dialog.querySelector('.calendar-password-error'),save=dialog.querySelector('[type="submit"]');form.reset();error.textContent='';save.disabled=false;save.textContent='변경 저장';
   const close=()=>{if(!save.disabled)dialog.close();};dialog.querySelector('[data-password-close]').onclick=close;dialog.querySelector('[data-password-cancel]').onclick=close;
   dialog.oncancel=event=>{if(save.disabled)event.preventDefault();};
@@ -11059,7 +11145,7 @@ html body #freshDesktopApp #fdLegacyMount .fd-site-heading strong::before{conten
  let dialog;
  window.calendarRequestEdit=ownerLogin;
  function ownerLogin(){
-  if(!dialog){dialog=document.createElement('dialog');dialog.id='calendarOwnerLogin';dialog.innerHTML='<form><h2>일정 편집</h2><p>일정 수정·저장은 본인 인증 후 사용할 수 있습니다. 공유 비밀번호는 조회 전용입니다.</p><label>대시보드 관리자 비밀번호<input type="password" name="password" autocomplete="current-password" required></label><div role="status" class="owner-login-error"></div><div class="owner-login-actions"><button type="button" data-owner-cancel>취소</button><button type="submit">편집 시작</button></div><button type="button" data-owner-password>공유 비밀번호 설정</button></form>';document.body.appendChild(dialog);}
+  if(!dialog){dialog=document.createElement('dialog');dialog.id='calendarOwnerLogin';dialog.innerHTML='<form><h2>일정 편집</h2><p>캘린더 관리자 비밀번호를 입력해주세요.</p><label>캘린더 관리자 비밀번호<input type="password" name="password" autocomplete="current-password" required></label><div role="status" class="owner-login-error"></div><div class="owner-login-actions"><button type="button" data-owner-cancel>취소</button><button type="submit">편집 시작</button></div><button type="button" data-owner-password>공유 비밀번호 설정</button></form>';document.body.appendChild(dialog);}
   const form=dialog.querySelector('form'),input=form.querySelector('input'),error=form.querySelector('[role="status"]'),save=form.querySelector('[type="submit"]');form.reset();error.textContent='';save.disabled=false;
   dialog.querySelector('[data-owner-cancel]').onclick=()=>dialog.close();dialog.querySelector('[data-owner-password]').onclick=()=>{dialog.close();changePassword();};
   form.onsubmit=async event=>{event.preventDefault();if(save.disabled)return;save.disabled=true;error.textContent='';try{await window.CalendarAuthentication.authorizeOwner(input.value);input.value='';dialog.close();unlock();}catch(cause){error.textContent=cause.message;}finally{save.disabled=false;}};
@@ -11086,7 +11172,7 @@ html[data-calendar-access="viewer"] :is(#fdAdminBtn,#proManage,#mobileAdminFab,#
 html[data-calendar-access="viewer"] #checklistBody input[type="checkbox"]{pointer-events:none!important;}
 .calendar-owner-entry{flex:none;align-self:center;min-height:30px;padding:5px 10px;border:1px solid #cddde2;border-radius:6px;background:#fff;color:#547181;font-family:var(--ui-font,system-ui);font-size:var(--ui-type-small,12px);cursor:pointer;}
 #lockScreen>.calendar-owner-entry{margin-top:12px;background:transparent;color:#426959;}
-#calendarOwnerLogin{width:min(380px,calc(100vw - 32px));padding:22px;border:1px solid #d7e3e5;border-radius:12px;background:#fff;color:#365466;box-sizing:border-box;font-family:var(--ui-font,system-ui);}
+#calendarOwnerLogin{width:min(388px,calc(100vw - 32px));padding:22px;border:1px solid #d7e3e5;border-radius:12px;background:#fff;color:#365466;box-sizing:border-box;font-family:var(--ui-font,system-ui);}
 #calendarOwnerLogin::backdrop{background:#203a4480;backdrop-filter:blur(4px);}
 #calendarOwnerLogin h2{font-size:var(--ui-type-title,18px);margin:0 0 10px;}
 #calendarOwnerLogin p,#calendarOwnerLogin label{font-size:var(--ui-type-small,12px);line-height:1.6;color:#728894;}
@@ -11547,7 +11633,7 @@ html body #freshDesktopApp .fd-day-categories{top:29px!important;gap:3px!importa
 .availability-day-note .availability-slot b{font-size:12px!important;line-height:16px!important;white-space:nowrap;}
 .availability-day-note .availability-slot span,.availability-day-note .availability-slot small{font-size:11px!important;line-height:16px!important;margin:0!important;}
 .availability-day-note,.availability-day-note *{animation:none!important;transition:none!important;transform:none!important;}
-</style><style>#calendarAvailabilityEditor [data-release]{color:#a34750;border-color:#e2b6bc;}#calendarAvailabilityEditor [data-release][hidden]{display:none!important;}.availability-slot.other,.availability-slot.closed{cursor:pointer;}</style><style>.service-password-dialog{width:min(380px,calc(100vw - 32px));padding:22px;border:1px solid #ccd8e3;border-radius:12px;background:white;color:#243e54;}.service-password-dialog h3{font-size:16px;margin:0 0 16px}.service-password-dialog label{display:block;font-size:12px;margin:10px 0}.service-password-dialog input{display:block;width:100%;box-sizing:border-box;padding:9px;margin-top:5px;border:1px solid #c9d6e1;border-radius:6px;font:inherit}.service-password-dialog form>div{display:flex;gap:8px;justify-content:flex-end}.service-password-dialog button,[data-service-setup]{padding:8px 12px;border:1px solid #c9d6e1;border-radius:6px;background:#edf3fa;color:#244d6b;cursor:pointer}.service-password-dialog p{font-size:12px;color:#ac4149}.service-password-dialog::backdrop{background:#18334777;}</style><script>(()=>{
+</style><style>#calendarAvailabilityEditor [data-release]{color:#a34750;border-color:#e2b6bc;}#calendarAvailabilityEditor [data-release][hidden]{display:none!important;}.availability-slot.other,.availability-slot.closed{cursor:pointer;}</style><style>.service-password-dialog{width:min(388px,calc(100vw - 32px));padding:22px;border:1px solid #ccd8e3;border-radius:12px;background:white;color:#243e54;}.service-password-dialog h3{font-size:16px;margin:0 0 16px}.service-password-dialog label{display:block;font-size:12px;margin:10px 0}.service-password-dialog input{display:block;width:100%;box-sizing:border-box;padding:9px;margin-top:5px;border:1px solid #c9d6e1;border-radius:6px;font:inherit}.service-password-dialog form>div{display:flex;gap:8px;justify-content:flex-end}.service-password-dialog button,[data-service-setup]{padding:8px 12px;border:1px solid #c9d6e1;border-radius:6px;background:#edf3fa;color:#244d6b;cursor:pointer}.service-password-dialog p{font-size:12px;color:#ac4149}.service-password-dialog::backdrop{background:#18334777;}</style><script>(()=>{
 const endpoint='https://stately-sfogliatella-7ab674.netlify.app/.netlify/functions/password-access';
 window.ServicePassword={async open(role,token=''){
  const d=document.createElement('dialog');d.className='service-password-dialog';const label=role==='report'?'톡방 리포트':'캘린더 관리자';
@@ -11557,7 +11643,7 @@ window.ServicePassword={async open(role,token=''){
  const r=await fetch(endpoint+'?action=service-password',{method:'PUT',headers:{'Content-Type':'application/json',Authorization:'Bearer '+auth},body:JSON.stringify({role,hash})});const body=await r.json();if(!r.ok)throw Error(body.error==='ALREADY_CONFIGURED'?'이미 설정돼 있습니다. 해당 서비스에 로그인한 뒤 변경해주세요.':body.error==='PASSWORD_MUST_DIFFER'?'다른 서비스와 다른 비밀번호를 입력해주세요.':'비밀번호 저장에 실패했습니다.');d.close();d.remove();alert(label+' 비밀번호가 저장됐습니다. 새 비밀번호로 다시 입장해주세요.');window.dispatchEvent(new CustomEvent('service-password-changed',{detail:role}));
  }catch(error){err.textContent=error.message;}finally{save.disabled=false;}};
 }};
-function buttons(){for(const [id,role]of [['reportAiLogin','report'],['calendarOwnerLogin','calendarAdmin']]){const d=document.getElementById(id);if(d&&!d.querySelector('[data-service-setup]')){const b=document.createElement('button');b.type='button';b.dataset.serviceSetup='1';b.textContent='별도 비밀번호 최초 설정';b.onclick=()=>ServicePassword.open(role);d.append(b);}}}
+function buttons(){for(const [id,role]of [['reportAiLogin','report'],['calendarOwnerLogin','calendarAdmin']]){const d=document.getElementById(id);if(d&&!d.querySelector('[data-service-setup]')){const b=document.createElement('button');b.type='button';b.dataset.serviceSetup='1';b.textContent='비밀번호 설정';b.onclick=()=>ServicePassword.open(role);d.append(b);}}}
 new MutationObserver(buttons).observe(document.body,{childList:true,subtree:true});buttons();
 })();
 window.addEventListener('service-password-changed',e=>{if(e.detail==='calendarAdmin'){CalendarAuthentication.logoutOwner();location.reload();}});</script><script>(()=>{const check=()=>{const d=document.getElementById('calendarOwnerLogin');if(d&&!d.querySelector('[data-change-owner]')){const b=document.createElement('button');b.type='button';b.dataset.changeOwner='1';b.textContent='캘린더 관리자 비밀번호 변경';b.onclick=()=>ServicePassword.open('calendarAdmin',CalendarAuthentication.current()?.role==='admin'?CalendarAuthentication.current().token:'');d.append(b);}};new MutationObserver(check).observe(document.body,{childList:true,subtree:true});check();})();</script>
@@ -11566,3 +11652,8 @@ window.changePassword=function(){
  const d=document.createElement('dialog');d.className='service-password-dialog';d.innerHTML='<h3>비밀번호 설정</h3><div style="display:grid;gap:8px"><button type="button" data-service-admin>캘린더 관리자 비밀번호 변경</button><button type="button" data-service-view>캘린더 조회용 비밀번호 변경</button><button type="button" data-close>닫기</button></div>';document.body.append(d);d.showModal();const close=()=>{d.close();d.remove();};d.querySelector('[data-service-admin]').onclick=()=>{const token=CalendarAuthentication.current()?.role==='admin'?CalendarAuthentication.current().token:'';close();ServicePassword.open('calendarAdmin',token);};d.querySelector('[data-service-view]').onclick=()=>{close();CalendarPasswordChange.open();};d.querySelector('[data-close]').onclick=close;
 };
 </script>
+<style id="compact-login-password-link">
+[data-service-setup]{display:block!important;width:auto!important;max-width:100%!important;min-height:0!important;height:auto!important;margin:9px auto 0!important;padding:3px 5px!important;border:0!important;border-radius:3px!important;background:transparent!important;box-shadow:none!important;color:#66808c!important;font:500 11px/1.4 system-ui,sans-serif!important;white-space:nowrap!important;text-align:center!important;cursor:pointer!important;}
+[data-service-setup]:hover{color:#245f90!important;text-decoration:underline;}
+[data-service-setup]:focus-visible{outline:2px solid #7da1b9;outline-offset:2px;}
+</style>

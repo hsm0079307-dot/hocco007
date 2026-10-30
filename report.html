@@ -2053,6 +2053,51 @@ window.ServicePassword={async open(role,token=''){
  const r=await fetch(endpoint+'?action=service-password',{method:'PUT',headers:{'Content-Type':'application/json',Authorization:'Bearer '+auth},body:JSON.stringify({role,hash})});const body=await r.json();if(!r.ok)throw Error(body.error==='ALREADY_CONFIGURED'?'이미 설정돼 있습니다. 해당 서비스에 로그인한 뒤 변경해주세요.':body.error==='PASSWORD_MUST_DIFFER'?'다른 서비스와 다른 비밀번호를 입력해주세요.':'비밀번호 저장에 실패했습니다.');d.close();d.remove();alert(label+' 비밀번호가 저장됐습니다. 새 비밀번호로 다시 입장해주세요.');window.dispatchEvent(new CustomEvent('service-password-changed',{detail:role}));
  }catch(error){err.textContent=error.message;}finally{save.disabled=false;}};
 }};
-function buttons(){for(const [id,role]of [['reportAiLogin','report'],['calendarOwnerLogin','calendarAdmin']]){const d=document.getElementById(id);if(d&&!d.querySelector('[data-service-setup]')){const b=document.createElement('button');b.type='button';b.dataset.serviceSetup='1';b.textContent='별도 비밀번호 최초 설정';b.onclick=()=>ServicePassword.open(role);d.append(b);}}}
+function buttons(){for(const [id,role]of [['reportAiLogin','report'],['calendarOwnerLogin','calendarAdmin']]){const d=document.getElementById(id);if(d&&!d.querySelector('[data-service-setup]')){const b=document.createElement('button');b.type='button';b.dataset.serviceSetup='1';b.textContent='비밀번호 설정';b.onclick=()=>ServicePassword.open(role);d.append(b);}}}
 new MutationObserver(buttons).observe(document.body,{childList:true,subtree:true});buttons();
-})();</script>
+})();</script><style id="compact-login-password-link">
+[data-service-setup]{display:block!important;width:auto!important;max-width:100%!important;min-height:0!important;height:auto!important;margin:9px auto 0!important;padding:3px 5px!important;border:0!important;border-radius:3px!important;background:transparent!important;box-shadow:none!important;color:#66808c!important;font:500 11px/1.4 system-ui,sans-serif!important;white-space:nowrap!important;text-align:center!important;cursor:pointer!important;}
+[data-service-setup]:hover{color:#245f90!important;text-decoration:underline;}
+[data-service-setup]:focus-visible{outline:2px solid #7da1b9;outline-offset:2px;}
+</style><style id="report-toolbar-refined">
+/* Single owned toolbar layout, overriding historic nth-child/flex rules. */
+#app .toolbar-card{padding:10px 12px!important;overflow:visible!important;background:#fff!important;}
+#app .toolbar{display:grid!important;grid-template-columns:auto minmax(420px,1fr) auto!important;align-items:center!important;gap:18px!important;flex-wrap:nowrap!important;}
+#app .toolbar>.report-tools-import,#app .toolbar>.report-tools-actions{display:flex!important;align-items:center!important;gap:6px!important;min-width:0!important;}
+#app .toolbar>.report-tools-actions{justify-content:flex-end!important;}
+#app .toolbar .btn,#app .toolbar .file-label,#app .toolbar #clearBtn{flex:0 0 auto!important;width:auto!important;min-width:0!important;max-width:none!important;min-height:32px!important;height:32px!important;padding:6px 11px!important;margin:0!important;white-space:nowrap!important;font-size:12px!important;line-height:18px!important;border-radius:6px!important;box-sizing:border-box!important;}
+#app .toolbar .report-period{display:flex!important;align-items:center!important;justify-content:center!important;gap:6px!important;padding:0!important;margin:0!important;min-width:0!important;min-height:32px!important;border:0!important;flex-wrap:nowrap!important;background:none!important;}
+#app .toolbar .report-period input{width:116px!important;height:32px!important;padding:4px 7px!important;font-size:12px!important;box-sizing:border-box!important;}
+#app .toolbar .report-period #dateFilter{width:auto!important;max-width:145px!important;height:32px!important;}
+#app .toolbar .report-period b{font-size:12px!important;margin-right:4px!important;white-space:nowrap!important;}
+.report-files-menu{position:relative;flex:none;}.report-files-menu>summary{list-style:none;cursor:pointer;padding:7px 11px;border:1px solid #cbd6e1;border-radius:6px;background:#f8fafc;font-size:12px;color:#334e65;white-space:nowrap;}.report-files-menu>summary::-webkit-details-marker{display:none}.report-files-menu>summary:after{content:' ▾';color:#7f93a5}.report-files-list{position:absolute;right:0;top:calc(100% + 7px);z-index:1000;background:#fff;border:1px solid #cbd6e1;border-radius:8px;padding:5px;min-width:165px;box-shadow:0 8px 24px #23425d20;display:grid;gap:2px;}
+#app .toolbar .report-files-list .btn{width:100%!important;text-align:left!important;background:transparent!important;border:0!important;color:#304b62!important;}
+#app .toolbar .report-files-list .btn:hover{background:#edf3fa!important;}
+#app .toolbar .report-files-list #clearBtn{color:#ab4b52!important;border-top:1px solid #e4eaf0!important;border-radius:0!important;margin-top:4px!important;}
+.speaker-top>.r-section-header{padding:0 0 10px!important;margin:0 0 12px!important;background:none!important;border-bottom:1px solid #dce5ee!important;min-height:0!important;}
+.speaker-top>.r-section-header h3{font-size:14px!important;line-height:20px!important;margin:0!important;}
+.speaker-room-group>h4{position:static!important;background:none!important;border:0!important;border-left:3px solid #5687aa!important;border-radius:0!important;padding:0 0 0 8px!important;margin:2px 0 8px!important;font-size:12px!important;line-height:19px!important;color:#446278!important;font-weight:600!important;}
+.speaker-room-scroll{padding-right:5px;scrollbar-width:thin;scrollbar-color:#b6c7d6 transparent;}.speaker-room-scroll::-webkit-scrollbar{width:5px;}.speaker-room-scroll::-webkit-scrollbar-thumb{background:#b6c7d6;border-radius:8px;}
+.speaker-top-list>li{padding:10px 0!important;}.speaker-own-source summary{font-size:12px!important;line-height:1.65!important;}.speaker-rank{background:#e9f0f7!important;border-radius:50%!important;}
+body{background:#edf1f6!important;}#app .hero{padding-top:4px!important;padding-bottom:9px!important;}#app .room-navigation{margin-bottom:12px!important;padding-bottom:9px!important;}
+.overview-layout .room-summary>header{background:#fff!important;padding:13px 16px!important;border-bottom:1px solid #dce5ee!important;}
+.room-day-assessment{background:#f2f6fb!important;padding:9px 16px!important;}.room-day-assessment>b{font-size:12px!important;}.room-day-assessment>span{font-size:12px!important;}
+.overview-layout .room-summary-body{gap:20px!important;padding:16px!important;}.overview-layout .room-issues li{padding-bottom:12px!important;margin-bottom:12px!important;}.overview-layout .room-issues p{font-size:13px!important;line-height:1.75!important;}
+.overview-layout .room-summary:only-child .room-summary-body{grid-template-columns:minmax(0,1.8fr) minmax(250px,.8fr)!important;}
+.overview-layout .room-tone{grid-template-columns:1fr!important;gap:7px!important;}.overview-layout .room-tone button{display:grid!important;grid-template-columns:52px minmax(0,1fr)!important;gap:10px!important;padding:10px!important;background:#f7f9fc!important;align-items:start!important;}
+.overview-layout .room-tone .tone{flex-direction:column;gap:4px;font-size:12px!important;}.overview-layout .room-tone .tone b{font-size:17px!important;}.overview-layout .room-tone .tonecopy{font-size:12px!important;line-height:1.6!important;-webkit-line-clamp:3!important;}
+@media(max-width:1250px){#app .toolbar{grid-template-columns:1fr auto!important;gap:9px!important;}#app .toolbar .report-period{grid-column:1/-1!important;grid-row:2!important;justify-content:flex-start!important;}#app .toolbar>.report-tools-actions{grid-column:2;grid-row:1;}}
+@media(max-width:700px){#app .toolbar{display:flex!important;flex-wrap:wrap!important;gap:9px!important;}#app .toolbar .report-period{flex-wrap:wrap!important;justify-content:flex-start!important;}#app .toolbar>.report-tools-import{flex-wrap:wrap!important;}#app .toolbar>.report-tools-actions{margin-left:auto;}.overview-layout .room-summary:only-child .room-summary-body{grid-template-columns:1fr!important;}}
+</style><script>
+(()=>{
+ const bar=document.querySelector('.toolbar');if(!bar)return;
+ const group=className=>{const d=document.createElement('div');d.className=className;return d;};
+ const imports=group('report-tools-import'),period=bar.querySelector('.report-period'),actions=group('report-tools-actions');
+ for(const el of [bar.querySelector('.file-label'),document.getElementById('togglePasteBtn'),document.getElementById('aiBtn')])if(el)imports.append(el);
+ for(const id of ['reportSaveBtn','copyBtn']){const el=document.getElementById(id);if(el)actions.append(el);}
+ const more=document.createElement('details');more.className='report-files-menu';const title=document.createElement('summary');title.textContent='파일 · 설정';more.append(title);const list=group('report-files-list');more.append(list);
+ for(const id of ['reportBackupBtn','reportRestoreBtn','downloadBtn','printBtn','reportPasswordBtn','clearBtn']){const el=document.getElementById(id);if(el)list.append(el);}
+ actions.append(more);bar.querySelectorAll('.toolbar-spacer').forEach(e=>e.remove());bar.append(imports);if(period)bar.append(period);bar.append(actions);
+ document.addEventListener('click',e=>{if(!more.contains(e.target))more.open=false;});list.addEventListener('click',e=>{if(e.target.closest('button'))more.open=false;});
+})();
+</script>

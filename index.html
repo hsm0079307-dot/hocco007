@@ -2,22 +2,8 @@
 <html lang="ko">
 <head>
 <script id="shared-login-request-guard">
-(()=>{
- const key='password_login_cooldown_v2:',pending=new Map();
- function deadline(role){try{return Number(localStorage.getItem(key+role))||0;}catch{return 0;}}
- function message(until){const minutes=Math.max(1,Math.ceil((until-Date.now())/60000));return '로그인 시도 제한이 걸렸습니다. 약 '+minutes+'분 후 다시 시도해주세요. 이 로그인 유형의 요청은 제한 해제 후 다시 보냅니다.';}
- async function request(send,role,password){
-  const until=deadline(role);if(until>Date.now())throw Error(message(until));
-  const copy=response=>typeof response.clone==='function'?response.clone():response;
-  const id=role+'\u0000'+password;if(pending.has(id))return copy(await pending.get(id));
-  const task=(async()=>{const response=await send();if(response.status===429){
-   const retry=Number(response.headers?.get('retry-after')),expires=Date.now()+(retry>0?retry:900)*1000;
-   try{localStorage.setItem(key+role,String(expires));}catch(_){}throw Error(message(expires));
-  }return response;})();pending.set(id,task);
-  try{return copy(await task);}finally{if(pending.get(id)===task)pending.delete(id);}
- }
- window.SharedLoginGuard={request};
-})();
+(()=>{const pending=new Map();try{for(const k of Object.keys(localStorage)){if(k.startsWith('password_login_cooldown_v2:'))localStorage.removeItem(k);}}catch(_){}
+window.SharedLoginGuard={async request(send,role,password){const id=role+'\u0000'+password;const copy=r=>r.clone?r.clone():r;if(pending.has(id))return copy(await pending.get(id));const task=Promise.resolve().then(send);pending.set(id,task);try{return copy(await task);}finally{if(pending.get(id)===task)pending.delete(id);}}};})();
 </script>
 
 <meta charset="utf-8">
