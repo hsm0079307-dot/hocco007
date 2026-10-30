@@ -1635,11 +1635,11 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
   function digestHtml(d){const r=d.room,dates=[...new Set(d.rows.map(m=>m.date))];
     const issues=d.points.slice(0,3).map(p=>`<li><b>${escapeHtml(p.title)}</b><p>${escapeHtml(p.summary)}</p></li>`).join('');
     const tone=[['favorable','우호'],['critical','부정'],['other','중립']].map(([k,label])=>{const list=d.groups[k],last=list.at(-1);return `<button class="${k}" data-tone-room="${escapeHtml(r.id)}" data-tone="${k}"><span class="tone">${label} <b>${list.length}</b></span>${last?`<span class="tonecopy">${escapeHtml(shortText(last.quote,100))}<small>${escapeHtml(last.speaker)}</small></span>`:''}</button>`;}).join('');
-    return `<article class="room-summary" data-summary-room="${escapeHtml(r.id)}"><header><h3>${roomTitleHtml(r.title)}</h3><div class="room-metrics"><span><b>${d.rows.length.toLocaleString()}</b>대화</span><span><b>${d.ranked.length}</b>발언자</span><span><b>${dates.length}</b>일</span></div><button class="btn btn-ghost" data-open-room="${escapeHtml(r.id)}">상세 보기 ›</button></header>${roomAssessmentHtml(r,d.rows)}<div class="room-summary-body"><section class="overview-issues"><h4>주요 이슈</h4><ul class="room-issues">${issues||'<li class="overview-empty">주요 이슈 없음</li>'}</ul></section><section class="overview-opinions"><h4>관련 의견</h4><div class="room-tone">${tone}</div><h4 class="overview-speaker-heading">주요 발언자</h4><div class="overview-speaker-chips">${d.keySpeakers.map(([name])=>`<span>${escapeHtml(name)}</span>`).join('')}</div></section></div></article>`;
+    return `<article class="room-summary" data-summary-room="${escapeHtml(r.id)}"><header><h3>${roomTitleHtml(r.title)}</h3><div class="room-metrics"><span><b>${d.rows.length.toLocaleString()}</b>대화</span><span><b>${d.ranked.length}</b>발언자</span><span><b>${dates.length}</b>일</span></div><button class="btn btn-ghost" data-open-room="${escapeHtml(r.id)}">상세 보기 ›</button></header>${roomAssessmentHtml(r,d.rows)}<div class="room-summary-body"><section class="overview-issues"><h4>주요 이슈</h4><ul class="room-issues">${issues||'<li class="overview-empty">주요 이슈 없음</li>'}</ul></section><section class="overview-opinions"><h4>관련 의견</h4><div class="room-tone">${tone}</div><h4 class="overview-speaker-heading">주요 발언자</h4><div class="overview-speaker-chips">${d.keySpeakers.map(([name])=>`<span>${escapeHtml(name)}</span>`).join('')}</div></section><section class="overview-room-speakers">${speakerTopHtml(d.rows,false,r)}</section></div></article>`;
   }
   function renderOverview(){
     const digests=rooms.map(roomDigest).filter(d=>d.rows.length);window.__roomsDigests=digests;const total=digests.reduce((n,d)=>n+d.rows.length,0);
-    content.innerHTML=digests.length?`<div class="overview-head"><b>${digests.length}개 방</b><span>대화 ${total.toLocaleString()}건</span></div><div class="overview-layout"><div class="rooms-overview">${digests.map(digestHtml).join('')}</div><aside class="overview-speaker-rail">${speakerTopHtml([],true)}</aside></div>`:'<div class="overview-empty-start"><button class="btn btn-soft" data-overview-import>대화 불러오기</button></div>';
+    content.innerHTML=digests.length?`<div class="overview-head"><b>${digests.length}개 방</b><span>대화 ${total.toLocaleString()}건</span></div><div class="overview-layout"><div class="rooms-overview">${digests.map(digestHtml).join('')}</div></div>`:'<div class="overview-empty-start"><button class="btn btn-soft" data-overview-import>대화 불러오기</button></div>';
     content.querySelector('[data-overview-import]')?.addEventListener('click',()=>openRoomImport());
     aiBtn.disabled=previewMode||!digests.length;document.getElementById('titleDate').textContent='';setAiStatus('local','전체 요약');
   }
@@ -1666,7 +1666,7 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
     stashRoom();if(added){r.analysis={};r.sources={};r.scopes={};if(activeRoom===id){aiAnalysisCache={};analysisSourceCache={};}}saveRooms();activeRoom='all';selectRoom(id);document.getElementById('roomImport').close();roomPendingFiles=[];document.getElementById('roomFileNames').textContent='';document.getElementById('roomPaste').value='';toast(`${r.title} · 새 대화 ${added}건 추가`);return true;
   }
   function loadReportText(raw){return importRoomText(document.getElementById('importRoom').value,raw);}
-  function overviewExport(){const cards=[...content.querySelectorAll('.room-summary')];return ['단톡방 전체 · 방별 압축 요약',...cards.map(card=>card.innerText.replaceAll('상세 보기 ›','').replaceAll('대화 추가','')),'주요 발언자 Top 10',...(window.__roomSpeakerTop||[]).map((r,i)=>`${i+1}. ${r.name} (${r.count}회) · ${r.roomTitle} · ${r.brief.topics} · 대표 발언: ${fullText(r.brief.quote)}`)].join('\n\n');}
+  function overviewExport(){const cards=[...content.querySelectorAll('.room-summary')];return ['단톡방 전체 · 방별 압축 요약',...cards.map(card=>card.innerText.replaceAll('상세 보기 ›','').replaceAll('대화 추가','')),'주요 발언자 Top 5',...(window.__roomSpeakerTop||[]).map((r,i)=>`${i+1}. ${r.name} (${r.count}회) · ${r.roomTitle} · ${r.brief.topics} · 대표 발언: ${fullText(r.brief.quote)}`)].join('\n\n');}
   function setupRooms(){
     const nav=document.createElement('nav');nav.id='roomsNav';nav.className='rooms-nav';nav.setAttribute('aria-label','보고서 방 선택');document.querySelector('.toolbar-card').before(nav);
     const context=document.createElement('section');context.id='roomContext';context.className='room-context';content.before(context);
@@ -1863,11 +1863,11 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
     const ranked=own.filter(m=>fullText(m.text).length>=10).map((m,i)=>({m,i,score:conversationTopics.reduce((n,[,re])=>n+(re.test(m.text)?1:0),0)})).sort((a,b)=>b.score-a.score||a.i-b.i);
     return {topics:topics.join(' / ')||(own.length?'일반 대화':'기사·링크 공유'),quote:ranked[0]?.m.text||own[0]?.text||record.messages[0]?.text||'',date:ranked[0]?.m.date||record.messages[0]?.date||''};
   }
-  function speakerTopHtml(rows,all=false){
-    const scopes=all?rooms.map(room=>({id:room.id,title:room.title,rows:periodRows(room)})).filter(r=>r.rows.length):[{id:activeRoom,title:rooms.find(r=>r.id===activeRoom)?.title||'',rows}];
+  function speakerTopHtml(rows,all=false,room=null){
+    const scopes=room?[{id:room.id,title:room.title,rows}]:all?rooms.map(room=>({id:room.id,title:room.title,rows:periodRows(room)})).filter(r=>r.rows.length):[{id:activeRoom,title:rooms.find(r=>r.id===activeRoom)?.title||'',rows}];
     window.__roomSpeakerTop=[];
-    const html=scopes.map(scope=>{const records=speakerRecords(scope.rows,scope.id,scope.title).slice(0,10).map(r=>({...r,brief:speakerContent(r)}));window.__roomSpeakerTop.push(...records);return `<section class="speaker-room-group"><h4>${escapeHtml(scope.title)}</h4><ol class="speaker-top-list">${records.map((r,i)=>`<li><span class="speaker-rank">${i+1}</span><div class="speaker-info"><div class="speaker-name"><b>${escapeHtml(r.name)}</b><span>(${r.count}회 발언)</span></div><p class="speaker-topics">${escapeHtml(r.brief.topics)}</p><details class="speaker-own-source"><summary>${escapeHtml(shortText(r.brief.quote,105))}</summary><p>${escapeHtml(r.brief.quote)}</p><small>${escapeHtml(r.brief.date)}</small></details></div></li>`).join('')}</ol></section>`}).join('');
-    return `<section class="r-report-section speaker-top"><header class="r-section-header"><h3>주요 발언자 Top 10</h3></header><div class="speaker-room-scroll">${html||'<p>등록된 발언이 없습니다.</p>'}</div></section>`;
+    const html=scopes.map(scope=>{const records=speakerRecords(scope.rows,scope.id,scope.title).slice(0,5).map(r=>({...r,brief:speakerContent(r)}));window.__roomSpeakerTop.push(...records);return `<section class="speaker-room-group"><h4>${escapeHtml(scope.title)}</h4><ol class="speaker-top-list">${records.map((r,i)=>`<li><span class="speaker-rank">${i+1}</span><div class="speaker-info"><div class="speaker-name"><b>${escapeHtml(r.name)}</b><span>(${r.count}회 발언)</span></div><p class="speaker-topics">${escapeHtml(r.brief.topics)}</p><details class="speaker-own-source"><summary>${escapeHtml(shortText(r.brief.quote,105))}</summary><p>${escapeHtml(r.brief.quote)}</p><small>${escapeHtml(r.brief.date)}</small></details></div></li>`).join('')}</ol></section>`}).join('');
+    return `<section class="r-report-section speaker-top"><header class="r-section-header"><h3>주요 발언자 Top 5</h3></header><div class="speaker-room-scroll">${html||'<p>등록된 발언이 없습니다.</p>'}</div></section>`;
   }
   function roomAssessmentHtml(room,rows){
     const last=rows.map(m=>reportDateIso(m.date)).filter(Boolean).sort().at(-1);if(!last)return '';
@@ -1951,7 +1951,7 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
     }catch(error){setAiStatus('local','AI 요약 미완료');if(error.message!=='AI_LOGIN_CANCELLED')toast(error.message,'warn');}
     finally{roomAiBusy=false;document.getElementById('roomsNav').inert=false;aiBtn.disabled=previewMode;aiBtn.textContent=original;}
   }
-  function buildSummaryText(){const text=buildSummaryTextLegacy();if(!text)return text;return text+'\n\n[주요 발언자 Top 10 · 전체 발언 횟수순]\n'+(window.__roomSpeakerTop||[]).map((r,i)=>`${i+1}. ${r.name} (${r.count}회) · ${r.brief.topics}\n대표 발언: ${fullText(r.brief.quote)}`).join('\n');}
+  function buildSummaryText(){const text=buildSummaryTextLegacy();if(!text)return text;return text+'\n\n[주요 발언자 Top 5 · 전체 발언 횟수순]\n'+(window.__roomSpeakerTop||[]).map((r,i)=>`${i+1}. ${r.name} (${r.count}회) · ${r.brief.topics}\n대표 발언: ${fullText(r.brief.quote)}`).join('\n');}
 
   async function requestAiAnalysis(filtered){const room=rooms.find(r=>r.id===activeRoom);if(!room)throw Error('분석할 방을 선택해주세요.');return (await summarizeRoomConversations(room,filtered,()=>{})).daily;}
 
@@ -1967,7 +1967,26 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
   lockReportEntry();
 })();
 </script>
-</body>
+<style id="room-unified-five-speakers">
+.overview-layout{display:block!important;height:auto!important;}
+.overview-layout .rooms-overview{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:16px!important;}
+.overview-layout .room-summary{max-height:none!important;overflow:visible!important;}
+html body .overview-layout .room-summary.room-summary .room-summary-body{display:grid!important;grid-template-columns:minmax(0,1.45fr) minmax(200px,.8fr) minmax(250px,1fr)!important;gap:20px!important;max-height:none!important;overflow:visible!important;padding:16px!important;}
+.overview-room-speakers{border-left:1px solid #d3dfeb;padding-left:16px;min-width:0;}
+.overview-room-speakers .speaker-top{border:0!important;background:none!important;box-shadow:none!important;margin:0!important;padding:0!important;}
+.overview-room-speakers .r-section-header{padding:0 0 9px!important;margin:0!important;background:none!important;}
+.overview-room-speakers .speaker-room-group>h4{display:none!important;}
+.overview-room-speakers .speaker-room-scroll,.overview-room-speakers .speaker-top-list{max-height:none!important;height:auto!important;overflow:visible!important;display:block!important;}
+.overview-room-speakers li{padding:9px 0!important;}
+.overview-room-speakers .speaker-own-source summary{font-size:12px!important;line-height:1.5!important;}
+.overview-layout .room-summary>header{background:#eaf1f8!important;}
+.overview-layout .room-summary h3{font-size:15px!important;color:#203d55!important;}
+.overview-layout .room-issues p,.overview-layout .room-tone{font-size:13px!important;line-height:1.65!important;color:#344c60!important;}
+.overview-layout .speaker-info,.overview-layout .speaker-topics{color:#344c60!important;}
+.overview-layout .overview-speaker-heading,.overview-layout .overview-speaker-chips{display:none!important;}
+@media(max-width:1000px){html body .overview-layout .room-summary.room-summary .room-summary-body{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)!important;}.overview-room-speakers{grid-column:1/-1;border-left:0;border-top:1px solid #d3dfeb;padding:12px 0 0;}.overview-room-speakers .speaker-top-list{display:grid!important;grid-template-columns:1fr 1fr;gap:0 16px;}}
+@media(max-width:620px){html body .overview-layout .room-summary.room-summary .room-summary-body{grid-template-columns:1fr!important;}.overview-room-speakers .speaker-top-list{display:block!important;}}
+</style></body>
 </html>
 
 <style id="report-wide-workspace">
