@@ -5371,6 +5371,8 @@ function computeDateHeadcount(key){
   }
 
   function renderShell(){
+    if(typeof eventFor!=='function'||typeof allSites!=='function')return;
+    if(document.getElementById('freshDesktopApp')||document.getElementById('proCalendarApp'))return;
     if(!mq()) return;
     ensureShell();
     document.getElementById('m13Title').textContent=(document.getElementById('siteTitle')?.textContent||'(현장명)일정표').trim();
@@ -5398,7 +5400,6 @@ function computeDateHeadcount(key){
     const hto=document.getElementById('m13HeroTour'); if(hto) hto.textContent=tc;
 
     renderFilters();
-    renderSiteFilters();
     renderCalendar();
   }
 
@@ -9355,6 +9356,24 @@ function slots(date){
 let dialog,mode='available',target='';
 function selected(){return (matchMedia('(max-width:760px)').matches?document.querySelector('.pro-day.selected')?.dataset.key:document.querySelector('#fdDays .fd-day.selected')?.dataset.availabilityKey)||previewKey||currentDateKey;}
 function refresh(){window.CalendarAdapter?.refresh();paint();}
+function release(date,start='all'){
+ if(!owner())return;
+ const data=read(),key=dateKey(date),mark=data['date-color:'+date];
+ for(const [id,v] of Object.entries(data)){
+  if(v.date===date&&v.kind==='gallery'&&status(v)!=='available'&&(start==='all'||time(v.start)===time(start)))delete data[id];
+ }
+ if(mark){
+  mark.closed=false;delete mark.closedBy;
+  if(start==='all'){if(mark.color==='red')mark.color='none';for(const t of Object.keys(mark.slots||{}))if(mark.slots[t]==='red')delete mark.slots[t];}
+  else{if(mark.color==='red'){mark.color='none';mark.slots={...Object.fromEntries(TIMES.filter(t=>t!==start).map(t=>[t,'red'])),...mark.slots};}if(mark.slots?.[start]==='red')delete mark.slots[start];}
+ }
+ if(GALLERY_CLOSED[key]){
+  const note=GALLERY_CLOSED[key];delete GALLERY_CLOSED[key];
+  if(start!=='all')for(const t of TIMES.filter(t=>t!==start))data[crypto.randomUUID()]={date,kind:'gallery',status:'closed',start:t,end:'',site:'',note};
+  persistScheduleData();rebuildDATA();
+ }
+ localStorage.setItem(KEY,JSON.stringify(data));refresh();
+}
 function configure(){
  const f=dialog.querySelector('form'),closed=mode==='closed',gallery=closed||f.elements.kind.value==='gallery';
  const show=(name,on)=>{f.elements[name].disabled=!on;f.elements[name].closest('label').hidden=!on;};
@@ -9368,7 +9387,7 @@ function create(){
  if(dialog)return;dialog=document.createElement('dialog');dialog.id='calendarAvailabilityEditor';
  dialog.innerHTML='<form><header><h2></h2><button type="button" data-dismiss aria-label="닫기">×</button></header><div class="availability-fields"><label>날짜<input type="date" name="date" required></label><label>설정<select name="use"><option value="closed">휴관 / 이용불가</option><option value="other">타사업지 사용</option></select></label><label><span data-site-caption>현장명</span><input name="site" list="availabilitySites" required autocomplete="off"><datalist id="availabilitySites"></datalist></label><label>구분<select name="kind"><option value="gallery">갤러리</option><option value="tour">투어</option></select></label><label>갤러리 타임<select name="slot"><option value="10:30">10:30</option><option value="13:30">13:30</option><option value="15:00">15:00</option><option value="all">종일 (3타임 전체)</option></select></label><label>시작 시간<input type="time" name="start" required></label><label>종료 시간<input type="time" name="end" required></label><label class="availability-wide">내용<input name="note" maxlength="160" placeholder="예: 시설 점검 / 현장명 추가 안내"></label></div><p class="availability-error" role="alert"></p><p class="availability-help"></p><section class="availability-list"></section><footer><button type="button" data-release hidden>휴관 해제</button><button type="button" data-dismiss>취소</button><button type="submit">저장</button></footer></form>';
  document.body.append(dialog);dialog.querySelectorAll('[data-dismiss]').forEach(b=>b.onclick=()=>dialog.close());
- dialog.querySelector('[data-release]').onclick=()=>{if(!owner())return;const data=read(),date=dialog.querySelector('[name=date]').value;if(target&&data[target]){delete data[target];localStorage.setItem(KEY,JSON.stringify(data));}else if(GALLERY_CLOSED[dateKey(date)]){delete GALLERY_CLOSED[dateKey(date)];persistScheduleData();rebuildDATA();}else return;dialog.close();try{onScheduleDataChanged();}catch(e){}refresh();};
+ dialog.querySelector('[data-release]').onclick=()=>{if(!owner())return;const date=dialog.querySelector('[name=date]').value,start=target?read()[target]?.start:'all';if(!start)return;release(date,start);dialog.close();};
  const f=dialog.querySelector('form');f.elements.use.onchange=configure;f.elements.kind.onchange=configure;f.elements.date.onchange=list;
  f.onsubmit=e=>{e.preventDefault();if(!owner())return;const v=Object.fromEntries(new FormData(f)),error=dialog.querySelector('.availability-error');error.textContent='';
   const parsed=new Date(v.date+'T12:00:00');if(!/^\d{4}-\d{2}-\d{2}$/.test(v.date)||parsed.getFullYear()!==F.year){error.textContent=F.year+'년 안에서 날짜를 선택해주세요.';return;}
@@ -9398,8 +9417,8 @@ function create(){
 function list(){
  const box=dialog.querySelector('.availability-list'),data=read(),date=dialog.querySelector('[name=date]').value;box.replaceChildren();
  const entries=Object.entries(data).filter(([,v])=>v.date===date&&v.kind!=='date-color').sort((a,b)=>a[1].start.localeCompare(b[1].start));
- if(GALLERY_CLOSED[dateKey(date)]){const row=document.createElement('div');row.innerHTML='<span>종일 휴관<small>'+esc(GALLERY_CLOSED[dateKey(date)])+'</small></span><button type="button">해제</button>';row.querySelector('button').onclick=()=>{if(!owner()||!confirm('종일 휴관 지정을 해제할까요?'))return;delete GALLERY_CLOSED[dateKey(date)];persistScheduleData();rebuildDATA();list();refresh();};box.append(row);}
- for(const [id,v]of entries){const row=document.createElement('div'),state=status(v),label=state==='other'?'타사업지 사용':state==='closed'?'휴관 / 불가':'방문 가능';row.innerHTML='<span>'+esc(v.site||'갤러리')+' · '+label+'<small>'+esc(v.start+(v.end?'–'+v.end:''))+(v.note?' · '+esc(v.note):'')+'</small></span><button type="button">수정</button><button type="button">삭제</button>';const [edit,del]=row.querySelectorAll('button');edit.onclick=()=>open(state==='available'?'available':'closed',date,id);del.onclick=()=>{if(!owner())return;const latest=read();if(JSON.stringify(latest[id])!==JSON.stringify(v)){dialog.querySelector('.availability-error').textContent='수정된 내용입니다. 다시 확인해주세요.';list();return;}if(!confirm(v.start+' '+label+'을 삭제할까요?'))return;delete latest[id];localStorage.setItem(KEY,JSON.stringify(latest));list();refresh();};box.append(row);}
+ if(GALLERY_CLOSED[dateKey(date)]){const row=document.createElement('div');row.innerHTML='<span>종일 휴관<small>'+esc(GALLERY_CLOSED[dateKey(date)])+'</small></span><button type="button">해제</button>';row.querySelector('button').onclick=()=>{if(!owner()||!confirm('종일 휴관 지정을 해제할까요?'))return;release(date,'all');list();};box.append(row);}
+ for(const [id,v]of entries){const row=document.createElement('div'),state=status(v),label=state==='other'?'타사업지 사용':state==='closed'?'휴관 / 불가':'방문 가능';row.innerHTML='<span>'+esc(v.site||'갤러리')+' · '+label+'<small>'+esc(v.start+(v.end?'–'+v.end:''))+(v.note?' · '+esc(v.note):'')+'</small></span><button type="button">수정</button><button type="button">삭제</button>';const [edit,del]=row.querySelectorAll('button');edit.onclick=()=>open(state==='available'?'available':'closed',date,id);del.onclick=()=>{if(!owner())return;const latest=read();if(JSON.stringify(latest[id])!==JSON.stringify(v)){dialog.querySelector('.availability-error').textContent='수정된 내용입니다. 다시 확인해주세요.';list();return;}if(!confirm(v.start+' '+label+'을 삭제할까요?'))return;if(state==='available'){delete latest[id];localStorage.setItem(KEY,JSON.stringify(latest));refresh();}else release(date,v.start);list();};box.append(row);}
 }
 function open(type='available',date,id=''){
  if(!owner()){alert('관리자 입장 후 이용해주세요.');return;}create();mode=type;target=id;
@@ -9428,7 +9447,7 @@ function init(){
  const oldEditing=CalendarAdapter.editing;CalendarAdapter.editing=()=>!!dialog?.open||oldEditing();window.toggleClosedDay=()=>open('closed',dateISO(selected()));
  let queued=false;const schedule=()=>{if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;paint();});};new MutationObserver(schedule).observe(document.body,{childList:true,subtree:true});window.addEventListener('calendar-data-applied',schedule);document.addEventListener('change',schedule);document.addEventListener('click',schedule);paint();
 }
-window.CalendarAvailability={open,read,paint,slots,blockFor,normalizeTime:time};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
+window.CalendarAvailability={open,read,paint,slots,blockFor,release,normalizeTime:time};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
 
 </script>
@@ -9490,7 +9509,7 @@ function summary(events,key){
 function paint(){document.querySelectorAll('#fdDays .fd-day:not(.other)').forEach(b=>{const key=b.dataset.availabilityKey;if(!key)return;const view=summary(b.__dayEvents||[],key);let box=b.querySelector('.fd-day-categories');if(!box&&view.html){box=document.createElement('span');box.className='fd-day-categories';b.append(box);}if(box&&box.innerHTML!==view.html)box.innerHTML=view.html;if(b.dataset.dateColor!==view.state)b.dataset.dateColor=view.state;});}
 function close(){panel?.remove();panel=null;}
 function menu(button){if(panel){close();return;}panel=document.createElement('div');panel.id='dateColorMenu';panel.innerHTML='<select aria-label="색을 표시할 시간"><option value="all">세 타임 전체</option>'+TIMES.map(t=>'<option>'+t+'</option>').join('')+'</select><button data-color="blue"><i class="blue"></i>가능</button><button data-color="red"><i class="red"></i>불가</button><button data-color="closed">마감 지정</button><button data-color="clear">지우기</button><button data-color="">완료</button>';document.body.append(panel);const r=button.getBoundingClientRect();panel.style.top=(r.bottom+6)+'px';panel.style.left=Math.max(8,Math.min(r.left,innerWidth-420))+'px';const select=panel.querySelector('select');select.value=slot;select.onchange=()=>slot=select.value;panel.querySelectorAll('button').forEach(b=>{b.classList.toggle('on',b.dataset.color===mode);b.onclick=()=>{mode=b.dataset.color;document.body.classList.toggle('calendar-color-painting',!!mode);close();if(mode)menu(button);};});}
-document.addEventListener('click',e=>{if(e.target.closest('#fdManagerViewBtn')){e.preventDefault();e.stopImmediatePropagation();managerView=!managerView;localStorage.setItem('calendar_manager_view_v1',managerView?'1':'0');e.target.closest('#fdManagerViewBtn').setAttribute('aria-pressed',String(managerView));paint();return;}const button=e.target.closest('#fdAvailableBtn');if(button){e.preventDefault();e.stopImmediatePropagation();if(owner())menu(button);return;}const day=e.target.closest('#fdDays .fd-day:not(.other)');if(day&&mode&&owner()){e.preventDefault();e.stopImmediatePropagation();const date=iso(day.dataset.availabilityKey),data=read(),id='date-color:'+date,record=data[id]||{date,kind:'date-color',status:'mark'};const color=mode==='clear'?'none':mode==='closed'?'red':mode;if(mode==='closed'){record.closed=true;record.closedBy='user';record.color='red';}else if(slot==='all'){record.closed=false;record.color=color;delete record.slots;}else{record.slots={...record.slots,[slot]:color};}data[id]=record;localStorage.setItem(KEY,JSON.stringify(data));paint();return;}if(panel&&!panel.contains(e.target))close();},true);
+document.addEventListener('click',e=>{if(e.target.closest('#fdManagerViewBtn')){e.preventDefault();e.stopImmediatePropagation();managerView=!managerView;localStorage.setItem('calendar_manager_view_v1',managerView?'1':'0');e.target.closest('#fdManagerViewBtn').setAttribute('aria-pressed',String(managerView));paint();return;}const button=e.target.closest('#fdAvailableBtn');if(button){e.preventDefault();e.stopImmediatePropagation();if(owner())menu(button);return;}const day=e.target.closest('#fdDays .fd-day:not(.other)');if(day&&mode&&owner()){e.preventDefault();e.stopImmediatePropagation();const date=iso(day.dataset.availabilityKey),data=read(),id='date-color:'+date,record=data[id]||{date,kind:'date-color',status:'mark'};const color=mode==='clear'?'none':mode==='closed'?'red':mode;if(mode==='closed'){record.closed=true;record.closedBy='user';record.color='red';}else if(slot==='all'){record.closed=false;record.color=color;delete record.slots;}else{record.slots={...record.slots,[slot]:color};}data[id]=record;localStorage.setItem(KEY,JSON.stringify(data));if(mode==='clear')window.CalendarAvailability.release(date,slot);paint();return;}if(panel&&!panel.contains(e.target))close();},true);
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){mode='';document.body.classList.remove('calendar-color-painting');close();}});
 let queued=false;new MutationObserver(()=>{if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;paint();const b=document.getElementById('fdAvailableBtn');if(b&&b.textContent!=='가능 / 불가'){b.innerHTML='<i aria-hidden="true"></i>가능 / 불가';b.title='파란색 가능 · 빨간색 불가';}if(b&&!document.getElementById('fdManagerViewBtn')){const toggle=document.createElement('button');toggle.id='fdManagerViewBtn';toggle.type='button';toggle.textContent='담당';toggle.title='담당자 이름으로 보기';toggle.setAttribute('aria-pressed',String(managerView));b.after(toggle);}});}).observe(document.body,{childList:true,subtree:true});window.addEventListener('calendar-data-applied',paint);paint();
 })();</script><style>html body #freshDesktopApp #fdDays .fd-day[data-date-color="none"]{background:#fbfdff!important;box-shadow:none!important;}html body #freshDesktopApp #fdDays .fd-day[data-date-color="none"].selected{box-shadow:inset 0 0 0 1px #64829a!important;}</style><style id="calendar-slot-cell-summary">
@@ -11679,4 +11698,15 @@ window.changePassword=function(){
 [data-service-setup]{display:block!important;width:auto!important;max-width:100%!important;min-height:0!important;height:auto!important;margin:9px auto 0!important;padding:3px 5px!important;border:0!important;border-radius:3px!important;background:transparent!important;box-shadow:none!important;color:#66808c!important;font:500 11px/1.4 system-ui,sans-serif!important;white-space:nowrap!important;text-align:center!important;cursor:pointer!important;}
 [data-service-setup]:hover{color:#245f90!important;text-decoration:underline;}
 [data-service-setup]:focus-visible{outline:2px solid #7da1b9;outline-offset:2px;}
+</style>
+<style id="weekly-chart-full-width-repair">
+@media(min-width:761px){
+html body #freshDesktopApp #fdWeekPanel #statsChart{display:block!important;width:100%!important;max-width:none!important;height:100%!important;}
+html body #freshDesktopApp #fdWeekPanel #statsChart>.chart-bars{display:grid!important;grid-template-columns:repeat(7,minmax(0,1fr))!important;width:100%!important;max-width:none!important;height:100%!important;min-height:0!important;gap:0!important;margin:0!important;padding:0!important;}
+html body #freshDesktopApp #fdWeekPanel #statsChart .chart-col{display:grid!important;grid-template-rows:minmax(0,1fr) 28px!important;position:relative!important;width:auto!important;min-width:0!important;height:100%!important;}
+html body #freshDesktopApp #fdWeekPanel #statsChart .chart-bar-wrap{display:flex!important;position:relative!important;align-items:flex-end!important;justify-content:center!important;grid-row:1!important;width:100%!important;height:100%!important;min-height:0!important;max-height:none!important;align-self:stretch!important;background:transparent!important;}
+html body #freshDesktopApp #fdWeekPanel #statsChart .chart-bar{height:var(--week-bar-height,1%)!important;max-height:calc(100% - 18px)!important;min-height:1px!important;}
+html body #freshDesktopApp #fdWeekPanel #statsChart .chart-count{bottom:min(calc(var(--week-bar-height,1%) + 2px),calc(100% - 17px))!important;height:15px!important;line-height:15px!important;font-size:10px!important;}
+html body #freshDesktopApp #fdWeekPanel #statsChart .chart-label{grid-row:2!important;position:static!important;align-self:end!important;}
+}
 </style>
