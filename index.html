@@ -12820,7 +12820,7 @@ async function mfRetrySync(){
   const today0 = new Date();
   let calYear = today0.getFullYear();
   let calMonth = today0.getMonth(); // 0-based
-  let quickAddDate = null; // 캘린더에서 "+"로 빠른 일정추가 중인 날짜(YYYY-MM-DD) 또는 null
+  let quickAddDate = null; // 캘린더에서 선택한 빠른 일정추가 날짜(YYYY-MM-DD) 또는 null
   const calendarViewEl = document.getElementById('calendarView');
   let sooniCalFilter = 'all';
   let sooniCalSearch = '';
@@ -13054,7 +13054,7 @@ async function mfRetrySync(){
       const displayEvents=window.innerWidth>820?evs.filter((x,index,all)=>all.findIndex(item=>item.site.id===x.site.id)===index):evs;
       const evHtml=displayEvents.slice(0,2).map(x=>`<button class="sooni-sch-event ${x.type}" data-id="${x.site.id}" data-date="${x.date}" data-label="${escapeHtml(x.label)}" title="${escapeHtml(x.site.name)} · ${escapeHtml(x.label)}">${escapeHtml(x.site.name)}${window.innerWidth<=820?' · '+escapeHtml(x.label):''}</button>`).join('');
       return `<div class="sooni-sch-cell ${c.other?'other':''} ${dateStr===todayStr?'today':''} ${!c.other&&dow===0?'is-sun':''} ${!c.other&&dow===6?'is-sat':''} ${holiday?'is-holiday':''}" data-date="${dateStr}" aria-label="${dateStr}${holiday?' '+escapeHtml(holiday):''}">
-        <div class="sooni-sch-day"><span>${c.day}</span>${!c.other?`<button class="sooni-sch-addday" data-date="${dateStr}" title="일정 추가">＋</button>`:''}</div>
+        <div class="sooni-sch-day"><span>${c.day}</span></div>
         ${holiday?`<div class="sooni-sch-holiday" title="${escapeHtml(holiday)}">${escapeHtml(holiday)}</div>`:''}
         ${evHtml}${displayEvents.length>2?`<span class="sooni-sch-more">+${displayEvents.length-2}</span>`:''}
       </div>`;
@@ -13176,7 +13176,8 @@ async function mfRetrySync(){
     const searchEl=document.getElementById('sooniCalSearch');
     if(searchEl) searchEl.oninput=(e)=>{sooniCalSearch=e.target.value;renderCalendarView(); requestAnimationFrame(()=>{const n=document.getElementById('sooniCalSearch');if(n){n.focus();n.setSelectionRange(n.value.length,n.value.length);}});};
 
-    calendarViewEl.querySelectorAll('.sooni-sch-event,.sooni-sch-row').forEach(el=>el.onclick=()=>{
+    calendarViewEl.querySelectorAll('.sooni-sch-event,.sooni-sch-row').forEach(el=>el.onclick=(e)=>{
+      e.stopPropagation();
       const site=sites.find(s=>s.id===el.dataset.id);
       if(!site) return;
       const type=sooniEventType(el.dataset.label);
@@ -13184,11 +13185,17 @@ async function mfRetrySync(){
       renderCalendarView();
     });
 
-    calendarViewEl.querySelectorAll('.sooni-sch-addday').forEach(btn=>btn.onclick=async(e)=>{
-      e.stopPropagation();
+    // 날짜 선택은 아래 빠른 추가의 날짜만 바꾸고 작성 중인 내용은 유지한다.
+    calendarViewEl.querySelectorAll('.sooni-sch-cell[data-date]').forEach(cell=>cell.onclick=async(e)=>{
+      if(!cell.dataset.date || guestMode || e.target.closest('button')) return;
       if(!(await ensureUnlocked())) return;
-      quickAddDate=btn.dataset.date;
-      renderCalendarView();
+      quickAddDate=cell.dataset.date;
+      const quick=calendarViewEl.querySelector('.sooni-sch-quick');
+      if(quick){
+        quick.querySelector('b').textContent=quickAddDate;
+      }else{
+        renderCalendarView();
+      }
     });
     document.getElementById('sooniAddToday').onclick=async()=>{
       if(!(await ensureUnlocked())) return;
