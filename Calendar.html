@@ -2868,26 +2868,7 @@ function buildCalendarArea(){
         el.appendChild(scheduleList);
       }
 
-      const capacity = getCapacityForKey(key);
-      if(capacity>0 && info && !showClosed){
-        const headcount = computeDateHeadcount(key);
-        if(headcount>0){
-          const capEl = document.createElement("div");
-          if(headcount>=capacity){
-            capEl.className = "cap-status full";
-            capEl.textContent = "마감";
-            const ribbon = document.createElement("div");
-            ribbon.className = "cap-ribbon";
-            ribbon.textContent = "마감";
-            el.appendChild(ribbon);
-            el.className += " cap-full";
-          } else {
-            capEl.className = "cap-status";
-            capEl.textContent = (capacity-headcount)+"명 남음";
-          }
-          el.appendChild(capEl);
-        }
-      }
+      // 정원이나 예약 수만으로 마감을 자동 지정하지 않는다.
 
       el.onclick = ()=>openPreview(key);
       grid.appendChild(el);
@@ -9496,16 +9477,16 @@ function summary(events,key){
    else if(color==='blue'||records.some(v=>v.status==='available'&&v.kind==='gallery'&&v.start===time)){state='blue';text='가능';}
    states.push(state);if(!text)return '';return '<span class="fd-slot-line '+state+'"><time>'+esc(time)+'</time><span> - '+esc(text)+'</span></span>';
   });
-  const closed=mark?.closed===true;
+  const closed=mark?.closed===true&&mark?.closedBy==='user';
   html=lines.some(Boolean)||closed?'<span class="fd-gallery-title">🖼️ 갤러리'+(closed?' (마감)':'')+'</span>'+lines.join(''):'';
  }
  for(const v of tour)html+='<span class="fd-slot-line tour"><time>'+esc(CalendarAvailability.normalizeTime(v.time)||v.time)+'</time><span> 🚗 '+esc(managerView?(v.manager||v.raw?.[5]||''):(v.site||'투어'))+'</span></span>';
- return {html,state:mark?.closed===true?'red':states.includes('blue')?'blue':mark?.color==='red'?'red':mark?.color==='none'?'none':''};
+ return {html,state:mark?.closed===true&&mark?.closedBy==='user'?'red':states.includes('blue')?'blue':mark?.color==='red'?'red':mark?.color==='none'?'none':''};
 }
 function paint(){document.querySelectorAll('#fdDays .fd-day:not(.other)').forEach(b=>{const key=b.dataset.availabilityKey;if(!key)return;const view=summary(b.__dayEvents||[],key);let box=b.querySelector('.fd-day-categories');if(!box&&view.html){box=document.createElement('span');box.className='fd-day-categories';b.append(box);}if(box&&box.innerHTML!==view.html)box.innerHTML=view.html;if(b.dataset.dateColor!==view.state)b.dataset.dateColor=view.state;});}
 function close(){panel?.remove();panel=null;}
 function menu(button){if(panel){close();return;}panel=document.createElement('div');panel.id='dateColorMenu';panel.innerHTML='<select aria-label="색을 표시할 시간"><option value="all">세 타임 전체</option>'+TIMES.map(t=>'<option>'+t+'</option>').join('')+'</select><button data-color="blue"><i class="blue"></i>가능</button><button data-color="red"><i class="red"></i>불가</button><button data-color="closed">마감 지정</button><button data-color="clear">지우기</button><button data-color="">완료</button>';document.body.append(panel);const r=button.getBoundingClientRect();panel.style.top=(r.bottom+6)+'px';panel.style.left=Math.max(8,Math.min(r.left,innerWidth-420))+'px';const select=panel.querySelector('select');select.value=slot;select.onchange=()=>slot=select.value;panel.querySelectorAll('button').forEach(b=>{b.classList.toggle('on',b.dataset.color===mode);b.onclick=()=>{mode=b.dataset.color;document.body.classList.toggle('calendar-color-painting',!!mode);close();if(mode)menu(button);};});}
-document.addEventListener('click',e=>{if(e.target.closest('#fdManagerViewBtn')){e.preventDefault();e.stopImmediatePropagation();managerView=!managerView;localStorage.setItem('calendar_manager_view_v1',managerView?'1':'0');e.target.closest('#fdManagerViewBtn').setAttribute('aria-pressed',String(managerView));paint();return;}const button=e.target.closest('#fdAvailableBtn');if(button){e.preventDefault();e.stopImmediatePropagation();if(owner())menu(button);return;}const day=e.target.closest('#fdDays .fd-day:not(.other)');if(day&&mode&&owner()){e.preventDefault();e.stopImmediatePropagation();const date=iso(day.dataset.availabilityKey),data=read(),id='date-color:'+date,record=data[id]||{date,kind:'date-color',status:'mark'};const color=mode==='clear'?'none':mode==='closed'?'red':mode;if(mode==='closed'){record.closed=true;record.color='red';}else if(slot==='all'){record.closed=false;record.color=color;delete record.slots;}else{record.slots={...record.slots,[slot]:color};}data[id]=record;localStorage.setItem(KEY,JSON.stringify(data));paint();return;}if(panel&&!panel.contains(e.target))close();},true);
+document.addEventListener('click',e=>{if(e.target.closest('#fdManagerViewBtn')){e.preventDefault();e.stopImmediatePropagation();managerView=!managerView;localStorage.setItem('calendar_manager_view_v1',managerView?'1':'0');e.target.closest('#fdManagerViewBtn').setAttribute('aria-pressed',String(managerView));paint();return;}const button=e.target.closest('#fdAvailableBtn');if(button){e.preventDefault();e.stopImmediatePropagation();if(owner())menu(button);return;}const day=e.target.closest('#fdDays .fd-day:not(.other)');if(day&&mode&&owner()){e.preventDefault();e.stopImmediatePropagation();const date=iso(day.dataset.availabilityKey),data=read(),id='date-color:'+date,record=data[id]||{date,kind:'date-color',status:'mark'};const color=mode==='clear'?'none':mode==='closed'?'red':mode;if(mode==='closed'){record.closed=true;record.closedBy='user';record.color='red';}else if(slot==='all'){record.closed=false;record.color=color;delete record.slots;}else{record.slots={...record.slots,[slot]:color};}data[id]=record;localStorage.setItem(KEY,JSON.stringify(data));paint();return;}if(panel&&!panel.contains(e.target))close();},true);
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){mode='';document.body.classList.remove('calendar-color-painting');close();}});
 let queued=false;new MutationObserver(()=>{if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;paint();const b=document.getElementById('fdAvailableBtn');if(b&&b.textContent!=='가능 / 불가'){b.innerHTML='<i aria-hidden="true"></i>가능 / 불가';b.title='파란색 가능 · 빨간색 불가';}if(b&&!document.getElementById('fdManagerViewBtn')){const toggle=document.createElement('button');toggle.id='fdManagerViewBtn';toggle.type='button';toggle.textContent='담당';toggle.title='담당자 이름으로 보기';toggle.setAttribute('aria-pressed',String(managerView));b.after(toggle);}});}).observe(document.body,{childList:true,subtree:true});window.addEventListener('calendar-data-applied',paint);paint();
 })();</script><style>html body #freshDesktopApp #fdDays .fd-day[data-date-color="none"]{background:#fbfdff!important;box-shadow:none!important;}html body #freshDesktopApp #fdDays .fd-day[data-date-color="none"].selected{box-shadow:inset 0 0 0 1px #64829a!important;}</style><style id="calendar-slot-cell-summary">
