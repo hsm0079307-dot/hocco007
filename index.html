@@ -25033,15 +25033,29 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
       try{
         draft=MonthlyReportExport.parseImport(input.value,pairs());
         status.textContent=draft.month+' · '+draft.items.length+'곳 자동 연결 · 기존 메모가 있는 현장은 선택해야 덮어씁니다.';
+        const selectionBar=document.createElement('div'),selectionCount=document.createElement('span');
+        selectionBar.style.cssText='display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin:10px 0;';
+        function updateSelection(){
+          const count=preview.querySelectorAll('input[type="checkbox"]:checked').length;
+          selectionCount.textContent=count+' / '+draft.items.length+'곳 선택';
+          el('Save').disabled=busy||guestMode||count===0;
+        }
+        [['전체 선택',true],['전체 해제',false]].forEach(([title,checked])=>{
+          const button=document.createElement('button');button.type='button';button.className='btn';button.textContent=title;
+          button.onclick=()=>{if(busy)return;preview.querySelectorAll('input[type="checkbox"]').forEach(c=>{c.checked=checked;});updateSelection();};
+          selectionBar.append(button);
+        });
+        selectionCount.style.cssText='margin-left:4px;color:var(--text-dim);font-size:12px;';
+        selectionBar.append(selectionCount);preview.append(selectionBar);
         draft.items.forEach((item,i)=>{
           const row=document.createElement('details'),head=document.createElement('summary'),label=document.createElement('label'),check=document.createElement('input');
           check.type='checkbox';check.dataset.index=String(i);check.checked=!item.existing;check.onclick=e=>e.stopPropagation();
           label.append(check,document.createTextNode(' '+item.office+' / '+item.siteName+(item.existing?' · 기존 메모 있음 (선택 시 덮어쓰기)':' · 새 정리')));head.append(label);row.append(head);
           if(item.existing){const old=document.createElement('pre');old.textContent='기존 메모\n'+item.before;row.append(old);}
           const text=document.createElement('pre');text.textContent='새 정리\n'+item.text;row.append(text);preview.append(row);
-          check.onchange=()=>{el('Save').disabled=!preview.querySelector('input:checked');};
+          check.onchange=updateSelection;
         });
-        el('Save').disabled=guestMode||!preview.querySelector('input:checked');
+        updateSelection();
         if(guestMode)status.textContent+='\n게스트는 미리보기만 가능합니다. 저장은 관리자 모드에서 진행하세요.';
       }catch(e){invalidate();status.textContent=e.message;}
     }
@@ -46929,6 +46943,16 @@ html body:not(.theme-dark) .rival-brand-tile strong,html body:not(.theme-dark) [
 @media(min-width:821px){html body.ux383 #detailBody .mgr-breakdown-wrap{display:flex!important;flex-direction:column!important;align-items:stretch!important;justify-content:flex-start!important;gap:8px!important;grid-template-rows:none!important;padding-top:4px!important;margin-top:0!important;height:auto!important;min-height:0!important;}html body.ux383 #detailBody .mgr-breakdown-wrap>*{grid-row:auto!important;grid-column:auto!important;}html body.ux383 #detailBody .log-add.report-tools-compact{padding:0!important;margin:0!important;min-height:0!important;}html body.ux383 #detailBody .log-add.report-tools-compact .canva-report-commandbar{display:none!important;height:0!important;min-height:0!important;margin:0!important;}html body.ux383 #detailBody .canva-report-tools.report-browse-tools{margin:0 0 4px!important;padding:0!important;min-height:32px!important;}}
 html body.ux383:not(.theme-dark) .rival-brand-tile.rival-brand-tile.selected,html body.ux383:not(.theme-dark) .rival-brand-tile.rival-brand-tile.selected strong{background:#d5e7f2!important;color:#203e54!important;-webkit-text-fill-color:#203e54!important;opacity:1!important;}
 html body.ux383:not(.theme-dark) #rivalOverviewContent .rival-overview-tabs button{color:#294b60!important;-webkit-text-fill-color:#294b60!important;opacity:1!important;}
+
+@media(min-width:821px){
+html body.ux383 #detailBody .mgr-breakdown-wrap>.mgr-nav-row,
+html body.ux383 #detailBody .mgr-breakdown-wrap>.mgr-contact-toolbar{
+ flex:0 0 auto!important;align-self:flex-start!important;box-sizing:border-box!important;padding:0!important;margin:0!important;height:32px!important;min-height:32px!important;max-height:32px!important;
+}
+html body.ux383 #detailBody .mgr-breakdown-wrap>.mgr-subtab-body{
+ flex:0 0 auto!important;min-height:0!important;margin:0!important;padding-top:0!important;
+}
+}
 </style></body>
 </html>
 
