@@ -9437,7 +9437,7 @@ function paint(){
  });
  const key=selected(),date=dateISO(key),all=data.filter(v=>v.date===date),rows=all.filter(v=>status(v)==='available'&&v.kind!=='gallery'&&(!site||v.site===site));
  const gallery=all.some(v=>v.kind==='gallery')||!!GALLERY_CLOSED[key]||!!GALLERY_ROWS[key]?.length;
- const slotMarkup=gallery?'<strong>갤러리 타임별 이용 현황</strong><div class="availability-slot-grid">'+slots(date).map(v=>'<div data-slot-date="'+esc(date)+'" data-slot-start="'+v.start+'" class="availability-slot '+esc(v.status)+'"><b>'+v.start+'</b><span>'+(v.status==='other'?'타사업지 사용':v.status==='closed'?'휴관 / 불가':v.status==='booked'?esc(v.summary):v.status==='available'?'가능':'')+'</span></div>').join('')+'</div>':'';
+ const slotMarkup=gallery?'<strong>갤러리 타임별 이용 현황</strong><div class="availability-slot-grid">'+slots(date).map(v=>'<div data-slot-date="'+esc(date)+'" data-slot-start="'+v.start+'" class="availability-slot '+esc(v.status)+'"><b>'+v.start+'</b><span>'+(['other','closed'].includes(v.status)?esc(String(v.note||'').trim()||(v.status==='other'?'타사업지 사용':'휴관 / 불가')):v.status==='booked'?esc(v.summary):v.status==='available'?'가능':'')+'</span></div>').join('')+'</div>':'';
  const markup=slotMarkup+(rows.length?'<strong>투어 방문 가능 시간</strong>'+rows.map(v=>'<span>'+esc(v.site)+' · '+esc(v.start+'–'+v.end)+'</span>').join(''):'');
  for(const host of [document.querySelector('#proV27Schedule'),document.querySelector('#fdScheduleActions')?.parentElement]){if(!host)continue;let note=host.querySelector(':scope > .availability-day-note');if(!markup){note?.remove();continue;}if(!note){note=document.createElement('aside');note.className='availability-day-note';host.prepend(note);}if(note.dataset.availabilitySignature!==markup){note.dataset.availabilitySignature=markup;note.innerHTML=markup;}}
 }
@@ -9490,7 +9490,7 @@ function summary(events,key){
   const lines=times.map(time=>{
    const booked=gallery.filter(v=>(CalendarAvailability.normalizeTime(v.time)||v.time)===time),block=CalendarAvailability.blockFor(date,time),specific=mark?.slots?.[time],color=specific||mark?.color;
    let state='unset',text='';
-   if(block){state='red';text=block.status==='other'?'타현장':'불가';}
+   if(block){state='red';text=String(block.note||'').trim()||(block.status==='other'?'타현장':'불가');}
    else if(booked.length){state='booked';if(managerView){text=[...new Set(booked.map(v=>String(v.manager||v.raw?.[4]||'').trim()).filter(v=>v&&v!=='-'&&v!=='미지정'))].join(' ');}else{const sites=new Map();for(const v of booked){const n=1+(typeof parseCompanionCount==='function'?parseCompanionCount(v.raw?.[3]):0);sites.set(v.site,(sites.get(v.site)||0)+n);}text=[...sites].map(([site,n])=>String(site||'현장 미지정').replace(/^목동/,'').replace(/아파트$/,'')+' '+n+'명').join(', ');}}
    else if(color==='red'){state='red';text='불가';}
    else if(color==='blue'||records.some(v=>v.status==='available'&&v.kind==='gallery'&&v.start===time)){state='blue';text='가능';}
