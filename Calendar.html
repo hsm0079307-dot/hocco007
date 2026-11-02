@@ -9481,7 +9481,11 @@ function summary(events,key){
   html=lines.some(Boolean)||closed?'<span class="fd-gallery-title">🖼️ 갤러리'+(closed?' (마감)':'')+'</span>'+lines.join(''):'';
  }
  for(const v of tour)html+='<span class="fd-slot-line tour"><time>'+esc(CalendarAvailability.normalizeTime(v.time)||v.time)+'</time><span> 🚗 '+esc(managerView?(v.manager||v.raw?.[5]||''):(v.site||'투어'))+'</span></span>';
- return {html,state:mark?.closed===true&&mark?.closedBy==='user'?'red':states.includes('blue')?'blue':mark?.color==='red'?'red':mark?.color==='none'?'none':''};
+ // 날짜 바탕색은 직접 지정한 색을 우선한다. 예약/타현장 표시는 그대로 유지한다.
+ const explicitColor=['blue','red','none'].includes(mark?.color)?mark.color:'';
+ const slotColors=Object.values(mark?.slots||{});
+ const dayColor=mark?.closed===true&&mark?.closedBy==='user'?'red':explicitColor||((slotColors.includes('blue')||states.includes('blue'))?'blue':slotColors.includes('red')?'red':'');
+ return {html,state:dayColor};
 }
 function paint(){document.querySelectorAll('#fdDays .fd-day:not(.other)').forEach(b=>{const key=b.dataset.availabilityKey;if(!key)return;const view=summary(b.__dayEvents||[],key);let box=b.querySelector('.fd-day-categories');if(!box&&view.html){box=document.createElement('span');box.className='fd-day-categories';b.append(box);}if(box&&box.innerHTML!==view.html)box.innerHTML=view.html;if(b.dataset.dateColor!==view.state)b.dataset.dateColor=view.state;});}
 function close(){panel?.remove();panel=null;}
