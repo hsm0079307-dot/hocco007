@@ -2946,10 +2946,14 @@ function isPast(key){
   return parseKeyDate(key) < today;
 }
 
+const attendanceLabels = {scheduled:"예정", attended:"참석", noshow:"불참"};
+
 function rowStatus(kind, key, idx){
   const rowKey = kind+"_"+key+"_"+idx;
+  const saved = checkState[rowKey];
+  if(Object.hasOwn(attendanceLabels, saved)) return saved;
   if(!isPast(key)) return "scheduled";
-  return checkState[rowKey] ? "attended" : "noshow";
+  return saved === true ? "attended" : "noshow";
 }
 
 let activeCategories = {gallery:true, tour:true};
@@ -3044,7 +3048,7 @@ function renderTable(kind, key, rows, colorClass, tagLabel){
     const raw = rows[idx];
     const r = reorderRow(kind, raw);
     const rowKey = kind+"_"+key+"_"+idx;
-    const isChecked = !!checkState[rowKey];
+    const isChecked = [true, "attended"].includes(checkState[rowKey]);
     const status = rowStatus(kind, key, idx);
     const hasMemo = !!personMemos[rowKey];
     html += "<tr class='"+status+"' data-rowkey='"+rowKey+"'>";
@@ -3066,7 +3070,9 @@ function renderTable(kind, key, rows, colorClass, tagLabel){
 
 function toggleCheck(kind, key, idx, el){
   const rowKey = kind+"_"+key+"_"+idx;
-  checkState[rowKey] = el.checked;
+  checkState[rowKey] = el.classList.contains('fd-attendance-status') ? el.value
+    : Object.hasOwn(attendanceLabels, checkState[rowKey]) ? (el.checked ? 'attended' : 'noshow')
+    : el.checked;
   persistCheck();
   const tr = el.closest("tr");
   tr.className = rowStatus(kind, key, idx);
@@ -4374,14 +4380,15 @@ function computeDateHeadcount(key){
   }
   window.mobileV4ToggleCheck=function(kind,key,idx,el){
     const rowKey=kind+'_'+key+'_'+idx;
-    checkState[rowKey]=!!el.checked;
+    checkState[rowKey]=Object.hasOwn(attendanceLabels, checkState[rowKey])
+      ? (el.checked ? 'attended' : 'noshow') : !!el.checked;
     persistCheck();
     updateSummary();updateManagerTable();updateStatsChart();
     selectDate(key,false);
   };
   function cardHtml(kind,key,raw,idx){
     const rowKey=kind+'_'+key+'_'+idx;
-    const checked=!!checkState[rowKey];
+    const checked=[true, "attended"].includes(checkState[rowKey]);
     const st=rowStatus(kind,key,idx);
     let time='',title='',sub='';
     if(kind==='gallery'){
@@ -10833,7 +10840,7 @@ html body #freshDesktopApp #fdWeekPanel .chart-label{grid-row:2!important;align-
   for(const [name,records] of sites){
    const card=document.createElement('section');card.className='fd-site-table '+(manager?'fd-site-managers':'fd-site-visits');
    const head=document.createElement('div'),title=document.createElement('strong'),count=document.createElement('span');head.className='fd-site-heading';title.textContent=name;count.textContent=records.length+(manager?'개 항목':'건');head.append(title,count);card.append(head);
-   const table=document.createElement('table');table.innerHTML=manager?'<thead><tr><th>담당자</th><th>참석</th><th>예정</th><th>불참</th><th>합계</th></tr></thead><tbody></tbody>':'<thead><tr><th>시간</th><th>방문자 명단</th><th>확인</th></tr></thead><tbody></tbody>';
+   const table=document.createElement('table');table.innerHTML=manager?'<thead><tr><th>담당자</th><th>참석</th><th>예정</th><th>불참</th><th>합계</th></tr></thead><tbody></tbody>':'<thead><tr><th>시간</th><th>방문자 명단</th><th>상태</th></tr></thead><tbody></tbody>';
    const tbody=table.querySelector('tbody');let lastTime='',timeCell=null,timeRows=0;
    if(!manager)records.sort((a,b)=>(window.calendarTimeOrder?.(a.children[0].textContent)||0)-(window.calendarTimeOrder?.(b.children[0].textContent)||0));
    for(const row of records){
@@ -10850,7 +10857,18 @@ html body #freshDesktopApp #fdWeekPanel .chart-label{grid-row:2!important;align-
      cells[3].appendChild(metadata);cells[3].classList.add('fd-visitor-name');
      const record=(row.dataset.rowkey||'').match(/^(gallery|tour)_(\d+-\d+)_(\d+)$/);
      if(record){
-      const open=()=>window.editEntryFlow(record[1],record[2],Number(record[3]));
+      const [, kind, key, index] = record;
+      const status = document.createElement('select');
+      status.className = 'fd-attendance-status';
+      const visitor = cells[3].querySelector('.memo-name')?.textContent || '방문자';
+      status.setAttribute('aria-label', visitor + ' 참석 상태');
+      for(const [value, label] of Object.entries(attendanceLabels)) status.add(new Option(label, value));
+      status.value = rowStatus(kind,key,Number(index));
+      status.disabled = window.CalendarAuthentication?.current()?.role !== 'admin';
+      if(status.disabled) status.dataset.calendarReadOnly='1';
+      status.onchange = () => window.toggleCheck(kind,key,Number(index),status);
+      cells[7].replaceChildren(status);
+      const open=()=>window.editEntryFlow(kind,key,Number(index));
       const nameLink=cells[3].querySelector('.memo-name');if(nameLink){nameLink.onclick=open;nameLink.title='일정 상세 · 수정';}
       const edit=document.createElement('button');edit.type='button';edit.className='fd-row-edit';edit.textContent='수정';edit.onclick=open;edit.setAttribute('aria-label',cells[3].querySelector('.memo-name')?.textContent+' 일정 수정');cells[3].appendChild(edit);
      }
@@ -11198,7 +11216,7 @@ html body #freshDesktopApp #fdLegacyMount .fd-site-heading strong::before{conten
  function apply(){
   const editable=owner();document.documentElement.setAttribute('data-calendar-access',editable?'owner':'viewer');
   document.querySelectorAll('.calendar-owner-entry').forEach(button=>button.remove());
-  document.querySelectorAll('#appRoot input[type="checkbox"],#freshDesktopApp input[type="checkbox"]').forEach(input=>{if(!editable&&!input.disabled){input.dataset.calendarReadOnly='1';input.disabled=true;}else if(editable&&input.dataset.calendarReadOnly){input.disabled=false;delete input.dataset.calendarReadOnly;}});
+  document.querySelectorAll('#appRoot input[type="checkbox"],#freshDesktopApp input[type="checkbox"],#freshDesktopApp .fd-attendance-status').forEach(input=>{if(!editable&&!input.disabled){input.dataset.calendarReadOnly='1';input.disabled=true;}else if(editable&&input.dataset.calendarReadOnly){input.disabled=false;delete input.dataset.calendarReadOnly;}});
  }
  function guard(){
   for(const name of ['addEntryFlow','editEntryFlow','deleteEntry','toggleCheck','toggleCheckFromStatus','openMemoForm','editMemo','clearAllCalendarSchedules','restoreScheduleDataPrompt','openCapacitySettings','openDateCapacitySettings','toggleClosedDay','changeCatLabel','saveCalendarData','submitForm']){
@@ -11763,4 +11781,12 @@ html body #freshDesktopApp #fdWeekPanel #statsChart .chart-label{grid-row:2!impo
   html body #freshDesktopApp #fdLegacyMount .fd-site-visits .fd-visitor-meta{margin-top:2px!important;gap:2px 8px!important;}
   html[data-calendar-access="viewer"] body #freshDesktopApp #fdLegacyMount .fd-site-visits .fd-visitor-name{padding-right:10px!important;}
 }
+</style>
+
+<style>
+#freshDesktopApp .fd-site-visits thead th:last-child{width:66px!important;min-width:66px!important;}
+#freshDesktopApp .fd-attendance-status{box-sizing:border-box;width:64px;min-height:26px;padding:2px 4px;border:1px solid #cbd9e5;border-radius:5px;background:#fff;color:#415e76;font:inherit;font-size:11px;cursor:pointer;}
+#freshDesktopApp tr.attended .fd-attendance-status{color:#08634e;background:#edf7f2;}
+#freshDesktopApp tr.noshow .fd-attendance-status{color:#a33e34;background:#fff1ee;}
+#freshDesktopApp .fd-attendance-status:disabled{opacity:1;cursor:default;}
 </style>
