@@ -16334,7 +16334,7 @@ window.addEventListener('resize', ()=>{
     if(document.getElementById('managementSheetContent'))return;
     const content=document.createElement('div');content.id='managementSheetContent';
     const esc=x=>escapeHtml(String(x??''));
-    let entries=managementSites(),page=0,showAllForPrint=false;const pageSize=30,modelCache=new Map();
+    let entries=managementSites(),page=0,showAllForPrint=false;const pageSize=15,modelCache=new Map();
     content.innerHTML=`<div class="management-toolbar"><label>사업소 <select id="managementOffice"><option value="">전체</option>${['강서사업소','강남사업소','강북사업소'].map(o=>`<option value="${o}">${o.replace('사업소','')}</option>`).join('')}</select></label><label>검색 <input id="managementSearch" placeholder="현장·담당·협력업체 검색"></label><label>지역 <select id="managementRegion"><option value="">전체</option>${[...new Set(entries.map(r=>r.site.district).filter(Boolean))].sort().map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('')}</select></label><label>특이사항 <select id="managementNoteMonth"><option value="">전체 월</option><option value="__date__">현재 월</option>${[...new Set(entries.flatMap(r=>[...managementNoteGroups(r.site).keys()]))].sort().reverse().map(m=>`<option value="${m}">${m==='__undated__'?'월 미지정':m.slice(2,4)+'년 '+Number(m.slice(5))+'월'}</option>`).join('')}</select></label><label>기준일 <input type="date" id="managementDate"></label><label><input type="checkbox" id="managementSelected"> 선택 현장만</label><span id="managementCount"></span><button type="button" id="managementRefresh">최신 자료 불러오기</button><span id="managementRefreshStatus" role="status"></span><button type="button" id="managementExport">엑셀 저장</button><button type="button" id="managementPrint">인쇄</button></div><div class="management-scroll" tabindex="0" aria-label="전체 현장 관리표"><table class="management-table"><colgroup>${[36,64,98,126,66,82,140,112,95,70,188,145,145,194,154].map(w=>`<col style="width:${w}px">`).join('')}</colgroup><thead></thead><tbody></tbody></table></div>`;
     const modal=uxModal(window.innerWidth<=820?'총괄':'전체 현장표',content);modal.dialog.classList.add('management-sheet-modal');
     const cards=document.createElement('div');cards.className='management-mobile-cards';content.querySelector('.management-scroll').append(cards);
@@ -16343,11 +16343,11 @@ window.addEventListener('resize', ()=>{
       const fields=more.querySelector('div');for(const id of ['managementRegion','managementDate','managementSelected'])fields.append(content.querySelector('#'+id).closest('label'));
       for(const id of ['managementExport','managementPrint'])fields.append(content.querySelector('#'+id));toolbar.append(more);
     }
-    let visibleRows=[],matchedEntries=[], miniMaps=[], mapObserver=null;
+    let visibleRows=[],matchedEntries=[], miniMaps=[], mapObserver=null, mapFrame=0; const mapQueue=new Set();
     const pager=document.createElement('nav');pager.className='management-pages';pager.setAttribute('aria-label','전체 현장표 페이지');content.append(pager);
     const modelFor=(entry,week,month)=>{const key=String(entry.site.id)+'|'+week.start+'|'+month;let cached=modelCache.get(key);if(!cached||cached.site!==entry.site){cached={site:entry.site,row:{...managementModel(entry.site,week,month),office:entry.office}};modelCache.set(key,cached);}return cached.row;};
     const allVisibleRows=()=>{const week=selectedWeek(),month=content.querySelector('#managementNoteMonth').value==='__date__'?dateInput.value.slice(0,7):content.querySelector('#managementNoteMonth').value;return matchedEntries.map(entry=>modelFor(entry,week,month));};
-    function clearMaps(){mapObserver?.disconnect();mapObserver=null;miniMaps.forEach(m=>{m.overlays.forEach(o=>o.setMap(null));});miniMaps=[];}
+    function clearMaps(){mapObserver?.disconnect();mapObserver=null;cancelAnimationFrame(mapFrame);mapFrame=0;mapQueue.clear();miniMaps.forEach(m=>{m.overlays.forEach(o=>o.setMap(null));});miniMaps=[];}
     modal.setOnClose?.(clearMaps);
     function drawLocations(force=false){
       if(window.innerWidth<=820)return;
@@ -16374,8 +16374,26 @@ window.addEventListener('resize', ()=>{
         }catch(error){node.textContent='지도를 불러오지 못했습니다.';}
       };
       const nodes=content.querySelectorAll('[data-management-map]');
-      if(force||typeof IntersectionObserver==='undefined'){nodes.forEach(draw);return;}
-      mapObserver=new IntersectionObserver(entries=>entries.filter(e=>e.isIntersecting).forEach(e=>{draw(e.target);mapObserver.unobserve(e.target);}),{root:content.querySelector('.management-scroll'),rootMargin:'120px'});
+      if(force){nodes.forEach(draw);return;}
+      function drawNext(){
+        mapFrame=0;
+        const node=mapQueue.values().next().value;
+        if(!node)return;
+        mapQueue.delete(node);
+        if(node.isConnected){draw(node);mapObserver?.unobserve(node);}
+        if(mapQueue.size)mapFrame=requestAnimationFrame(drawNext);
+      }
+      function queue(node){
+        mapQueue.add(node);
+        if(!mapFrame)mapFrame=requestAnimationFrame(drawNext);
+      }
+      if(typeof IntersectionObserver==='undefined'){nodes.forEach(queue);return;}
+      mapObserver=new IntersectionObserver(entries=>{
+        for(const entry of entries){
+          if(entry.isIntersecting)queue(entry.target);
+          else mapQueue.delete(entry.target);
+        }
+      },{root:content.querySelector('.management-scroll')});
       nodes.forEach(node=>mapObserver.observe(node));
     }
     const dateInput=content.querySelector('#managementDate');dateInput.value=new Date().getFullYear()+'-'+String(new Date().getMonth()+1).padStart(2,'0')+'-'+String(new Date().getDate()).padStart(2,'0');
