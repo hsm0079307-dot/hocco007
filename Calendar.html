@@ -10843,7 +10843,9 @@ html body #freshDesktopApp #fdWeekPanel .chart-label{grid-row:2!important;align-
      const metadata=document.createElement('div');metadata.className='fd-visitor-meta';
      for(const [index,label] of [[2,'동호수'],[4,'동반'],[5,'담당'],[6,'']]){
       if(!cells[index].textContent.trim()||cells[index].textContent.trim()==='-')continue;
-      const item=document.createElement('span');item.textContent=label?label+' ':'';while(cells[index].firstChild)item.appendChild(cells[index].firstChild);metadata.appendChild(item);
+      const item=document.createElement('span');item.textContent=label?label+' ':'';while(cells[index].firstChild)item.appendChild(cells[index].firstChild);
+      if(index===6){item.className='fd-visitor-transport';cells[3].appendChild(item);}
+      else metadata.appendChild(item);
      }
      cells[3].appendChild(metadata);cells[3].classList.add('fd-visitor-name');
      const record=(row.dataset.rowkey||'').match(/^(gallery|tour)_(\d+-\d+)_(\d+)$/);
@@ -11751,5 +11753,14 @@ html body #freshDesktopApp #fdWeekPanel #statsChart .chart-label{grid-row:2!impo
     background:#486b84!important;
     color:#fff!important;
   }
+}
+</style>
+
+<style id="desktop-compact-visitor-rows">
+@media screen and (min-width:761px){
+  html body #freshDesktopApp #fdLegacyMount .fd-site-visits tbody .fd-visitor-name{padding-top:6px!important;padding-bottom:6px!important;}
+  html body #freshDesktopApp #fdLegacyMount .fd-site-visits .fd-visitor-transport{display:inline-block;margin-inline-start:7px;color:#728492;font-size:var(--ui-type-small,12px);}
+  html body #freshDesktopApp #fdLegacyMount .fd-site-visits .fd-visitor-meta{margin-top:2px!important;gap:2px 8px!important;}
+  html[data-calendar-access="viewer"] body #freshDesktopApp #fdLegacyMount .fd-site-visits .fd-visitor-name{padding-right:10px!important;}
 }
 </style>
