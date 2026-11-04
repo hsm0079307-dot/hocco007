@@ -10867,7 +10867,11 @@ html body #freshDesktopApp #fdWeekPanel .chart-label{grid-row:2!important;align-
       status.disabled = window.CalendarAuthentication?.current()?.role !== 'admin';
       if(status.disabled) status.dataset.calendarReadOnly='1';
       status.onchange = () => window.toggleCheck(kind,key,Number(index),status);
-      cells[7].replaceChildren(status);
+      const label = document.createElement('span');
+      label.className = 'fd-attendance-label';
+      label.textContent = attendanceLabels[status.value];
+      status.addEventListener('change', () => { label.textContent = attendanceLabels[status.value]; });
+      cells[7].replaceChildren(status, label);
       const open=()=>window.editEntryFlow(kind,key,Number(index));
       const nameLink=cells[3].querySelector('.memo-name');if(nameLink){nameLink.onclick=open;nameLink.title='일정 상세 · 수정';}
       const edit=document.createElement('button');edit.type='button';edit.className='fd-row-edit';edit.textContent='수정';edit.onclick=open;edit.setAttribute('aria-label',cells[3].querySelector('.memo-name')?.textContent+' 일정 수정');cells[3].appendChild(edit);
@@ -11789,4 +11793,12 @@ html body #freshDesktopApp #fdWeekPanel #statsChart .chart-label{grid-row:2!impo
 #freshDesktopApp tr.attended .fd-attendance-status{color:#08634e;background:#edf7f2;}
 #freshDesktopApp tr.noshow .fd-attendance-status{color:#a33e34;background:#fff1ee;}
 #freshDesktopApp .fd-attendance-status:disabled{opacity:1;cursor:default;}
+</style>
+
+<style>
+#freshDesktopApp .fd-site-visits td:has(.fd-attendance-status){box-sizing:border-box!important;padding-inline:4px!important;text-align:center!important}
+#freshDesktopApp .fd-site-visits .fd-attendance-status{width:100%!important;max-width:64px!important;min-width:0!important;height:26px!important;padding:0 3px!important;line-height:normal!important}
+#freshDesktopApp .fd-attendance-label{display:none;font-size:12px;white-space:nowrap;color:inherit}
+html[data-calendar-access="viewer"] #freshDesktopApp .fd-attendance-status{display:none!important}
+html[data-calendar-access="viewer"] #freshDesktopApp .fd-attendance-label{display:inline}
 </style>
