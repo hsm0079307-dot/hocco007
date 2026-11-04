@@ -24184,18 +24184,19 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
           <button type="button" class="cis-card-detail" data-cis-detail="1">상세</button>
         </div>
         <div class="cis-site-card-body">
+          <div class="cis-site-metrics">
           <div class="cis-contact-row" data-cis-detail="1">
             <div>
               <div style="font-size:8px;color:var(--text-dim);font-weight:700;">누계 접촉현황</div>
-              <div class="cis-contact-big"><strong>${Number(x.cum||0)}명</strong> / ${Number(x.total||0)}명</div>
+              <div class="cis-contact-inline"><div class="cis-contact-big"><strong>${Number(x.cum||0)}명</strong> / ${Number(x.total||0)}명</div><div class="cis-contact-rate">${Number(x.rate||0).toFixed(1)}%</div></div>
               <div class="cis-card-progress"><span style="width:${pct}%"></span></div>
             </div>
-            <div class="cis-contact-rate">${Number(x.rate||0).toFixed(1)}%</div>
           </div>
           <div class="cis-mini-grid">
             <div class="cis-mini" data-cis-detail="1"><div class="l">${reportSummaryMode==='all'?'누계 접촉':'기간 접촉'}</div><div class="n">${reportSummaryMode==='all'?Number(x.cum||0):Number(x.periodPeople||0)}명</div></div>
             <div class="cis-mini" data-cis-detail="1"><div class="l">방문일수</div><div class="n">${Number(x.visits||0)}일</div></div>
             <div class="cis-mini" data-cis-detail="1"><div class="l">집행부 접촉</div><div class="n">${escapeHtml(roleText)}</div></div>
+          </div>
           </div>
           ${issueText.length>140?`<details class="cis-card-issue cis-issue-expand"><summary><b>${escapeHtml(issueHead)}</b><span class="cis-issue-preview">${escapeHtml(issueText.slice(0,140))}…</span><span class="cis-issue-toggle"><span class="cis-issue-more">전문 보기</span><span class="cis-issue-less">접기</span></span></summary><div class="cis-issue-full">${escapeHtml(issueText)}</div></details>`:`<div class="cis-card-issue"><b>${escapeHtml(issueHead)}</b>${escapeHtml(issueText)}</div>`}
         </div>
@@ -47610,4 +47611,16 @@ body.theme-dark #siteManagePanel#siteManagePanel .canva-danger-item,body.theme-d
 body:not(.theme-dark) #siteManagePanel#siteManagePanel{background:#fff!important;border-color:#c7d3df!important;}
 body:not(.theme-dark) #siteManagePanel#siteManagePanel .menu-item-btn,body:not(.theme-dark) #siteManagePanel#siteManagePanel .menu-item-btn *{color:#203c52!important;-webkit-text-fill-color:#203c52!important;opacity:1!important;}
 body:not(.theme-dark) #siteManagePanel#siteManagePanel .canva-danger-item,body:not(.theme-dark) #siteManagePanel#siteManagePanel .canva-danger-item *{color:#a63741!important;-webkit-text-fill-color:#a63741!important;}
+</style>
+
+<style>
+.cis-kpis{gap:8px!important;padding-block:2px!important}
+.cis-kpis>.cis-kpi{padding:3px 8px!important;min-height:0!important;row-gap:0!important}
+.cis-kpis>.cis-kpi>.v{line-height:1.2!important}
+.cis-site-metrics{display:flex;align-items:center;flex-wrap:wrap;gap:6px 14px;margin-bottom:6px}
+.cis-site-metrics .cis-contact-row{display:block!important;flex:1 1 120px;margin:0!important;padding:0!important}
+.cis-contact-inline{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap}
+.cis-contact-inline .cis-contact-rate{font-size:var(--ui-type-small,12px)!important}
+.cis-site-metrics .cis-mini-grid{display:flex!important;flex:0 1 auto;flex-wrap:wrap;gap:4px 12px!important;margin:0!important}
+.cis-site-metrics .cis-mini{display:flex!important;align-items:baseline;gap:4px;padding:0!important;min-height:0!important;border:0!important;background:transparent!important;box-shadow:none!important}
 </style>
