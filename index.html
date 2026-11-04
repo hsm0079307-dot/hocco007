@@ -47624,3 +47624,59 @@ body:not(.theme-dark) #siteManagePanel#siteManagePanel .canva-danger-item,body:n
 .cis-site-metrics .cis-mini-grid{display:flex!important;flex:0 1 auto;flex-wrap:wrap;gap:4px 12px!important;margin:0!important}
 .cis-site-metrics .cis-mini{display:flex!important;align-items:baseline;gap:4px;padding:0!important;min-height:0!important;border:0!important;background:transparent!important;box-shadow:none!important}
 </style>
+<style>
+#textMarkTools{position:fixed;z-index:2147483647;display:flex;gap:4px;padding:5px;background:#fff;border:1px solid #aabcc8;border-radius:8px;box-shadow:0 4px 16px #0003;color:#213847}
+#textMarkTools[hidden]{display:none}
+#textMarkTools button{padding:4px 7px;border:1px solid #ccd8df;border-radius:4px;background:#fff;color:inherit;font:inherit;cursor:pointer}
+::highlight(mark-red){color:#be2525}
+::highlight(mark-blue){color:#155aca}
+::highlight(mark-yellow){background:#ffeb75}
+::highlight(mark-underline){text-decoration:underline}
+</style>
+<script>
+(()=>{
+ if(!window.Highlight||!window.CSS?.highlights)return;
+ const tools=document.createElement('div');
+ tools.id='textMarkTools';tools.hidden=true;tools.setAttribute('role','toolbar');tools.setAttribute('aria-label','선택 글자 서식');
+ const marks={'mark-red':'빨강 글씨','mark-blue':'파랑 글씨','mark-yellow':'형광펜','mark-underline':'밑줄'};
+ for(const name of Object.keys(marks))CSS.highlights.set(name,new Highlight());
+ let selected;
+ const hide=()=>{tools.hidden=true;selected=null;};
+ function apply(name){
+  if(!selected||!selected.startContainer.isConnected)return;
+  for(const kind of name==='clear'?Object.keys(marks):name==='mark-red'||name==='mark-blue'?['mark-red','mark-blue']:[]){
+   const group=CSS.highlights.get(kind);
+   for(const range of [...group]){
+    if(range.comparePoint(selected.startContainer,selected.startOffset)>0||range.comparePoint(selected.endContainer,selected.endOffset)<0)continue;
+    group.delete(range);
+    if(range.compareBoundaryPoints(Range.START_TO_START,selected)<0){
+     const left=range.cloneRange();left.setEnd(selected.startContainer,selected.startOffset);group.add(left);
+    }
+    if(range.compareBoundaryPoints(Range.END_TO_END,selected)>0){
+     const right=range.cloneRange();right.setStart(selected.endContainer,selected.endOffset);group.add(right);
+    }
+   }
+  }
+  if(name!=='clear')CSS.highlights.get(name).add(selected.cloneRange());
+  getSelection()?.removeAllRanges();hide();
+ }
+ for(const [name,label] of [...Object.entries(marks),['clear','서식 지우기']]){
+  const button=document.createElement('button');button.type='button';button.textContent=label;
+  button.addEventListener('pointerdown',event=>event.preventDefault());
+  button.addEventListener('click',()=>apply(name));tools.append(button);
+ }
+ document.body.append(tools);
+ function show(){
+  const selection=getSelection();
+  if(!selection?.rangeCount||selection.isCollapsed||!selection.toString().trim())return hide();
+  const range=selection.getRangeAt(0),rect=range.getBoundingClientRect();
+  if(!rect.width||tools.contains(range.commonAncestorContainer))return hide();
+  selected=range.cloneRange();tools.hidden=false;
+  tools.style.left=Math.max(6,Math.min(rect.left,innerWidth-tools.offsetWidth-6))+'px';
+  tools.style.top=(rect.top>tools.offsetHeight+10?rect.top-tools.offsetHeight-6:rect.bottom+6)+'px';
+ }
+ document.addEventListener('pointerup',event=>{if(event.pointerType==='mouse'&&!tools.contains(event.target))requestAnimationFrame(show);});
+ document.addEventListener('keyup',event=>{if(event.key==='Escape')hide();else if(event.shiftKey&&!tools.contains(event.target))show();});
+ window.addEventListener('scroll',hide,true);
+})();
+</script>
