@@ -47756,7 +47756,9 @@ body:not(.theme-dark) #siteManagePanel#siteManagePanel .canva-danger-item,body:n
  function remember(){
   const nodes=textNodes(),seen=new Set();
   for(const node of nodes.keys())seen.add(node);
-  const next=saved.filter(mark=>!seen.has(mark.text));
+  const activeId=String(activeBriefSite()?.id??'');
+  const month=document.querySelector('[data-mark-month]:not([data-mark-month=""])')?.dataset.markMonth;
+  const next=saved.filter(mark=>mark.siteId?mark.siteId!==activeId||mark.month!==month:!seen.has(mark.text));
   for(const kind of Object.keys(marks)){
    for(const range of CSS.highlights.get(kind)){
     for(const [text,list] of nodes){
@@ -47764,7 +47766,11 @@ body:not(.theme-dark) #siteManagePanel#siteManagePanel .canva-danger-item,body:n
       if(!range.intersectsNode(node))return;
       const from=range.startContainer===node?range.startOffset:0;
       const to=range.endContainer===node?range.endOffset:text.length;
-      if(from<to)next.push({kind,text,index,from,to});
+      if(from<to){
+       const brief=node.parentElement.closest('[data-mark-month]:not([data-mark-month=""])');
+       const site=brief?activeBriefSite():null;
+       next.push({kind,text,index,from,to,...(site?{siteId:String(site.id),month:brief.dataset.markMonth,quote:text.slice(from,to),briefIndex:list.filter(item=>brief.contains(item)).indexOf(node)}:{})});
+      }
      });
     }
    }
@@ -47779,9 +47785,9 @@ body:not(.theme-dark) #siteManagePanel#siteManagePanel .canva-danger-item,body:n
   const site=activeBriefSite();
   if(!site)return;
   const nodes=textNodes();
-  const visible=mark=>slot.contains(nodes.get(mark.text)?.[mark.index]);
+  const visible=mark=>mark.siteId?mark.siteId===String(site.id)&&mark.month===slot.dataset.markMonth:slot.contains(nodes.get(mark.text)?.[mark.index]);
   const previous=pendingBriefMarks.get(site.id)?.entries||site.monthlyTextMarks?.entries||[];
-  const month=slot.dataset.markMonth; const value={entries:[...previous.filter(mark=>mark.month?mark.month!==month:!visible(mark)),...saved.filter(visible).map(mark=>({...mark,month,index:nodes.get(mark.text).filter(node=>slot.contains(node)).indexOf(nodes.get(mark.text)[mark.index])}))]};
+  const month=slot.dataset.markMonth; const value={entries:[...previous.filter(mark=>mark.month?mark.month!==month:!visible(mark)),...saved.filter(visible).map(mark=>({...mark,month,index:mark.briefIndex??nodes.get(mark.text)?.filter(node=>slot.contains(node)).indexOf(nodes.get(mark.text)[mark.index])??0}))]};
   pendingBriefMarks.set(site.id,value);
   let message=slot.querySelector('[data-mark-status]'); if(!message){message=document.createElement('small');message.dataset.markStatus='';message.setAttribute('role','status');slot.append(message);}
   if(message&&!message.dataset.originalText)message.dataset.originalText=message.textContent;
@@ -47806,10 +47812,21 @@ body:not(.theme-dark) #siteManagePanel#siteManagePanel .canva-danger-item,body:n
   const nodes=textNodes();
   for(const kind of Object.keys(marks))CSS.highlights.get(kind).clear();
   for(const mark of entries){
-   const list=nodes.get(mark.text); const node=(mark.month?list?.filter(item=>item.parentElement.closest('[data-mark-month]')?.dataset.markMonth===mark.month):list)?.[mark.index],group=CSS.highlights.get(mark.kind);
+   if(mark.siteId&&mark.siteId!==String(site?.id))continue;
+   const inMonth=item=>item.parentElement.closest('[data-mark-month]')?.dataset.markMonth===mark.month;
+   const list=nodes.get(mark.text);
+   let node=(mark.month?list?.filter(inMonth):list)?.[mark.briefIndex??mark.index];
+   let {from,to}=mark;
+   if(!node&&mark.month&&mark.quote?.length>=4){
+    const candidates=[...nodes.values()].flat().filter(item=>inMonth(item)&&item.data.includes(mark.quote));
+    if(candidates.length===1){
+     node=candidates[0];from=node.data.indexOf(mark.quote);to=from+mark.quote.length;
+    }
+   }
+   const group=CSS.highlights.get(mark.kind);
    if(!saved.includes(mark)&&!node?.parentElement.closest("[data-mark-month]"))continue;
-   if(!node||!group||mark.from<0||mark.to>node.length||mark.from>=mark.to)continue;
-   const range=new Range();range.setStart(node,mark.from);range.setEnd(node,mark.to);group.add(range);
+   if(!node||!group||from<0||to>node.length||from>=to)continue;
+   const range=new Range();range.setStart(node,from);range.setEnd(node,to);group.add(range);
   }
  }
  let refresh;
