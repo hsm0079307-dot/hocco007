@@ -23226,7 +23226,7 @@ function buildSiteReportBrief(site,requestedRange,requestedMode){
  const embedded=!!requestedRange,esc=escapeHtml,periodLabel=embedded?(mode==='month'?range.start.slice(0,7):range.start+' ~ '+range.end):bfPeriodDisplay(range);
  const displayFields=mode==='month'?[...HoccoBrief.fields,['check','추가 확인 사항']]:HoccoBrief.fields;
  const freshness=mode==='month'&&override&&typeof MonthlyReportExport!=='undefined'?MonthlyReportExport.progress(site,range.start.slice(0,7),s=>miReportLogs(s).filter(l=>!isTourBookingLog(l))):'';
- return `<section class="report-brief bf-brief${embedded?' bf-shared-embedded':''}">${embedded?'':`<header class="bf-head"><div class="bf-headline">${overviewSectionIcon('brief')}<strong>${bfView.mode==='month'?`${esc(periodLabel)} 월간정리 ${override?'':'<small>정리 전</small>'}`:'주요 내용'}</strong></div><div class="bf-head-tools no-print"><span class="bf-view-label">보기</span><select id="bfMode" aria-label="브리핑 보기 방식">${[['day','일별'],['week','주별'],['month','월별'],['custom','기간 지정']].map(([v,t])=>`<option value="${v}" ${bfView.mode===v?'selected':''}>${t}</option>`).join('')}</select>${bfView.mode==='custom'?`<input id="bfStart" type="date" value="${range.start}" aria-label="시작 날짜"><input id="bfEnd" type="date" value="${range.end}" aria-label="종료 날짜"><button class="btn" data-bf-apply>조회</button>`:`<button class="btn bf-nav-btn" data-bf-step="-1" aria-label="이전 기간">‹</button><button type="button" class="bf-period-display" data-bf-date-picker aria-label="기준 날짜 선택">${esc(periodLabel)}</button><input id="bfDate" class="bf-date-native" type="date" aria-label="브리핑 기준 날짜" value="${bfView.date}"><button class="btn bf-nav-btn" data-bf-step="1" aria-label="다음 기간">›</button>`}${guestMode?'':`<button class="btn bf-edit-btn" data-bf-edit>브리핑 수정</button>`}</div></header>`}${freshness?`<p class="bf-monthly-freshness" role="status">${esc(freshness)}</p>`:''}<div class="bf-grid">${displayFields.map(([key,title])=>{
+ return `<section class="report-brief bf-brief${embedded?' bf-shared-embedded':''}">${embedded?'':`<header class="bf-head"><div class="bf-headline">${overviewSectionIcon('brief')}<strong>${bfView.mode==='month'?`${esc(periodLabel)} 월간정리 ${override?'':'<small>정리 전</small>'}`:'주요 내용'}</strong></div><div class="bf-head-tools no-print"><span class="bf-view-label">보기</span><select id="bfMode" aria-label="브리핑 보기 방식">${[['day','일별'],['week','주별'],['month','월별'],['custom','기간 지정']].map(([v,t])=>`<option value="${v}" ${bfView.mode===v?'selected':''}>${t}</option>`).join('')}</select>${bfView.mode==='custom'?`<input id="bfStart" type="date" value="${range.start}" aria-label="시작 날짜"><input id="bfEnd" type="date" value="${range.end}" aria-label="종료 날짜"><button class="btn" data-bf-apply>조회</button>`:`<button class="btn bf-nav-btn" data-bf-step="-1" aria-label="이전 기간">‹</button><button type="button" class="bf-period-display" data-bf-date-picker aria-label="기준 날짜 선택">${esc(periodLabel)}</button><input id="bfDate" class="bf-date-native" type="date" aria-label="브리핑 기준 날짜" value="${bfView.date}"><button class="btn bf-nav-btn" data-bf-step="1" aria-label="다음 기간">›</button>`}${guestMode?'':`<button class="btn bf-edit-btn" data-bf-edit>브리핑 수정</button>${mode==='month'?'<button type="button" class="btn" data-save-brief-marks>강조 저장</button>':''}`}</div></header>`}${freshness?`<p class="bf-monthly-freshness" role="status">${esc(freshness)}</p>`:''}<div class="bf-grid">${displayFields.map(([key,title])=>{
  const manual=override&&Object.prototype.hasOwnProperty.call(override.sections||{},key),rawItems=data.sections[key]||[],items=bfGroupItems(rawItems);
  const itemHtml=item=>{
    const speaker=bfSpeakerLabel(item);
@@ -47769,19 +47769,37 @@ body:not(.theme-dark) #siteManagePanel#siteManagePanel .canva-danger-item,body:n
   saved=next;
   try{localStorage.setItem(storageKey,JSON.stringify(saved));}catch{}
  }
+ function activeBriefSite(){return sites.find(site=>site.id===currentDetailId);}
+ document.addEventListener('click',async event=>{
+  const button=event.target.closest('[data-save-brief-marks]');
+  if(!button||button.disabled)return;
+  const site=activeBriefSite();
+  const slot=button.closest('.overview-brief-slot');
+  if(!site||!slot)return;
+  const nodes=textNodes();
+  const entries=saved.filter(mark=>slot.contains(nodes.get(mark.text)?.[mark.index]));
+  button.disabled=true;
+  try{
+   await bfSaveField(site,'monthlyTextMarks',{entries},site.monthlyTextMarks);
+   button.textContent='강조 저장됨';
+  }catch(error){alert(error.message);}
+  finally{button.disabled=false;}
+ });
  function restore(){
-  if(!saved.length)return;
+  const shared=activeBriefSite()?.monthlyTextMarks?.entries||[];
+  const entries=[...saved,...shared];
+  if(!entries.length)return;
   const nodes=textNodes();
   for(const kind of Object.keys(marks))CSS.highlights.get(kind).clear();
-  for(const mark of saved){
+  for(const mark of entries){
    const node=nodes.get(mark.text)?.[mark.index],group=CSS.highlights.get(mark.kind);
+   if(!saved.includes(mark)&&!node?.parentElement.closest(".overview-brief-slot"))continue;
    if(!node||!group||mark.from<0||mark.to>node.length||mark.from>=mark.to)continue;
    const range=new Range();range.setStart(node,mark.from);range.setEnd(node,mark.to);group.add(range);
   }
  }
  let refresh;
  new MutationObserver(()=>{
-  if(!saved.length)return;
   clearTimeout(refresh);refresh=setTimeout(restore,100);
  }).observe(document.body,{childList:true,subtree:true,characterData:true});
  restore();
