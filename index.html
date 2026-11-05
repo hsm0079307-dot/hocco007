@@ -23226,7 +23226,7 @@ function buildSiteReportBrief(site,requestedRange,requestedMode){
  const embedded=!!requestedRange,esc=escapeHtml,periodLabel=embedded?(mode==='month'?range.start.slice(0,7):range.start+' ~ '+range.end):bfPeriodDisplay(range);
  const displayFields=mode==='month'?[...HoccoBrief.fields,['check','추가 확인 사항']]:HoccoBrief.fields;
  const freshness=mode==='month'&&override&&typeof MonthlyReportExport!=='undefined'?MonthlyReportExport.progress(site,range.start.slice(0,7),s=>miReportLogs(s).filter(l=>!isTourBookingLog(l))):'';
- return `<section class="report-brief bf-brief${embedded?' bf-shared-embedded':''}">${embedded?'':`<header class="bf-head"><div class="bf-headline">${overviewSectionIcon('brief')}<strong>${bfView.mode==='month'?`${esc(periodLabel)} 월간정리 ${override?'':'<small>정리 전</small>'}`:'주요 내용'}</strong></div><div class="bf-head-tools no-print"><span class="bf-view-label">보기</span><select id="bfMode" aria-label="브리핑 보기 방식">${[['day','일별'],['week','주별'],['month','월별'],['custom','기간 지정']].map(([v,t])=>`<option value="${v}" ${bfView.mode===v?'selected':''}>${t}</option>`).join('')}</select>${bfView.mode==='custom'?`<input id="bfStart" type="date" value="${range.start}" aria-label="시작 날짜"><input id="bfEnd" type="date" value="${range.end}" aria-label="종료 날짜"><button class="btn" data-bf-apply>조회</button>`:`<button class="btn bf-nav-btn" data-bf-step="-1" aria-label="이전 기간">‹</button><button type="button" class="bf-period-display" data-bf-date-picker aria-label="기준 날짜 선택">${esc(periodLabel)}</button><input id="bfDate" class="bf-date-native" type="date" aria-label="브리핑 기준 날짜" value="${bfView.date}"><button class="btn bf-nav-btn" data-bf-step="1" aria-label="다음 기간">›</button>`}${guestMode?'':`<button class="btn bf-edit-btn" data-bf-edit>브리핑 수정</button>`}</div></header>`}${freshness?`<p class="bf-monthly-freshness" role="status">${esc(freshness)}</p>`:''}<div class="bf-grid">${displayFields.map(([key,title])=>{
+ return `<section class="report-brief bf-brief${embedded?' bf-shared-embedded':''}" data-mark-month="${mode==='month'?esc(range.start.slice(0,7)):''}">${embedded?'':`<header class="bf-head"><div class="bf-headline">${overviewSectionIcon('brief')}<strong>${bfView.mode==='month'?`${esc(periodLabel)} 월간정리 ${override?'':'<small>정리 전</small>'}`:'주요 내용'}</strong></div><div class="bf-head-tools no-print"><span class="bf-view-label">보기</span><select id="bfMode" aria-label="브리핑 보기 방식">${[['day','일별'],['week','주별'],['month','월별'],['custom','기간 지정']].map(([v,t])=>`<option value="${v}" ${bfView.mode===v?'selected':''}>${t}</option>`).join('')}</select>${bfView.mode==='custom'?`<input id="bfStart" type="date" value="${range.start}" aria-label="시작 날짜"><input id="bfEnd" type="date" value="${range.end}" aria-label="종료 날짜"><button class="btn" data-bf-apply>조회</button>`:`<button class="btn bf-nav-btn" data-bf-step="-1" aria-label="이전 기간">‹</button><button type="button" class="bf-period-display" data-bf-date-picker aria-label="기준 날짜 선택">${esc(periodLabel)}</button><input id="bfDate" class="bf-date-native" type="date" aria-label="브리핑 기준 날짜" value="${bfView.date}"><button class="btn bf-nav-btn" data-bf-step="1" aria-label="다음 기간">›</button>`}${guestMode?'':`<button class="btn bf-edit-btn" data-bf-edit>브리핑 수정</button>`}</div></header>`}${freshness?`<p class="bf-monthly-freshness" role="status">${esc(freshness)}</p>`:''}<div class="bf-grid">${displayFields.map(([key,title])=>{
  const manual=override&&Object.prototype.hasOwnProperty.call(override.sections||{},key),rawItems=data.sections[key]||[],items=bfGroupItems(rawItems);
  const itemHtml=item=>{
    const speaker=bfSpeakerLabel(item);
@@ -47700,8 +47700,8 @@ body:not(.theme-dark) #siteManagePanel#siteManagePanel .canva-danger-item,body:n
  const hide=()=>{tools.hidden=true;selected=null;};
  function apply(name){
   if(!selected||!selected.startContainer.isConnected)return;
-  const slot=selected.startContainer.parentElement?.closest('.overview-brief-slot');
-  const brief=slot?.contains(selected.endContainer)&&slot.querySelector('.bf-monthly-freshness')?slot:null;
+  const slot=selected.startContainer.parentElement?.closest('[data-mark-month]:not([data-mark-month=""])');
+  const brief=slot?.contains(selected.endContainer)?slot:null;
   for(const kind of name==='clear'?Object.keys(marks):name==='mark-red'||name==='mark-blue'?['mark-red','mark-blue']:[]){
    const group=CSS.highlights.get(kind);
    for(const range of [...group]){
@@ -47781,9 +47781,9 @@ body:not(.theme-dark) #siteManagePanel#siteManagePanel .canva-danger-item,body:n
   const nodes=textNodes();
   const visible=mark=>slot.contains(nodes.get(mark.text)?.[mark.index]);
   const previous=pendingBriefMarks.get(site.id)?.entries||site.monthlyTextMarks?.entries||[];
-  const value={entries:[...previous.filter(mark=>!visible(mark)),...saved.filter(visible)]};
+  const month=slot.dataset.markMonth; const value={entries:[...previous.filter(mark=>mark.month?mark.month!==month:!visible(mark)),...saved.filter(visible).map(mark=>({...mark,month,index:nodes.get(mark.text).filter(node=>slot.contains(node)).indexOf(nodes.get(mark.text)[mark.index])}))]};
   pendingBriefMarks.set(site.id,value);
-  const message=slot.querySelector('.bf-monthly-freshness');
+  let message=slot.querySelector('[data-mark-status]'); if(!message){message=document.createElement('small');message.dataset.markStatus='';message.setAttribute('role','status');slot.append(message);}
   if(message&&!message.dataset.originalText)message.dataset.originalText=message.textContent;
   if(message)message.textContent=message.dataset.originalText+' · 강조 저장 중';
   saveQueue=saveQueue.then(async()=>{
@@ -47806,8 +47806,8 @@ body:not(.theme-dark) #siteManagePanel#siteManagePanel .canva-danger-item,body:n
   const nodes=textNodes();
   for(const kind of Object.keys(marks))CSS.highlights.get(kind).clear();
   for(const mark of entries){
-   const node=nodes.get(mark.text)?.[mark.index],group=CSS.highlights.get(mark.kind);
-   if(!saved.includes(mark)&&!node?.parentElement.closest(".overview-brief-slot"))continue;
+   const list=nodes.get(mark.text); const node=(mark.month?list?.filter(item=>item.parentElement.closest('[data-mark-month]')?.dataset.markMonth===mark.month):list)?.[mark.index],group=CSS.highlights.get(mark.kind);
+   if(!saved.includes(mark)&&!node?.parentElement.closest("[data-mark-month]"))continue;
    if(!node||!group||mark.from<0||mark.to>node.length||mark.from>=mark.to)continue;
    const range=new Range();range.setStart(node,mark.from);range.setEnd(node,mark.to);group.add(range);
   }
