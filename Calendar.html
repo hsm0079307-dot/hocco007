@@ -10840,7 +10840,7 @@ html body #freshDesktopApp #fdWeekPanel .chart-label{grid-row:2!important;align-
   for(const [name,records] of sites){
    const card=document.createElement('section');card.className='fd-site-table '+(manager?'fd-site-managers':'fd-site-visits');
    const head=document.createElement('div'),title=document.createElement('strong'),count=document.createElement('span');head.className='fd-site-heading';title.textContent=name;count.textContent=records.length+(manager?'개 항목':'건');head.append(title,count);card.append(head);
-   const table=document.createElement('table');table.innerHTML=manager?'<thead><tr><th>담당자</th><th>참석</th><th>예정</th><th>불참</th><th>합계</th></tr></thead><tbody></tbody>':'<thead><tr><th>시간</th><th>방문자 명단</th><th>상태</th></tr></thead><tbody></tbody>';
+   const table=document.createElement('table');table.innerHTML=manager?'<thead><tr><th>담당자</th><th>참석</th><th>예정</th><th>불참</th><th>합계</th></tr></thead><tbody></tbody>':'<thead><tr><th>시간</th><th>방문자 명단</th><th>수정 · 상태</th></tr></thead><tbody></tbody>';
    const tbody=table.querySelector('tbody');let lastTime='',timeCell=null,timeRows=0;
    if(!manager)records.sort((a,b)=>(window.calendarTimeOrder?.(a.children[0].textContent)||0)-(window.calendarTimeOrder?.(b.children[0].textContent)||0));
    for(const row of records){
@@ -10874,7 +10874,7 @@ html body #freshDesktopApp #fdWeekPanel .chart-label{grid-row:2!important;align-
       cells[7].replaceChildren(status, label);
       const open=()=>window.editEntryFlow(kind,key,Number(index));
       const nameLink=cells[3].querySelector('.memo-name');if(nameLink){nameLink.onclick=open;nameLink.title='일정 상세 · 수정';}
-      const edit=document.createElement('button');edit.type='button';edit.className='fd-row-edit';edit.textContent='수정';edit.onclick=open;edit.setAttribute('aria-label',cells[3].querySelector('.memo-name')?.textContent+' 일정 수정');cells[3].appendChild(edit);
+      const edit=document.createElement('button');edit.type='button';edit.className='fd-row-edit';edit.textContent='수정';edit.onclick=open;edit.setAttribute('aria-label',cells[3].querySelector('.memo-name')?.textContent+' 일정 수정');cells[7].prepend(edit);
      }
      for(const i of [1,2,4,5,6])cells[i].remove();
      const time=cells[0].textContent.trim()+'|'+(row.dataset.rowkey||'').split('_')[0];
@@ -11801,4 +11801,14 @@ html body #freshDesktopApp #fdWeekPanel #statsChart .chart-label{grid-row:2!impo
 #freshDesktopApp .fd-attendance-label{display:none;font-size:12px;white-space:nowrap;color:inherit}
 html[data-calendar-access="viewer"] #freshDesktopApp .fd-attendance-status{display:none!important}
 html[data-calendar-access="viewer"] #freshDesktopApp .fd-attendance-label{display:inline}
+</style>
+
+<style id="calendar-row-actions-alignment">
+@media(min-width:761px){
+html body #freshDesktopApp #fdLegacyMount .fd-site-visits th:last-child,html body #freshDesktopApp #fdLegacyMount .fd-site-visits td:last-child{box-sizing:border-box!important;width:116px!important;min-width:116px!important;padding:8px 6px!important;text-align:center!important;vertical-align:top!important;white-space:nowrap!important}
+html body #freshDesktopApp #fdLegacyMount .fd-site-visits .fd-row-edit{position:static!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;width:40px!important;height:28px!important;min-height:28px!important;margin:0 6px 0 0!important;padding:0!important;vertical-align:middle!important;font-size:11px!important}
+html body #freshDesktopApp #fdLegacyMount .fd-site-visits .fd-attendance-status{display:inline-block!important;box-sizing:border-box!important;width:58px!important;min-width:58px!important;max-width:58px!important;height:28px!important;min-height:28px!important;margin:0!important;padding:0 3px!important;vertical-align:middle!important;font-size:11px!important;border-radius:5px!important}
+html body #freshDesktopApp #fdLegacyMount .fd-site-visits .fd-visitor-name{padding-right:10px!important}
+html[data-calendar-access="viewer"] body #freshDesktopApp #fdLegacyMount .fd-site-visits th:last-child,html[data-calendar-access="viewer"] body #freshDesktopApp #fdLegacyMount .fd-site-visits td:last-child{width:58px!important;min-width:58px!important;white-space:nowrap!important}
+}
 </style>
