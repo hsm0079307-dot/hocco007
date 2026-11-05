@@ -23254,9 +23254,11 @@ function buildSiteReportBrief(site,requestedRange,requestedMode){
  }).join('')}</div></section>`;
 }
 window.dashboardMarkSite=()=>sites.find(site=>site.id===currentDetailId);
-window.dashboardSaveMarks=(site,value)=>{
+window.dashboardGlobalMarkSite=()=>Object.values(allOfficesData).flat().find(site=>site?.id==='default-mokdong1');
+window.dashboardSaveMarks=(site,value,key)=>{
  const latest=sites.find(item=>item.id===site.id)||site;
- return bfSaveField(latest,'monthlyTextMarks',value,latest.monthlyTextMarks);
+ const retained=(latest.monthlyTextMarks?.entries||[]).filter(mark=>key==='global'?mark.siteId!=='':mark.siteId==='');
+ return bfSaveField(latest,'monthlyTextMarks',{entries:[...retained,...value.entries]},latest.monthlyTextMarks);
 };
 async function bfSaveField(site,field,baseline,value){
  if(guestMode||!(await ensureUnlocked()))throw Error('관리자 모드에서 저장할 수 있습니다.');
@@ -47688,6 +47690,10 @@ body:not(.theme-dark) #siteManagePanel#siteManagePanel .canva-danger-item,body:n
 <style>
 #textMarkTools{position:fixed;z-index:2147483647;display:flex;gap:4px;padding:5px;background:#fff;border:1px solid #aabcc8;border-radius:8px;box-shadow:0 4px 16px #0003;color:#213847}
 #textMarkTools[hidden]{display:none}
+@media screen {
+ #app :is(.detail-tabs,.site-list,.topbar,button,a),#app :is(.detail-tabs,.site-list,.topbar,button,a) *{-webkit-user-select:text!important;user-select:text!important}
+}
+#textMarkTools{max-width:calc(100vw - 12px);box-sizing:border-box;flex-wrap:wrap}
 #textMarkTools button{padding:4px 7px;border:1px solid #ccd8df;border-radius:4px;background:#fff;color:inherit;font:inherit;cursor:pointer}
 ::highlight(mark-red){color:#be2525}
 ::highlight(mark-blue){color:#155aca}
@@ -47707,12 +47713,19 @@ body:not(.theme-dark) #siteManagePanel#siteManagePanel .canva-danger-item,body:n
   if(!selected||!selected.startContainer.isConnected)return;
   const brief=selected.startContainer.parentElement?.closest('[data-mark-month]:not([data-mark-month=""])');
   const site=activeBriefSite();
-  const siteId=String(site?.id??'');
+  const detail=document.getElementById('detailBody');
+  const siteId=detail?.contains(selected.commonAncestorContainer)?String(site?.id??''):'';
   const month=brief?.dataset.markMonth||'';
-  const root=brief||(site&&document.getElementById('detailBody'))||document.body;
+  const root=brief||(siteId&&detail)||document.body;
+  const owner=siteId?site:window.dashboardGlobalMarkSite?.();
+  const key=siteId||'global';
+  const current=sharedMarks(owner,key);
+  const signature=mark=>JSON.stringify([mark.kind,mark.text,mark.briefIndex??mark.index,mark.from,mark.to,mark.month||'']);
+  const known=new Set(saved.filter(mark=>mark.siteId===siteId).map(signature));
+  saved.push(...current.filter(mark=>!known.has(signature(mark))).map(mark=>({...mark,siteId,month:mark.month||''})));
   const nodes=textNodes();
   for(const [text,list] of nodes){
-   const scoped=list.filter(node=>root.contains(node)&&(!brief?!node.parentElement.closest('[data-mark-month]:not([data-mark-month=""])'):true));
+   const scoped=list.filter(node=>root.contains(node)&&(brief||(!node.parentElement.closest('[data-mark-month]:not([data-mark-month=""])')&&(siteId||!detail?.contains(node)))));
    scoped.forEach((node,index)=>{
     if(!selected.intersectsNode(node))return;
     const from=selected.startContainer===node?selected.startOffset:0;
@@ -47729,7 +47742,7 @@ body:not(.theme-dark) #siteManagePanel#siteManagePanel .canva-danger-item,body:n
    });
   }
   try{localStorage.setItem(storageKey,JSON.stringify(saved));}catch{}
-  if(brief)saveBriefMarks(brief);
+  if(owner)saveMarks(owner,key,siteId,month,root);
   getSelection()?.removeAllRanges();hide();restore();
  }
  for(const [name,label] of [...Object.entries(marks),['clear','서식 지우기']]){
@@ -47754,7 +47767,7 @@ body:not(.theme-dark) #siteManagePanel#siteManagePanel .canva-danger-item,body:n
  try{saved=JSON.parse(localStorage.getItem(storageKey)||'[]');if(!Array.isArray(saved))saved=[];}catch{}
  function textNodes(){
   const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT,{
-   acceptNode:node=>node.data.trim()&&!node.parentElement.closest('script,style,textarea,#textMarkTools')
+   acceptNode:node=>node.data.trim()&&!node.parentElement.closest('script,style,textarea,#textMarkTools,[data-mark-status]')
     ?NodeFilter.FILTER_ACCEPT:NodeFilter.FILTER_REJECT
   });
   const nodes=new Map();
@@ -47768,31 +47781,34 @@ body:not(.theme-dark) #siteManagePanel#siteManagePanel .canva-danger-item,body:n
  function activeBriefSite(){return window.dashboardMarkSite?.();}
  const pendingBriefMarks=new Map();
  let saveQueue=Promise.resolve();
- function saveBriefMarks(slot){
-  const site=activeBriefSite();
-  if(!site)return;
-  const nodes=textNodes();
-  const visible=mark=>mark.siteId?mark.siteId===String(site.id)&&mark.month===slot.dataset.markMonth:slot.contains(nodes.get(mark.text)?.[mark.index]);
-  const previous=pendingBriefMarks.get(site.id)?.entries||site.monthlyTextMarks?.entries||[];
-  const month=slot.dataset.markMonth; const value={entries:[...previous.filter(mark=>mark.month?mark.month!==month:!visible(mark)),...saved.filter(visible).map(mark=>({...mark,month,index:mark.siteId?mark.briefIndex??mark.index:nodes.get(mark.text)?.filter(node=>slot.contains(node)).indexOf(nodes.get(mark.text)[mark.index])??0}))]};
-  pendingBriefMarks.set(site.id,value);
-  let message=slot.querySelector('[data-mark-status]'); if(!message){message=document.createElement('small');message.dataset.markStatus='';message.setAttribute('role','status');slot.append(message);}
-  if(message&&!message.dataset.originalText)message.dataset.originalText=message.textContent;
-  if(message)message.textContent=message.dataset.originalText+' · 강조 저장 중';
+ function sharedMarks(site,key){
+  if(!site)return [];
+  const marks=pendingBriefMarks.get(key)?.entries||site.monthlyTextMarks?.entries||[];
+  return marks.filter(mark=>key==='global'?mark.siteId==='':mark.siteId!=='');
+ }
+ function saveMarks(site,key,siteId,month,root){
+  const previous=sharedMarks(site,key);
+  const entries=[...previous.filter(mark=>(mark.month||'')!==month),...saved.filter(mark=>mark.siteId===siteId&&(mark.month||'')===month)];
+  const value={entries};
+  pendingBriefMarks.set(key,value);
+  let message=document.querySelector('[data-mark-status]');
+  if(!message){message=document.createElement('small');message.dataset.markStatus='';message.setAttribute('role','status');Object.assign(message.style,{position:'fixed',bottom:'12px',right:'12px',zIndex:'2147483646',padding:'6px 10px',background:'#fff',color:'#203746'});document.body.append(message);}
+  message.textContent='강조 저장 중';
   saveQueue=saveQueue.then(async()=>{
    try{
-    await window.dashboardSaveMarks(site,value);
-    if(message)message.textContent=message.dataset.originalText+' · 강조 저장됨';
+    await window.dashboardSaveMarks(site,value,key);
+    if(pendingBriefMarks.get(key)===value)message.textContent='강조 저장됨';
+
    }catch(error){
-    if(message)message.textContent=message.dataset.originalText+' · 기기에만 저장: '+error.message;
+    if(pendingBriefMarks.get(key)===value)message.textContent='기기에만 저장: '+error.message;
    }finally{
-    if(pendingBriefMarks.get(site.id)===value)pendingBriefMarks.delete(site.id);
+    if(pendingBriefMarks.get(key)===value)pendingBriefMarks.delete(key);
    }
   });
  }
  function restore(){
   const site=activeBriefSite();
-  const shared=pendingBriefMarks.get(site?.id)?.entries||site?.monthlyTextMarks?.entries||[];
+  const shared=[...sharedMarks(site,String(site?.id)),...sharedMarks(window.dashboardGlobalMarkSite?.(),'global')];
   const entries=[...saved,...shared];
   for(const kind of Object.keys(marks))CSS.highlights.get(kind).clear();
   if(!entries.length)return;
@@ -47803,7 +47819,7 @@ body:not(.theme-dark) #siteManagePanel#siteManagePanel .canva-danger-item,body:n
    const inMonth=item=>item.parentElement.closest('[data-mark-month]')?.dataset.markMonth===mark.month;
    const list=nodes.get(mark.text);
    const detail=document.getElementById('detailBody');
-   let node=(mark.month?list?.filter(inMonth):mark.siteId?list?.filter(item=>detail?.contains(item)&&!item.parentElement.closest('[data-mark-month]:not([data-mark-month=""])')):list)?.[mark.briefIndex??mark.index];
+   let node=(mark.month?list?.filter(inMonth):mark.siteId?list?.filter(item=>detail?.contains(item)&&!item.parentElement.closest('[data-mark-month]:not([data-mark-month=""])')):mark.siteId===''?list?.filter(item=>!detail?.contains(item)):list)?.[mark.briefIndex??mark.index];
    let {from,to}=mark;
    if(!node&&mark.month&&mark.quote?.length>=4){
     const candidates=[...nodes.values()].flat().filter(item=>inMonth(item)&&item.data.includes(mark.quote));
@@ -47812,7 +47828,7 @@ body:not(.theme-dark) #siteManagePanel#siteManagePanel .canva-danger-item,body:n
     }
    }
    const group=CSS.highlights.get(mark.kind);
-   if(!saved.includes(mark)&&!node?.parentElement.closest("[data-mark-month]"))continue;
+
    if(!node||!group||from<0||to>node.length||from>=to)continue;
    if([...group].some(range=>range.startContainer===node&&range.startOffset===from&&range.endOffset===to))continue;
    const range=new Range();range.setStart(node,from);range.setEnd(node,to);group.add(range);
