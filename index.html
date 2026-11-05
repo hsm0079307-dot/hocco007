@@ -16641,7 +16641,7 @@ const PROJECT_PRE_SELECTION_SOURCES = {
 };
 function projectProgressDetailedFlow(row){
   let flow=projectProgressShortFlow(row);
-  const extras=PROJECT_PRE_SELECTION_STEPS[row.path==='redevelop-trust'?'trust':row.path];
+  const extras=PROJECT_PRE_SELECTION_STEPS[['redevelop-trust','redevelop-trust-sin','trust-sin'].includes(row.path)?'trust':row.path];
   if(!extras)return flow;
   if(row.path==='landowner'&&!flow.length){
     const end=(row.flow||[]).indexOf('사업시행계획인가');
@@ -16771,11 +16771,39 @@ async function openProjectProcedureEditor(site,dialog){
   if(!projectProcedureAdmin()||!(await ensureUnlocked()))return;
   const row=projectProgressFor(site),baseline=JSON.parse(JSON.stringify(site.projectProcedure||null)),templates=projectProcedureTemplates();
   const body=dialog.querySelector('.project-progress-dialog-body');
-  body.innerHTML=`<form class="project-procedure-form"><label>사업방식<select name="path">${Object.entries(templates).map(([key,t])=>`<option value="${escapeHtml(key)}"${key===row.path?' selected':''}>${escapeHtml(t.type)}</option>`).join('')}</select></label><label>현재 단계<input name="current" required maxlength="100" list="projectProcedureStages" value="${escapeHtml(row.current)}"><datalist id="projectProcedureStages"></datalist></label><label>변경일<input type="date" name="changedOn" value="${escapeHtml(row.changedOn||new Date().toLocaleDateString('sv-SE'))}"></label><label>자료 링크 <small>한 줄에 제목 | 주소</small><textarea name="sources" rows="3">${escapeHtml(projectProcedureSources(row).map(s=>(s.title||'자료')+' | '+s.url).join('\n'))}</textarea></label><small>변경 이력은 저장됩니다.</small><div class="project-procedure-tools"><button class="btn btn-primary" type="submit">저장</button><button class="btn btn-ghost" type="button" data-procedure-cancel>취소</button></div><div data-procedure-message role="status"></div></form>`;
+  body.innerHTML=`<form class="project-procedure-form"><label>① 사업 유형<select name="projectType"></select></label><label>② 시행 방식<select name="method"></select></label><label>③ 추진 경로<select name="route"></select></label><input type="hidden" name="path"><label>현재 단계<input name="current" required maxlength="100" list="projectProcedureStages" value="${escapeHtml(row.current)}"><datalist id="projectProcedureStages"></datalist></label><label>변경일<input type="date" name="changedOn" value="${escapeHtml(row.changedOn||new Date().toLocaleDateString('sv-SE'))}"></label><label>자료 링크 <small>한 줄에 제목 | 주소</small><textarea name="sources" rows="3">${escapeHtml(projectProcedureSources(row).map(s=>(s.title||'자료')+' | '+s.url).join('\n'))}</textarea></label><small>변경 이력은 저장됩니다.</small><div class="project-procedure-tools"><button class="btn btn-primary" type="submit">저장</button><button class="btn btn-ghost" type="button" data-procedure-cancel>취소</button></div><div data-procedure-message role="status"></div></form>`;
   const form=body.querySelector('form'),path=form.elements.path;
   const stageInput=form.elements.current,stageSelect=document.createElement('select');stageSelect.name='current';stageSelect.required=true;stageInput.replaceWith(stageSelect);body.querySelector('datalist').remove();
-  const fillStages=()=>{const current=stageSelect.value||row.current,flow=path.value===row.path&&row.flow?.length?row.flow:templates[path.value].flow;stageSelect.innerHTML=projectProcedureStageChoices(projectProgressDetailedFlow({path:path.value,flow}),current).map(s=>`<option value="${escapeHtml(s)}"${s===current?' selected':''}>${escapeHtml(projectProgressStepLabel(s))}</option>`).join('');};
-  if(row.path==='trust'&&row.type.startsWith('재개발'))path.value='redevelop-trust';else if(!templates[row.path])path.selectedIndex=0;fillStages();path.addEventListener('change',fillStages);
+  const fillStages=()=>{const current=stageSelect.value||row.current,flow=path.value===existing&&row.flow?.length?row.flow:templates[path.value].flow;stageSelect.innerHTML=projectProcedureStageChoices(projectProgressDetailedFlow({path:path.value,flow}),current).map(s=>`<option value="${escapeHtml(s)}"${s===current?' selected':''}>${escapeHtml(projectProgressStepLabel(s))}</option>`).join('');};
+  const categories={
+    rebuild:['재건축','조합','일반'],redevelop:['재개발','조합','일반'],
+    trust:['재건축','신탁 시행','일반'],'redevelop-trust':['재개발','신탁 시행','일반'],
+    public:['재개발','공공 시행','공공재개발 · LH'],sin:['재개발','조합','신통기획'],
+    landowner:['재개발','토지등소유자','도시정비형'],
+    moa:['가로주택정비','확인 필요','모아타운'],small:['소규모재건축','확인 필요','소규모정비'],
+    '3080':['도심 공공주택 복합','공공 시행','3080+'],oldcity:['노후계획도시 정비','공공 시행 준비','특별정비']
+  };
+  for(const key of ['trust','redevelop-trust']){
+    if(!templates[key])continue;
+    categories[key+'-sin']=[...categories[key].slice(0,2),'신통기획'];
+    templates[key+'-sin']={...templates[key],type:categories[key][0]+' · 신탁 시행 · 신통기획'};
+  }
+  const choices=Object.entries(categories).filter(([key])=>templates[key]);
+  const fields=['projectType','method','route'].map(name=>form.elements[name]);
+  const existing=row.path==='trust'&&String(row.type).startsWith('재개발')?'redevelop-trust':row.path;
+  function choose(preferred){
+    let eligible=choices;
+    fields.forEach((field,i)=>{
+      const options=[...new Set(eligible.map(([,labels])=>labels[i]))];
+      field.replaceChildren(...options.map(label=>new Option(label,label)));
+      if(options.includes(preferred[i]))field.value=preferred[i];
+      eligible=eligible.filter(([,labels])=>labels[i]===field.value);
+    });
+    path.value=eligible[0][0];
+    fillStages();
+  }
+  choose(categories[existing]||[]);
+  fields.forEach(field=>field.addEventListener('change',()=>choose(fields.map(input=>input.value))));
   body.querySelector('[data-procedure-cancel]').addEventListener('click',()=>{dialog.close();openProjectProgress(site);});
   form.addEventListener('submit',async event=>{
     event.preventDefault();const status=body.querySelector('[data-procedure-message]'),button=form.querySelector('[type=submit]');button.disabled=true;
@@ -16783,7 +16811,7 @@ async function openProjectProcedureEditor(site,dialog){
       const sources=form.elements.sources.value.split('\n').map(s=>s.trim()).filter(Boolean).map(line=>{const split=line.lastIndexOf('|'),title=split<0?'자료':line.slice(0,split).trim(),url=(split<0?line:line.slice(split+1)).trim();if(!/^https?:\/\//.test(url))throw Error('자료 주소는 http 또는 https로 입력해 주세요.');new URL(url);return {title:title||'자료',url};});
       const template=templates[path.value],now=new Date().toISOString(),current=form.elements.current.value.trim();if(!current)throw Error('현재 단계를 입력해 주세요.');
       const history=[...(row.history||[]),{at:now,by:'관리자',from:row.current,to:current,sources}].slice(-100);
-      const value={current,path:path.value,type:path.value===row.path?row.type:template.type,flow:path.value===row.path&&row.flow?.length?row.flow:template.flow,paused:current===row.current?!!row.paused:false,changedOn:form.elements.changedOn.value,updatedAt:now,verification:'manual',sources,searchStatus:'manual',checkedAt:row.checkedAt||null,history};
+      const value={current,path:path.value,type:path.value===row.path?row.type:template.type,flow:path.value===existing&&row.flow?.length?row.flow:template.flow,paused:current===row.current?!!row.paused:false,changedOn:form.elements.changedOn.value,updatedAt:now,verification:'manual',sources,searchStatus:'manual',checkedAt:row.checkedAt||null,history};
       const fresh=await saveProjectProcedure(site,value,baseline);dialog.close();openProjectProgress(fresh);
     }catch(error){status.textContent=error.message;}finally{button.disabled=false;}
   });
