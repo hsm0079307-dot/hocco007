@@ -1095,7 +1095,7 @@ function createPasswordDatabaseClient(nativeFetch,endpoint,databaseOrigin){
   async function login(role,password,key,options={}){
     const deferData=role==='viewer'&&options.deferData===true;
     let response;
-    try{response=await window.SharedLoginGuard.request(()=>nativeFetch(endpoint+'?action=login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role,password,key,includeData:role!=='admin'&&!deferData}),signal:AbortSignal.timeout(45000)}),role+'|'+(key||''),password);}
+    try{response=await window.SharedLoginGuard.request(()=>nativeFetch((role==='viewer'?endpoint.replace('/api/password-access','/.netlify/functions/password-access'):endpoint)+'?action=login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role,password,key,includeData:role!=='admin'&&!deferData}),signal:AbortSignal.timeout(45000)}),role+'|'+(key||''),password);}
     catch(error){if(String(error.message||'').startsWith('로그인 시도 제한'))throw error;throw Error(error.name==='TimeoutError'||error.name==='AbortError'?'로그인 서버 응답이 늦습니다. 잠시 후 다시 확인해주세요.':'로그인 서버에 연결하지 못했습니다. 인터넷 연결을 확인해주세요.');}
     if(!response.ok)throw Error(response.status===429?'시도 횟수가 많습니다. 15분 후 다시 시도해주세요.':response.status>=500?'로그인 서버에 연결하지 못했습니다. 잠시 후 다시 눌러주세요.':role==='viewer'?'입장 비밀번호가 틀렸습니다. 관리자 비밀번호와는 별도입니다.':'관리자 비밀번호가 틀렸습니다.');
     const next=await response.json();
