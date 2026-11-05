@@ -16641,7 +16641,7 @@ const PROJECT_PRE_SELECTION_SOURCES = {
 };
 function projectProgressDetailedFlow(row){
   let flow=projectProgressShortFlow(row);
-  const extras=PROJECT_PRE_SELECTION_STEPS[row.path];
+  const extras=PROJECT_PRE_SELECTION_STEPS[row.path==='redevelop-trust'?'trust':row.path];
   if(!extras)return flow;
   if(row.path==='landowner'&&!flow.length){
     const end=(row.flow||[]).indexOf('사업시행계획인가');
@@ -16730,7 +16730,15 @@ function alignProjectProgressWithManagement(panel){
 }
 function projectProcedureSources(row){return row.sources||(row.sourceIds||[]).map(id=>PROJECT_PROGRESS_REVIEW.sources[id]).filter(Boolean).filter(s=>/^https?:\/\//.test(s.url||''));}
 function projectProcedureHistory(row){return projectProcedureAdmin()&&row.history?.length?`<details class="project-procedure-history"><summary>변경 이력 (${row.history.length})</summary><ol>${row.history.slice().reverse().map(item=>`<li><small>${escapeHtml((item.at||'').slice(0,10)+' · '+(item.by||''))}</small><br>${escapeHtml(item.from||'')} → ${escapeHtml(item.to||'')}</li>`).join('')}</ol></details>`:'';}
-function projectProcedureTemplates(){const templates={};for(const row of PROJECT_PROGRESS_REVIEW.rows)if(row.path&&row.flow?.length&&!templates[row.path])templates[row.path]={type:row.type,flow:row.flow};return templates;}
+function projectProcedureTemplates(){
+  const templates={};
+  for(const row of PROJECT_PROGRESS_REVIEW.rows){
+    if(!row.path||!row.flow?.length)continue;
+    const path=row.path==='trust'&&row.type.startsWith('재개발')?'redevelop-trust':row.path;
+    if(!templates[path])templates[path]={type:row.type,flow:row.flow};
+  }
+  return templates;
+}
 function projectProcedureStageChoices(flow,current){return [...new Set(['확인 필요',...(current?[current]:[]),...(flow||[])])];}
 function projectProcedureRefreshLocal(site,value){
   site.projectProcedure=value;
@@ -16767,7 +16775,7 @@ async function openProjectProcedureEditor(site,dialog){
   const form=body.querySelector('form'),path=form.elements.path;
   const stageInput=form.elements.current,stageSelect=document.createElement('select');stageSelect.name='current';stageSelect.required=true;stageInput.replaceWith(stageSelect);body.querySelector('datalist').remove();
   const fillStages=()=>{const current=stageSelect.value||row.current,flow=path.value===row.path&&row.flow?.length?row.flow:templates[path.value].flow;stageSelect.innerHTML=projectProcedureStageChoices(projectProgressDetailedFlow({path:path.value,flow}),current).map(s=>`<option value="${escapeHtml(s)}"${s===current?' selected':''}>${escapeHtml(projectProgressStepLabel(s))}</option>`).join('');};
-  if(!templates[row.path])path.selectedIndex=0;fillStages();path.addEventListener('change',fillStages);
+  if(row.path==='trust'&&row.type.startsWith('재개발'))path.value='redevelop-trust';else if(!templates[row.path])path.selectedIndex=0;fillStages();path.addEventListener('change',fillStages);
   body.querySelector('[data-procedure-cancel]').addEventListener('click',()=>{dialog.close();openProjectProgress(site);});
   form.addEventListener('submit',async event=>{
     event.preventDefault();const status=body.querySelector('[data-procedure-message]'),button=form.querySelector('[type=submit]');button.disabled=true;
