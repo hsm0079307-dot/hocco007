@@ -23253,6 +23253,11 @@ function buildSiteReportBrief(site,requestedRange,requestedMode){
  return `<section class="bf-section bf-section-${key}${emptyMonthSection?' bf-section-empty':''}"><h3><span class="bf-section-icon" aria-hidden="true">${sectionIcon}</span><span>${sectionLabel}</span>${checkButton}</h3>${mode==='month'?(emptyMonthSection?'<p class="bf-empty bf-monthly-empty-hint">등록된 정리 없음</p>':briefReportMonthlyMarkup(override?.sections[key]||'',esc,site,range.start.slice(0,7))):manual?`<div class="bf-manual">${esc(reportStyleText(override.sections[key]||'직접 작성된 내용이 없습니다.'))}</div><p class="bf-meta">수정 ${esc(override.updatedAt?.slice(0,16).replace('T',' ')||'')} · ${esc(override.author||'관리자')}</p>`:(key==='next'?bfFollowupMarkup(site,range):topItems.length?topItems.map(itemHtml).join('')+(extraItems.length?`<details class="bf-extra"><summary>추가 핵심 ${extraItems.length}개</summary>${extraItems.map(itemHtml).join('')}</details>`:''):(key==='competitor'?'<p class="bf-empty">해당 기간 보고에서 경쟁사 활동 근거를 찾지 못함.</p>':'<p class="bf-empty">이 기간 보고서에서 이 항목을 뒷받침하는 구체적인 내용을 찾지 못했습니다.</p>'))}${sourceGroup}${mobileMore}</section>`;
  }).join('')}</div></section>`;
 }
+window.dashboardMarkSite=()=>sites.find(site=>site.id===currentDetailId);
+window.dashboardSaveMarks=(site,value)=>{
+ const latest=sites.find(item=>item.id===site.id)||site;
+ return bfSaveField(latest,'monthlyTextMarks',value,latest.monthlyTextMarks);
+};
 async function bfSaveField(site,field,baseline,value){
  if(guestMode||!(await ensureUnlocked()))throw Error('관리자 모드에서 저장할 수 있습니다.');
  if(editMode||logFormOpen)throw Error('입력 중인 보고서나 현장 정보를 저장하거나 취소한 뒤 시도해 주세요.');
@@ -47760,7 +47765,7 @@ body:not(.theme-dark) #siteManagePanel#siteManagePanel .canva-danger-item,body:n
   }
   return nodes;
  }
- function activeBriefSite(){return sites.find(site=>site.id===currentDetailId);}
+ function activeBriefSite(){return window.dashboardMarkSite?.();}
  const pendingBriefMarks=new Map();
  let saveQueue=Promise.resolve();
  function saveBriefMarks(slot){
@@ -47776,8 +47781,7 @@ body:not(.theme-dark) #siteManagePanel#siteManagePanel .canva-danger-item,body:n
   if(message)message.textContent=message.dataset.originalText+' · 강조 저장 중';
   saveQueue=saveQueue.then(async()=>{
    try{
-    const latest=sites.find(item=>item.id===site.id)||site;
-    await bfSaveField(latest,'monthlyTextMarks',value,latest.monthlyTextMarks);
+    await window.dashboardSaveMarks(site,value);
     if(message)message.textContent=message.dataset.originalText+' · 강조 저장됨';
    }catch(error){
     if(message)message.textContent=message.dataset.originalText+' · 기기에만 저장: '+error.message;
@@ -47810,6 +47814,7 @@ body:not(.theme-dark) #siteManagePanel#siteManagePanel .canva-danger-item,body:n
    const group=CSS.highlights.get(mark.kind);
    if(!saved.includes(mark)&&!node?.parentElement.closest("[data-mark-month]"))continue;
    if(!node||!group||from<0||to>node.length||from>=to)continue;
+   if([...group].some(range=>range.startContainer===node&&range.startOffset===from&&range.endOffset===to))continue;
    const range=new Range();range.setStart(node,from);range.setEnd(node,to);group.add(range);
   }
  }
