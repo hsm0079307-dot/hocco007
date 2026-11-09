@@ -10327,6 +10327,7 @@ html body.ux383 #app>.topbar #topbarMenuBtn{font-size:var(--ui-type-small,12px)!
             <button class="menu-item-btn" id="dashboardFontSettings" data-ui-font-open type="button">가 전체 글꼴 변경</button>
             <button class="menu-item-btn" id="dashboardColorSettings" type="button">◐ 화면 색상 변경</button>
             <button class="menu-item-btn" id="refreshDataBtn" type="button" title="클라우드에서 최신 데이터 다시 불러오기">🔄 새로고침</button>
+             <button class="menu-item-btn" id="pastPlannedProgressMenuBtn" type="button">진행단계 · 지난 예정 찾기</button>
             <button class="menu-item-btn" id="wholeOverviewAuditMenuBtn" type="button" title="사업현황·진행단계 공식 자료 대조">🔎 전체 검증</button>
             <button class="menu-item-btn" id="manualSaveBtn" type="button" title="지금 화면 내용을 클라우드에 바로 저장">💾 자료 저장</button>
             <button class="menu-item-btn" type="button" data-admin-access-open>관리자 암호 입력</button>
@@ -16536,6 +16537,63 @@ function wholeOverviewAuditRecord(site,office){
   if(!timeline.length)checks.push({name:site.name,office,siteId:site.id,field:'stageDetail',label:'진행단계',originalValue:'',officialValue:'',status:'empty',reason:'등록값이 비어 있습니다.'});
   return checks;
 }
+function pastPlannedProgressRows(pairs,today=overviewAuditCheckedLabel(Date.now())){
+  const rows=[];
+  for(const {office,site} of pairs){
+    for(const match of String(site.stageDetail||'').matchAll(/[^\r\n]+/g)){
+      const line=match[0];
+      const dated=line.replace(/^[\s*•▪·]+/,'').match(/^(\d{4}|\d{2})\s*[.\-/년]\s*(\d{1,2})(?:\s*[.\-/월]\s*(\d{1,2})(?!\d))?(?:\s*[.월일])?(?=\s|[(*\[]|$)/);
+      if(!dated)continue;
+      const label=line.replace(/^[\s*•▪·]+/,'').slice(dated[0].length).trim();
+      if(/^[~～–—-]|^\d{1,2}\s*월/.test(label)||!/예정(?!\s*지구)|\[계획\]/.test(label))continue;
+      const [,yearText,monthText,dayText]=dated;
+      const year=Number(yearText)+(yearText.length===2?2000:0),month=Number(monthText);
+      if(month<1||month>12)continue;
+      const lastDay=new Date(Date.UTC(year,month,0)).getUTCDate();
+      const day=dayText?Number(dayText):lastDay;
+      if(day<1||day>lastDay)continue;
+      const date=[year,month,day].map(n=>String(n).padStart(2,'0')).join('-');
+      if(date<today)rows.push({office,site,line,start:match.index,date});
+    }
+  }
+  return rows.sort((a,b)=>b.date.localeCompare(a.date)||a.site.name.localeCompare(b.site.name,'ko'));
+}
+function openPastPlannedProgress(){
+  if(guestMode||guestViewerMode)return;
+  const pairs=miPairs(),rows=pastPlannedProgressRows(pairs);
+  const host=document.createElement('div');
+  host.className='schedule-review';
+  host.innerHTML=`<p>전체 사업소 · ${pairs.length}개 현장의 진행단계 기록을 확인했습니다.</p>
+    <ul>${rows.map(({office,site,line},index)=>`<li><div><b>${escapeHtml(site.name)}</b><small>${escapeHtml(office)}</small><div>${escapeHtml(line)}</div></div><button type="button" class="btn" data-review-index="${index}">진행단계 수정</button></li>`).join('')}</ul>
+    ${rows.length?'':'<p>날짜가 지난 예정 기록이 없습니다.</p>'}`;
+  const menu=document.getElementById('topbarMenuPanel');
+  if(menu)menu.style.display='none';
+  const modal=uxModal('진행단계 · 지난 예정 '+rows.length+'건',host);
+  host.querySelectorAll('[data-review-index]').forEach(button=>{
+    button.onclick=async()=>{
+      if(guestMode||guestViewerMode||!(await ensureUnlocked())||!host.isConnected)return;
+      if(editMode||logFormOpen){alert('작성 중인 내용을 저장하거나 취소한 뒤 다시 시도해 주세요.');return;}
+      const {office,site,line,start}=rows[Number(button.dataset.reviewIndex)];
+      if(currentOffice!==ALL_OFFICE&&currentOffice!==office)await switchOffice(office);
+      const fresh=(allOfficesData[office]||[]).find(item=>item.id===site.id);
+      if(!fresh){alert('현장 자료가 바뀌었습니다. 목록을 다시 열어 주세요.');return;}
+      modal.close();
+      currentDetailId=fresh.id;currentView='detail';detailTab='개요';editMode=true;
+      uiExplicitDetailTab=true;
+      renderAll();
+      if(!document.getElementById('e_stageDetail')){
+        uiExplicitDetailTab=true;
+        renderDetailPanel(fresh);
+      }
+      const input=document.getElementById('e_stageDetail');
+      if(!input)return;
+      input.focus();
+      const offset=input.value.slice(start,start+line.length)===line?start:input.value.indexOf(line);
+      if(offset>=0)input.setSelectionRange(offset,offset+line.length);
+    };
+  });
+}
+document.getElementById('pastPlannedProgressMenuBtn')?.addEventListener('click',openPastPlannedProgress);
 function wholeOverviewAuditCounts(rows){return rows.reduce((counts,row)=>{counts[row.status]=(counts[row.status]||0)+1;return counts;},{match:0,difference:0,review:0,empty:0});}
 function overviewAuditServerUrl(value){
   try{const u=new URL(String(value||'').trim());if(u.protocol!=='https:'||!/^[-a-z0-9]+\.netlify\.app$/i.test(u.hostname)||u.username||u.password||u.port)return '';return u.origin;}catch{return '';}
@@ -39242,6 +39300,12 @@ body.ux383 .bf-shared-embedded .bf-manual{white-space:pre-wrap!important}
 .schedule-state-changed{color:#e2b875}.schedule-state-completed{color:#9cc4ae}.schedule-state-cancelled{color:#cdaaa5}.schedule-previous{display:block;margin-top:5px;color:var(--muted);font-size:var(--ui-type-small,12px)}
 .interest-evidence-kind{display:block;color:var(--accent,#a2c4b0);font-size:var(--ui-type-small,12px);margin:6px 0}.interest-attributed-evidence p{margin:5px 0 12px}.interest-topic-context{font-size:var(--ui-type-small,12px);display:block;opacity:.7;font-weight:400}
 .event-row{flex-wrap:wrap}.event-row .ev-status{min-width:100px;flex:0 1 110px}.ev-previous{display:flex;flex-wrap:wrap;gap:8px;flex-basis:100%;font-size:var(--ui-type-small,12px);color:var(--muted)}.ev-previous label{display:flex;flex:1;min-width:130px;flex-direction:column;gap:4px}.ev-previous input{width:100%;box-sizing:border-box}
+.schedule-review p{margin:0 0 8px;color:var(--text-dim)}
+.schedule-review ul{list-style:none;margin:0;padding:0}
+.schedule-review li{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid var(--line);overflow-wrap:anywhere}
+.schedule-review small{margin-inline-start:8px;color:var(--text-dim)}
+body.guest-viewer-readonly #pastPlannedProgressMenuBtn{display:none!important}
+.schedule-review li button{flex:none;white-space:nowrap}
 .schedule-edit-dialog label{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;font-size:var(--ui-type-body,14px)}.schedule-edit-dialog input,.schedule-edit-dialog select{width:100%;box-sizing:border-box;min-height:40px;font-size:var(--ui-type-body,14px)}.schedule-edit-previous{display:flex;flex-wrap:wrap;gap:12px}.schedule-edit-previous label{flex:1;min-width:130px}
 
 
@@ -40980,7 +41044,24 @@ body.ux383.entry-unlocked-v82 #modeOverlay.show #guestPwRow .btn{
     return uniqueV96(out);
   }
 
+
+// A bare name also matches unrelated complexes in Jamsil and Gimcheon.
+function isYeouidoJangmiSite(name){
+  return /^(?:(?:서울|영등포구|여의도(?:동)?)\s*)*장미\s*아파트$/.test(String(name||'').trim());
+}
+
+function mentionsYeouidoJangmi(text){
+  const plain = String(text||'').replace(/<[^>]*>/g,'').replace(/&(?:nbsp|quot|#39);/g,' ');
+  const area = '(?:여의도(?:동)?|영등포구)';
+  const name = '장미\\s*(?:아파트|재건축)';
+  const separator = '[\\s·ㆍ:「『“‘"\\x27]*';
+  return new RegExp(area + separator + name + '|장미\\s*아파트\\s*\\(\\s*' + area).test(plain);
+}
+
   function relevantForSiteV96(item, siteName){
+    if(isYeouidoJangmiSite(siteName)){
+      return mentionsYeouidoJangmi(item?.title) || mentionsYeouidoJangmi(item?.description);
+    }
     const title = normalizeMatchV96((item?.title || '')+' '+(item?.description || ''));
     return siteAliasesV96(siteName).some(a=> title.includes(normalizeMatchV96(a)));
   }
@@ -41014,7 +41095,7 @@ body.ux383.entry-unlocked-v82 #modeOverlay.show #guestPwRow .btn{
     if(!base) return {items:[],query:''};
 
     const aliases = siteAliasesV96(base);
-    const queries = uniqueV96([
+    const queries = isYeouidoJangmiSite(base) ? ['여의도 장미아파트', '영등포구 장미아파트'] : uniqueV96([
       base,
       `${base} 재건축`,
       `${base} 재개발`,
@@ -41087,7 +41168,7 @@ body.ux383.entry-unlocked-v82 #modeOverlay.show #guestPwRow .btn{
     currentSiteV96=site;
     const sequence=++siteSequenceV96;
     applyMonitorLinkV96(site); addRefreshV96(panel);
-    const key='monitor:'+cleanSiteNameV96(site.name);
+    const key='monitor:location:'+cleanSiteNameV96(site.name);
     const cached=recentNewsCacheV52.get(key);
     if(!force && cached && Date.now()-cached.time<CACHE_MS_V96){
       renderNewsItemsV52(panel,cached.items,site,cached.query); return;
