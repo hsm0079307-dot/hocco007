@@ -8587,7 +8587,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
         <div class="fd-grid">
           <div class="fd-left-stack"><section class="fd-panel fd-calendar-panel"><div class="fd-cal-top">        <div class="fd-controlbar">
           <div class="fd-month-nav"><button class="fd-iconbtn" id="fdPrev" type="button">‹</button><div class="fd-month-title" id="fdMonthTitle"></div><button class="fd-iconbtn" id="fdNext" type="button">›</button><button class="fd-today" id="fdToday" type="button">오늘</button></div>
-          <div class="fd-filterline"><button type="button" id="fdAvailableBtn" title="가능 날짜와 시간 설정"><i aria-hidden="true"></i>가능</button><div class="fd-filter-wrap"><button type="button" class="fd-filter-btn" id="fdFilterBtn">${icons.tune}<span>필터</span><i class="fd-filter-dot" aria-hidden="true"></i></button><div class="fd-filter-menu" id="fdFilterMenu"><div id="fdFilters"></div></div></div></div>
+          <div class="fd-filterline"><button type="button" id="fdFoldPastBtn" aria-pressed="false" aria-controls="fdDays">지난 날짜 접기</button><button type="button" id="fdAvailableBtn" title="가능 날짜와 시간 설정"><i aria-hidden="true"></i>가능</button><div class="fd-filter-wrap"><button type="button" class="fd-filter-btn" id="fdFilterBtn">${icons.tune}<span>필터</span><i class="fd-filter-dot" aria-hidden="true"></i></button><div class="fd-filter-menu" id="fdFilterMenu"><div id="fdFilters"></div></div></div></div>
         </div>
 <span id="fdMonthHint"></span></div><div class="fd-cal"><div class="fd-weekdays"><div class="fd-weekday">월</div><div class="fd-weekday">화</div><div class="fd-weekday">수</div><div class="fd-weekday">목</div><div class="fd-weekday">금</div><div class="fd-weekday sat">토</div><div class="fd-weekday sun">일</div></div><div class="fd-days" id="fdDays"></div></div></section></div>
           <div class="fd-right-stack">
@@ -8630,12 +8630,29 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
     const closed=events.find(event=>event.kind==='closed');if(closed)parts.push('<span class="fd-day-kind closed" title="'+esc(closed.name)+'">휴관</span>');
     return parts.length?'<span class="fd-day-categories">'+parts.join('')+'</span>':'';
   }
+  let fdFoldPast=false;
   function renderCalendar(){
     const days=q('#fdDays');if(!days||!viewDate)return;days.innerHTML='';
     const y=viewDate.getFullYear(),m=viewDate.getMonth(),first=new Date(y,m,1),start=new Date(y,m,1-(first.getDay()+6)%7),todayD=new Date();todayD.setHours(0,0,0,0);
     const weeks=Math.max(5,Math.ceil(((first.getDay()+6)%7+new Date(y,m+1,0).getDate())/7));
-    days.style.setProperty("--fd-calendar-weeks",String(weeks));
-    for(let i=0;i<weeks*7;i++){
+    const toggle=q('#fdFoldPastBtn');
+    toggle.textContent=fdFoldPast?'월 전체 보기':'지난 날짜 접기';
+    toggle.setAttribute('aria-pressed',String(fdFoldPast));
+    const cutoff=fdFoldPast?new Date(new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())+'T00:00:00'):null;
+    const last=new Date(y,m+1,0);
+    if(cutoff&&last<cutoff){
+      days.style.setProperty('--fd-calendar-weeks','1');
+      days.innerHTML='<p class="fd-fold-empty">오늘 이후 날짜가 없는 달입니다.</p>';
+      return;
+    }
+    let firstWeek=0;
+    if(cutoff&&first<cutoff){
+      while(firstWeek<weeks-1){const end=new Date(start);end.setDate(start.getDate()+firstWeek*7+6);if(end>=cutoff)break;firstWeek++;}
+    }
+    days.style.setProperty("--fd-calendar-weeks",String(weeks-firstWeek));
+    for(let i=firstWeek*7;i<weeks*7;i++){
+      const date=new Date(start);date.setDate(start.getDate()+i);
+      if(cutoff&&date<cutoff){const blank=document.createElement('span');blank.className='fd-fold-blank';blank.setAttribute('aria-hidden','true');days.appendChild(blank);continue;}
       const d=new Date(start);d.setDate(start.getDate()+i);const k=key(d),other=d.getMonth()!==m,raw=totalRawEvents(k),vis=rawEvents(k);const b=document.createElement('button');b.type='button';b.className='fd-day '+(other?'other ':'')+(d.getDay()===0?'sun ':'')+(d.getDay()===6?'sat ':'')+(k===selectedKey&&!other?'selected ':'')+(d.getTime()===todayD.getTime()?'today ':'');
       if(other){b.disabled=true;b.className='fd-day other';b.innerHTML='<span class="fd-daynum">'+d.getDate()+'</span>';b.setAttribute('aria-label',dateLabel(d));days.appendChild(b);continue;}
       let dots='';if(!other){if(showGallery&&((raw.g>0)||raw.c>0)&&(!siteFilter||(GALLERY_ROWS?.[k]||[]).some(r=>gallerySite(r)===siteFilter)))dots+=`<i class="${raw.c&&!raw.g?'c':'g'}"></i>`;if(showTour&&raw.t>0)dots+='<i class="t"></i>'}
@@ -8724,6 +8741,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
   }
   function wire(){
     q('#fdPrev').onclick=()=>setMonth(new Date(viewDate.getFullYear(),viewDate.getMonth()-1,1));q('#fdNext').onclick=()=>setMonth(new Date(viewDate.getFullYear(),viewDate.getMonth()+1,1));q('#fdToday').onclick=today;q('#fdTodayTop').onclick=today;
+    q('#fdFoldPastBtn').onclick=()=>{fdFoldPast=!fdFoldPast;renderCalendar()};
     q('#fdMainTitle').ondblclick=()=>q('#fdEditTitle')?.click();
     q('#fdSearch').addEventListener('input',renderSearch);q('#fdSearch').addEventListener('keydown',e=>{if(e.key==='Escape'){q('#fdSearchResults').classList.remove('on');e.target.blur()}});
     const fmenu=q('#fdFilterMenu');q('#fdFilterBtn').onclick=e=>{e.stopPropagation();fmenu.classList.toggle('on')};
@@ -11850,3 +11868,51 @@ html:not([data-calendar-access="owner"]) body #freshDesktopApp #fdLegacyMount .f
 }
 </style>
 <script id="calendar-roster-access-heading">(()=>{const sync=()=>{const admin=document.documentElement.dataset.calendarAccess==='owner';for(const th of document.querySelectorAll('.fd-site-visits thead th:last-child')){const text=admin?'수정 / 상태':'상태';if(th.textContent!==text)th.textContent=text;}};new MutationObserver(sync).observe(document.documentElement,{attributes:true,attributeFilter:['data-calendar-access'],childList:true,subtree:true});sync();})();</script>
+<style id="calendar-fold-past-style">
+#freshDesktopApp #fdFoldPastBtn{display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;flex:none;min-height:30px;padding:0 8px;border:1px solid #b8c8d6;border-radius:5px;background:#fff;color:#29465c;font-size:11px;cursor:pointer}
+#freshDesktopApp #fdFoldPastBtn[aria-pressed="true"]{background:#e4eff8;border-color:#6d92b0;color:#213f57}
+#freshDesktopApp .fd-fold-blank{visibility:hidden}
+#freshDesktopApp .fd-fold-empty{grid-column:1/-1;align-self:center;text-align:center;color:#52677a;font-size:13px}
+</style>
+
+<style id="calendar-toolbar-button-fit">
+@media (min-width:761px) {
+  html body #freshDesktopApp .fd-cal-top {
+    height:auto!important;
+    min-height:42px!important;
+    flex:0 0 auto!important;
+  }
+  html body #freshDesktopApp .fd-controlbar {
+    display:flex!important;
+    flex-wrap:wrap;
+    height:auto!important;
+    min-height:32px!important;
+    gap:6px 10px!important;
+  }
+  html body #freshDesktopApp .fd-month-nav {
+    flex:1 1 160px;
+    min-width:0;
+    width:auto!important;
+  }
+  html body #freshDesktopApp .fd-filterline {
+    flex:0 0 auto;
+    flex-wrap:wrap;
+    justify-content:flex-end;
+    max-width:100%;
+    height:auto!important;
+    margin-inline-start:auto;
+    gap:6px!important;
+  }
+  html body #freshDesktopApp :is(#fdFoldPastBtn,#fdAvailableBtn,#fdManagerViewBtn,#fdFilterBtn) {
+    box-sizing:border-box;
+    height:32px!important;
+    min-height:32px!important;
+    flex:0 0 auto;
+    white-space:nowrap;
+  }
+  html body #freshDesktopApp #fdAvailableBtn { padding:0 8px!important; }
+  html body #freshDesktopApp #fdFilterBtn { width:max-content!important; padding:0 8px!important; gap:5px!important; }
+  html body #freshDesktopApp :is(#fdAvailableBtn i,#fdFilterBtn svg) { flex-shrink:0; }
+  html body #freshDesktopApp #fdFilterBtn span { white-space:nowrap; }
+}
+</style>
