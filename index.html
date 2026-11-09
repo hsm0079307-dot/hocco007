@@ -16537,7 +16537,7 @@ function wholeOverviewAuditRecord(site,office){
   if(!timeline.length)checks.push({name:site.name,office,siteId:site.id,field:'stageDetail',label:'진행단계',originalValue:'',officialValue:'',status:'empty',reason:'등록값이 비어 있습니다.'});
   return checks;
 }
-function pastPlannedProgressRows(pairs,today=overviewAuditCheckedLabel(Date.now())){
+function pastPlannedProgressRows(pairs,today=new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Seoul'})){
   const rows=[];
   for(const {office,site} of pairs){
     for(const match of String(site.stageDetail||'').matchAll(/[^\r\n]+/g)){
