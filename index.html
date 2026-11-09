@@ -17523,7 +17523,7 @@ function rcNumber(v,fallback,min,max){return typeof v==='number'&&Number.isFinit
 function rcColor(v,fallback=''){return /^#[0-9a-f]{6}$/i.test(v||'')?v:fallback;}
 function rcNormal(value){
   const page=rcPage(value);
-  return {relations:rcRelations(value),excludedRelations:(Array.isArray(value?.excludedRelations)?value.excludedRelations:[]).slice(0,500).map(t=>rcText(t,300)),version:3,layoutVersion:[2,3,4].includes(value?.layoutVersion)?value.layoutVersion:0,autoContentVersion:value?.autoContentVersion===7?7:0,sourceFingerprint:rcText(value?.sourceFingerprint,80),layout:value?.layout==='three-column'?'three-column':'',fontFamily:rcFont(value?.fontFamily,'Pretendard'),printOrientation:value?.printOrientation==='portrait'?'portrait':'landscape',paperColor:rcColor(value?.paperColor,'#FFFFFF'),note:rcText(value?.note,240),aiReview:value?.aiReview?{at:rcText(value.aiReview.at,40),reports:Number(value.aiReview.reports)||0,characters:Number(value.aiReview.characters)||0,requests:Number(value.aiReview.requests)||0,findings:Number(value.aiReview.findings)||0,relations:Number(value.aiReview.relations)||0,rejectedCount:Number(value.aiReview.rejectedCount)||0,notFound:(Array.isArray(value.aiReview.notFound)?value.aiReview.notFound:[]).slice(0,24).map(t=>rcText(t,300))}:null,groupStyles:Object.fromEntries(Object.entries(value?.groupStyles||{}).filter(([key])=>typeof key==='string').map(([key,v])=>[key,{shape:v?.shape==='card'?'card':'pill',fontFamily:rcFont(v?.fontFamily),hidden:v?.hidden===true,w:rcNumber(v?.w,null,48,1600),h:rcNumber(v?.h,35,20,100),nameFontSize:rcNumber(v?.nameFontSize,null,8,48),textAlign:['left','right'].includes(v?.textAlign)?v.textAlign:'center',fillColor:rcColor(v?.fillColor),color:rcColor(v?.color),nameTextColor:rcColor(v?.nameTextColor)}])),groupColumnOverrides:Object.fromEntries(Object.entries(value?.groupColumnOverrides||{}).map(([key,cols])=>[key,Math.round(rcNumber(cols,1,1,18))])),groupColumns:Object.fromEntries(Object.entries(value?.groupColumns||{}).map(([k,v])=>[k,rcNumber(v,1,1,12)])),globalCellHeight:rcNumber(value?.globalCellHeight,78,40,160),cardWidthLimit:rcNumber(value?.cardWidthLimit,null,100,220),cardHeightLimit:rcNumber(value?.cardHeightLimit,null,44,90),rosterMode:['all','hide','fold'].includes(value?.rosterMode)?value.rosterMode:'',rosterHiddenIds:(Array.isArray(value?.rosterHiddenIds)?value.rosterHiddenIds:[]).map(id=>rcText(id,120)),rosterExpanded:value?.rosterExpanded===true,columnGap:rcNumber(value?.columnGap,null,6,30),sectionGap:rcNumber(value?.sectionGap,null,8,60),groupOrder:[...new Set((Array.isArray(value?.groupOrder)?value.groupOrder:[]).filter(k=>typeof k==='string').map(k=>rcText(k,80)))],committeeLabel:rcText(value?.committeeLabel,24)||'정사위원',extraGroups:rcExtraGroups(value),groupLabels:Object.fromEntries(RC_GROUPS.filter(([key])=>rcText(value?.groupLabels?.[key],24)).map(([key])=>[key,rcText(value.groupLabels[key],24)])),excludedSources:(Array.isArray(value?.excludedSources)?value.excludedSources:[]).map(v=>rcText(v,220)),nodes:(Array.isArray(value?.nodes)?value.nodes:[]).map(n=>({id:rcText(n.id,120),sourceKey:rcText(n.sourceKey,220),sourceAliases:(Array.isArray(n.sourceAliases)?n.sourceAliases:[]).slice(0,30).map(v=>rcText(v,220)),name:rcText(n.name,40),fontFamily:rcFont(n.fontFamily),role:rcText(n.role,40),unit:rcText(n.unit,30),category:rcGroups(value).some(g=>g[0]===n.category)?n.category:'owner',parentId:rcText(n.parentId,120),edgeSource:n.edgeSource==='manual'?'manual':'',memo:rcText(n.memo,100),autoMemo:rcText(n.autoMemo,100),aiMemo:n.aiMemo===true,selectionReason:rcText(n.selectionReason,240),manager:rcText(n.manager,40),important:n.important===true,manualPosition:n.manualPosition===true,memoManual:n.memoManual===true,managerManual:n.managerManual===true,roleManual:n.roleManual===true,categoryManual:n.categoryManual===true,displayRole:rcText(n.displayRole,18),roleFontSize:rcNumber(n.roleFontSize,11,8,24),friendGroups:rcFriendGroups(n.friendGroups),badge:rcText(n.badge??(/정사|정비사업/.test(n.role||'')?n.role:''),18),arrowDirection:['reverse','both','none'].includes(n.arrowDirection)?n.arrowDirection:'forward',lineComment:rcText(n.lineComment,80),lineCommentPosition:n.lineCommentPosition==='below'?'below':'above',lineCommentWidth:rcNumber(n.lineCommentWidth,null,60,360),lineCommentHeight:rcNumber(n.lineCommentHeight,null,24,180),lineCommentDx:rcNumber(n.lineCommentDx,0,-600,600),lineCommentDy:rcNumber(n.lineCommentDy,0,-600,600),boxShape:n.boxShape==='pill'?'pill':'card',textAlign:['left','right'].includes(n.textAlign)?n.textAlign:'center',titleAnchorId:rcText(n.titleAnchorId,120),groupTitle:n.groupTitle===true,rowId:rcText(n.rowId,120),rowLeft:rcNumber(n.rowLeft,null,0,3000),rowWidth:rcNumber(n.rowWidth,null,64,3000),kind:['heading','relation','title'].includes(n.kind)?n.kind:'person',autoAdded:n.autoAdded===true,contextOnly:n.contextOnly===true,hidden:n.hidden===true,lane:rcText(n.lane,40),sourceEvidence:(Array.isArray(n.sourceEvidence)?n.sourceEvidence:[]).slice(0,12).map(e=>({date:rcText(e.date,20),text:rcText(e.text,700),source:rcText(e.source,100),kind:e.kind==='roster'?'roster':'report'})),canvasWidth:page.width,canvasHeight:page.height,x:rcNumber(n.x,null,page.area.left,page.area.right-64),y:rcNumber(n.y,null,['title','heading'].includes(n.kind)?28:page.area.top,page.area.bottom-28),w:rcNumber(n.w,178,n.kind==='title'?48:64,n.kind==='title'?page.width-68:420),h:rcNumber(n.h,n.kind==='heading'?30:80,n.kind==='title'?20:28,260),nameFontSize:rcNumber(n.nameFontSize,rcNumber(n.fontSize,14,9,24),8,28),managerFontSize:rcNumber(n.managerFontSize,Math.round(rcNumber(n.fontSize,14,9,24)*.8),8,28),nameTextColor:rcColor(n.nameTextColor),managerTextColor:rcColor(n.managerTextColor),roleTextColor:rcColor(n.roleTextColor),textColor:rcColor(n.textColor),lineAutoPlaced:n.lineAutoPlaced===true,fillColor:rcColor(n.fillColor,'#FFFFFF'),color:rcColor(n.color),fontSize:rcNumber(n.fontSize,14,9,24),lineColor:rcColor(n.lineColor,'#7296A3'),lineStyle:n.lineStyle==='dashed'?'dashed':'solid'}))};
+  return {relations:rcRelations(value),excludedRelations:(Array.isArray(value?.excludedRelations)?value.excludedRelations:[]).slice(0,500).map(t=>rcText(t,300)),version:3,layoutVersion:[2,3,4].includes(value?.layoutVersion)?value.layoutVersion:0,autoContentVersion:value?.autoContentVersion===7?7:0,sourceFingerprint:rcText(value?.sourceFingerprint,80),layout:value?.layout==='three-column'?'three-column':'',fontFamily:rcFont(value?.fontFamily,'Pretendard'),printOrientation:value?.printOrientation==='portrait'?'portrait':'landscape',paperColor:rcColor(value?.paperColor,'#FFFFFF'),note:rcText(value?.note,240),aiReview:value?.aiReview?{at:rcText(value.aiReview.at,40),reports:Number(value.aiReview.reports)||0,characters:Number(value.aiReview.characters)||0,requests:Number(value.aiReview.requests)||0,findings:Number(value.aiReview.findings)||0,relations:Number(value.aiReview.relations)||0,rejectedCount:Number(value.aiReview.rejectedCount)||0,notFound:(Array.isArray(value.aiReview.notFound)?value.aiReview.notFound:[]).slice(0,24).map(t=>rcText(t,300))}:null,groupStyles:Object.fromEntries(Object.entries(value?.groupStyles||{}).filter(([key])=>typeof key==='string').map(([key,v])=>[key,{shape:v?.shape==='card'?'card':'pill',fontFamily:rcFont(v?.fontFamily),hidden:v?.hidden===true,w:rcNumber(v?.w,null,48,1600),h:rcNumber(v?.h,35,20,100),nameFontSize:rcNumber(v?.nameFontSize,null,8,48),textAlign:['left','right'].includes(v?.textAlign)?v.textAlign:'center',fillColor:rcColor(v?.fillColor),color:rcColor(v?.color),nameTextColor:rcColor(v?.nameTextColor)}])),groupColumnOverrides:Object.fromEntries(Object.entries(value?.groupColumnOverrides||{}).map(([key,cols])=>[key,Math.round(rcNumber(cols,1,1,18))])),groupColumns:Object.fromEntries(Object.entries(value?.groupColumns||{}).map(([k,v])=>[k,rcNumber(v,1,1,18)])),globalCellHeight:rcNumber(value?.globalCellHeight,78,40,160),cardWidthLimit:rcNumber(value?.cardWidthLimit,null,100,220),cardHeightLimit:rcNumber(value?.cardHeightLimit,null,44,90),rosterMode:['all','hide','fold'].includes(value?.rosterMode)?value.rosterMode:'',rosterHiddenIds:(Array.isArray(value?.rosterHiddenIds)?value.rosterHiddenIds:[]).map(id=>rcText(id,120)),rosterExpanded:value?.rosterExpanded===true,columnGap:rcNumber(value?.columnGap,null,6,30),sectionGap:rcNumber(value?.sectionGap,null,8,60),groupOrder:[...new Set((Array.isArray(value?.groupOrder)?value.groupOrder:[]).filter(k=>typeof k==='string').map(k=>rcText(k,80)))],committeeLabel:rcText(value?.committeeLabel,24)||'정사위원',extraGroups:rcExtraGroups(value),groupLabels:Object.fromEntries(RC_GROUPS.filter(([key])=>rcText(value?.groupLabels?.[key],24)).map(([key])=>[key,rcText(value.groupLabels[key],24)])),excludedSources:(Array.isArray(value?.excludedSources)?value.excludedSources:[]).map(v=>rcText(v,220)),nodes:(Array.isArray(value?.nodes)?value.nodes:[]).map(n=>({id:rcText(n.id,120),sourceKey:rcText(n.sourceKey,220),sourceAliases:(Array.isArray(n.sourceAliases)?n.sourceAliases:[]).slice(0,30).map(v=>rcText(v,220)),name:rcText(n.name,40),fontFamily:rcFont(n.fontFamily),role:rcText(n.role,40),unit:rcText(n.unit,30),category:rcGroups(value).some(g=>g[0]===n.category)?n.category:'owner',parentId:rcText(n.parentId,120),edgeSource:n.edgeSource==='manual'?'manual':'',memo:rcText(n.memo,100),autoMemo:rcText(n.autoMemo,100),aiMemo:n.aiMemo===true,selectionReason:rcText(n.selectionReason,240),manager:rcText(n.manager,40),important:n.important===true,manualPosition:n.manualPosition===true,memoManual:n.memoManual===true,managerManual:n.managerManual===true,roleManual:n.roleManual===true,categoryManual:n.categoryManual===true,displayRole:rcText(n.displayRole,18),roleFontSize:rcNumber(n.roleFontSize,11,8,24),friendGroups:rcFriendGroups(n.friendGroups),badge:rcText(n.badge??(/정사|정비사업/.test(n.role||'')?n.role:''),18),arrowDirection:['reverse','both','none'].includes(n.arrowDirection)?n.arrowDirection:'forward',lineComment:rcText(n.lineComment,80),lineCommentPosition:n.lineCommentPosition==='below'?'below':'above',lineCommentWidth:rcNumber(n.lineCommentWidth,null,60,360),lineCommentHeight:rcNumber(n.lineCommentHeight,null,24,180),lineCommentDx:rcNumber(n.lineCommentDx,0,-600,600),lineCommentDy:rcNumber(n.lineCommentDy,0,-600,600),boxShape:n.boxShape==='pill'?'pill':'card',textAlign:['left','right'].includes(n.textAlign)?n.textAlign:'center',titleAnchorId:rcText(n.titleAnchorId,120),groupTitle:n.groupTitle===true,rowId:rcText(n.rowId,120),rowLeft:rcNumber(n.rowLeft,null,0,3000),rowWidth:rcNumber(n.rowWidth,null,64,3000),kind:['heading','relation','title'].includes(n.kind)?n.kind:'person',autoAdded:n.autoAdded===true,contextOnly:n.contextOnly===true,hidden:n.hidden===true,lane:rcText(n.lane,40),sourceEvidence:(Array.isArray(n.sourceEvidence)?n.sourceEvidence:[]).slice(0,12).map(e=>({date:rcText(e.date,20),text:rcText(e.text,700),source:rcText(e.source,100),kind:e.kind==='roster'?'roster':'report'})),canvasWidth:page.width,canvasHeight:page.height,x:rcNumber(n.x,null,page.area.left,page.area.right-64),y:rcNumber(n.y,null,['title','heading'].includes(n.kind)?28:page.area.top,page.area.bottom-28),w:rcNumber(n.w,178,n.kind==='title'?48:64,n.kind==='title'?page.width-68:420),h:rcNumber(n.h,n.kind==='heading'?30:80,n.kind==='title'?20:28,260),nameFontSize:rcNumber(n.nameFontSize,rcNumber(n.fontSize,14,9,24),8,28),managerFontSize:rcNumber(n.managerFontSize,Math.round(rcNumber(n.fontSize,14,9,24)*.8),8,28),nameTextColor:rcColor(n.nameTextColor),managerTextColor:rcColor(n.managerTextColor),roleTextColor:rcColor(n.roleTextColor),textColor:rcColor(n.textColor),lineAutoPlaced:n.lineAutoPlaced===true,fillColor:rcColor(n.fillColor,'#FFFFFF'),color:rcColor(n.color),fontSize:rcNumber(n.fontSize,14,9,24),lineColor:rcColor(n.lineColor,'#7296A3'),lineStyle:n.lineStyle==='dashed'?'dashed':'solid'}))};
 }
 function rcNodeColor(n){return rcColor(n.color,RC_COLORS[Math.max(0,RC_GROUPS.findIndex(g=>g[0]===n.category))]);}
 function rcBoxInk(n,fallback){if(rcColor(n.textColor))return n.textColor;const hex=rcColor(n.fillColor,'#FFFFFF').slice(1),rgb=[0,2,4].map(i=>parseInt(hex.slice(i,i+2),16)/255),brightness=rgb[0]*.2126+rgb[1]*.7152+rgb[2]*.0722;return brightness<.48?'#F7FBF9':fallback;}
@@ -17602,8 +17602,47 @@ function rcCardDropTarget(drag,point){
   const target=inRow.find(n=>point.x>=n.x&&point.x<=n.x+n.w);
   return target?{group,target,expand:false}:null;
 }
+function rcExpandCardColumns(data,drag,group,ordered){
+  const plan=drag.layout,cols=group.cols+1;
+  if(cols>18)return false;
+  const groupColumns=Object.fromEntries(plan.groups.map(g=>[g.key,g.key===group.key?cols:g.cols]));
+  const config={...data,groupColumns,groupColumnOverrides:{}};
+  const next=rcLayoutPlan(config),people=drag.original.filter(n=>!n.hidden&&n.kind==='person');
+  if(next.cellW<64)return false;
+  const scale=next.cellW/plan.cellW;
+  const h=Math.max(40,Math.min(plan.cellH,...people.map(n=>n.h))*Math.min(1,scale));
+  const placements=new Map();
+  for(const before of plan.groups){
+    const after=next.groups.find(g=>g.key===before.key);
+    const groupCards=people.filter(n=>n.category===before.key);
+    const oldStep=(before.cellW||plan.cellW)+plan.gap,newStep=next.cellW+next.gap;
+    const heightScale=h/Math.max(h,...groupCards.map(n=>n.h));
+    const oldTop=before.y+plan.header,newTop=after.y+next.header;
+    if(before.key===group.key){
+      const top=newTop+(Math.min(...ordered.map(n=>n.y))-oldTop)*heightScale;
+      ordered.forEach((n,i)=>placements.set(n.id,{x:after.x+(i%cols)*newStep,y:top+Math.floor(i/cols)*(h+next.rowGap),w:next.cellW,h,rowId:'',rowLeft:null,rowWidth:null,manualPosition:true}));
+    }else{
+      for(const n of groupCards){
+        const col=Math.max(0,Math.min(after.cols-1,Math.round((n.x-before.x)/oldStep)));
+        placements.set(n.id,{x:after.x+col*newStep,y:newTop+(n.y-oldTop)*heightScale,w:next.cellW,h,rowLeft:n.rowId?after.x:null,rowWidth:n.rowId?after.w:null,manualPosition:true});
+      }
+    }
+  }
+  const titles=drag.original.filter(n=>!n.hidden&&n.kind==='title');
+  for(const n of titles){
+    const before=plan.groups.find(g=>n.x>=g.x-2&&n.x<g.x+g.w&&n.y>=g.y-12&&n.y<=g.y+g.h);
+    const after=next.groups.find(g=>g.key===before?.key);
+    if(after){const ratio=after.w/before.w;placements.set(n.id,{x:after.x+(n.x-before.x)*ratio,y:n.y+after.y-before.y,w:Math.max(48,n.w*ratio)});}
+  }
+  const cards=people.map(n=>({...n,...placements.get(n.id)})),area=plan.page.area;
+  const titleBoxes=titles.map(n=>({...n,...placements.get(n.id)}));
+  if(cards.some((n,i)=>n.x<area.left-.01||n.x+n.w>area.right+.01||n.y<area.top-.01||n.y+n.h>area.bottom+.01||cards.slice(i+1).some(other=>rcOverlaps(n,other,2))||titleBoxes.some(title=>rcOverlaps(n,title,0))))return false;
+  data.groupColumns=groupColumns;data.groupColumnOverrides={};data.globalCellHeight=h;
+  for(const n of data.nodes){if(placements.has(n.id))Object.assign(n,placements.get(n.id));}
+  return true;
+}
 function rcCommitCardDrop(data,drag,drop){
-  const {group,target,expand}=drop,plan=drag.layout;
+  const {group,target,expand}=drop;
   const cards=drag.original.filter(n=>!n.hidden&&n.kind==='person'&&n.category===group.key).sort((a,b)=>a.y-b.y);
   const rows=[];
   for(const card of cards){
@@ -17613,22 +17652,11 @@ function rcCommitCardDrop(data,drag,drop){
   const slots=rows.flatMap(row=>row.sort((a,b)=>a.x-b.x));
   const ordered=slots.filter(n=>n.id!==drag.id);
   ordered.splice(ordered.indexOf(target),0,slots.find(n=>n.id===drag.id));
-  let positions=slots;
-  let cols;
-  if(expand){
-    cols=group.cols+1;
-    const w=(group.w-plan.gap*(cols-1))/cols;
-    if(cols>18||w<64)return false;
-    const top=slots[0].y,h=Math.min(...slots.map(n=>n.h)),rowGap=plan.rowGap;
-    positions=slots.map((_,i)=>({x:group.x+(i%cols)*(w+plan.gap),y:top+Math.floor(i/cols)*(h+rowGap),w,h,rowId:'',rowLeft:null,rowWidth:null}));
-    const otherCards=drag.original.filter(n=>!n.hidden&&(n.kind==='title'||n.kind==='person'&&n.category!==group.key));
-    if(positions.some(p=>p.y+p.h>plan.page.area.bottom||otherCards.some(n=>rcOverlaps(p,n,0))))return false;
-    data.groupColumnOverrides={...data.groupColumnOverrides,[group.key]:cols};
-  }
+  if(expand)return rcExpandCardColumns(data,drag,group,ordered);
   const byId=new Map(data.nodes.map(n=>[n.id,n]));
   ordered.forEach((card,i)=>{
-    const {x,y,w,h,rowId,rowLeft,rowWidth}=positions[i];
-    if(card.id!==drag.id&&!expand&&card===positions[i])return;
+    const {x,y,w,h,rowId,rowLeft,rowWidth}=slots[i];
+    if(card.id!==drag.id&&card===slots[i])return;
     Object.assign(byId.get(card.id),{x,y,w,h,rowId,rowLeft,rowWidth,manualPosition:true});
   });
   return true;
@@ -20194,18 +20222,11 @@ function renderDetailPanel(site){
           applyLogFilter(item=>dates.has(item.dataset.logDate)&&(btn.dataset.allManagers==='1'||managers.has(normalize(item.dataset.logAuthor))),btn.dataset.label);
         });
       });
-      body.querySelectorAll('[data-owner-interest-topic]').forEach(btn=>btn.addEventListener('click',()=>{
-        const panel=btn.closest('.owner-interest-panel');if(!panel)return;
-        const open=btn.getAttribute('aria-expanded')!=='true';
-        panel.querySelectorAll('[data-owner-interest-topic]').forEach(b=>{b.setAttribute('aria-expanded','false');b.classList.remove('active');});
-        panel.querySelectorAll('.owner-interest-evidence').forEach(el=>el.hidden=true);
-        if(open){btn.setAttribute('aria-expanded','true');btn.classList.add('active');const evidence=document.getElementById(btn.getAttribute('aria-controls'));if(evidence)evidence.hidden=false;}
-      }));
       body.querySelectorAll('.mgr-interest-toggle').forEach(btn=>btn.addEventListener('click',()=>{
         const row=document.getElementById(btn.dataset.interestTarget);if(!row)return;
         const open=btn.getAttribute('aria-expanded')!=='true';
         btn.setAttribute('aria-expanded',String(open));btn.textContent=open?'▾':'▸';
-        btn.setAttribute('aria-label',(btn.closest('tr').dataset.ownerRow||'')+' 관심사항 '+(open?'접기':'펼치기'));
+        btn.setAttribute('aria-label',(btn.closest('tr').dataset.ownerRow||'')+' 상세 이름 '+(open?'접기':'펼치기'));
         row.hidden=!open;
       }));
       body.querySelectorAll('.mgr-contact-journal-btn').forEach(btn=>{
@@ -20223,7 +20244,7 @@ function renderDetailPanel(site){
           // data-owner-row엔 순수 이름만 들어있어서(예: "백정순"), "선일부동산"처럼 이름 옆 괄호 안에만
           // 적힌 회사명/직책으로 검색하면 아무 것도 안 걸리는 문제가 있었다. 화면에 보이는 행 전체 텍스트
           // (이름+직책+담당 등)를 기준으로 찾도록 바꿔서, 중간에 있는 값으로 검색해도 잡히게 한다.
-          const detail=row.nextElementSibling;
+          const detail=document.getElementById(row.querySelector('.mgr-interest-toggle')?.dataset.interestTarget||'');
           const text=((row.textContent||'')+(detail?.classList.contains('mgr-interest-row')?detail.textContent:'')).toLowerCase();
           const match=!q||text.includes(q);row.style.display=match?'':'none';
           if(detail?.classList.contains('mgr-interest-row'))detail.hidden=!match||row.querySelector('.mgr-interest-toggle')?.getAttribute('aria-expanded')!=='true';
@@ -23211,20 +23232,19 @@ function renderDetailPanel(site){
         const r=map[k];r.count++;if(e.date)r.dates.add(e.date);if(String(e.date||'')>r.last)r.last=String(e.date||'');if(r.methods[e.method]!==undefined)r.methods[e.method]++;
         if(!r.manager||r.manager==='(미지정)')r.manager=mgrKey(e.manager);if(!r.unit)r.unit=clean(e.unit);if(!r.role)r.role=clean(e.role);
       });
-      const interestLogs=miReportLogs(site);
-      const rows=Object.entries(map).map(([key,r])=>({...r,personKey:key,interestLogs:interestLogs.filter(l=>String(l.personId||'')===key)})).sort((a,b)=>String(b.last).localeCompare(String(a.last))||a.name.localeCompare(b.name,'ko'));
+      const rows=Object.entries(map).map(([key,r])=>({...r,personKey:key})).sort((a,b)=>String(b.last).localeCompare(String(a.last))||a.name.localeCompare(b.name,'ko'));
       if(!rows.length)return `<div class="mgr-empty">${periodPayloadReady?(mgrContactPeriod==='all'?'Excel 전체 기간 접촉기록이 없습니다.':`${year}년 ${month}월 Excel 접촉기록이 없습니다.`):'Excel 기간이력 동기화가 아직 완료되지 않았습니다.'}</div>`;
       const renderOwnerRows=part=>part.map((r,interestIndex)=>{
           const meth=['상담','단순','TM'].map(m=>r.methods[m]?`${m==='상담'?'상':m==='단순'?'단':'TM'}${r.methods[m]}`:'').filter(Boolean).join('·');
           const interestId='owner-interest-'+encodeURIComponent(String(site.id))+'-'+encodeURIComponent(String(r.personKey));
-          const topics=ownerInterestPanel(r.interestLogs,interestId);
+
           const shortName=r.name.split(/[\[（(]/)[0].trim()||r.name;
           const contactAge=ownerContactAge(site,r.personKey,r.name,r.unit);
           const ageName=ownerContactNameWithAge(site,r.personKey,r.name,r.unit,shortName);
           const embeddedRole=r.role&&r.name.includes(r.role);
           const fullIdentity=r.name+(r.role&&!embeddedRole?' · '+r.role:'');
           const hasMore=shortName!==r.name||shortName.length>12;
-          return `<tr data-owner-row="${escapeHtml(r.name)}"><td class="mgr-contact-cell"><div class="mgr-contact-heading"><button type="button" class="mgr-contact-journal-btn${ageName!==shortName?' has-contact-age':''}" data-person="${escapeHtml(r.personKey)}" data-contact="${escapeHtml(r.name)}">${escapeHtml(ageName).replace(/\s*\((\d+세)\)/g, '<span class="mgr-contact-age">($1)</span>')}</button><button type="button" class="mgr-interest-toggle" aria-label="${escapeHtml(r.name)} 관심사항 펼치기" aria-expanded="false" aria-controls="${interestId}" data-interest-target="${interestId}">▸</button></div>${r.role?`<div class="mgr-contact-role">${escapeHtml(r.role)}</div>`:''}</td><td data-mobile-label="담당">${escapeHtml(r.manager||'-')}</td><td data-mobile-label="동호수">${escapeHtml(r.unit||'-')}</td><td data-mobile-label="접촉일수">${r.dates.size}</td><td data-mobile-label="건수">${r.count}</td><td data-mobile-label="최근접촉"><span class="contact-date-full">${escapeHtml(r.last||'-')}</span><span class="contact-date-short" title="${escapeHtml(r.last||'')}">${escapeHtml(r.last?Number(r.last.slice(5,7))+'. '+Number(r.last.slice(8,10)):'-')}</span></td><td data-mobile-label="방법" class="contact-method-compact">${escapeHtml(meth||'-')}</td></tr><tr id="${interestId}" class="mgr-interest-row" hidden><td colspan="7"><div class="mgr-interest-content">${hasMore?`<div class="mgr-contact-full-identity">${escapeHtml(fullIdentity)}</div>`:''}${topics}</div></td></tr>`;
+          return `<tr data-owner-row="${escapeHtml(r.name)}"><td class="mgr-contact-cell"><div class="mgr-contact-heading"><button type="button" class="mgr-contact-journal-btn${ageName!==shortName?' has-contact-age':''}" data-person="${escapeHtml(r.personKey)}" data-contact="${escapeHtml(r.name)}">${escapeHtml(ageName).replace(/\s*\((\d+세)\)/g, '<span class="mgr-contact-age">($1)</span>')}</button>${hasMore?`<button type="button" class="mgr-interest-toggle" aria-label="${escapeHtml(r.name)} 상세 이름 펼치기" aria-expanded="false" aria-controls="${interestId}" data-interest-target="${interestId}">▸</button>`:''}</div>${r.role?`<div class="mgr-contact-role">${escapeHtml(r.role)}</div>`:''}</td><td data-mobile-label="담당">${escapeHtml(r.manager||'-')}</td><td data-mobile-label="동호수">${escapeHtml(r.unit||'-')}</td><td data-mobile-label="접촉일수">${r.dates.size}</td><td data-mobile-label="건수">${r.count}</td><td data-mobile-label="최근접촉"><span class="contact-date-full">${escapeHtml(r.last||'-')}</span><span class="contact-date-short" title="${escapeHtml(r.last||'')}">${escapeHtml(r.last?Number(r.last.slice(5,7))+'. '+Number(r.last.slice(8,10)):'-')}</span></td><td data-mobile-label="방법" class="contact-method-compact">${escapeHtml(meth||'-')}</td></tr><tr id="${interestId}" class="mgr-interest-row" hidden><td colspan="7"><div class="mgr-interest-content">${hasMore?`<div class="mgr-contact-full-identity">${escapeHtml(fullIdentity)}</div>`:''}</div></td></tr>`;
         }).join('');
       const ownerHalf=Math.ceil(rows.length/2);
       const renderOwnerTable=part=>`<div class="mgr-table-frame owner-column-frame"><table class="mgr-breakdown-table mgr-owner-table contact-compact-table"><thead><tr><th style="text-align:center;">접촉자</th><th>담당</th><th>동호수</th><th>접촉일수</th><th>건수</th><th>최근접촉</th><th>방법</th></tr></thead><tbody>${renderOwnerRows(part)}</tbody></table></div>`;
@@ -24102,11 +24122,6 @@ document.addEventListener('change',e=>{const site=sites.find(s=>s.id===currentDe
   function relationshipInterestTags(logs){
     const items=relationshipInterests(logs);
     return items.length?`<div class="relationship-interest-tags">${items.filter(t=>t.logs.some(l=>l.interestEvidence.some(e=>e.kind==='본인 질문·의견'))).map(t=>`<span>${escapeHtml(t.name)}</span>`).join('')}</div>`:'';
-  }
-  function ownerInterestPanel(logs,prefix){
-    const topics=relationshipInterests(logs);
-    if(!topics.length)return '<div class="owner-interest-empty">분류할 상담 내용이 없습니다.</div>';
-    return `<div class="owner-interest-panel"><div class="owner-interest-topics" aria-label="관심사항">${topics.map((t,i)=>`<button type="button" class="owner-interest-topic" data-owner-interest-topic aria-expanded="false" aria-controls="${escapeHtml(prefix+'-topic-'+i)}">${escapeHtml(t.name)}<span>${t.logs.length}</span>${t.logs.some(l=>l.interestEvidence.some(e=>e.kind==='본인 질문·의견'))?'':'<small class="interest-topic-context">관련 언급</small>'}</button>`).join('')}</div>${topics.map((t,i)=>`<div class="owner-interest-evidence" id="${escapeHtml(prefix+'-topic-'+i)}" hidden>${t.logs.map(l=>`<article class="owner-interest-record"><div class="owner-interest-record-meta"><time>${escapeHtml(l.date||'날짜 미기재')}</time><span>${escapeHtml(l.author||'담당 미기재')}</span></div>${relationshipEvidenceMarkup(l)}${l.id&&!/^excel-report:/.test(l.id)?`<small>${escapeHtml(l.id)}</small>`:''}</article>`).join('')}</div>`).join('')}</div>`;
   }
   function relationshipInterestMarkup(logs){
     const items=relationshipInterests(logs);
@@ -29232,7 +29247,7 @@ function uiDetailsKey(el,index){return el.id||JSON.stringify([el.closest('[data-
 function uiCaptureBrowse(root){
  if(!root||uiBrowseRestoring||root.__uiSuspended||!root.__uiBrowseKey)return;
  const detailOpen=[...root.querySelectorAll('details')].map((el,i)=>[uiDetailsKey(el,i),el.open]);
- const toggles=[...root.querySelectorAll('.mgr-interest-toggle,[data-owner-interest-topic]')].map(el=>[el.getAttribute('aria-controls'),el.getAttribute('aria-expanded')==='true']);
+ const toggles=[...root.querySelectorAll('.mgr-interest-toggle')].map(el=>[el.getAttribute('aria-controls'),el.getAttribute('aria-expanded')==='true']);
  const searches=[...root.querySelectorAll('#mgrOwnerSearchInput,#reportSearchInput')].map(el=>[el.id,el.value]);
  const scrolls=[root,...root.querySelectorAll('[id]')].filter(el=>el.scrollHeight>el.clientHeight+1&&el.clientHeight>0).map(el=>[el.id,el.scrollTop,el.scrollLeft]);
  const parent=root.closest('#masterPanel,#contactReportModalBox,#globalStatsModalBox');if(parent?.id&&parent!==root)scrolls.push([parent.id,parent.scrollTop,parent.scrollLeft]);
@@ -29248,7 +29263,7 @@ function uiRestoreBrowse(root){
   try{
    if(saved){
     const opened=new Map(saved.detailOpen);root.querySelectorAll('details').forEach((el,i)=>{const k=uiDetailsKey(el,i);if(opened.has(k))el.open=opened.get(k)});
-    const toggles=new Map(saved.toggles);root.querySelectorAll('.mgr-interest-toggle,[data-owner-interest-topic]').forEach(el=>{const id=el.getAttribute('aria-controls');if(!toggles.has(id))return;const open=toggles.get(id);el.setAttribute('aria-expanded',String(open));const panel=root.querySelector('#'+CSS.escape(id));if(panel)panel.hidden=!open;if(el.classList.contains('mgr-interest-toggle'))el.textContent=open?'▾':'▸';else el.classList.toggle('active',open)});
+    const toggles=new Map(saved.toggles);root.querySelectorAll('.mgr-interest-toggle').forEach(el=>{const id=el.getAttribute('aria-controls');if(!toggles.has(id))return;const open=toggles.get(id);el.setAttribute('aria-expanded',String(open));const panel=root.querySelector('#'+CSS.escape(id));if(panel)panel.hidden=!open;el.textContent=open?'▾':'▸'});
     for(const [id,value]of saved.searches){const input=root.querySelector('#'+CSS.escape(id));if(input&&input.value!==value){input.value=value;input.dispatchEvent(new Event('input',{bubbles:true}))}}
     for(const [id,top,left]of saved.scrolls){const el=document.getElementById(id);if(el){el.scrollTop=top;el.scrollLeft=left}}
     if(root.id==='detailBody'&&(window.innerWidth>820||document.body.classList.contains('ux-mobile-detail'))&&!document.querySelector('.ux-overlay'))window.scrollTo({top:saved.page,behavior:'instant'});
@@ -29268,6 +29283,210 @@ function uiReportComparisonMarkup(logs){
  const pair=uiComparisonLogs(logs);if(pair.length<2)return '';
  return `<div class="ui-report-comparison"><div class="ui-compare-columns">${pair.map(l=>`<article><header><time><strong>${escapeHtml(l.date||'날짜 미기재')}</strong></time></header><small>${escapeHtml(l.contactName||'')} · 담당 ${escapeHtml(l.author||'미기재')}${l.unit?' · '+escapeHtml(l.unit):''}</small><p>${escapeHtml(l.text)}</p>${/^R[\da-z]+$/i.test(l.id||'')?`<small>${escapeHtml(l.id)}</small>`:''}</article>`).join('')}</div></div>`;
 }
+
+ function uiContactSummaryRecords(logs){
+  const sources=logs.filter(l=>String(l.text||'').trim()&&!isTourBookingLog(l));
+  const records=[];
+  let remaining=70000;
+  let shortened=false;
+  for(const log of sources){
+   if(records.length===80||remaining===0)break;
+   const original=String(log.text).trim();
+   const text=original.slice(0,Math.min(12000,remaining)).trimEnd();
+   if(!text)break;
+   shortened||=text.length<original.length;
+   records.push({key:String(records.length+1),date:String(log.date||'').slice(0,300),person:String(log.contactName||'').slice(0,300),text});
+   remaining-=text.length;
+  }
+  return {records,total:sources.length,shortened};
+ }
+
+ const uiContactSummaryCache=new Map();
+ let uiContactSummaryToken='';
+ let uiContactBulkRunning=false;
+ const uiContactSummaryQuestion='접촉자가 직접 밝힌 입장·관심, 실제 만남, 소개한 사람·소개받은 사람, 후속 약속의 핵심을 원문 근거로 120자 안팎의 한국어 보고 문장으로 정리. 최신 입장은 최신 기록 기준. 복수 이름은 원문으로 발언자를 구분할 수 있을 때만 귀속. 전언과 예정은 구분하고 담당자 설명이나 타인의 의견을 접촉자의 생각으로 쓰지 말 것.';
+ function uiContactSummaryIdentity(){
+  const identity=window.dashboardPasswordAccess?.identity();
+  const token=rcAdmin()?identity?.token||'':'';
+  if(token!==uiContactSummaryToken){
+   uiContactSummaryCache.clear();
+   uiContactSummaryToken=token;
+  }
+  return token?identity:null;
+ }
+ function uiContactSummaryTarget(site,person,name,logs){
+  const scope=uiContactSummaryRecords(logs);
+  const key=JSON.stringify([site.id,person]);
+  const version=JSON.stringify([scope.records,scope.total,scope.shortened]);
+  return {name,key,version,...scope};
+ }
+ function uiSavedContactSummary(target){
+  const saved=uiContactSummaryCache.get(target.key);
+  return saved?.version===target.version?saved.value:undefined;
+ }
+ function uiContactSummaryBatches(targets){
+  const batches=[];
+  let batch=[], count=0, chars=0;
+  for(const target of targets){
+   const length=target.records.reduce((sum,record)=>sum+record.text.length,0);
+   if(batch.length&&(batch.length===10||count+target.records.length>80||chars+length>70000)){
+    batches.push(batch);batch=[];count=0;chars=0;
+   }
+   batch.push(target);count+=target.records.length;chars+=length;
+  }
+  if(batch.length)batches.push(batch);
+  return batches;
+ }
+ async function uiGenerateContactSummaries(batch,identity,signal,onProgress,bulk){
+  const owners=[];
+  const records=batch.flatMap((target,index)=>target.records.map(record=>{
+   owners.push(index);
+   return bulk?{...record,key:'P'+(index+1)+'-'+record.key}:record;
+  }));
+  const query=bulk
+   ? 'key가 P1-…, P2-… 등인 상담일지에서 P번호 하나가 접촉자 한 명이다. 서로 다른 P번호의 일지를 절대로 섞지 말고 번호마다 별도로 한줄평가를 작성한다. 각 P번호마다 findings 한 항목을 만들고 title은 P번호만 쓴다. 해당 P번호의 일지만 sourceIndexes와 quotes에 넣는다. 평가할 내용이 없는 번호는 notFound에 P번호만 쓴다. '+uiContactSummaryQuestion
+   : batch[0].name.slice(0,100)+'의 상담일지에서 확인되는 핵심은 무엇인가? findings 한 항목에 작성. '+uiContactSummaryQuestion;
+  const result=await rcAIJob({query,records},identity,{signal,onProgress,label:'AI 요약'});
+  if(signal.aborted||uiContactSummaryIdentity()?.token!==identity.token)return;
+  if(!Array.isArray(result?.findings))throw Error('AI 요약 결과 형식을 확인하지 못했습니다.');
+  const findingsByOwner=batch.map(()=>[]);
+  const unsupportedOwners=new Set();
+  for(const finding of result.findings){
+   const {title,detail,sourceIndexes,quotes}=finding||{};
+   const claimed=bulk?Number(/^P(\d+)$/i.exec(String(title).trim())?.[1])-1:0;
+   if(!batch[claimed])continue;
+   if(typeof detail!=='string'||!detail.trim()||!Array.isArray(sourceIndexes)||!sourceIndexes.length||!Array.isArray(quotes)||!quotes.length||
+      sourceIndexes.some(i=>!Number.isInteger(i)||owners[i]!==claimed||!quotes.some(q=>q?.sourceIndex===i))||
+      quotes.some(q=>!sourceIndexes.includes(q?.sourceIndex)||typeof q.text!=='string'||!q.text.trim()||!records[q.sourceIndex]?.text.includes(q.text))){
+    unsupportedOwners.add(claimed);continue;
+   }
+   findingsByOwner[claimed].push({detail:detail.replace(/\s+/g,' ').trim(),evidence:quotes.map(q=>({date:records[q.sourceIndex].date,text:q.text}))});
+  }
+  const notFound=new Set(Array.isArray(result.notFound)?result.notFound.map(v=>String(v).trim().toUpperCase()):[]);
+  batch.forEach((target,index)=>{
+   const findings=findingsByOwner[index];
+   if(!findings.length&&(unsupportedOwners.has(index)||!(bulk?notFound.has('P'+(index+1)):result.findings.length===0)))return;
+   const text=[...new Set(findings.map(f=>f.detail))].join(' ');
+   const unique=new Map(findings.flatMap(f=>f.evidence).map(q=>[JSON.stringify([q.date,q.text]),q]));
+   uiContactSummaryCache.set(target.key,{version:target.version,value:{text,evidence:[...unique.values()]}});
+  });
+ }
+ function uiShowContactSummary(host,target,status){
+  const saved=uiSavedContactSummary(target);
+  status.classList.toggle('ui-contact-summary-text',!!saved?.text);
+  status.textContent=saved?.text||(saved?'일지에서 근거가 확인되는 평가가 없습니다.':'근거가 확인된 요약을 받지 못했습니다.');
+  if(!saved?.evidence.length)return;
+  const evidence=document.createElement('details');
+  const title=document.createElement('summary');
+  title.textContent='근거 일지 보기';
+  evidence.append(title);
+  for(const quote of saved.evidence){
+   const line=document.createElement('p');
+   line.textContent=(quote.date||'날짜 미기재')+' · '+quote.text;
+   evidence.append(line);
+  }
+  host.append(evidence);
+ }
+ function uiContactSummaryScope(target){
+  return '상담일지 '+target.records.length+'건'+(target.records.length<target.total?' / '+target.total+'건 중 최신순':'')+(target.shortened?' · 긴 원문 일부만 분석':'');
+ }
+ async function uiOpenContactSummary(site,person,name){
+  const identity=uiContactSummaryIdentity();
+  if(!identity||!person||currentDetailId!==site.id)return;
+  const target=uiContactSummaryTarget(site,person,name,miReportLogs(site).filter(l=>String(l.personId||'')===person));
+  const host=document.createElement('div');
+  host.className='ui-contact-summary-dialog';
+  const scope=document.createElement('p');
+  scope.className='ui-contact-summary-scope';
+  scope.textContent='전체 기간 '+uiContactSummaryScope(target);
+  const status=document.createElement('p');
+  status.setAttribute('role','status');
+  host.append(scope,status);
+  const modal=uxModal(name+' · 한줄평가',host);
+  if(!target.records.length){status.textContent='요약할 상담 내용이 없습니다.';return;}
+  if(uiSavedContactSummary(target)){uiShowContactSummary(host,target,status);return;}
+  const controller=new AbortController();
+  modal.setOnClose(()=>controller.abort());
+  status.textContent='상담일지 확인 중…';
+  try{
+   await uiGenerateContactSummaries([target],identity,controller.signal,message=>{status.textContent=message;},false);
+   if(controller.signal.aborted)return;
+   if(uiContactSummaryIdentity()?.token!==identity.token){modal.close();return;}
+   uiShowContactSummary(host,target,status);
+  }catch(error){
+   if(!controller.signal.aborted)status.textContent=error.message||'AI 요약을 불러오지 못했습니다. 다시 시도해 주세요.';
+  }
+ }
+ function uiOpenContactBulkSummary(site){
+  const identity=uiContactSummaryIdentity();
+  if(!identity||uiContactBulkRunning||currentDetailId!==site.id)return;
+  const byPerson=new Map();
+  for(const log of miReportLogs(site)){
+   const person=String(log.personId||'');
+   if(!person||!String(log.text||'').trim()||isTourBookingLog(log))continue;
+   if(!byPerson.has(person))byPerson.set(person,[]);
+   byPerson.get(person).push(log);
+  }
+  const targets=[...byPerson].map(([person,logs])=>uiContactSummaryTarget(site,person,String(logs[0].contactName||'이름 미기재'),logs));
+  const pending=targets.filter(target=>!uiSavedContactSummary(target));
+  const batches=uiContactSummaryBatches(pending);
+  const host=document.createElement('div');
+  host.className='ui-contact-summary-dialog';
+  const status=document.createElement('p');
+  status.setAttribute('role','status');
+  status.textContent='전체 기간 '+targets.length+'명 · 새로 요약 '+pending.length+'명'+(batches.length?' · AI 요청 '+batches.length+'회':'');
+  const list=document.createElement('div');
+  list.className='ui-contact-bulk-results';
+  const controller=new AbortController();
+  const rendered=new Set();
+  function showSaved(){
+   for(const target of targets){
+    if(rendered.has(target.key)||!uiSavedContactSummary(target))continue;
+    rendered.add(target.key);
+    const item=document.createElement('details');
+    const label=document.createElement('summary');
+    label.textContent=target.name+' · '+uiContactSummaryScope(target);
+    const text=document.createElement('p');
+    item.append(label,text);
+    uiShowContactSummary(item,target,text);
+    list.append(item);
+   }
+  }
+  const run=uxButton('요약 시작',async()=>{
+   if(uiContactBulkRunning||uiContactSummaryIdentity()?.token!==identity.token)return;
+   uiContactBulkRunning=true;
+   run.disabled=true;
+   try{
+    let nextStart=0;
+    for(const [index,batch] of batches.entries()){
+     while(Date.now()<nextStart&&!controller.signal.aborted){
+      status.textContent='다음 묶음 대기 중 · '+rendered.size+'명 확인';
+      await rcAIWait(controller.signal);
+     }
+     if(controller.signal.aborted||uiContactSummaryIdentity()?.token!==identity.token)return;
+     nextStart=Date.now()+11000;
+     const progress=(index+1)+' / '+batches.length+' 묶음';
+     status.textContent=progress+' · 상담일지 확인 중…';
+     await uiGenerateContactSummaries(batch,identity,controller.signal,message=>{status.textContent=progress+' · '+message;},true);
+     if(controller.signal.aborted)return;
+     if(uiContactSummaryIdentity()?.token!==identity.token){modal.close();return;}
+     showSaved();
+    }
+    const missing=targets.length-rendered.size;
+    status.textContent=rendered.size+'명 확인'+(missing?' · 미확인 '+missing+'명은 다시 실행하거나 개인별로 확인해 주세요.':' · 전체 요약 완료');
+   }catch(error){
+    if(!controller.signal.aborted)status.textContent=rendered.size+'명 확인 · '+(error.message||'요약을 중단했습니다.');
+   }finally{
+    uiContactBulkRunning=false;
+    run.hidden=true;
+   }
+  });
+  run.hidden=!batches.length;
+  host.append(status,run,list);
+  showSaved();
+  const modal=uxModal(site.name+' · 접촉자 전체 AI 요약',host);
+  modal.setOnClose(()=>controller.abort());
+ }
 function uiOpenComparison(site,person,name,unit){
  const logs=miReportLogs(site).filter(l=>person?String(l.personId||'')===String(person):!!unit&&l.contactName===name&&l.unit===unit);
  const host=document.createElement('div'),modal=uxModal(name+' · 보고 비교',host);host.className='ui-comparison-dialog';
@@ -29374,18 +29593,35 @@ function uiDecorateBrowsing(){
   summaryToolbar.classList.add('aligned-period-toolbar');summaryToolbar.append(filter,nav);
  }
  uiAlignMobilePeriodControls();
- const site=sites.find(s=>s.id===currentDetailId),byPerson=new Map();if(site)miReportLogs(site).forEach(l=>{const key=String(l.personId||'');if(!byPerson.has(key))byPerson.set(key,[]);byPerson.get(key).push(l)});
- document.querySelectorAll('#mgrOwnerTable tr[data-owner-row]').forEach(row=>{
+ const ownerRows=document.querySelectorAll('#mgrOwnerTable tr[data-owner-row]');
+ const site=sites.find(s=>s.id===currentDetailId),byPerson=new Map();
+ if(site&&ownerRows.length)miReportLogs(site).forEach(l=>{const key=String(l.personId||'');if(!byPerson.has(key))byPerson.set(key,[]);byPerson.get(key).push(l)});
+  const canSummarize=!!(ownerRows.length&&uiContactSummaryIdentity());
+  const searchRow=document.getElementById('mgrOwnerSearchInput')?.closest('.mgr-owner-search-row');
+  const bulkButton=searchRow?.querySelector('.ui-contact-bulk');
+  if(canSummarize&&site&&searchRow){
+   if(!bulkButton)searchRow.append(uxButton('전체 AI 요약',()=>uiOpenContactBulkSummary(site),'btn btn-ghost ui-contact-bulk'));
+  }else bulkButton?.remove();
+ ownerRows.forEach(row=>{
   const journal=row.querySelector('.mgr-contact-journal-btn'),contactCell=row.querySelector('.mgr-contact-cell');
   let meta=contactCell?.querySelector('.ui-contact-meta');
   if(contactCell&&!meta){meta=document.createElement('div');meta.className='ui-contact-meta';const role=contactCell.querySelector('.mgr-contact-role');if(role)meta.append(role);contactCell.append(meta);}
-  if(!site||!journal||row.querySelector('[data-ui-compare]'))return;
-  const logs=byPerson.get(journal.dataset.person)||[];if(uiComparisonLogs(logs).length<2)return;
+   if(!site||!journal||!meta)return;
+   const person=journal.dataset.person;
+   const logs=byPerson.get(person)||[];
+   const heading=contactCell.querySelector('.mgr-contact-heading');
+   let actions=heading.querySelector('.ui-contact-actions');
+   if(!actions){actions=document.createElement('span');actions.className='ui-contact-actions no-print';heading.append(actions);}
+   const summaryButton=actions.querySelector('.ui-contact-ai');
+   if(canSummarize&&person&&logs.some(l=>String(l.text||'').trim()&&!isTourBookingLog(l))){
+    if(!summaryButton)actions.append(uxButton('②AI요약',()=>uiOpenContactSummary(site,person,journal.dataset.contact),'ui-contact-ai'));
+   }else summaryButton?.remove();
+   if(actions.querySelector('[data-ui-compare]')||uiComparisonLogs(logs).length<2)return;
   const compareRow=document.createElement('tr');compareRow.className='ui-contact-compare-row';compareRow.hidden=true;
   const cell=document.createElement('td');cell.colSpan=7;cell.innerHTML=uiReportComparisonMarkup(logs);compareRow.append(cell);
   const fold=cell.querySelector('details');if(fold)fold.open=true;
-  const b=uxButton('비교 ▸',()=>{const open=compareRow.hidden;compareRow.hidden=!open;b.textContent=open?'비교 ▾':'비교 ▸';b.setAttribute('aria-expanded',String(open));},'ui-compare-link');b.dataset.uiCompare='1';b.setAttribute('aria-expanded','false');
-  const actions=document.createElement('div');actions.className='ui-contact-actions';actions.append(b);meta?.append(actions);row.after(compareRow);
+  const b=uxButton('①비교',()=>{const open=compareRow.hidden;compareRow.hidden=!open;b.setAttribute('aria-expanded',String(open));},'ui-compare-link');b.dataset.uiCompare='1';b.setAttribute('aria-expanded','false');
+   actions.prepend(b);row.after(compareRow);
  });
 }
 function uiBrowsingInstall(){
@@ -47424,7 +47660,32 @@ html body.ux383 .mi-excel-report .mi-excel-meta-row-v77>.log-field-line{flex:0 1
 html body.ux383 .mi-excel-report .mi-excel-meta-row-v77>.mi-contact-compact{max-width:250px!important}
 html body.ux383 .mi-excel-report .desktop-detail-fields{min-width:0!important;max-width:100%!important}
 @media(max-width:600px){html body.ux383 #contactReportBody .cis-kpis[style]{grid-template-columns:repeat(2,minmax(0,145px))!important;gap:10px!important}}
-</style></body>
+</style>
+<style>
+
+html body #detailBody #mgrOwnerTable .mgr-contact-heading:has(.ui-contact-actions:not(:empty)){display:flex!important;flex-wrap:wrap!important;justify-content:center!important;gap:4px 8px!important}
+html body #detailBody #mgrOwnerTable .mgr-contact-heading .ui-contact-actions{display:inline-flex;align-items:center;flex:none;gap:8px;margin:0;padding:0;white-space:nowrap}
+#mgrOwnerTable .ui-contact-actions:empty{display:none!important}
+html body #detailBody #mgrOwnerTable .ui-contact-actions button{width:auto!important;min-width:0!important;height:auto!important;min-height:0!important;padding:0!important;margin:0!important;border:0!important;background:transparent!important;box-shadow:none!important;color:var(--accent)!important;font:inherit!important;font-weight:500!important;line-height:1.45!important;cursor:pointer}
+html body #detailBody #mgrOwnerTable .ui-contact-actions button:is(:hover,[aria-expanded="true"]){text-decoration:underline}
+html body #detailBody .mgr-owner-search-row:has(.ui-contact-bulk){display:flex;align-items:center;gap:8px}
+html body #detailBody .mgr-owner-search-row:has(.ui-contact-bulk) input{flex:1;min-width:0}
+.ui-contact-bulk{flex:none;white-space:nowrap}
+.ui-contact-bulk-results{margin-top:12px}
+.ui-contact-bulk-results>details{padding:8px 0;border-bottom:1px solid var(--line)}
+.ui-contact-bulk-results>details>p{margin:8px 0}
+@media(max-width:820px){
+ html body #detailBody #mgrOwnerTable .mgr-contact-heading:has(.ui-contact-actions:not(:empty)){justify-content:flex-start!important}
+ html body #detailBody #mgrOwnerTable .mgr-contact-heading:has(.ui-contact-actions:not(:empty)) .mgr-contact-journal-btn{flex:0 1 auto!important}
+}
+
+.ui-contact-summary-dialog{padding:4px 0 8px;overflow-wrap:anywhere}
+.ui-contact-summary-dialog p{margin:0 0 12px}
+.ui-contact-summary-scope{font-size:.9em}
+.ui-contact-summary-text{font-weight:600;line-height:1.65}
+.ui-contact-summary-dialog details p{margin:8px 0 0}
+</style>
+</body>
 </html>
 
 <style id="dashboard-schedule-rearrange-theme-font">
