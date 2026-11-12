@@ -1186,16 +1186,22 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
           <span style="color:#8a92a3;">${r.count}건 ▾</span>
         </div>`).join('')}
     </div>
-    <div id="hourDetailBox" style="display:none; margin-top:10px;"></div>`;
+    <div id="hourDetailBox" hidden></div>`;
   }
 
   // 특정 시간대에 실제로 오간 메시지들을 펼쳐서 보여줌
 
   function showHourMessages(hour){
-    const box=document.getElementById('hourDetailBox');if(!box)return;
-    if(box.dataset.hour===String(hour)&&!box.hidden){box.hidden=true;return;}
     const rows=(window.__reportHourlyRows||[]).filter(m=>m.hour===hour&&!isSystemNotice(m.text));
-    box.innerHTML=`<div class="r-detail-heading">${hour}시 주요 발언 · ${rows.length}건</div>${rows.map((m,i)=>statementHtml({speaker:m.name,quote:m.text,date:m.date,hour:m.hour,min:m.min,sourceText:m.text},i,m.date)).join('')}`;box.hidden=false;box.dataset.hour=String(hour);
+    if(!rows.length)return;
+    const dialog=document.createElement('dialog');
+    dialog.className='rooms-dialog hour-message-dialog';
+    dialog.setAttribute('aria-label',hour+'시 대화');
+    dialog.innerHTML=`<header><h2>${hour}시 주요 발언 · ${rows.length}건</h2><button type="button" class="btn btn-ghost">닫기</button></header><div class="hour-message-scroll">${rows.map((m,i)=>statementHtml({speaker:m.name,quote:m.text,date:m.date,hour:m.hour,min:m.min,sourceText:m.text},i,m.date)).join('')}</div>`;
+    dialog.querySelector('button').onclick=()=>dialog.close();
+    dialog.addEventListener('close',()=>dialog.remove(),{once:true});
+    document.body.append(dialog);
+    dialog.showModal();
   }
   window.showHourMessages=showHourMessages;
   function reportIssueCardsLegacy(daily){
@@ -1251,7 +1257,7 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
     if(reportHourMode==='all')selector=`<span class="r-hour-all-label">전체 기간 · ${dates.length}일</span>`;
     return `<div class="r-hour-modes" role="group" aria-label="시간대별 집계 기간">${[['all','전체'],['month','월별'],['week','주별'],['day','일별'],['range','날짜별']].map(([mode,label])=>`<button type="button" class="${reportHourMode===mode?'active':''}" aria-pressed="${reportHourMode===mode}" onclick="selectReportHourMode('${mode}')">${label}</button>`).join('')}</div><div class="r-hour-date-filter">${selector}<span>${chosen.length}일 · ${stats.total.toLocaleString()}건 · ${stats.participantCount}명</span></div><div class="r-hourchart">${counts.map((n,h)=>`<div class="r-hour-col"><span class="r-hour-count">${n||''}</span><button type="button" class="r-hour-bar"${n?'':' disabled'} style="height:${n?Math.max(4,n/max*86):2}px" onclick="showHourMessages(${h})" aria-label="${h}시 대화 ${n}건"></button><small>${h%3===0?h+'시':''}</small></div>`).join('')}</div><div class="r-hour-list">${counts.map((n,h)=>n?`<button type="button" onclick="showHourMessages(${h})"><b>${String(h).padStart(2,'0')}:00</b><span>${stats&&stats.hourTopSpeakers&&stats.hourTopSpeakers[h]?escapeHtml(stats.hourTopSpeakers[h].names.join(', ')):''}</span><strong>${n}건</strong></button>`:'').join('')}</div><div id="hourDetailBox" hidden></div>`;
   }
-  function refreshReportHourly(){document.getElementById('reportHourlyContent').innerHTML=renderReportHourly();}
+  function refreshReportHourly(){const host=document.getElementById('reportHourlyContent');if(host)host.innerHTML=renderReportHourly();}
   window.selectReportHourMode=function(mode){if(!['all','month','week','day','range'].includes(mode))return;reportHourMode=mode;refreshReportHourly();};
   window.selectReportHourDate=function(date){reportHourDate=date;reportHourMode='day';refreshReportHourly();};
   window.selectReportHourFilter=function(kind,value){
@@ -1604,14 +1610,26 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
   function makeRoom(title='관리자 메모'){return {id:'room-'+(++roomSerial)+'-'+Date.now(),number:roomSerial,title,messages:[],analysis:{},sources:{}};}
   function saveRooms(){try{localStorage.setItem(ROOMS_STORE,JSON.stringify({rooms,serial:roomSerial}));document.getElementById('saveStatusText').textContent='자동저장 완료';return true;}catch{toast('브라우저 저장 공간이 부족합니다. TXT 원본을 보관해 주세요.','warn');return false;}}
   function stashRoom(){if(activeRoom==='all')return;const room=rooms.find(r=>r.id===activeRoom);if(room){room.analysis=aiAnalysisCache;room.sources=analysisSourceCache;saveRooms();}}
+  function roomCleanupApplied(){try{return localStorage.getItem(ROOMS_STORE+':empty-mokdong14-cleanup')==='1';}catch{return false;}}
+  function markRoomCleanup(){try{localStorage.setItem(ROOMS_STORE+':empty-mokdong14-cleanup','1');}catch{}}
   function restoreRooms(){
     let hasSaved=false;
     try{const saved=JSON.parse(localStorage.getItem(ROOMS_STORE)||'null');if(saved&&Array.isArray(saved.rooms)){hasSaved=true;rooms=saved.rooms.filter(r=>r&&r.id&&Array.isArray(r.messages)).map(r=>({...r,title:String(r.title||'관리자 메모'),analysis:r.analysis||{},sources:r.sources||{}}));roomSerial=Math.max(Number(saved.serial||0),...rooms.map(r=>Number(r.number)||0));}}catch{}
-    if(!hasSaved){rooms=[makeRoom()];saveRooms();}activeRoom='all';
+    if(!hasSaved){rooms=[makeRoom()];saveRooms();}
+    else if(!roomCleanupApplied()){
+      const retained=rooms.filter(room=>room.title.trim()!=='목동14'||room.messages.length||Object.keys(room.analysis).length||Object.keys(room.sources).length||room.dayAssessment);
+      if(retained.length!==rooms.length){
+        const previous=rooms;
+        rooms=retained;
+        if(!saveRooms())rooms=previous;
+        else markRoomCleanup();
+      }else markRoomCleanup();
+    }
+    activeRoom='all';
   }
   function periodRows(room){const from=document.getElementById('reportFrom').value,to=document.getElementById('reportTo').value;return room.messages.filter(m=>(!from||reportDateIso(m.date)>=from)&&(!to||reportDateIso(m.date)<=to)).sort(rowOrder);}
   function roomName(r){return r.title;}
-  function renderRoomNav(){document.body.classList.toggle('rooms-all',activeRoom==='all');const nav=document.getElementById('roomsNav');nav.innerHTML=`<button type="button" data-room="all" class="${activeRoom==='all'?'active':''}"><b>전체</b></button>`+rooms.map(r=>`<button type="button" data-room="${escapeHtml(r.id)}" class="${activeRoom===r.id?'active':''}">${roomTitleHtml(r.title)}</button>`).join('')+`<button type="button" class="add-room" id="addRoom">＋ 방 추가</button>`;nav.querySelectorAll('[data-room]').forEach(b=>b.onclick=()=>selectRoom(b.dataset.room));document.getElementById('addRoom').onclick=()=>openRoomEditor();syncCompactNavigation();}
+  function renderRoomNav(){document.body.classList.toggle('rooms-all',activeRoom==='all');const nav=document.getElementById('roomsNav');nav.innerHTML=`<button type="button" data-room="all" class="${activeRoom==='all'?'active':''}"><b>전체</b></button>`+rooms.map(r=>`<button type="button" data-room="${escapeHtml(r.id)}" class="${activeRoom===r.id?'active':''}">${escapeHtml(r.title.replace(/\s+/g,' ').trim())}</button>`).join('')+`<button type="button" class="add-room" id="addRoom">＋ 방 추가</button>`;nav.querySelectorAll('[data-room]').forEach(b=>b.onclick=()=>selectRoom(b.dataset.room));document.getElementById('addRoom').onclick=()=>openRoomEditor();syncCompactNavigation();}
   function selectRoom(id,focus=''){
     stashRoom();activeRoom=id;document.getElementById('dateFilter').value='__all__';
     if(id!=='all'){
@@ -1655,12 +1673,32 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
     renderRoomNav();document.getElementById('savedDateSelect').style.display='none';const context=document.getElementById('roomContext');
     if(activeRoom==='all'){context.hidden=true;syncCompactNavigation();renderOverview();return;}
     const r=rooms.find(r=>r.id===activeRoom);if(!r)return;context.hidden=false;context.innerHTML=`<div class="room-context-title"><h2>${roomTitleHtml(r.title)}</h2></div><div class="actions"><button class="btn btn-ghost" id="renameRoom">제목 수정</button><button class="btn btn-soft" id="pasteIntoRoom">대화 추가</button><button class="btn btn-danger-soft" id="deleteRoom">방 삭제</button></div>`;
-    document.getElementById('renameRoom').onclick=()=>openRoomEditor(r);document.getElementById('pasteIntoRoom').onclick=()=>openRoomImport(r.id);document.getElementById('deleteRoom').onclick=()=>{if(!confirm(r.title+'의 대화와 분석을 삭제할까요? 다른 방은 유지됩니다.'))return;rooms=rooms.filter(x=>x.id!==r.id);activeRoom='all';saveRooms();render();};
+    document.getElementById('renameRoom').onclick=()=>openRoomEditor(r);document.getElementById('pasteIntoRoom').onclick=()=>openRoomImport(r.id);document.getElementById('deleteRoom').onclick=()=>openRoomDelete(r);
     syncCompactNavigation();
     aiBtn.disabled=previewMode||!parsed?.length;
     setAiStatus('local',previewMode?'예시 데이터':'대화 불러옴');
     if(!parsed?.length){content.innerHTML='<div class="empty-state"><div class="empty-icon">↥</div><b>이 방의 대화를 추가해 주세요.</b><div class="empty-sub">카톡 TXT 파일을 선택하거나 대화를 붙여넣으면 원본 보고서가 표시됩니다.</div></div>';document.getElementById('titleDate').textContent=r.title;setAiStatus('local','대화 대기');return;}
     renderLegacy();setAiStatus(currentAnalysisSource==='ai'?'ai':'local',previewMode?'예시 데이터':currentAnalysisSource==='ai'?'AI 요약 저장됨':'AI 요약 전 · 대화 쟁점 정리');
+  }
+  function openRoomDelete(room){
+    const dialog=document.createElement('dialog');
+    dialog.className='rooms-dialog';
+    dialog.setAttribute('aria-label','방 삭제');
+    dialog.innerHTML='<h2>방 삭제</h2><p></p><div class="actions"><button type="button" class="btn btn-ghost">취소</button><button type="button" class="btn btn-danger-soft">삭제</button></div>';
+    dialog.querySelector('p').textContent=room.title+' 방을 삭제할까요?'+(room.messages.length?' 저장된 대화와 요약도 함께 삭제됩니다.':'');
+    const [cancel,remove]=dialog.querySelectorAll('button');
+    cancel.onclick=()=>dialog.close();
+    remove.onclick=()=>{
+      const previous=rooms;
+      rooms=rooms.filter(item=>item.id!==room.id);
+      if(!saveRooms()){rooms=previous;return;}
+      activeRoom='all';aiAnalysisCache={};analysisSourceCache={};
+      dialog.close();render();toast(room.title+' 방을 삭제했습니다.');
+    };
+    dialog.addEventListener('close',()=>dialog.remove(),{once:true});
+    document.body.append(dialog);
+    dialog.showModal();
+    cancel.focus();
   }
   function openRoomEditor(room){const dialog=document.getElementById('roomEditor');dialog.dataset.room=room?.id||'';document.getElementById('roomEditorTitle').textContent=room?'방 제목 수정':'방 추가';document.getElementById('roomMemo').value=room?.title||'';dialog.showModal();document.getElementById('roomMemo').focus();}
   function openRoomImport(id){if(!rooms.length){toast('먼저 방을 추가해 주세요.','warn');openRoomEditor();return;}const select=document.getElementById('importRoom');select.innerHTML=rooms.map(r=>`<option value="${escapeHtml(r.id)}">${escapeHtml(r.title)}</option>`).join('');select.value=id||((activeRoom!=='all')?activeRoom:rooms[0]?.id)||'';document.getElementById('importError').textContent='';document.getElementById('roomImport').showModal();}
@@ -1900,7 +1938,7 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
     const scopes=room?[{id:room.id,title:room.title,rows}]:all?rooms.map(room=>({id:room.id,title:room.title,rows:periodRows(room)})).filter(r=>r.rows.length):[{id:activeRoom,title:rooms.find(r=>r.id===activeRoom)?.title||'',rows}];
     window.__roomSpeakerTop=[];
     const html=scopes.map(scope=>{const records=speakerRecords(scope.rows,scope.id,scope.title).slice(0,5).map(r=>({...r,brief:speakerContent(r)}));window.__roomSpeakerTop.push(...records);return `<section class="speaker-room-group"><h4>${escapeHtml(scope.title)}</h4><ol class="speaker-top-list">${records.map((r,i)=>`<li><span class="speaker-rank">${i+1}</span><div class="speaker-info"><div class="speaker-name"><b>${escapeHtml(r.name)}</b><span>(${r.count}회 발언)</span></div><p class="speaker-topics">${escapeHtml(r.brief.topics)}</p><details class="speaker-own-source"><summary>${escapeHtml(shortText(r.brief.quote,105))}</summary><p>${escapeHtml(r.brief.quote)}</p><small>${escapeHtml(r.brief.date)}</small></details></div></li>`).join('')}</ol></section>`}).join('');
-    return `<section class="r-report-section speaker-top"><header class="r-section-header"><h3>주요 발언자 Top 5</h3></header><div class="speaker-room-scroll">${html||'<p>등록된 발언이 없습니다.</p>'}</div></section>`;
+    return `<section class="r-report-section speaker-top"><header class="r-section-header"><h3><span class="r-step">03</span> 주요 발언자 Top 5</h3></header><div class="speaker-room-scroll">${html||'<p>등록된 발언이 없습니다.</p>'}</div></section>`;
   }
   function roomAssessmentHtml(room,rows){
     const last=rows.map(m=>reportDateIso(m.date)).filter(Boolean).sort().at(-1);if(!last)return '';
@@ -1922,18 +1960,25 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
     const html=statementHtmlLegacy(it,index,fallbackDate),name=escapeHtml(it.speaker||'발언자 미상');
     return html.replace('<b>'+name+'</b>','<b>'+name+' <small class="speaker-inline-count">('+count+'회 발언)</small></b>');
   }
+  function monitoringContextHtml(item,rows){
+    const index=rows.findIndex(row=>row.name===item.speaker&&reportDateIso(row.date)===reportDateIso(item.date)&&Number(row.hour)===Number(item.hour)&&Number(row.min)===Number(item.min)&&fullText(row.text)===fullText(item.sourceText||item.quote));
+    const display=(row,label)=>`<div class="r-source"><div class="r-source-meta">${label} · ${escapeHtml(row.name||'')} · ${escapeHtml(row.date||'')} ${String(row.hour??0).padStart(2,'0')}:${String(row.min??0).padStart(2,'0')}</div><div class="r-source-text">${escapeHtml(row.text||'')}</div></div>`;
+    if(index<0)return display({...item,name:item.speaker,text:item.sourceText||item.quote},'해당 발언');
+    const sameDay=row=>row&&reportDateIso(row.date)===reportDateIso(item.date);
+    return [sameDay(rows[index-1])?display(rows[index-1],'이전 발언'):'',display(rows[index],'해당 발언'),sameDay(rows[index+1])?display(rows[index+1],'다음 발언'):''].join('');
+  }
   function monitoringSpeakersHtml(items,rows){
     const counts=new Map(speakerRecords(rows).map(r=>[r.name,r.count])),people=new Map();
     for(const item of items){if(!people.has(item.speaker))people.set(item.speaker,[]);people.get(item.speaker).push(item);}
     return [...people].map(([name,list])=>{list.sort((a,b)=>reportDateIso(a.date).localeCompare(reportDateIso(b.date))||(a.hour-b.hour)||(a.min-b.min));const last=list.at(-1);
-      return `<details class="r-statement"><summary><span class="r-statement-copy"><b>${escapeHtml(name)} <small class="speaker-inline-count">(${counts.get(name)||0}회 발언)</small> <small class="monitor-related-count">관련 ${list.length}건</small></b><span class="r-excerpt">${escapeHtml(last.quote)}</span></span><span class="r-expand">⌄</span></summary><div class="r-original">${list.map(item=>`<div class="r-source"><div class="r-source-meta">${escapeHtml(item.date)} · ${String(item.hour||0).padStart(2,'0')}:${String(item.min||0).padStart(2,'0')}</div><div class="r-source-text">${escapeHtml(item.sourceText||item.quote)}</div></div>`).join('')}</div></details>`;
+      return `<details class="r-statement"><summary><span class="r-statement-copy"><b>${escapeHtml(name)} <small class="speaker-inline-count">(${counts.get(name)||0}회 발언)</small> <small class="monitor-related-count">관련 ${list.length}건</small></b><span class="r-excerpt">${escapeHtml(last.quote)}</span></span><span class="r-expand" title="앞뒤 대화 보기">⌄</span></summary><div class="r-original">${list.map(item=>monitoringContextHtml(item,rows)).join('')}</div></details>`;
     }).join('')||'<div class="r-empty">관련 발언이 없습니다.</div>';
   }
   function compactMonitoringHtml(){
     const rows=reportSourceRows(),local=localAnalyzeMessages(rows),keys=['favorable','critical','other'],labels=['우호','부정','중립'];window.__currentMonitoring=local;
     if(monitoringRoom!==activeRoom){monitoringRoom=activeRoom;monitoringTab='';}
     if(!keys.includes(monitoringTab))monitoringTab=keys.find(key=>local[key].length)||'favorable';
-    return `<header class="monitoring-toolbar"><h3>관련 발언 모니터링</h3><div class="monitoring-tabs" role="tablist" aria-label="관련 발언 분류">${keys.map((key,i)=>`<button type="button" id="monitor-${key}" data-monitor-tab="${key}" role="tab" aria-selected="${monitoringTab===key}" aria-controls="monitor-panel-${key}" tabindex="${monitoringTab===key?0:-1}" class="${key}">${labels[i]} <b>${local[key].length}</b></button>`).join('')}</div></header><div class="monitoring-panels">${keys.map(key=>`<div class="r-stance-column ${key}" role="tabpanel" id="monitor-panel-${key}" aria-labelledby="monitor-${key}" ${monitoringTab!==key?'hidden':''}><div class="r-stance-body">${monitoringSpeakersHtml(local[key],rows)}</div></div>`).join('')}</div>`;
+    return `<header class="monitoring-toolbar"><h3><span class="r-step">02</span> 관련 발언 모니터링</h3><div class="monitoring-tabs" role="tablist" aria-label="관련 발언 분류">${keys.map((key,i)=>`<button type="button" id="monitor-${key}" data-monitor-tab="${key}" role="tab" aria-selected="${monitoringTab===key}" aria-controls="monitor-panel-${key}" tabindex="${monitoringTab===key?0:-1}" class="${key}">${labels[i]} <b>${local[key].length}</b></button>`).join('')}</div></header><div class="monitoring-panels">${keys.map(key=>`<div class="r-stance-column ${key}" role="tabpanel" id="monitor-panel-${key}" aria-labelledby="monitor-${key}" ${monitoringTab!==key?'hidden':''}><div class="r-stance-body">${monitoringSpeakersHtml(local[key],rows)}</div></div>`).join('')}</div>`;
   }
   function selectMonitoringTab(key,focus=false){if(!['favorable','critical','other'].includes(key))return;monitoringTab=key;document.querySelectorAll('[data-monitor-tab]').forEach(b=>{const on=b.dataset.monitorTab===key;b.setAttribute('aria-selected',String(on));b.tabIndex=on?0:-1;if(on&&focus)b.focus({preventScroll:true});});document.querySelectorAll('.monitoring-panels [role=tabpanel]').forEach(p=>p.hidden=p.id!=='monitor-panel-'+key);}
   document.addEventListener('click',e=>{const b=e.target.closest('[data-monitor-tab]');if(b)selectMonitoringTab(b.dataset.monitorTab);});
@@ -2152,4 +2197,43 @@ body{background:#edf1f6!important;}#app .hero{padding-top:4px!important;padding-
  actions.append(more);bar.querySelectorAll('.toolbar-spacer').forEach(e=>e.remove());bar.append(imports);if(period)bar.append(period);bar.append(actions);
  document.addEventListener('click',e=>{if(!more.contains(e.target))more.open=false;});list.addEventListener('click',e=>{if(e.target.closest('button'))more.open=false;});
 })();
-</script>
+</script><style id="report-desktop-overview-and-hour">
+#hourDetailBox:not([hidden]){display:block!important;margin-top:10px}
+#hourDetailBox[hidden]{display:none!important}
+@media(min-width:1050px){
+ #app .overview-layout .rooms-overview{grid-template-columns:repeat(2,minmax(0,1fr))!important;align-items:start}
+ #app .overview-layout .room-summary{grid-column:auto!important;min-width:0;width:100%}
+ #app .overview-layout .room-summary .room-summary-body{grid-template-columns:minmax(0,1fr)!important}
+}
+</style>
+<style id="report-reviewed-layout">
+#app .room-desktop-workspace :is(.conversation-section>.r-section-header,.monitoring-toolbar,.speaker-top>.r-section-header){display:flex!important;align-items:center!important;min-height:38px!important;padding:5px 8px!important;margin:0 0 10px!important;background:#eaf1f8!important;border:0!important;border-radius:4px;box-sizing:border-box}
+#app .room-desktop-workspace :is(.r-section-header,.monitoring-toolbar) h3{margin:0!important;line-height:20px!important}
+#app .room-desktop-workspace .r-step{color:#456b8c!important;margin-right:6px}
+#app .room-desktop-workspace .speaker-room-group>h4{display:none!important}
+#app .r-hour-bar:not(:disabled){background:#2b5b86!important}
+#app :is(.stats-tabs,.monitoring-tabs [aria-selected="true"]){background:#eaf1f8!important}
+.hour-message-dialog{width:min(780px,calc(100vw - 32px))!important;max-height:80vh;padding:0!important}
+.hour-message-dialog>header{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#eaf1f8;padding:10px 14px}
+.hour-message-dialog>header h2{margin:0;font-size:16px;color:#193e62}
+.hour-message-scroll{max-height:65vh;overflow:auto;padding:10px 14px}
+@media(min-width:1050px){
+ #app .overview-layout .room-summary:only-child{grid-column:1/-1!important}
+ #app .overview-layout .room-summary:only-child .room-summary-body{grid-template-columns:minmax(0,1.2fr) minmax(0,.75fr) minmax(0,1fr)!important}
+ #app .overview-layout .room-summary:not(:only-child) .room-summary-body{grid-template-columns:minmax(0,1fr) minmax(0,.8fr)!important;gap:12px!important}
+ #app .overview-layout .room-summary:not(:only-child) .overview-room-speakers{grid-column:1/-1;border-left:0!important;padding-left:0!important}
+}
+</style><style id="report-equal-cards">
+#app #roomsNav [data-room]{white-space:nowrap!important;width:auto!important;min-width:0!important;min-height:32px!important;padding:5px 10px!important;line-height:1.25!important}
+#app #roomsNav [data-room] br{display:none}
+#app #roomsNav [data-room] br::after{content:" "}
+#app #roomsNav [data-room] span{display:inline!important}
+#app .monitoring-redesign .r-statement summary:focus-visible{outline-color:#567da0!important}
+#app .monitoring-redesign .r-source{border-left:2px solid #a9bfd4}
+@media(min-width:1100px){
+ #app .room-desktop-workspace{grid-template-columns:repeat(3,minmax(0,1fr))!important;grid-template-rows:minmax(0,1fr) 232px!important}
+ #app .room-desktop-workspace :is(.conversation-section,.monitoring-redesign,.speaker-top){grid-row:1!important;height:100%!important;box-sizing:border-box}
+ #app .room-desktop-workspace>.combined-stats{grid-column:1/-1!important}
+ #app .room-desktop-workspace .speaker-room-scroll{overflow:auto;min-height:0;max-height:calc(100% - 48px)}
+}
+</style>
