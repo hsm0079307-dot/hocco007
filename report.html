@@ -1207,19 +1207,52 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
 
   // 특정 시간대에 실제로 오간 메시지들을 펼쳐서 보여줌
 
+  const hourlyAiReports=new Map();
   function showHourMessages(hour){
-    const rows=(window.__reportHourlyRows||[]).filter(m=>m.hour===hour&&!isSystemNotice(m.text));
+    const rows=(window.__reportHourlyRows||[]).filter(row=>row.hour===hour&&!isSystemNotice(row.text));
+    return showStatsMessages(hour+'시',rows);
+  }
+  async function showStatsMessages(label,rows){
     if(!rows.length)return;
+    const people=speakerRecords(rows);
+    const key=structuredKey(rows);
     const dialog=document.createElement('dialog');
     dialog.className='rooms-dialog hour-message-dialog';
-    dialog.setAttribute('aria-label',hour+'시 대화');
-    dialog.innerHTML=`<header><h2>${hour}시 주요 발언 · ${rows.length}건</h2><button type="button" class="btn btn-ghost">닫기</button></header><div class="hour-message-scroll">${rows.map((m,i)=>statementHtml({speaker:m.name,quote:m.text,date:m.date,hour:m.hour,min:m.min,sourceText:m.text},i,m.date)).join('')}</div>`;
+    dialog.setAttribute('aria-label',label+' 대화');
+    dialog.innerHTML='<header><h2>'+label+' 주요 발언 · '+rows.length+'건</h2><button type="button" class="btn btn-ghost">닫기</button></header><div class="hour-message-scroll" aria-live="polite"></div>';
+    const body=dialog.querySelector('.hour-message-scroll');
+    const render=report=>{
+      body.innerHTML=people.map((record,index)=>{
+        const person=report?.speakers.find(item=>item.name===record.name);
+        return '<details class="structured-person hour-person"><summary><span class="speaker-rank">'+(index+1)+'</span><span><b>'+escapeHtml(record.name)+'</b> <small>('+record.count+'회 발언)</small><span class="hour-person-brief">'+escapeHtml(person?.summary||(report?'이 시간대 AI 요약 없음':'AI 요약 중…'))+'</span></span></summary><div class="hour-person-original">'+record.messages.map(row=>'<p><small>'+escapeHtml(reportDateIso(row.date)+' '+String(row.hour).padStart(2,'0')+':'+String(row.min).padStart(2,'0'))+'</small><br>'+escapeHtml(row.text)+'</p>').join('')+'</div></details>';
+      }).join('');
+    };
     dialog.querySelector('button').onclick=()=>dialog.close();
     dialog.addEventListener('close',()=>dialog.remove(),{once:true});
-    document.body.append(dialog);
-    dialog.showModal();
+    document.body.append(dialog);dialog.showModal();
+    const cached=hourlyAiReports.get(key);render(cached);
+    if(cached)return;
+    const pending=synthesizeReport(rows,people.slice(0,12).map(record=>record.name));
+    try{
+      const report=await pending;
+      hourlyAiReports.set(key,report);
+      if(dialog.open)render(report);
+    }catch(error){
+      if(dialog.open){render({speakers:[]});const notice=document.createElement('p');notice.setAttribute('role','alert');notice.textContent='AI 한줄 요약을 불러오지 못했습니다. '+error.message;body.prepend(notice);}
+    }
   }
   window.showHourMessages=showHourMessages;
+  document.addEventListener('click',event=>{
+    const bar=event.target.closest('button[data-report-weekday]');
+    if(!bar||bar.disabled)return;
+    const day=Number(bar.dataset.reportWeekday);
+    const rows=(window.__reportHourlyRows||[]).filter(row=>{
+      const iso=reportDateIso(row.date);
+      return iso&&(new Date(iso+'T12:00:00').getDay()+6)%7===day&&!isSystemNotice(row.text);
+    });
+    showStatsMessages('월화수목금토일'[day]+'요일',rows);
+  });
+
   function reportIssueCardsLegacy(daily){
     if(currentAnalysisSource==='ai'&&daily&&daily.keyPoints.length){window.__reportIssueExport=daily.keyPoints.slice(0,5);return daily.keyPoints.slice(0,5).map((k,i)=>`<article class="r-issue"><span class="r-no">No ${i+1}</span><div><h4>${escapeHtml(k.title)}</h4><p>${escapeHtml(k.summary)}</p>${k.sources&&k.sources.length?`<details class="r-ai-sources"><summary>근거 대화 보기</summary>${k.sources.map(src=>`<div class="r-source"><div class="r-source-meta">${escapeHtml(src.speaker||'')} · ${escapeHtml(src.date||'')}</div><div class="r-source-text">${escapeHtml(src.text||'')}</div></div>`).join('')}</details>`:''}</div></article>`).join('');}
     const rows=reportSourceRows(),topics=[['사업 일정',/총회|입찰|공고|선정|회의|계약/],['설계 · 공사',/설계|공사|인허가|이주|착공/],['비용 · 분담금',/분담금|공사비|사업비|대출|금리/],['관계자 의견',/우려|불만|찬성|반대|요구|문의/]];
@@ -1270,10 +1303,10 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
     if(reportHourMode==='week')selector=`<label for="reportHourWeek">주</label><select id="reportHourWeek" onchange="selectReportHourFilter('week',this.value)">${weeks.map(w=>`<option value="${w}"${w===reportHourWeek?' selected':''}>${reportWeekLabel(w)}</option>`).join('')}</select>`;
     if(reportHourMode==='day')selector=`<label for="reportHourDate">날짜</label><select id="reportHourDate" onchange="selectReportHourDate(this.value)">${dates.slice().reverse().map(d=>`<option value="${escapeHtml(d)}"${d===reportHourDate?' selected':''}>${escapeHtml(d)}</option>`).join('')}</select>`;
     if(reportHourMode==='range')selector=`<label for="reportHourFrom">시작</label><input type="date" id="reportHourFrom" value="${reportHourFrom}" onchange="selectReportHourFilter('from',this.value)"><span>~</span><label for="reportHourTo">종료</label><input type="date" id="reportHourTo" value="${reportHourTo}" onchange="selectReportHourFilter('to',this.value)">`;
-    if(reportHourMode==='all')selector=`<span class="r-hour-all-label">전체 기간 · ${dates.length}일</span>`;
-    return `<div class="r-hour-modes" role="group" aria-label="시간대별 집계 기간">${[['all','전체'],['month','월별'],['week','주별'],['day','일별'],['range','날짜별']].map(([mode,label])=>`<button type="button" class="${reportHourMode===mode?'active':''}" aria-pressed="${reportHourMode===mode}" onclick="selectReportHourMode('${mode}')">${label}</button>`).join('')}</div><div class="r-hour-date-filter">${selector}<span>${chosen.length}일 · ${stats.total.toLocaleString()}건 · ${stats.participantCount}명</span></div><div class="r-hourchart">${counts.map((n,h)=>`<div class="r-hour-col"><span class="r-hour-count">${n||''}</span><button type="button" class="r-hour-bar"${n?'':' disabled'} style="height:${n?Math.max(4,n/max*86):2}px" onclick="showHourMessages(${h})" aria-label="${h}시 대화 ${n}건"></button><small>${h%3===0?h+'시':''}</small></div>`).join('')}</div><div class="r-hour-list">${counts.map((n,h)=>n?`<button type="button" onclick="showHourMessages(${h})"><b>${String(h).padStart(2,'0')}:00</b><span>${stats&&stats.hourTopSpeakers&&stats.hourTopSpeakers[h]?escapeHtml(stats.hourTopSpeakers[h].names.join(', ')):''}</span><strong>${n}건</strong></button>`:'').join('')}</div><div id="hourDetailBox" hidden></div>`;
+    if(reportHourMode==='all')selector=`<span class="r-hour-all-label">전체 기간</span>`;
+    return `<div class="r-hour-modes" role="group" aria-label="시간대별 집계 기간">${[['all','전체'],['month','월별'],['week','주별'],['day','일별']].map(([mode,label])=>`<button type="button" class="${reportHourMode===mode?'active':''}" aria-pressed="${reportHourMode===mode}" onclick="selectReportHourMode('${mode}')">${label}</button>`).join('')}</div><div class="r-hour-date-filter">${selector}<span>${chosen.length}일 · ${stats.total.toLocaleString()}건 · ${stats.participantCount}명</span></div><div class="r-hourchart">${counts.map((n,h)=>`<div class="r-hour-col"><span class="r-hour-count">${n||''}</span><button type="button" class="r-hour-bar"${n?'':' disabled'} style="height:${n?Math.max(4,n/max*60):2}px" onclick="showHourMessages(${h})" aria-label="${h}시 대화 ${n}건"></button><small>${h%3===0?h+'시':''}</small></div>`).join('')}</div><div class="r-hour-list">${counts.map((n,h)=>n?`<button type="button" onclick="showHourMessages(${h})"><b>${String(h).padStart(2,'0')}:00</b><span>${stats&&stats.hourTopSpeakers&&stats.hourTopSpeakers[h]?escapeHtml(stats.hourTopSpeakers[h].names.join(', ')):''}</span><strong>${n}건</strong></button>`:'').join('')}</div><div id="hourDetailBox" hidden></div>`;
   }
-  function refreshReportHourly(){const host=document.getElementById('reportHourlyContent');if(host)host.innerHTML=renderReportHourly();}
+  function refreshReportHourly(){const host=document.getElementById('reportHourlyContent');if(!host)return;host.innerHTML=renderReportHourly();const stats=host.closest('.combined-stats');const weekday=stats?.querySelector('.weekday-analysis');if(weekday)weekday.replaceWith(weekdayStatsPanel().firstElementChild);placeSharedStatsControls(stats);}
   window.selectReportHourMode=function(mode){if(!['all','month','week','day','range'].includes(mode))return;reportHourMode=mode;refreshReportHourly();};
   window.selectReportHourDate=function(date){reportHourDate=date;reportHourMode='day';refreshReportHourly();};
   window.selectReportHourFilter=function(kind,value){
@@ -1886,38 +1919,131 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
   function reportIssueCards(daily){
     const groups=conversationGroups(reportSourceRows()),room=rooms.find(r=>r.id===activeRoom),points=groups.map(g=>{const cached=room?.aiConversations?.find(entry=>entry.signature===scopeKey(g.rows));const evidence=currentAnalysisSource==='ai'?{keyPoints:[...(daily?.keyPoints||[]),...(cached?.keyPoints||[])]}:null;return conversationPoint(g,evidence);});window.__reportIssueExport=points;window.__conversationGroups=groups;
     if(!groups.length)return '<div class="conversation-empty">이 기간에 이어진 주요 대화가 없습니다. 기사 단독 공유는 주요 이슈에서 제외합니다.</div>';
-    return points.slice(0,5).map((p,i)=>{const g=p.group,first=g.rows[0],last=g.rows.at(-1),time=m=>String(m.hour).padStart(2,'0')+':'+String(m.min||0).padStart(2,'0');return `<article class="conversation-issue"><div class="conversation-heading"><h4>${escapeHtml(p.title)}</h4><span>${g.people.length}명 · ${g.rows.length}개 발언${p.ai?' · AI 요약':''}</span></div><p>${escapeHtml(p.summary)}</p><details class="conversation-source"><summary>대화 흐름 보기 <span>${escapeHtml(first.date.replace(/^\d+년\s*/,''))} ${time(first)}–${time(last)} · ${g.people.map(escapeHtml).join(', ')}</span></summary><div class="conversation-log">${g.rows.map(m=>`<div class="conversation-message"><div><b>${escapeHtml(m.name)}</b><time>${time(m)}</time></div><p>${escapeHtml(m.text)}</p></div>`).join('')}</div></details></article>`;}).join('')+(points.length>5?``:'');
+    return points.slice(0,5).map((p,i)=>{const g=p.group,first=g.rows[0],last=g.rows.at(-1),time=m=>String(m.hour).padStart(2,'0')+':'+String(m.min||0).padStart(2,'0');return `<article class="conversation-issue"><div class="conversation-heading"><h4><span class="speaker-rank">${i+1}</span> ${escapeHtml(p.title)}</h4><span>${g.people.length}명 · ${g.rows.length}개 발언${p.ai?' · AI 요약':''}</span></div><p>${escapeHtml(p.summary)}</p><details class="conversation-source"><summary>대화 흐름 보기 <span>${escapeHtml(first.date.replace(/^\d+년\s*/,''))} ${time(first)}–${time(last)} · ${g.people.map(escapeHtml).join(', ')}</span></summary><div class="conversation-log">${g.rows.map(m=>`<div class="conversation-message"><div><b>${escapeHtml(m.name)}</b><time>${time(m)}</time></div><p>${escapeHtml(m.text)}</p></div>`).join('')}</div></details></article>`;}).join('')+(points.length>5?``:'');
   }
   function weekdayStatsPanel(){
     const days=['월','화','수','목','금','토','일'], bins=days.map(()=>({count:0,people:new Set(),dates:new Set()}));
-    reportSourceRows().forEach(m=>{const iso=reportDateIso(m.date);if(!iso||isSystemNotice(m.text))return;const d=new Date(iso+'T12:00:00'),v=bins[(d.getDay()+6)%7];v.count++;v.people.add(m.name);v.dates.add(iso)});
+    (window.__reportHourlyRows||[]).forEach(m=>{const iso=reportDateIso(m.date);if(!iso)return;const d=new Date(iso+'T12:00:00'),v=bins[(d.getDay()+6)%7];v.count++;v.people.add(m.name);v.dates.add(iso)});
     const max=Math.max(1,...bins.map(v=>v.count));
-    const el=document.createElement('section');el.innerHTML=`<div class="weekday-analysis">${bins.map((v,i)=>`<div class="weekday-column"><div class="weekday-bar-space"><strong>${v.count}</strong><i style="height:${v.count?Math.max(3,v.count/max*86):2}px"></i></div><b>${days[i]}</b><small>${v.people.size}명 · ${v.dates.size}일</small></div>`).join('')}</div>`;return el;
+    const el=document.createElement('section');
+    el.innerHTML='<div class="weekday-analysis r-hourchart">'+bins.map((value,index)=>{
+      const count=value.count,description=days[index]+'요일 · 발언 '+count+'건';
+      return '<div class="r-hour-col weekday-column" title="'+description+'" aria-label="'+description+'"><span class="r-hour-count">'+(count||'')+'</span><button type="button" data-report-weekday="'+index+'" aria-label="'+description+'"'+(count?'':' disabled')+' class="r-hour-bar weekday-bar'+(count?'':' weekday-bar-empty')+'" style="height:'+(count?Math.max(4,count/max*60):2)+'px"></button><small>'+days[index]+'</small></div>';
+    }).join('')+'</div>';
+    return el;
+
+  }
+  const structuredReports=new Map();
+  const structuredKey=rows=>activeRoom+'|'+scopeKey(rows);
+  const pendingSummary='<p class="r-empty">AI 요약을 실행하면 표시됩니다.</p>';
+  async function requestReportSummary(mode,messages,names){
+    const token=await reportAiLogin();
+    const response=await fetch(AI_ANALYZE_URL,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({mode,messages,names}),signal:AbortSignal.timeout(55000)});
+    const data=await response.json();
+    if(!response.ok)throw Error(data.message||'AI 요약 요청 실패');
+    if(data.reportVersion!==1)throw Error('새 AI 보고서 서버를 배포해야 합니다.');
+    return data;
+  }
+  async function synthesizeReport(rows,names){
+    const parts=[];
+    for(const chunk of conversationAiChunks(rows)){
+      parts.push(await requestReportSummary('report-part',chunk,names));
+    }
+    return requestReportSummary('report-final',parts.map((part,i)=>({name:'구간 '+(i+1),text:JSON.stringify(part)})),names);
+  }
+  function summaryPeople(records,report){
+    if(!report)return pendingSummary;
+    const items=records.flatMap(record=>{
+      const person=report.speakers.find(item=>item.name===record.name);
+      return person?[{...person,count:record.count}]:[];
+    });
+    return items.map((person,index)=>'<article class="structured-person"><b><span class="speaker-rank">'+(index+1)+'</span> '+escapeHtml(person.name)+' <small>('+person.count+'회 발언)</small> · 성향 '+escapeHtml(person.stance)+'</b><p>'+escapeHtml(person.summary)+'</p></article>').join('')||'<p class="r-empty">분석된 발언이 없습니다.</p>';
   }
   function compactRoomReport(a,daily){
     const root=document.createElement('div');root.innerHTML=buildReportHtmlLegacy(a,daily);const sections=[...root.querySelectorAll(':scope > .r-report-section')];
     if(sections[0]){sections[0].classList.add('conversation-section');sections[0].querySelector('.r-mode').textContent=currentAnalysisSource==='ai'?'AI 요약 · 원문 근거 확인':'대화 쟁점 정리 · AI 요약 전';}
-    if(sections[1]){sections[1].classList.add('compact-monitoring','monitoring-redesign');sections[1].innerHTML=compactMonitoringHtml();const top=document.createElement('div');top.innerHTML=speakerTopHtml(reportSourceRows());const pair=document.createElement('div');pair.className='monitoring-speakers-pair';sections[1].before(pair);pair.append(sections[1],top.firstElementChild);}
+    if(sections[1]){sections[1].classList.add('compact-monitoring','monitoring-redesign');sections[1].innerHTML=compactMonitoringHtml();const top=document.createElement('div');top.innerHTML=speakerTopHtml(reportSourceRows());const pair=document.createElement('div');pair.className='monitoring-speakers-pair';sections[1].before(pair);const right=document.createElement("div");right.className="owner-report-column";right.append(top.firstElementChild);right.insertAdjacentHTML("beforeend",ownerSearchPanel());pair.append(sections[1],right);}
+    const rows=reportSourceRows(),report=structuredReports.get(structuredKey(rows));
+    const records=speakerRecords(rows);
+    const issues=sections[0]?.querySelector('.r-issues');
+    if(issues)issues.innerHTML=['주요 내용','시공사 이슈','그 외'].map((title,index)=>{
+      const points=report?.issues.filter(point=>point.category===title)||[];
+      return '<article class="conversation-issue"><div class="conversation-heading"><h4><span class="speaker-rank">'+(index+1)+'</span> '+title+'</h4></div><p>'+escapeHtml(points.map(point=>point.summary).join(' ')||(report?'확인된 내용이 없습니다.':'AI 요약 전'))+'</p></article>';
+    }).join('');
+    const monitoring=root.querySelector('.compact-monitoring');
+    if(monitoring){monitoring.querySelector('.monitoring-tabs')?.remove();const body=monitoring.querySelector('.monitoring-panels');if(body)body.innerHTML=summaryPeople(records.filter(record=>record.messages.some(row=>isPoscoRelatedText(row.text))),report);}
+    const top=root.querySelector('.speaker-top');
+    if(top){const heading=top.querySelector('h3');heading.innerHTML='<span class="r-step">03</span> 주요 발언자';top.querySelector('.speaker-room-scroll').innerHTML=summaryPeople(records,report);}
     const hour=sections[2],history=root.querySelector('.r-history-grid');
     if(hour&&history){
-      const [date,cumulative]=[...history.children],combined=document.createElement('section');combined.className='r-report-section combined-stats';
-      combined.innerHTML=`<header class="stats-toolbar"><div class="stats-tabs" role="tablist" aria-label="대화 통계 보기">${['시간대별','날짜별','누적 발언 요약','요일별'].map((label,i)=>`<button type="button" role="tab" id="stats-tab-${i}" data-stats-tab="${i}" aria-selected="${roomStatsTab===String(i)}" aria-controls="stats-panel-${i}" tabindex="${roomStatsTab===String(i)?0:-1}">${label}</button>`).join('')}</div><span class="stats-scope">선택 기간 · 대화 ${Number(a?.total||0).toLocaleString()}건 · ${Number(a?.participantCount||0)}명</span></header>`;
-      const panels=document.createElement('div');panels.className='stats-panels';
-      [hour,date,cumulative,weekdayStatsPanel()].forEach((node,i)=>{node.classList.remove('r-report-section');node.classList.add('stats-part');node.dataset.stats=String(i);node.id='stats-panel-'+i;node.setAttribute('role','tabpanel');node.setAttribute('aria-labelledby','stats-tab-'+i);node.hidden=roomStatsTab!==String(i);node.querySelector('.r-section-header')?.remove();panels.append(node);});
-      combined.append(panels);history.remove();root.append(combined);
+      const combined=document.createElement('section');combined.className='r-report-section combined-stats';
+      const panels=document.createElement('div');panels.className='stats-panels dual-report-stats';
+      [[hour,'시간대별'],[weekdayStatsPanel(),'요일별']].forEach(([node,label])=>{
+        node.classList.remove('r-report-section');
+        node.classList.add('stats-part');
+        node.querySelector('.r-section-header')?.remove();
+        const title=document.createElement('h3');title.className='dual-stats-heading';title.textContent=label;node.prepend(title);
+        panels.append(node);
+      });
+      combined.innerHTML='<header class="shared-stats-controls"><b>공통 집계 기간</b></header>';
+      combined.append(panels);placeSharedStatsControls(combined);history.remove();root.append(combined);
     }
     return `<div class="room-desktop-workspace">${root.innerHTML}</div>`;
   }
 
+  function ownerSearchPanel(){
+    return '<section class="r-report-section owner-search"><header class="r-section-header"><h3><span class="r-step">04</span> 소유주 확인</h3></header><form id="ownerSearch"><input type="search" aria-label="이름 또는 동·호수" placeholder="이름 또는 동·호수"><button class="btn btn-primary">검색</button></form><div id="ownerResults" aria-live="polite"></div></section>';
+  }
+  document.addEventListener('submit',event=>{
+    if(event.target.id!=='ownerSearch')return;
+    event.preventDefault();
+    const normalize=value=>value.toLowerCase().replace(/[^가-힣a-z0-9]/g,'');
+    const query=normalize(event.target.querySelector('input').value);
+    const results=document.getElementById('ownerResults');
+    if(!query){results.replaceChildren();return;}
+    const rows=reportSourceRows(),report=structuredReports.get(structuredKey(rows));
+    const records=speakerRecords(rows).filter(item=>normalize(item.name).includes(query));
+    if(!records.length){results.textContent='검색 결과가 없습니다.';return;}
+    if(!report){results.innerHTML=pendingSummary;return;}
+    results.innerHTML=summaryPeople(records,report);
+    const missing=records.filter(record=>!report.speakers.some(person=>person.name===record.name));
+    for(const record of missing){
+      const button=document.createElement('button');button.type='button';button.className='btn btn-ghost';
+      button.textContent=record.name+' ('+record.count+'회 발언) · AI 요약';
+      button.onclick=async()=>{button.disabled=true;try{
+        const result=await synthesizeReport(record.messages,[record.name]);
+        report.speakers.push(...result.speakers);
+        const output=document.createElement('div');output.innerHTML=summaryPeople([record],result);button.replaceWith(output);
+      }catch(error){button.textContent=error.message;button.disabled=false;}};
+      results.append(button);
+    }
+
+  });
   let roomStatsTab='0';
+  function placeSharedStatsControls(stats){
+    const target=stats?.querySelector('.shared-stats-controls');
+    const controls=stats?.querySelector('#reportHourlyContent .stat-controls');
+    if(!target||!controls)return;
+    target.querySelector('.stat-controls')?.remove();
+    target.append(controls);
+  }
   function renderReportHourly(){
     const holder=document.createElement('div');holder.innerHTML=renderReportHourlyLegacy();
     const controls=document.createElement('div');controls.className='stat-controls';
     for(const selector of ['.r-hour-modes','.r-hour-date-filter']){const node=holder.querySelector(selector);if(node)controls.append(node);}
     const layout=document.createElement('div');layout.className='hour-layout';
-    const chart=document.createElement('div');chart.className='hour-plot';chart.append(holder.querySelector('.r-hourchart'));
-    const list=document.createElement('aside');list.className='hour-peaks';list.innerHTML='<h4>시간별 대화</h4>';list.append(holder.querySelector('.r-hour-list'));
-    layout.append(chart,list);const detail=holder.querySelector('#hourDetailBox');holder.replaceChildren(controls,layout);if(detail)holder.append(detail);return holder.innerHTML;
+    const chart=document.createElement('div');chart.className='hour-plot hour-segments';
+    const bars=[...holder.querySelector('.r-hourchart').children];
+    for(let start=0;start<24;start+=6){
+      const group=document.createElement('section');
+      group.className='hour-segment';
+      const label=document.createElement('h4');label.textContent=String(start).padStart(2,'0')+'–'+String(start+5).padStart(2,'0')+'시';
+      const graph=document.createElement('div');graph.className='r-hourchart';
+      for(const [index,bar] of bars.slice(start,start+6).entries()){bar.querySelector('small').textContent=(start+index)+'시';graph.append(bar);}
+      group.append(label,graph);chart.append(group);
+    }
+
+    layout.append(chart);const detail=holder.querySelector('#hourDetailBox');holder.replaceChildren(controls,layout);if(detail)holder.append(detail);return holder.innerHTML;
   }
   function activateStatsTab(value,focus=false){
     if(!['0','1','2','3'].includes(value))return;roomStatsTab=value;
@@ -1986,8 +2112,8 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
   function monitoringSpeakersHtml(items,rows){
     const counts=new Map(speakerRecords(rows).map(r=>[r.name,r.count])),people=new Map();
     for(const item of items){if(!people.has(item.speaker))people.set(item.speaker,[]);people.get(item.speaker).push(item);}
-    return [...people].map(([name,list])=>{list.sort((a,b)=>reportDateIso(a.date).localeCompare(reportDateIso(b.date))||(a.hour-b.hour)||(a.min-b.min));const last=list.at(-1);
-      return `<details class="r-statement"><summary><span class="r-statement-copy"><b>${escapeHtml(name)} <small class="speaker-inline-count">(${counts.get(name)||0}회 발언)</small> <small class="monitor-related-count">관련 ${list.length}건</small></b><span class="r-excerpt">${escapeHtml(last.quote)}</span></span><span class="r-expand" title="앞뒤 대화 보기">⌄</span></summary><div class="r-original">${list.map(item=>monitoringContextHtml(item,rows)).join('')}</div></details>`;
+    return [...people].map(([name,list],i)=>{list.sort((a,b)=>reportDateIso(a.date).localeCompare(reportDateIso(b.date))||(a.hour-b.hour)||(a.min-b.min));const last=list.at(-1);
+      return `<details class="r-statement"><summary><span class="r-statement-copy"><b><span class="speaker-rank">${i+1}</span> ${escapeHtml(name)} <small class="speaker-inline-count">(${counts.get(name)||0}회 발언)</small> <small class="monitor-related-count">관련 ${list.length}건</small></b><span class="r-excerpt">${escapeHtml(last.quote)}</span></span><span class="r-expand" title="앞뒤 대화 보기">⌄</span></summary><div class="r-original">${list.map(item=>monitoringContextHtml(item,rows)).join('')}</div></details>`;
     }).join('')||'<div class="r-empty">관련 발언이 없습니다.</div>';
   }
   function compactMonitoringHtml(){
@@ -2019,33 +2145,24 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
   }
   async function runContinuousRoomAi(){
     if(roomAiBusy||previewMode)return;
-    const chosen=activeRoom==='all'?rooms:rooms.filter(r=>r.id===activeRoom),selected=document.getElementById('dateFilter').value||'__all__';
-    const tasks=chosen.map(room=>({room,rows:activeRoom==='all'?periodRows(room):filteredReportMessages(),key:activeRoom==='all'?'__all__':selected})).filter(task=>task.rows.length);
-    if(!tasks.length){toast('먼저 대화를 불러와 주세요.','warn');return;}
-    roomAiBusy=true;aiBtn.disabled=true;const original=aiBtn.textContent;let verified=0,total=0,failures=[];
-    document.getElementById('roomsNav').inert=true;
+    const rows=reportSourceRows(),key=structuredKey(rows);
+    if(activeRoom==='all'||!rows.length){toast('분석할 방과 기간을 선택해 주세요.','warn');return;}
+    roomAiBusy=true;aiBtn.disabled=true;setAiStatus('busy','AI 분석 중');
     try{
-      for(let i=0;i<tasks.length;i++){
-        const {room,rows,key}=tasks[i],signature=scopeKey(rows);
-        try{const result=await summarizeRoomConversations(room,rows,(n,t)=>{aiBtn.textContent=`AI 요약 ${i+1}/${tasks.length}`;setAiStatus('busy',`${room.title} · 대화 ${n}/${t}`);});
-          verified+=result.verified;total+=result.total;
-          try{await createDayAssessment(room,rows);}catch(assessmentError){room.assessmentError=assessmentError.message;}
-          // Do not mark an old response as current if messages changed while awaiting AI.
-          const current=periodRows(room).filter(m=>key==='__all__'||m.date===key);
-          if(scopeKey(current)!==signature){failures.push(room.title+' · 대화 변경됨');continue;}
-          room.analysis[key]=result.daily;room.sources[key]=result.verified?'ai':'local';room.scopes??={};room.scopes[key]=signature;saveRooms();
-        }catch(error){if(error.message==='AI_LOGIN_CANCELLED')throw error;failures.push(room.title+' · '+error.message);}
-      }
-      if(activeRoom!=='all'){const room=rooms.find(r=>r.id===activeRoom);aiAnalysisCache=room.analysis;analysisSourceCache=room.sources;}
-      render();
-      if(failures.length){setAiStatus('local','AI 요약 일부 미완료');toast(failures.join(' / '),'warn');}
-      else if(!total){setAiStatus('local','이어진 대화 없음');toast('이어진 주요 대화가 없습니다. 기사 단독 공유는 AI 이슈에서 제외합니다.');}
-      else if(verified<total){setAiStatus('local',`AI 요약 ${verified}/${total}개 · 나머지는 쟁점 정리`);toast('원문 근거가 확인된 AI 요약만 반영했습니다. 나머지는 대화 쟁점 정리로 표시합니다.','warn');}
-      else{setAiStatus('ai','AI 정밀 분석 완료');toast('선택 기간의 대화를 다시 검토해 AI 요약을 반영했습니다.');}
+      const people=speakerRecords(rows);
+      const monitored=people.filter(person=>person.messages.some(row=>isPoscoRelatedText(row.text)));
+      const names=[...new Set([...people.slice(0,8),...monitored.slice(0,4)].map(person=>person.name))];
+      const report=await synthesizeReport(rows,names);
+      structuredReports.set(key,report);render();setAiStatus('ai','AI 요약 완료');
     }catch(error){setAiStatus('local','AI 요약 미완료');if(error.message!=='AI_LOGIN_CANCELLED')toast(error.message,'warn');}
-    finally{roomAiBusy=false;document.getElementById('roomsNav').inert=false;aiBtn.disabled=previewMode;aiBtn.textContent=original;}
+    finally{roomAiBusy=false;aiBtn.disabled=previewMode;}
   }
-  function buildSummaryText(){const text=buildSummaryTextLegacy();if(!text)return text;return text+'\n\n[주요 발언자 Top 5 · 전체 발언 횟수순]\n'+(window.__roomSpeakerTop||[]).map((r,i)=>`${i+1}. ${r.name} (${r.count}회) · ${r.brief.topics}\n대표 발언: ${fullText(r.brief.quote)}`).join('\n');}
+  function buildSummaryText(){
+    const rows=reportSourceRows(),report=structuredReports.get(structuredKey(rows));
+    if(!report)return '';
+    const people=speakerRecords(rows);
+    return [...report.issues.map(item=>item.category+' · '+item.summary),...report.speakers.map(item=>item.name+' ('+(people.find(person=>person.name===item.name)?.count||0)+'회) · '+item.stance+' · '+item.summary)].join('\n');
+  }
 
   async function requestAiAnalysis(filtered){const room=rooms.find(r=>r.id===activeRoom);if(!room)throw Error('분석할 방을 선택해주세요.');return (await summarizeRoomConversations(room,filtered,()=>{})).daily;}
 
@@ -2223,7 +2340,7 @@ body{background:#edf1f6!important;}#app .hero{padding-top:4px!important;padding-
 }
 </style>
 <style id="report-reviewed-layout">
-#app .room-desktop-workspace :is(.conversation-section>.r-section-header,.monitoring-toolbar,.speaker-top>.r-section-header){display:flex!important;align-items:center!important;min-height:38px!important;padding:5px 8px!important;margin:0 0 10px!important;background:#eaf1f8!important;border:0!important;border-radius:4px;box-sizing:border-box}
+#app .room-desktop-workspace :is(.conversation-section>.r-section-header,.monitoring-toolbar,.speaker-top>.r-section-header,.owner-search>.r-section-header){display:flex!important;align-items:center!important;min-height:38px!important;padding:5px 8px!important;margin:0 0 10px!important;background:#eaf1f8!important;border:0!important;border-radius:4px;box-sizing:border-box}
 #app .room-desktop-workspace :is(.r-section-header,.monitoring-toolbar) h3{margin:0!important;line-height:20px!important}
 #app .room-desktop-workspace .r-step{color:#456b8c!important;margin-right:6px}
 #app .room-desktop-workspace .speaker-room-group>h4{display:none!important}
@@ -2254,4 +2371,88 @@ body{background:#edf1f6!important;}#app .hero{padding-top:4px!important;padding-
 }
 </style>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap">
-<style id="report-unified-type">html body,html body #app,html body #app *,html body dialog,html body dialog *{font-family:"Noto Sans KR","Malgun Gothic",sans-serif!important}</style>
+<style id="report-unified-type">html body,html body #app,html body #app *,html body dialog,html body dialog *{font-family:"Noto Sans KR","Malgun Gothic",sans-serif!important}
+.room-desktop-workspace .owner-report-column{grid-column:3;grid-row:1/3;display:grid;grid-template-rows:minmax(0,1fr) minmax(120px,.62fr);gap:12px;min-height:0;min-width:0}
+.room-desktop-workspace .owner-report-column .speaker-top{grid-area:auto;display:flex;flex-direction:column}
+.owner-search{margin:0!important;min-height:0;overflow:auto}
+#ownerSearch{display:flex;gap:8px}#ownerSearch input{min-width:0;flex:1;padding:7px;border:1px solid #c9d8e7;border-radius:5px}
+#ownerResults details{padding:7px 0}#ownerResults p{overflow-wrap:anywhere}
+@media(min-width:1100px){#app .room-desktop-workspace>.combined-stats{grid-column:1/3!important}}
+.room-desktop-workspace .hour-layout{display:block}
+.room-desktop-workspace .hour-plot{width:100%}
+@media(max-width:1099px){.room-desktop-workspace .owner-report-column{grid-area:auto;grid-template-rows:auto auto}.owner-report-column .speaker-room-scroll{max-height:280px}}
+
+#app .room-desktop-workspace .owner-search{padding:14px!important}
+#app .room-desktop-workspace :is(.r-section-header,.monitoring-toolbar) h3{font-size:14px!important;line-height:20px!important;margin:0!important}
+#app .room-desktop-workspace :is(p,summary,input,button,h4){font-size:12px!important}
+#app .room-desktop-workspace :is(.r-step,small,.conversation-heading>span,.speaker-name>span){font-size:11px!important}
+#app #ownerSearch{width:min(100%,330px);gap:6px}
+#app #ownerSearch :is(input,button){height:30px;min-height:30px;padding:4px 8px;box-sizing:border-box}
+#app .room-desktop-workspace :is(.conversation-section,.compact-monitoring,.speaker-top){font-size:13px!important;line-height:1.55}
+#app .room-desktop-workspace :is(.conversation-heading h4,.conversation-issue p,.conversation-source summary,.r-statement-copy b,.r-excerpt,.speaker-name b,.speaker-topics,.speaker-own-source summary){font-size:13px!important;line-height:1.55!important}
+#app .room-desktop-workspace :is(.r-step,.conversation-heading>span,.speaker-name>span,.speaker-inline-count,.monitor-related-count){font-size:11px!important}
+#app .room-desktop-workspace .speaker-rank{display:inline-flex;vertical-align:middle;align-items:center;justify-content:center;width:22px;height:22px;min-width:22px;margin-right:4px;font-size:11px!important;font-weight:700;color:#244e70;background:#e9f0f7}
+#app .room-desktop-workspace .conversation-heading h4:has(.speaker-rank){border-left:0;padding-left:0}
+
+#app .room-desktop-workspace :is(.conversation-heading h4,.r-statement-copy>b,.speaker-name>b){font-size:13px!important;font-weight:750!important;color:#193e62!important;line-height:22px!important}
+#app .room-desktop-workspace :is(.conversation-heading h4,.r-statement-copy>b)>.speaker-rank{margin-right:6px}
+#app .room-desktop-workspace :is(.conversation-issue>p,.conversation-issue>.conversation-source,.compact-monitoring .r-excerpt){margin-left:32px!important}
+#app .room-desktop-workspace .speaker-top-list>li{column-gap:10px}
+#app .room-desktop-workspace .speaker-top-list>li>.speaker-rank{margin-right:0}
+#app .room-desktop-workspace :is(.conversation-issue>p,.compact-monitoring .r-excerpt,.speaker-own-source>summary){color:#354d63!important;font-size:13px!important;line-height:1.55!important}
+#app .room-desktop-workspace :is(.conversation-issue>p,.compact-monitoring .r-excerpt,.speaker-own-source>summary,.speaker-topics,.conversation-heading>span,.speaker-name>span,.speaker-inline-count,.monitor-related-count){font-weight:400!important}
+#app .room-desktop-workspace :is(.r-section-header,.monitoring-toolbar) h3{font-weight:750!important}
+@media(min-width:1100px){
+  #app .room-desktop-workspace .owner-report-column{grid-template-rows:subgrid;row-gap:inherit}
+}
+#app .room-desktop-workspace .conversation-section .conversation-issue{border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important;margin:0!important;padding:10px 0!important}
+#app .room-desktop-workspace .conversation-section .conversation-issue+.conversation-issue{border-top:1px solid #e2eaf2!important}
+#app .room-desktop-workspace .conversation-section .conversation-heading{border-bottom:0!important}
+.structured-person{padding:9px 0;border-bottom:1px solid #e2eaf2}
+.structured-person p{margin:4px 0 0 32px}
+.structured-person small{font-weight:400}
+
+#app .room-desktop-workspace .dual-report-stats{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:14px;height:100%;overflow:auto}
+#app .dual-report-stats .stats-part{min-width:0;height:auto}
+#app .dual-stats-heading{font-size:14px;margin:0 0 5px;color:#193e62}
+#app .dual-report-stats .stat-controls{flex-wrap:wrap!important}
+#app .dual-report-stats .hour-layout{height:auto}
+#app .dual-report-stats .hour-segments{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
+#app .hour-segment{min-width:0;border-left:1px solid #e2eaf2;padding-left:4px}
+#app .hour-segment:first-child{border:0;padding-left:0}
+#app .hour-segment h4{font-size:11px!important;margin:0;color:#456b8c}
+#app .dual-report-stats .hour-segment .r-hourchart{height:105px!important;gap:0}
+#app .dual-report-stats .hour-segment .r-hour-bar{max-width:12px}
+#app .dual-report-stats .weekday-analysis{height:auto;min-height:110px}
+.hour-person>summary{display:grid;grid-template-columns:24px minmax(0,1fr);gap:7px;cursor:pointer}
+.hour-person-brief{display:block;margin-top:3px;line-height:1.55}
+.hour-person-original{background:#f3f7fb;margin:8px 0 0 31px;padding:6px 9px;border-radius:5px}
+.hour-person-original p{margin:5px 0;white-space:pre-wrap;overflow-wrap:anywhere}
+@media(max-width:1000px){#app .room-desktop-workspace .dual-report-stats{grid-template-columns:1fr}#app .dual-report-stats .hour-segments{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+#app .dual-report-stats .hour-segment h4{min-height:16px;line-height:16px;margin:0 0 4px}
+#app .dual-report-stats .hour-segment .r-hourchart{height:103px!important;padding:0!important}
+#app .dual-report-stats .hour-segment .r-hour-count{line-height:16px}
+#app .dual-report-stats .stats-part+.stats-part{border-left:1px solid #dce7f1;padding-left:12px}
+#app .dual-report-stats .weekday-analysis{padding:0!important;margin-top:36px;gap:5px}
+#app .dual-report-stats .weekday-bar-space{height:91px;flex:none}
+#app .dual-report-stats .weekday-bar-space i{max-height:60px;flex-shrink:1}
+@media(max-width:1000px){#app .dual-report-stats .weekday-analysis{margin-top:8px}}
+#app .shared-stats-controls{display:flex;align-items:center;gap:10px;padding:6px 12px;background:#eaf1f8;border-bottom:1px solid #dce7f1;color:#193e62;font-size:12px;flex:none}
+#app .shared-stats-controls .stat-controls{margin:0!important;flex:1}
+#app .room-desktop-workspace .dual-report-stats{flex:1;height:auto;min-height:0}
+#app .dual-report-stats .dual-stats-heading{line-height:20px;margin:0 0 5px}
+#app .dual-report-stats .weekday-analysis{margin-top:20px!important}
+#app .dual-report-stats .weekday-bar-space{height:81px}
+#app .dual-report-stats .weekday-column{gap:0}
+#app .dual-report-stats .weekday-column>b{height:22px;line-height:22px}
+#app .dual-report-stats .weekday-column>small{white-space:normal;text-align:center}
+@media(max-width:1000px){#app .shared-stats-controls{flex-wrap:wrap}}
+
+#app .dual-report-stats .weekday-analysis.r-hourchart{display:flex;align-items:flex-end;height:103px!important;min-height:0;padding:0!important;margin-top:30px!important;gap:0;text-align:center}
+#app .dual-report-stats :is(.hour-segment,.weekday-analysis) .r-hour-bar{display:block;width:12px;max-width:70%;background:#285a83;border-radius:3px 3px 0 0}
+#app .dual-report-stats .weekday-bar:not(:disabled){cursor:pointer}
+#app .dual-report-stats :is(.r-hour-bar:disabled,.weekday-bar-empty){background:#e4ebf2}
+#app .dual-report-stats .weekday-column>small{height:22px;line-height:22px;font-size:11px!important;color:#6c8194}
+#app .dual-report-stats .weekday-column .r-hour-count{line-height:16px}
+</style>
