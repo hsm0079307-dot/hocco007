@@ -783,6 +783,7 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
     const msgLineRe = /^\[(.+?)\]\s\[(오전|오후)\s(\d{1,2}):(\d{2})\]\s(.*)$/;
     const dateLineRe = /^-{3,}\s*(.+요일)\s*-{3,}$/;
 
+    const mobileLineRe=/^(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일\s*(오전|오후)\s*(\d{1,2}):(\d{2})(?:\s*[,，]\s*(.*))?$/;
     const messages = [];
     let currentDate = null;
     let current = null;
@@ -793,6 +794,21 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
       if(isSystemLine(line)) continue; // 입퇴장 알림 등은 완전히 무시 (이전 메시지에 붙지 않게)
       const dateMatch = line.match(dateLineRe);
       if(dateMatch){ currentDate = dateMatch[1]; current = null; continue; }
+      const mobile=line.match(mobileLineRe);
+      if(mobile){
+        const [,year,month,day,ampm,hour,min,body]=mobile;
+        const date=new Date(Date.UTC(Number(year),Number(month)-1,Number(day)));
+        current=null;
+        if(date.getUTCMonth()+1!==Number(month)||date.getUTCDate()!==Number(day)||Number(hour)<1||Number(hour)>12||Number(min)>59)continue;
+        const weekday='일월화수목금토'[date.getUTCDay()];
+        currentDate=`${year}년 ${Number(month)}월 ${Number(day)}일 ${weekday}요일`;
+        const entry=body?.match(/^(.+?)(?:\s+[:：]\s*|[:：]\s+)(.*)$/);
+        if(entry){
+          current={name:entry[1].trim(),date:currentDate,hour:Number(hour)%12+(ampm==='오후'?12:0),min:Number(min),text:entry[2]};
+          messages.push(current);
+        }
+        continue;
+      }
       const m = line.match(msgLineRe);
       if(m){
         const [, name, ampm, hourStr, minStr, text] = m;
@@ -2237,3 +2253,5 @@ body{background:#edf1f6!important;}#app .hero{padding-top:4px!important;padding-
  #app .room-desktop-workspace .speaker-room-scroll{overflow:auto;min-height:0;max-height:calc(100% - 48px)}
 }
 </style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap">
+<style id="report-unified-type">html body,html body #app,html body #app *,html body dialog,html body dialog *{font-family:"Noto Sans KR","Malgun Gothic",sans-serif!important}</style>
