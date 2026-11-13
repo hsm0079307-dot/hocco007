@@ -519,7 +519,7 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
       <select id="savedDateSelect" class="btn btn-ghost" style="display:none;" title="저장된 날짜 바로 보기"></select>
       <select id="dateFilter" class="btn btn-ghost" style="display:none;" title="업로드 파일 날짜 선택"></select>
       <button type="button" class="btn btn-ghost" id="togglePasteBtn" aria-expanded="false" aria-controls="reportPastePanel">대화 붙여넣기</button>
-      <button class="btn btn-primary" id="aiBtn" disabled>AI 요약</button>
+      <button class="btn btn-primary" id="aiBtn" disabled>요약</button>
       <div class="toolbar-spacer"></div>
       <button class="btn btn-ghost" id="copyBtn">요약 복사</button>
       <button class="btn btn-ghost" id="downloadBtn">TXT 저장</button>
@@ -1313,7 +1313,7 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
     const monitoring=reportMonitoringForDates(dates,daily);window.__currentMonitoring=monitoring;
     const monitoringScope=dates.length===1?dates[0]:`선택 기간 · ${dates.length}일`;
     const issues=reportIssueCards(daily);
-    return `<section class="r-report-section"><header class="r-section-header"><div><span class="r-step">01</span><h3>주요 대화 · 이슈</h3></div><span class="r-mode">${currentAnalysisSource==='ai'?'AI 요약':'핵심 문장'}</span></header><div class="r-issues">${issues}</div></section>
+    return `<section class="r-report-section"><header class="r-section-header"><div><span class="r-step">01</span><h3>주요 대화 · 이슈</h3></div><span class="r-mode">${currentAnalysisSource==='ai'?'요약':'핵심 문장'}</span></header><div class="r-issues">${issues}</div></section>
       <section class="r-report-section"><header class="r-section-header"><div><span class="r-step">02</span><h3>포스코 관련 발언 모니터링</h3></div><span class="r-mode">${escapeHtml(monitoringScope)}</span></header><div class="r-stance-grid">${groups.map((k,i)=>`<div class="r-stance-column ${k}"><div class="r-stance-header"><h4>${labels[i]}</h4><span>${monitoring[k].length}건</span></div><div class="r-stance-body">${renderStanceList(monitoring[k],'','',fallback)}</div></div>`).join('')}</div></section>
       <section class="r-report-section"><header class="r-section-header"><div><span class="r-step">03</span><h3>시간대별 대화량 · 주요 발언</h3></div></header><div id="reportHourlyContent">${renderReportHourly()}</div></section>
       <div class="r-history-grid"><section class="r-report-section"><header class="r-section-header"><h3>날짜별 발언 흐름</h3></header>${renderTrendChart()}</section><section class="r-report-section"><header class="r-section-header"><h3>누적 발언 요약</h3></header><div id="cumulativeSummaryWrap">${renderCumulativeSummary()}</div></section></div>`;
@@ -1583,12 +1583,12 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
     });
   }
   async function requestAiAnalysisLegacy(filtered){
-    const dates=new Set(filtered.map(m=>m.date).filter(Boolean));if(dates.size>1)throw Error('날짜를 하루씩 선택한 뒤 AI 요약을 실행해 주세요.');
+    const dates=new Set(filtered.map(m=>m.date).filter(Boolean));if(dates.size>1)throw Error('날짜를 하루씩 선택한 뒤 요약을 실행해 주세요.');
     if(filtered.length>600||filtered.reduce((n,m)=>n+String(m.text||'').length,0)>100000)throw Error('대화가 너무 깁니다. 더 짧은 기간의 대화를 선택해 주세요.');
     const token=await reportAiLogin();
     const response=await fetch(AI_ANALYZE_URL,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({messages:filtered}),signal:AbortSignal.timeout(55000)});
-    let data;try{data=await response.json();}catch{throw Error(response.status===404?'AI 요약 함수가 아직 배포되지 않았습니다.':'AI 서버 응답을 확인하지 못했습니다.');}
-    if(!response.ok){if(response.status===401)reportAiSession=null;throw Error(data.message||'AI 요약 서버 응답 오류 ('+response.status+')');}
+    let data;try{data=await response.json();}catch{throw Error(response.status===404?'요약 함수가 아직 배포되지 않았습니다.':'AI 서버 응답을 확인하지 못했습니다.');}
+    if(!response.ok){if(response.status===401)reportAiSession=null;throw Error(data.message||'요약 서버 응답 오류 ('+response.status+')');}
     const local=localAnalyzeMessages(filtered);
     // AI compresses issues; counts continue using the same canonical statement lists.
     return normalizeDailyShape({...local,keyPoints:data.keyPoints});
@@ -1633,10 +1633,10 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
       content.innerHTML = buildReportHtml(a, daily);
       const msg = String(e&&e.message||e||'');
       const proxyMismatch = /query|파라미터|404|not found|지원/i.test(msg);
-      setAiStatus('local', proxyMismatch ? 'AI 요약 연결 실패' : 'AI 요약 연결 실패');
+      setAiStatus('local', proxyMismatch ? '요약 연결 실패' : '요약 연결 실패');
       toast(proxyMismatch
-        ? 'AI 요약 서버에 연결하지 못했습니다. 원문 발췌와 대화 통계만 표시합니다.'
-        : String(e.message||'AI 요약을 완료하지 못했습니다.'), 'warn');
+        ? '요약 서버에 연결하지 못했습니다. 원문 발췌와 대화 통계만 표시합니다.'
+        : String(e.message||'요약을 완료하지 못했습니다.'), 'warn');
     }finally{
       aiBtn.disabled = false;
       aiBtn.textContent = originalLabel;
@@ -1696,7 +1696,7 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
     const points=[];for(const point of allPoints){const existing=points.find(p=>p.title===point.title&&p.summary===point.summary);if(!existing)points.push({...point,group:{...point.group,people:[...point.group.people]}});else{existing.group.people=[...new Set([...existing.group.people,...point.group.people])];if(point.ai&&!existing.ai){existing.summary=point.summary;existing.ai=true;}}}
     const relevant=new Map();conversations.forEach(g=>new Set(g.rows.map(m=>m.name)).forEach(name=>relevant.set(name,(relevant.get(name)||0)+1)));
     const keySpeakers=[...relevant].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'ko')).slice(0,3);
-    const mode=points.some(p=>p.ai)?'AI 요약 · 대화 근거 확인':'대화 쟁점 정리';
+    const mode=points.some(p=>p.ai)?'요약 · 대화 근거 확인':'대화 쟁점 정리';
     return {room,rows,groups,ranked,keySpeakers,points,mode};
   }
   function digestHtml(d){const r=d.room,dates=[...new Set(d.rows.map(m=>m.date))];
@@ -1720,7 +1720,7 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
     aiBtn.disabled=previewMode||!parsed?.length;
     setAiStatus('local',previewMode?'예시 데이터':'대화 불러옴');
     if(!parsed?.length){content.innerHTML='<div class="empty-state"><div class="empty-icon">↥</div><b>이 방의 대화를 추가해 주세요.</b><div class="empty-sub">카톡 TXT 파일을 선택하거나 대화를 붙여넣으면 원본 보고서가 표시됩니다.</div></div>';document.getElementById('titleDate').textContent=r.title;setAiStatus('local','대화 대기');return;}
-    renderLegacy();setAiStatus(currentAnalysisSource==='ai'?'ai':'local',previewMode?'예시 데이터':currentAnalysisSource==='ai'?'AI 요약 저장됨':'AI 요약 전 · 대화 쟁점 정리');
+    renderLegacy();setAiStatus(currentAnalysisSource==='ai'?'ai':'local',previewMode?'예시 데이터':currentAnalysisSource==='ai'?'요약 저장됨':'요약전 · 대화 쟁점 정리');
   }
   function openRoomDelete(room){
     const dialog=document.createElement('dialog');
@@ -1912,7 +1912,7 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
   function reportIssueCards(daily){
     const groups=conversationGroups(reportSourceRows()),room=rooms.find(r=>r.id===activeRoom),points=groups.map(g=>{const cached=room?.aiConversations?.find(entry=>entry.signature===scopeKey(g.rows));const evidence=currentAnalysisSource==='ai'?{keyPoints:[...(daily?.keyPoints||[]),...(cached?.keyPoints||[])]}:null;return conversationPoint(g,evidence);});window.__reportIssueExport=points;window.__conversationGroups=groups;
     if(!groups.length)return '<div class="conversation-empty">이 기간에 이어진 주요 대화가 없습니다. 기사 단독 공유는 주요 이슈에서 제외합니다.</div>';
-    return points.slice(0,5).map((p,i)=>{const g=p.group,first=g.rows[0],last=g.rows.at(-1),time=m=>String(m.hour).padStart(2,'0')+':'+String(m.min||0).padStart(2,'0');return `<article class="conversation-issue"><div class="conversation-heading"><h4><span class="speaker-rank">${i+1}</span> ${escapeHtml(p.title)}</h4><span>${g.people.length}명 · ${g.rows.length}개 발언${p.ai?' · AI 요약':''}</span></div><p>${escapeHtml(p.summary)}</p><details class="conversation-source"><summary>대화 흐름 보기 <span>${escapeHtml(first.date.replace(/^\d+년\s*/,''))} ${time(first)}–${time(last)} · ${g.people.map(escapeHtml).join(', ')}</span></summary><div class="conversation-log">${g.rows.map(m=>`<div class="conversation-message"><div><b>${escapeHtml(m.name)}</b><time>${time(m)}</time></div><p>${escapeHtml(m.text)}</p></div>`).join('')}</div></details></article>`;}).join('')+(points.length>5?``:'');
+    return points.slice(0,5).map((p,i)=>{const g=p.group,first=g.rows[0],last=g.rows.at(-1),time=m=>String(m.hour).padStart(2,'0')+':'+String(m.min||0).padStart(2,'0');return `<article class="conversation-issue"><div class="conversation-heading"><h4><span class="speaker-rank">${i+1}</span> ${escapeHtml(p.title)}</h4><span>${g.people.length}명 · ${g.rows.length}개 발언${p.ai?' · 요약':''}</span></div><p>${escapeHtml(p.summary)}</p><details class="conversation-source"><summary>대화 흐름 보기 <span>${escapeHtml(first.date.replace(/^\d+년\s*/,''))} ${time(first)}–${time(last)} · ${g.people.map(escapeHtml).join(', ')}</span></summary><div class="conversation-log">${g.rows.map(m=>`<div class="conversation-message"><div><b>${escapeHtml(m.name)}</b><time>${time(m)}</time></div><p>${escapeHtml(m.text)}</p></div>`).join('')}</div></details></article>`;}).join('')+(points.length>5?``:'');
   }
   function weekdayStatsPanel(){
     const days=['월','화','수','목','금','토','일'], bins=days.map(()=>({count:0,people:new Set(),dates:new Set()}));
@@ -1933,21 +1933,38 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
     const stored=rooms.find(room=>room.id===activeRoom)?.structuredReport;
     return structuredReports.get(key)||(stored?.key===key?stored.report:null);
   }
-  const pendingSummary='<p class="r-empty">AI 요약을 실행하면 표시됩니다.</p>';
+  const pendingSummary='<p class="r-empty">요약을 실행하면 표시됩니다.</p>';
   async function requestReportSummary(mode,messages,names){
     const token=await reportAiLogin();
     const response=await fetch(AI_ANALYZE_URL,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({mode,messages,names}),signal:AbortSignal.timeout(55000)});
     const data=await response.json();
-    if(!response.ok)throw Error(data.message||'AI 요약 요청 실패');
+    if(!response.ok)throw Error(data.message||'요약 요청 실패');
     if(data.reportVersion!==1)throw Error('새 AI 보고서 서버를 배포해야 합니다.');
     return data;
   }
-  async function synthesizeReport(rows,names){
+  async function synthesizeReport(rows,names,resume=false){
+    const chunks=conversationAiChunks(rows);
     const parts=[];
-    for(const chunk of conversationAiChunks(rows)){
-      parts.push(await requestReportSummary('report-part',chunk,names));
+    for(const [index,chunk] of chunks.entries()){
+      const identity=JSON.stringify([1,activeRoom,names,scopeKey(chunk)]);
+      let key;
+      if(resume&&globalThis.crypto?.subtle){
+        const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(identity));
+        key='report-summary-part:'+Array.from(new Uint8Array(digest),byte=>byte.toString(16).padStart(2,'0')).join('');
+      }
+      let part;
+      if(key)try{part=JSON.parse(localStorage.getItem(key)||'null');}catch{}
+      if(part?.reportVersion!==1){
+        if(resume)setAiStatus('busy','요약 중 · '+(index+1)+'/'+chunks.length+' 묶음');
+        try{part=await requestReportSummary('report-part',chunk,names);}
+        catch(error){throw Error((index+1)+'/'+chunks.length+' 묶음 · '+error.message);}
+        if(key)try{localStorage.setItem(key,JSON.stringify(part));}catch{toast('중간 요약을 저장하지 못했습니다.','warn');}
+      }
+      parts.push(part);
     }
-    return requestReportSummary('report-final',parts.map((part,i)=>({name:'구간 '+(i+1),text:JSON.stringify(part)})),names);
+    if(resume)setAiStatus('busy','전체 요약 종합 중');
+    try{return await requestReportSummary('report-final',parts.map((part,i)=>({name:'구간 '+(i+1),text:JSON.stringify(part)})),names);}
+    catch(error){throw Error('전체 종합 · '+error.message);}
   }
   function summaryPeople(records,report){
     if(!report)return pendingSummary;
@@ -1959,14 +1976,14 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
   }
   function compactRoomReport(a,daily){
     const root=document.createElement('div');root.innerHTML=buildReportHtmlLegacy(a,daily);const sections=[...root.querySelectorAll(':scope > .r-report-section')];
-    if(sections[0]){sections[0].classList.add('conversation-section');sections[0].querySelector('.r-mode').textContent=currentAnalysisSource==='ai'?'AI 요약 · 원문 근거 확인':'대화 쟁점 정리 · AI 요약 전';}
+    if(sections[0]){sections[0].classList.add('conversation-section');sections[0].querySelector('.r-mode').textContent=currentAnalysisSource==='ai'?'요약 · 원문 근거 확인':'대화 쟁점 정리 · 요약전';}
     if(sections[1]){sections[1].classList.add('compact-monitoring','monitoring-redesign');sections[1].innerHTML=compactMonitoringHtml();const top=document.createElement('div');top.innerHTML=speakerTopHtml(reportSourceRows());const pair=document.createElement('div');pair.className='monitoring-speakers-pair';sections[1].before(pair);const right=document.createElement("div");right.className="owner-report-column";right.append(top.firstElementChild);right.insertAdjacentHTML("beforeend",ownerSearchPanel());pair.append(sections[1],right);}
     const rows=reportSourceRows(),report=getStructuredReport(rows);
     const records=speakerRecords(rows);
     const issues=sections[0]?.querySelector('.r-issues');
     if(issues)issues.innerHTML=['주요 내용','시공사 이슈','그 외'].map((title,index)=>{
       const points=report?.issues.filter(point=>point.category===title)||[];
-      return '<article class="conversation-issue"><div class="conversation-heading"><h4><span class="speaker-rank">'+(index+1)+'</span> '+title+'</h4></div><p>'+escapeHtml(points.map(point=>point.summary).join(' ')||(report?'확인된 내용이 없습니다.':'AI 요약 전'))+'</p></article>';
+      return '<article class="conversation-issue"><div class="conversation-heading"><h4><span class="speaker-rank">'+(index+1)+'</span> '+title+'</h4></div><p>'+escapeHtml(points.map(point=>point.summary).join(' ')||(report?'확인된 내용이 없습니다.':'요약전'))+'</p></article>';
     }).join('');
     const monitoring=root.querySelector('.compact-monitoring');
     if(monitoring){monitoring.querySelector('.monitoring-tabs')?.remove();const body=monitoring.querySelector('.monitoring-panels');if(body)body.innerHTML=summaryPeople(records.filter(record=>record.messages.some(row=>isPoscoRelatedText(row.text))),report);}
@@ -2007,7 +2024,7 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
     const missing=records.filter(record=>!report.speakers.some(person=>person.name===record.name));
     for(const record of missing){
       const button=document.createElement('button');button.type='button';button.className='btn btn-ghost';
-      button.textContent=record.name+' ('+record.count+'회 발언) · AI 요약';
+      button.textContent=record.name+' ('+record.count+'회 발언) · 요약';
       button.onclick=async()=>{button.disabled=true;try{
         const result=await synthesizeReport(record.messages,[record.name]);
         report.speakers.push(...result.speakers);
@@ -2150,10 +2167,10 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
       const people=speakerRecords(rows);
       const monitored=people.filter(person=>person.messages.some(row=>isPoscoRelatedText(row.text)));
       const names=[...new Set([...people.slice(0,8),...monitored.slice(0,4)].map(person=>person.name))];
-      const report=await synthesizeReport(rows,names);
-      structuredReports.set(key,report);const room=rooms.find(item=>key.startsWith(item.id+'|'));if(room){room.structuredReport={key,report};saveRooms();}render();setAiStatus('ai','AI 요약 완료');
-    }catch(error){setAiStatus('local','AI 요약 미완료 · '+error.message);if(error.message!=='AI_LOGIN_CANCELLED')toast(error.message,'warn');}
-    finally{roomAiBusy=false;aiBtn.disabled=previewMode;}
+      const report=await synthesizeReport(rows,names,true);
+      structuredReports.set(key,report);const room=rooms.find(item=>key.startsWith(item.id+'|'));if(room){room.structuredReport={key,report};saveRooms();}render();setAiStatus('ai','요약 완료');
+    }catch(error){setAiStatus('local','요약 미완료 · '+error.message);if(error.message!=='AI_LOGIN_CANCELLED')toast(error.message,'warn');}
+    finally{roomAiBusy=false;aiBtn.disabled=previewMode;aiBtn.textContent='이어서 요약';}
   }
   function buildSummaryText(){
     const rows=reportSourceRows(),report=getStructuredReport(rows);
