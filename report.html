@@ -1936,11 +1936,27 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
   const pendingSummary='<p class="r-empty">요약을 실행하면 표시됩니다.</p>';
   async function requestReportSummary(mode,messages,names){
     const token=await reportAiLogin();
-    const response=await fetch(AI_ANALYZE_URL,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({mode,messages,names}),signal:AbortSignal.timeout(55000)});
+    const task={mode,messages,names};
+    let payload={mode:"report-job-start",task};
+    const deadline=Date.now()+240000;
+    while(Date.now()<deadline){
+    const started=performance.now();
+    let response;
+    try {
+      response=await fetch(AI_ANALYZE_URL,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify(payload),signal:AbortSignal.timeout(55000)});
+    } catch(error) {
+      const elapsed=((performance.now()-started)/1000).toFixed(1);
+      throw Error((error.name==='TimeoutError'?'응답 대기 시간 초과':'서버 응답을 받지 못함')+' · '+elapsed+'초 경과');
+    }
     const data=await response.json();
     if(!response.ok)throw Error(data.message||'요약 요청 실패');
-    if(data.reportVersion!==1)throw Error('새 AI 보고서 서버를 배포해야 합니다.');
-    return data;
+    if(data.state==='done'&&data.result?.reportVersion===1)return data.result;
+    if(data.state==='failed')throw Error(data.message||'백그라운드 요약 실패');
+    if(!data.jobId||!['queued','running'].includes(data.state))throw Error('백그라운드 요약 서버를 먼저 배포해 주세요.');
+    payload={mode:'report-job-status',jobId:data.jobId};
+    await new Promise(resolve=>setTimeout(resolve,2000));
+    }
+    throw Error('작업 확인 시간이 지났습니다. 이어서 요약을 누르면 같은 작업을 확인합니다.');
   }
   async function synthesizeReport(rows,names,resume=false){
     const chunks=conversationAiChunks(rows,resume?90:450,resume?14000:80000);
