@@ -1943,7 +1943,7 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
     return data;
   }
   async function synthesizeReport(rows,names,resume=false){
-    const chunks=conversationAiChunks(rows);
+    const chunks=conversationAiChunks(rows,resume?90:450,resume?14000:80000);
     const parts=[];
     for(const [index,chunk] of chunks.entries()){
       const identity=JSON.stringify([1,activeRoom,names,scopeKey(chunk)]);
@@ -2140,8 +2140,8 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
   function selectMonitoringTab(key,focus=false){if(!['favorable','critical','other'].includes(key))return;monitoringTab=key;document.querySelectorAll('[data-monitor-tab]').forEach(b=>{const on=b.dataset.monitorTab===key;b.setAttribute('aria-selected',String(on));b.tabIndex=on?0:-1;if(on&&focus)b.focus({preventScroll:true});});document.querySelectorAll('.monitoring-panels [role=tabpanel]').forEach(p=>p.hidden=p.id!=='monitor-panel-'+key);}
   document.addEventListener('click',e=>{const b=e.target.closest('[data-monitor-tab]');if(b)selectMonitoringTab(b.dataset.monitorTab);});
   document.addEventListener('keydown',e=>{const b=e.target.closest('[data-monitor-tab]');if(!b)return;const keys=['favorable','critical','other'];let i=keys.indexOf(b.dataset.monitorTab);if(e.key==='ArrowRight')i=(i+1)%3;else if(e.key==='ArrowLeft')i=(i+2)%3;else return;e.preventDefault();selectMonitoringTab(keys[i],true);});
-  function conversationAiChunks(rows){
-    const chunks=[];let chunk=[],size=0;for(const m of rows){const n=String(m.text||'').length;if(n>80000)throw Error('하나의 발언이 너무 깁니다. 해당 원문을 나눠 넣어주세요.');if(chunk.length&&(chunk.length>=450||size+n>80000)){chunks.push(chunk);chunk=chunk.slice(-2);size=chunk.reduce((n,m)=>n+String(m.text||'').length,0);if(size+n>100000){chunk=[];size=0;}}chunk.push(m);size+=n;}if(chunk.length)chunks.push(chunk);return chunks;
+  function conversationAiChunks(rows,maxRows=450,maxChars=80000){
+    const chunks=[];let chunk=[],size=0;for(const m of rows){const n=String(m.text||'').length;if(n>80000)throw Error('하나의 발언이 너무 깁니다. 해당 원문을 나눠 넣어주세요.');if(chunk.length&&(chunk.length>=maxRows||size+n>maxChars)){chunks.push(chunk);chunk=chunk.slice(-2);size=chunk.reduce((n,m)=>n+String(m.text||'').length,0);if(size+n>100000){chunk=[];size=0;}}chunk.push(m);size+=n;}if(chunk.length)chunks.push(chunk);return chunks;
   }
   async function summarizeRoomConversations(room,rows,progress){
     const groups=conversationGroups(rows),points=[];let verified=0;
