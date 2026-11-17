@@ -9524,7 +9524,11 @@ function summary(events,key){
   const closed=mark?.closed===true&&mark?.closedBy==='user';
   html=lines.some(Boolean)||closed?'<span class="fd-gallery-title">🖼️ 갤러리'+(closed?' (마감)':'')+'</span>'+lines.join(''):'';
  }
- for(const v of tour)html+='<span class="fd-slot-line tour"><time>'+esc(CalendarAvailability.normalizeTime(v.time)||v.time)+'</time><span> 🚗 '+esc(managerView?(v.manager||v.raw?.[5]||''):(v.site||'투어'))+'</span></span>';
+ const tourTimes=[...new Set(tour.map(v=>CalendarAvailability.normalizeTime(v.time)).filter(Boolean))].sort();
+ if(tourTimes.length){
+  html+='<span class="fd-gallery-title" style="margin-top:4px">🚗 투어</span>';
+  html+=tourTimes.map(time=>'<span class="fd-slot-line blue"><time>'+esc(time)+'</time><span> - 가능</span></span>').join('');
+ }
  // 날짜 바탕색은 직접 지정한 색을 우선한다. 예약/타현장 표시는 그대로 유지한다.
  const explicitColor=['blue','red','none'].includes(mark?.color)?mark.color:'';
  const slotColors=Object.values(mark?.slots||{});
