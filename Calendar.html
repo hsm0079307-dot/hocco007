@@ -8640,13 +8640,13 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
   }
   function renderNextWeekControls(){
     const info=nextWeekInfo();let host=q('#fdNextWeekControls');
-    if(!host){host=document.createElement('div');host.id='fdNextWeekControls';q('#fdDays').parentElement.insertBefore(host,q('#fdDays').previousElementSibling);}
+    if(!host){host=document.createElement('details');host.id='fdNextWeekControls';q('#fdFilterBtn').closest('.fd-filter-wrap').after(host);}
     const stored=nextWeekPreferences[info.id],selected=new Set(Array.isArray(stored)?stored:[]);
-    host.innerHTML='<span>다음 달 함께 보기</span>'+Array.from({length:info.count},(_,i)=>{
+    const wasOpen=host.open;host.innerHTML='<summary>다음달 <span>'+(selected.size?selected.size+'주 선택':'선택')+'</span></summary><div class="fd-next-week-menu"><strong>'+info.date.getFullYear()+'년 '+(info.date.getMonth()+1)+'월</strong>'+Array.from({length:info.count},(_,i)=>{
       const first=new Date(info.start);first.setDate(first.getDate()+i*7);const end=new Date(first);end.setDate(first.getDate()+6);
       const from=Math.max(1,first.getMonth()===info.date.getMonth()?first.getDate():1),to=end.getMonth()===info.date.getMonth()?end.getDate():info.last.getDate();
       return '<button type="button" data-next-week="'+i+'" aria-pressed="'+selected.has(i)+'" title="'+(info.date.getMonth()+1)+'월 '+from+'일~'+to+'일">'+(info.date.getMonth()+1)+'월 '+(i+1)+'주</button>';
-    }).join('')+'<button type="button" data-clear-next-weeks>선택 해제</button>';
+    }).join('')+'<button type="button" data-clear-next-weeks>선택 해제</button></div>';host.open=wasOpen;
     host.querySelectorAll('[data-next-week]').forEach(button=>button.onclick=()=>{
       const i=Number(button.dataset.nextWeek);if(selected.has(i))selected.delete(i);else selected.add(i);
       nextWeekPreferences[info.id]=[...selected].sort((a,b)=>a-b);try{localStorage.setItem(nextWeeksStore,JSON.stringify(nextWeekPreferences));}catch{}
@@ -8677,12 +8677,12 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
     const entries=[];
     for(let i=firstWeek*7;i<weeks*7;i++){const date=new Date(start);date.setDate(start.getDate()+i);entries.push({date,month:m});}
     for(const week of [...next.selected].filter(i=>Number.isInteger(i)&&i>=0&&i<next.count).sort((a,b)=>a-b)){
-      for(let i=0;i<7;i++){const date=new Date(next.start);date.setDate(next.start.getDate()+week*7+i);entries.push({date,month:next.date.getMonth(),extra:true,heading:i===0?(next.date.getMonth()+1)+'월 '+(week+1)+'주':''});}
+      for(let i=0;i<7;i++){const date=new Date(next.start);date.setDate(next.start.getDate()+week*7+i);entries.push({date,month:next.date.getMonth(),extra:true,heading:i===0&&week===[...next.selected].sort((a,b)=>a-b)[0]?next.date.getFullYear()+'년 '+(next.date.getMonth()+1)+'월':''});}
     }
-    if(next.selected.size)days.style.setProperty('grid-template-rows','repeat('+(weeks-firstWeek)+', minmax(140px, auto)) '+[...next.selected].map(()=> '28px minmax(140px, auto)').join(' '),'important');
+    if(next.selected.size)days.style.setProperty('grid-template-rows','repeat('+(weeks-firstWeek)+', minmax(140px, auto)) '+'36px 28px repeat('+next.selected.size+', minmax(140px, auto))','important');
     for(const entry of entries){
       const {date}=entry;
-      if(entry.heading){const label=document.createElement('h4');label.className='fd-extra-week-title';label.textContent=entry.heading;days.append(label);}
+      if(entry.heading){const label=document.createElement('h4');label.className='fd-extra-week-title';label.textContent=entry.heading;days.append(label);const weekdays=document.createElement('div');weekdays.className='fd-next-month-weekdays fd-weekdays';weekdays.innerHTML=['월','화','수','목','금','토','일'].map((day,i)=>'<div class="fd-weekday '+(i===5?'sat':i===6?'sun':'')+'">'+day+'</div>').join('');days.append(weekdays);}
       if(cutoff&&date<cutoff){const blank=document.createElement('span');blank.className='fd-fold-blank';blank.setAttribute('aria-hidden','true');days.appendChild(blank);continue;}
       const d=new Date(date);const k=key(d),other=d.getMonth()!==entry.month,raw=totalRawEvents(k),vis=rawEvents(k);const b=document.createElement('button');b.type='button';b.className='fd-day '+(other?'other ':'')+(d.getDay()===0?'sun ':'')+(d.getDay()===6?'sat ':'')+(k===selectedKey&&!other?'selected ':'')+(d.getTime()===todayD.getTime()?'today ':'');
       if(other){b.disabled=true;b.className='fd-day other';b.innerHTML='<span class="fd-daynum">'+d.getDate()+'</span>';b.setAttribute('aria-label',dateLabel(d));days.appendChild(b);continue;}
@@ -8776,7 +8776,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
     q('#fdMainTitle').ondblclick=()=>q('#fdEditTitle')?.click();
     q('#fdSearch').addEventListener('input',renderSearch);q('#fdSearch').addEventListener('keydown',e=>{if(e.key==='Escape'){q('#fdSearchResults').classList.remove('on');e.target.blur()}});
     const fmenu=q('#fdFilterMenu');q('#fdFilterBtn').onclick=e=>{e.stopPropagation();fmenu.classList.toggle('on')};
-    const admin=q('#fdAdminMenu');q('#fdAdminBtn').onclick=e=>{e.stopPropagation();admin.classList.toggle('on')};admin.addEventListener('click',e=>{const b=e.target.closest('[data-admin]');if(!b)return;admin.classList.remove('on');const a=b.dataset.admin;try{if(a==='save')saveCalendarData();else if(a==='capacity')openCapacitySettings();else if(a==='excel')exportExcel();else if(a==='print')window.print();else if(a==='backup')backupScheduleData();else if(a==='restore')restoreScheduleDataPrompt();else if(a==='password')changePassword();else if(a==='print-all')printAllDates();else if(a==='home-guide')showHomeScreenGuide()}catch(err){}});document.addEventListener('click',e=>{if(!e.target.closest('.fd-admin-wrap'))admin.classList.remove('on');if(!e.target.closest('.fd-search-wrap'))q('#fdSearchResults')?.classList.remove('on');if(!e.target.closest('.fd-filter-wrap'))fmenu?.classList.remove('on')});
+    const admin=q('#fdAdminMenu');q('#fdAdminBtn').onclick=e=>{e.stopPropagation();admin.classList.toggle('on')};admin.addEventListener('click',e=>{const b=e.target.closest('[data-admin]');if(!b)return;admin.classList.remove('on');const a=b.dataset.admin;try{if(a==='save')saveCalendarData();else if(a==='capacity')openCapacitySettings();else if(a==='excel')exportExcel();else if(a==='print')window.print();else if(a==='backup')backupScheduleData();else if(a==='restore')restoreScheduleDataPrompt();else if(a==='password')changePassword();else if(a==='print-all')printAllDates();else if(a==='home-guide')showHomeScreenGuide()}catch(err){}});document.addEventListener('click',e=>{if(!e.target.closest('.fd-admin-wrap'))admin.classList.remove('on');if(!e.target.closest('.fd-search-wrap'))q('#fdSearchResults')?.classList.remove('on');if(!e.target.closest('.fd-filter-wrap'))fmenu?.classList.remove('on');if(!e.composedPath().includes(q('#fdNextWeekControls'))){const next=q('#fdNextWeekControls');if(next)next.open=false}});
   }
   function render(){if(!desktop())return;build();if(!viewDate)viewDate=monthFromHidden();q('#fdMonthTitle').textContent=`${viewDate.getFullYear()}년 ${viewDate.getMonth()+1}월`;const s=monthCount();q('#fdMonthHint').textContent=`전체 ${s.total}건 · 예상 ${s.head}명`;renderFilters();renderCalendar();renderDetail();renderSummary();try{if(selectedKey)selectDate(selectedKey,false)}catch(e){}}
   function init(){if(!desktop())return;build();viewDate=monthFromHidden();const now=new Date();let preferred='';if(now.getFullYear()===viewDate.getFullYear()&&now.getMonth()===viewDate.getMonth())preferred=key(now);if(!preferred){const ks=monthKeys(viewDate.getFullYear(),viewDate.getMonth());preferred=ks.find(k=>{const x=totalRawEvents(k);return x.total>0})||((viewDate.getMonth()+1)+'-1')}selectedKey=preferred;try{currentDateKey=selectedKey;previewKey=selectedKey}catch(e){};render();
@@ -11982,3 +11982,28 @@ html body #freshDesktopApp .fd-calendar-panel:has(#fdDays.has-extra-weeks){flex:
 html body #freshDesktopApp .fd-cal:has(#fdDays.has-extra-weeks){flex:none!important;height:auto!important;min-height:0!important}
 html body #freshDesktopApp .fd-left-stack:has(#fdDays.has-extra-weeks) #fdWeekPanel{flex:none!important;height:150px!important;min-height:150px!important}
 </style>
+
+<style id="calendar-next-month-filter-layout">
+html body #freshDesktopApp #fdNextWeekControls{display:block!important;position:relative;padding:0!important;border:0!important;background:transparent!important;flex:none}
+html body #freshDesktopApp #fdNextWeekControls summary{list-style:none;cursor:pointer;white-space:nowrap;height:32px;box-sizing:border-box;display:flex;align-items:center;gap:7px;padding:0 9px;border:1px solid #b9ccdc;border-radius:5px;background:#fff;color:#31516d;font-size:11px}
+#freshDesktopApp #fdNextWeekControls summary::-webkit-details-marker{display:none}
+#freshDesktopApp #fdNextWeekControls summary span{font-size:10px;color:#718597}
+#freshDesktopApp #fdNextWeekControls summary:after{content:'▾';font-size:10px}
+#freshDesktopApp #fdNextWeekControls .fd-next-week-menu{position:absolute;right:0;top:calc(100% + 7px);z-index:1100;width:190px;padding:12px;box-sizing:border-box;background:#fff;border:1px solid #c5d4df;border-radius:7px;box-shadow:0 5px 18px #18354d22;display:grid;grid-template-columns:1fr;gap:6px}
+#freshDesktopApp #fdNextWeekControls .fd-next-week-menu strong{font-size:12px;color:#234e72;margin-bottom:3px}
+#freshDesktopApp #fdNextWeekControls button{text-align:left;display:block;width:100%;margin:0!important}
+#freshDesktopApp #fdNextWeekControls [data-next-week]:before{content:'□';margin-right:8px}
+#freshDesktopApp #fdNextWeekControls [data-next-week][aria-pressed=true]:before{content:'✓'}
+html body #freshDesktopApp .fd-extra-week-title{height:36px!important;min-height:36px!important;font-size:18px!important;font-weight:600!important;justify-content:center;background:#e4edf5!important;border-radius:5px 5px 0 0!important;margin:0!important;padding:0!important}
+html body #freshDesktopApp .fd-next-month-weekdays{grid-column:1/-1;height:28px!important;min-height:28px!important;margin:0!important;border:0!important;border-radius:0!important;display:grid!important;grid-template-columns:repeat(7,minmax(0,1fr))!important;gap:5px!important;background:transparent!important}
+html body #freshDesktopApp .fd-next-month-weekdays .fd-weekday{display:flex;align-items:center;justify-content:center;background:#d7e1e5;border-radius:6px;font-size:12px;color:#29475e}
+html body #freshDesktopApp .fd-next-month-weekdays .sun{color:#da5b66}
+html body #freshDesktopApp .fd-next-month-weekdays .sat{color:#6289b2}
+</style>
+
+<style id="calendar-booked-available-colors">
+html body #freshDesktopApp .fd-slot-line.booked,html body #freshDesktopApp .fd-slot-line.booked :is(time,span){color:#784399!important;font-weight:600!important}
+html body #freshDesktopApp .fd-slot-line.blue,html body #freshDesktopApp .fd-slot-line.blue :is(time,span){color:#2368a0!important;font-weight:400!important}
+</style>
+
+<script>document.addEventListener('keydown',function(event){if(event.key==='Escape'){const menu=document.getElementById('fdNextWeekControls');if(menu)menu.open=false;}});</script>
