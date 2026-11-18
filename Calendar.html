@@ -8631,8 +8631,32 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
     return parts.length?'<span class="fd-day-categories">'+parts.join('')+'</span>':'';
   }
   let fdFoldPast=false;
+  const nextWeeksStore='calendar_next_month_weeks_v1';
+  let nextWeekPreferences={};try{nextWeekPreferences=JSON.parse(localStorage.getItem(nextWeeksStore)||'{}')||{};}catch{}
+  function nextWeekInfo(){
+    const date=new Date(viewDate.getFullYear(),viewDate.getMonth()+1,1),last=new Date(date.getFullYear(),date.getMonth()+1,0);
+    const start=new Date(date);start.setDate(1-(date.getDay()+6)%7);
+    return {date,start,last,count:Math.ceil(((date.getDay()+6)%7+last.getDate())/7),id:iso(viewDate).slice(0,7)};
+  }
+  function renderNextWeekControls(){
+    const info=nextWeekInfo();let host=q('#fdNextWeekControls');
+    if(!host){host=document.createElement('div');host.id='fdNextWeekControls';q('#fdDays').parentElement.insertBefore(host,q('#fdDays').previousElementSibling);}
+    const stored=nextWeekPreferences[info.id],selected=new Set(Array.isArray(stored)?stored:[]);
+    host.innerHTML='<span>다음 달 함께 보기</span>'+Array.from({length:info.count},(_,i)=>{
+      const first=new Date(info.start);first.setDate(first.getDate()+i*7);const end=new Date(first);end.setDate(first.getDate()+6);
+      const from=Math.max(1,first.getMonth()===info.date.getMonth()?first.getDate():1),to=end.getMonth()===info.date.getMonth()?end.getDate():info.last.getDate();
+      return '<button type="button" data-next-week="'+i+'" aria-pressed="'+selected.has(i)+'" title="'+(info.date.getMonth()+1)+'월 '+from+'일~'+to+'일">'+(info.date.getMonth()+1)+'월 '+(i+1)+'주</button>';
+    }).join('')+'<button type="button" data-clear-next-weeks>선택 해제</button>';
+    host.querySelectorAll('[data-next-week]').forEach(button=>button.onclick=()=>{
+      const i=Number(button.dataset.nextWeek);if(selected.has(i))selected.delete(i);else selected.add(i);
+      nextWeekPreferences[info.id]=[...selected].sort((a,b)=>a-b);try{localStorage.setItem(nextWeeksStore,JSON.stringify(nextWeekPreferences));}catch{}
+      renderCalendar();
+    });
+    host.querySelector('[data-clear-next-weeks]').onclick=()=>{nextWeekPreferences[info.id]=[];try{localStorage.setItem(nextWeeksStore,JSON.stringify(nextWeekPreferences));}catch{}renderCalendar();};
+    return {...info,selected};
+  }
   function renderCalendar(){
-    const days=q('#fdDays');if(!days||!viewDate)return;days.innerHTML='';
+    const days=q('#fdDays');if(!days||!viewDate)return;days.innerHTML='';const next=renderNextWeekControls();days.classList.toggle('has-extra-weeks',next.selected.size>0);days.style.removeProperty('grid-template-rows');
     const y=viewDate.getFullYear(),m=viewDate.getMonth(),first=new Date(y,m,1),start=new Date(y,m,1-(first.getDay()+6)%7),todayD=new Date();todayD.setHours(0,0,0,0);
     const weeks=Math.max(5,Math.ceil(((first.getDay()+6)%7+new Date(y,m+1,0).getDate())/7));
     const toggle=q('#fdFoldPastBtn');
@@ -8650,20 +8674,27 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
       while(firstWeek<weeks-1){const end=new Date(start);end.setDate(start.getDate()+firstWeek*7+6);if(end>=cutoff)break;firstWeek++;}
     }
     days.style.setProperty("--fd-calendar-weeks",String(weeks-firstWeek));
-    for(let i=firstWeek*7;i<weeks*7;i++){
-      const date=new Date(start);date.setDate(start.getDate()+i);
+    const entries=[];
+    for(let i=firstWeek*7;i<weeks*7;i++){const date=new Date(start);date.setDate(start.getDate()+i);entries.push({date,month:m});}
+    for(const week of [...next.selected].filter(i=>Number.isInteger(i)&&i>=0&&i<next.count).sort((a,b)=>a-b)){
+      for(let i=0;i<7;i++){const date=new Date(next.start);date.setDate(next.start.getDate()+week*7+i);entries.push({date,month:next.date.getMonth(),extra:true,heading:i===0?(next.date.getMonth()+1)+'월 '+(week+1)+'주':''});}
+    }
+    if(next.selected.size)days.style.setProperty('grid-template-rows','repeat('+(weeks-firstWeek)+', minmax(140px, auto)) '+[...next.selected].map(()=> '28px minmax(140px, auto)').join(' '),'important');
+    for(const entry of entries){
+      const {date}=entry;
+      if(entry.heading){const label=document.createElement('h4');label.className='fd-extra-week-title';label.textContent=entry.heading;days.append(label);}
       if(cutoff&&date<cutoff){const blank=document.createElement('span');blank.className='fd-fold-blank';blank.setAttribute('aria-hidden','true');days.appendChild(blank);continue;}
-      const d=new Date(start);d.setDate(start.getDate()+i);const k=key(d),other=d.getMonth()!==m,raw=totalRawEvents(k),vis=rawEvents(k);const b=document.createElement('button');b.type='button';b.className='fd-day '+(other?'other ':'')+(d.getDay()===0?'sun ':'')+(d.getDay()===6?'sat ':'')+(k===selectedKey&&!other?'selected ':'')+(d.getTime()===todayD.getTime()?'today ':'');
+      const d=new Date(date);const k=key(d),other=d.getMonth()!==entry.month,raw=totalRawEvents(k),vis=rawEvents(k);const b=document.createElement('button');b.type='button';b.className='fd-day '+(other?'other ':'')+(d.getDay()===0?'sun ':'')+(d.getDay()===6?'sat ':'')+(k===selectedKey&&!other?'selected ':'')+(d.getTime()===todayD.getTime()?'today ':'');
       if(other){b.disabled=true;b.className='fd-day other';b.innerHTML='<span class="fd-daynum">'+d.getDate()+'</span>';b.setAttribute('aria-label',dateLabel(d));days.appendChild(b);continue;}
       let dots='';if(!other){if(showGallery&&((raw.g>0)||raw.c>0)&&(!siteFilter||(GALLERY_ROWS?.[k]||[]).some(r=>gallerySite(r)===siteFilter)))dots+=`<i class="${raw.c&&!raw.g?'c':'g'}"></i>`;if(showTour&&raw.t>0)dots+='<i class="t"></i>'}
-      b.dataset.availabilityKey=k;b.__dayEvents=vis;
+      b.dataset.availabilityKey=k;b.dataset.calendarDate=iso(d);if(entry.extra)b.dataset.extraWeek='true';b.__dayEvents=vis;
       const count=desktopDayCategorySummary(vis);
       const holiday=!other?holidayName(d):'';
       if(holiday)b.classList.add('holiday');
       const holidayHtml=holiday?`<span class="fd-holiday">${esc(holiday)}</span>`:'';
       const note=!other&&vis.length?`<span class="fd-day-note"><span class="fd-day-site-title">${esc(vis[0].site)}</span>${vis.length>1?'<small class="fd-day-extra">외 '+(vis.length-1)+'건</small>':''}</span>`:'';
       b.innerHTML=`<span class="fd-daynum">${d.getDate()}</span>${holidayHtml}${count}${note}${dots?`<span class="fd-dots">${dots}</span>`:''}`;
-      b.setAttribute('aria-label',dateLabel(d)+' 일정 '+vis.length+'건');b.onclick=()=>{select(k);openDaySchedule(k)};days.appendChild(b);
+      b.setAttribute('aria-label',dateLabel(d)+' 일정 '+vis.length+'건');b.onclick=()=>{if(d.getFullYear()!==viewDate.getFullYear())setMonth(new Date(d.getFullYear(),d.getMonth(),1));select(k);openDaySchedule(k)};days.appendChild(b);
     }
   }
   function dayScheduleMarkup(date,events){
@@ -11926,4 +11957,28 @@ html:not([data-calendar-access="owner"]) body #freshDesktopApp #fdLegacyMount .f
   html body #freshDesktopApp :is(#fdAvailableBtn i,#fdFilterBtn svg) { flex-shrink:0; }
   html body #freshDesktopApp #fdFilterBtn span { white-space:nowrap; }
 }
+</style>
+
+<style id="calendar-next-month-weeks">
+#freshDesktopApp #fdNextWeekControls{display:flex;flex-wrap:wrap;align-items:center;gap:5px;padding:7px 10px;background:#f5f8fb;border-bottom:1px solid #d8e3ec;flex:none}
+#freshDesktopApp #fdNextWeekControls>span{font-size:11px;color:#60798e;margin-right:4px;white-space:nowrap}
+#freshDesktopApp #fdNextWeekControls button{min-height:27px;border:1px solid #c5d4df;border-radius:5px;background:white;color:#31516d;padding:3px 8px;font:inherit;font-size:11px;cursor:pointer}
+#freshDesktopApp #fdNextWeekControls button[aria-pressed=true]{background:#315f84;color:white;border-color:#315f84}
+#freshDesktopApp #fdNextWeekControls [data-clear-next-weeks]{margin-left:auto;color:#718597;border-color:transparent;background:transparent}
+#freshDesktopApp .fd-extra-week-title{grid-column:1/-1;margin:0;display:flex;align-items:center;padding:0 7px;background:#e7eff7;border-radius:5px;font-size:12px;color:#234e72}
+html body #freshDesktopApp .fd-calendar-panel:has(#fdDays.has-extra-weeks){height:auto!important;overflow:visible!important;min-height:0!important}
+html body #freshDesktopApp .fd-cal:has(#fdDays.has-extra-weeks){height:auto!important;overflow:visible!important}
+html body #freshDesktopApp #fdDays.has-extra-weeks{height:auto!important;flex:none!important;overflow:visible!important;grid-auto-rows:minmax(140px,auto)!important}
+html body #freshDesktopApp #fdDays.has-extra-weeks .fd-day{min-height:140px!important;overflow:hidden!important}
+html body #freshDesktopApp .fd-left-stack:has(#fdDays.has-extra-weeks){overflow:visible!important;height:auto!important}
+html body #freshDesktopApp .fd-grid:has(#fdDays.has-extra-weeks){height:auto!important;min-height:0!important}
+html body #freshDesktopApp .fd-content:has(#fdDays.has-extra-weeks){overflow:auto!important;align-items:start!important}
+</style>
+
+<style id="calendar-expanded-week-layout">
+html body #freshDesktopApp .fd-grid:has(#fdDays.has-extra-weeks){grid-template-rows:auto!important;align-items:start!important}
+html body #freshDesktopApp .fd-left-stack:has(#fdDays.has-extra-weeks){display:flex!important;flex-direction:column!important;grid-template-rows:none!important;height:auto!important;min-height:0!important}
+html body #freshDesktopApp .fd-calendar-panel:has(#fdDays.has-extra-weeks){flex:none!important;position:static!important}
+html body #freshDesktopApp .fd-cal:has(#fdDays.has-extra-weeks){flex:none!important;height:auto!important;min-height:0!important}
+html body #freshDesktopApp .fd-left-stack:has(#fdDays.has-extra-weeks) #fdWeekPanel{flex:none!important;height:150px!important;min-height:150px!important}
 </style>
