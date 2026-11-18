@@ -2084,7 +2084,7 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
     const person=savedAuthorPerson(record,report),groups=new Map();
     const messages=record.messages.filter(r=>usefulReportText(r.text)).slice().sort((a,b)=>-rowOrder(a,b));
     messages.forEach(row=>{const iso=reportDateIso(row.date);if(!groups.has(iso))groups.set(iso,[]);groups.get(iso).push(row);});
-    return '<div class="author-report"><h4>'+escapeHtml(record.name)+' <small>'+record.count+'회 발언</small></h4><section class="author-brief"><b>발언 압축요약</b>'+(person?reportParagraphs(person.summary):'<p>선택 기간에 저장된 작성자 요약이 없습니다.</p><button type="button" class="btn" data-author-summary="'+escapeHtml(record.name)+'">작성자 요약</button>')+'</section><h4 class="author-dates-title">날짜별 발언</h4>'+[...groups].map(([iso,list])=>'<details class="author-day"><summary>'+escapeHtml(reportDateOptionLabel(list[0].date))+' <small>'+list.length+'건</small></summary>'+list.map(row=>'<article class="author-message"><time>'+String(row.hour??0).padStart(2,'0')+':'+String(row.min??0).padStart(2,'0')+'</time><p>'+highlightedReportText(row.text)+'</p></article>').join('')+'</details>').join('')+'</div>';
+    return '<div class="author-report"><h4>'+escapeHtml(record.name)+' <small>'+record.count+'회 발언</small></h4><section class="author-brief"><b>한줄</b>'+(person?'<p>'+highlightedReportText(oneLineText(person))+'</p>':'<p>선택 기간에 저장된 작성자 요약이 없습니다.</p><button type="button" class="btn" data-author-summary="'+escapeHtml(record.name)+'">작성자 요약</button>')+'</section><h4 class="author-dates-title">날짜별 발언</h4>'+[...groups].map(([iso,list])=>'<details class="author-day"><summary>'+escapeHtml(reportDateOptionLabel(list[0].date))+' <small>'+list.length+'건</small></summary>'+list.map(row=>'<article class="author-message"><time>'+String(row.hour??0).padStart(2,'0')+':'+String(row.min??0).padStart(2,'0')+'</time><p>'+highlightedReportText(row.text)+'</p></article>').join('')+'</details>').join('')+'</div>';
   }
   document.addEventListener('click',async event=>{
     const button=event.target.closest('[data-author-summary]');if(!button||roomAiBusy)return;
@@ -2103,22 +2103,38 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
     return String(value||'').trim().split(/\n+|(?<=[.!?])\s+(?=[가-힣A-Za-z])/u).filter(Boolean)
       .map(line=>'<p>'+highlightedReportText(line)+'</p>').join('');
   }
+  function builderStances(person){
+    const text=String(person?.stance||'');if(/근거\s*없|확인\s*불가/.test(text))return [];
+    const aliases={'포':'포스코','포스코':'포스코','삼':'삼성','삼성':'삼성','현':'현대건설','현대':'현대건설','현대건설':'현대건설','대':'대우','대우':'대우','DL':'DL','대림':'DL','GS':'GS','자이':'GS','롯':'롯데','롯데':'롯데','HDC':'HDC','현대산업개발':'HDC','SK':'SK','한화':'한화'};
+    const short={'포스코':'포','삼성':'삼','현대건설':'현','대우':'대','DL':'DL','GS':'GS','롯데':'롯','HDC':'HDC','SK':'SK','한화':'한'};
+    const company='현대산업개발|현대건설|포스코|삼성|대우|대림|롯데|한화|현대|HDC|DL|GS|SK|자이|포|삼|현|대|롯';
+    const pattern=new RegExp('('+company+')\\s*([▲↑▼↓])|([▲↑▼↓])\\s*('+company+')','gi'),items=[],seen=new Set();
+    for(const match of text.matchAll(pattern)){const raw=match[1]||match[4],name=aliases[raw]||aliases[raw.toUpperCase()],arrow=match[2]||match[3],positive=/[▲↑]/.test(arrow);if(!name)continue;const key=name+'|'+positive;if(seen.has(key))continue;seen.add(key);items.push({name,short:short[name],positive});}
+    return items;
+  }
+  function stanceBadges(person){return builderStances(person).map(item=>'<span class="builder-stance '+(item.positive?'positive':'negative')+'" title="'+escapeHtml(item.name+(item.positive?' 우호':' 비판'))+'">'+(item.positive?'▲':'▼')+' '+escapeHtml(item.short)+'</span>').join('');}
+  function oneLineText(person){const lead=builderStances(person).map(item=>item.name+(item.positive?' 우호':' 비판')).join(' · ');return (lead?lead+' — ':'')+String(person?.summary||'').replace(/\s+/g,' ').trim();}
+  function oneLineHtml(person){
+    if(!person?.summary)return '<p class="person-one-line one-line-missing"><b>한줄</b> 저장된 한줄이 없습니다.</p>';
+    const stances=builderStances(person),lead=stances.map(item=>item.name+(item.positive?' 우호':' 비판')).join(' · ');
+    return '<p class="person-one-line"><b>한줄</b> '+highlightedReportText(oneLineText(person))+'</p>';
+  }
   function summaryPeople(records,report){
     if(!report)return pendingSummary;
     const items=records.flatMap(record=>{
       const person=savedAuthorPerson(record,report);
       return person?[{...person,count:record.count}]:[];
     });
-    return items.map((person,index)=>'<article class="structured-person"><b><span class="speaker-rank">'+(index+1)+'</span> '+escapeHtml(person.name)+' <small>('+person.count+'회 발언)</small>'+(person.stance&&!/근거\s*없|확인\s*불가|^[-—]$/.test(person.stance)?' · 성향 '+escapeHtml(person.stance):'')+'</b>'+reportParagraphs(person.summary)+'</article>').join('')||'<p class="r-empty">분석된 발언이 없습니다.</p>';
+    return items.map((person,index)=>'<article class="structured-person"><b><span class="speaker-rank">'+(index+1)+'</span> '+escapeHtml(person.name)+' <small>('+person.count+'회 발언)</small>'+stanceBadges(person)+'</b>'+oneLineHtml(person)+'</article>').join('')||'<p class="r-empty">분석된 발언이 없습니다.</p>';
   }
   function builderPeopleHtml(records,report){
     if(!report)return pendingSummary;
     const pattern=selectedBuilderPattern();
     const matches=records.map(record=>({record,messages:record.messages.filter(row=>pattern?pattern.test(row.text):builders.some(([,,re])=>re.test(row.text)))})).filter(item=>item.messages.length);
     return '<div class="builder-result-count">'+(selectedBuilder?escapeHtml(builders.find(([code])=>code===selectedBuilder)[1])+' 언급':'시공사 언급')+' 작성자 '+matches.length+'명</div>'+matches.map(({record,messages},i)=>{
-      const person=savedAuthorPerson(record,report),relevant=person&&(!pattern||pattern.test(person.summary));
+      const person=savedAuthorPerson(record,report);
       const evidence=messages.slice().sort((a,b)=>-rowOrder(a,b));
-      return '<article class="structured-person builder-person"><b><span class="speaker-rank">'+(i+1)+'</span><button type="button" class="builder-author-link" data-author="'+escapeHtml(record.name)+'">'+escapeHtml(record.name)+'</button> <small>('+record.count+'회 발언)</small></b><small class="builder-mention-count">관련 발언 '+messages.length+'건</small>'+(relevant?reportParagraphs(person.summary):'')+'<details class="builder-evidence"'+(!relevant?' open':'')+'><summary>관련 원문 보기</summary>'+evidence.map(row=>'<div class="builder-source"><time>'+escapeHtml(reportDateOptionLabel(row.date))+' '+String(row.hour??0).padStart(2,'0')+':'+String(row.min??0).padStart(2,'0')+'</time><p>'+highlightedReportText(row.text)+'</p></div>').join('')+'</details></article>';
+      return '<article class="structured-person builder-person"><b><span class="speaker-rank">'+(i+1)+'</span><button type="button" class="builder-author-link" data-author="'+escapeHtml(record.name)+'">'+escapeHtml(record.name)+'</button> <small>('+record.count+'회 발언)</small>'+stanceBadges(person)+'</b>'+oneLineHtml(person)+(!person?'<button class="btn builder-one-line-action" type="button" data-author-summary="'+escapeHtml(record.name)+'">한줄 요약</button>':'')+'<details class="builder-evidence"><summary>관련 원문 '+messages.length+'건 보기</summary>'+evidence.map(row=>'<div class="builder-source"><time>'+escapeHtml(reportDateOptionLabel(row.date))+' '+String(row.hour??0).padStart(2,'0')+':'+String(row.min??0).padStart(2,'0')+'</time><p>'+highlightedReportText(row.text)+'</p></div>').join('')+'</details></article>';
     }).join('')+(matches.length?'':'<p class="r-empty">해당 시공사를 언급한 발언이 없습니다.</p>');
   }
   function compactRoomReport(a,daily){
@@ -2705,3 +2721,12 @@ body{background:#edf1f6!important;}#app .hero{padding-top:4px!important;padding-
 </style>
 
 <style>#app .room-desktop-workspace .monitoring-toolbar h3{width:100%!important;text-align:left!important;align-self:flex-start!important}#app .builder-filters{justify-content:start!important}</style>
+
+<style id="report-person-one-line-stance">
+#app .builder-stance{display:inline-flex;align-items:center;gap:3px;margin-left:7px;font-size:11px!important;font-weight:600!important;white-space:nowrap;line-height:1.8}
+#app .builder-stance.positive{color:#b94048!important}#app .builder-stance.negative{color:#2e65a4!important}
+#app .structured-person .person-one-line{margin:7px 0 0 30px!important;line-height:1.8!important;white-space:normal;overflow-wrap:anywhere}
+#app .person-one-line>b{font-size:11px!important;font-weight:600!important;color:#657e94!important;margin-right:6px}
+#app .one-line-missing{color:#71859a!important}
+#app .builder-evidence{margin-top:7px!important}#app .builder-one-line-action{margin:6px 0 0 30px;font-size:11px!important;min-height:27px}
+</style>
