@@ -1244,7 +1244,7 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
     const render=()=>{
       body.innerHTML=people.map((record,index)=>{
         const person=[...savedPeople.values()].find(person=>authorKey(person.name)===authorKey(record.name));
-        return '<details class="structured-person hour-person"><summary><span class="speaker-rank">'+(index+1)+'</span><span><b>'+escapeHtml(record.name)+'</b> <small>('+record.count+'회 발언)</small><span class="hour-person-brief">'+escapeHtml(person?.summary||'저장된 한줄 요약 없음')+'</span></span></summary><div class="hour-person-original">'+record.messages.map(row=>'<p><small>'+escapeHtml(reportDateIso(row.date)+' '+String(row.hour).padStart(2,'0')+':'+String(row.min).padStart(2,'0'))+'</small><br>'+escapeHtml(row.text)+'</p>').join('')+'</div></details>';
+        return '<details class="structured-person hour-person"><summary><span class="speaker-rank">'+(index+1)+'</span><span><b>'+escapeHtml(record.name)+'</b> <small>('+record.count+'회 발언)</small><span class="hour-person-brief">'+escapeHtml(person?.summary||'저장된 요약 없음').replace(/([.!?])\s+(?=[가-힣A-Za-z])/gu,'$1<br><br>')+'</span></span></summary><div class="hour-person-original">'+record.messages.map(row=>'<p><small>'+escapeHtml(reportDateIso(row.date)+' '+String(row.hour).padStart(2,'0')+':'+String(row.min).padStart(2,'0'))+'</small><br>'+escapeHtml(row.text)+'</p>').join('')+'</div></details>';
       }).join('');
     };
     dialog.querySelector('button').onclick=()=>dialog.close();
@@ -2067,7 +2067,7 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
   }
   function authorSidebar(records,author){
     const dongs=[...new Set(records.map(r=>authorDongOf(r.name)).filter(Boolean))].sort((a,b)=>Number(a)-Number(b));
-    return '<aside class="author-list" aria-label="작성자"><b>작성자</b><input id="authorQuery" type="search" placeholder="이름 · 동호수 검색" aria-label="작성자 검색" value="'+escapeHtml(authorQuery)+'"><select id="authorDong" aria-label="작성자 동 필터"><option value="">전체 동</option>'+dongs.map(d=>'<option value="'+d+'"'+(d===authorDong?' selected':'')+'>'+d+'동</option>').join('')+'</select><div class="author-results"><button type="button" data-author="" aria-pressed="'+(!author)+'">전체 작성자</button>'+records.map(r=>'<button type="button" data-author="'+escapeHtml(r.name)+'" data-dong="'+authorDongOf(r.name)+'" aria-pressed="'+(r===author)+'">'+escapeHtml(r.name)+'</button>').join('')+'</div><small id="authorResultCount"></small></aside>';
+    return '<aside class="author-list" aria-label="작성자"><b class="author-list-title">작성자 <span>(총 '+records.length+'명)</span></b><input id="authorQuery" type="search" placeholder="이름 · 동호수 검색" aria-label="작성자 검색" value="'+escapeHtml(authorQuery)+'"><select id="authorDong" aria-label="작성자 동 필터"><option value="">전체 동</option>'+dongs.map(d=>'<option value="'+d+'"'+(d===authorDong?' selected':'')+'>'+d+'동</option>').join('')+'</select><div class="author-results"><button type="button" data-author="" aria-pressed="'+(!author)+'">전체 작성자</button>'+records.map(r=>'<button type="button" data-author="'+escapeHtml(r.name)+'" data-dong="'+authorDongOf(r.name)+'" aria-pressed="'+(r===author)+'">'+escapeHtml(r.name)+'</button>').join('')+'</div><small id="authorResultCount"></small></aside>';
   }
   function filterAuthorList(){
     const host=document.querySelector('.author-list');if(!host)return;
@@ -2076,7 +2076,7 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
       if(!button.dataset.author)return;
       const match=(!authorDong||button.dataset.dong===authorDong)&&terms.every(t=>authorKey(button.dataset.author).includes(t));
       button.hidden=!match;if(match)count++;
-    });host.querySelector('#authorResultCount').textContent=count+'명';
+    });host.querySelector('#authorResultCount').textContent=authorQuery.trim()||authorDong?'검색 결과 '+count+'명':'';
   }
   document.addEventListener('input',event=>{if(event.target.id==='authorQuery'){authorQuery=event.target.value;filterAuthorList();}});
   document.addEventListener('change',event=>{if(event.target.id==='authorDong'){authorDong=event.target.value;filterAuthorList();}});
@@ -2084,7 +2084,7 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
     const person=savedAuthorPerson(record,report),groups=new Map();
     const messages=record.messages.filter(r=>usefulReportText(r.text)).slice().sort((a,b)=>-rowOrder(a,b));
     messages.forEach(row=>{const iso=reportDateIso(row.date);if(!groups.has(iso))groups.set(iso,[]);groups.get(iso).push(row);});
-    return '<div class="author-report"><h4>'+escapeHtml(record.name)+' <small>'+record.count+'회 발언</small></h4><section class="author-brief"><b>한줄</b>'+(person?'<p>'+highlightedReportText(oneLineText(person))+'</p>':'<p>선택 기간에 저장된 작성자 요약이 없습니다.</p><button type="button" class="btn" data-author-summary="'+escapeHtml(record.name)+'">작성자 요약</button>')+'</section><h4 class="author-dates-title">날짜별 발언</h4>'+[...groups].map(([iso,list])=>'<details class="author-day"><summary>'+escapeHtml(reportDateOptionLabel(list[0].date))+' <small>'+list.length+'건</small></summary>'+list.map(row=>'<article class="author-message"><time>'+String(row.hour??0).padStart(2,'0')+':'+String(row.min??0).padStart(2,'0')+'</time><p>'+highlightedReportText(row.text)+'</p></article>').join('')+'</details>').join('')+'</div>';
+    return '<div class="author-report"><h4>'+escapeHtml(record.name)+' <small>'+record.count+'회 발언</small></h4><section class="author-brief">'+(person?readableSummaryHtml(person):'<p>선택 기간에 저장된 요약이 없습니다.</p><button type="button" class="btn" data-author-summary="'+escapeHtml(record.name)+'">작성자 요약</button>')+'</section><h4 class="author-dates-title">날짜별 발언</h4>'+[...groups].map(([iso,list])=>'<details class="author-day"><summary>'+escapeHtml(reportDateOptionLabel(list[0].date))+' <small>'+list.length+'건</small></summary>'+list.map(row=>'<article class="author-message"><time>'+String(row.hour??0).padStart(2,'0')+':'+String(row.min??0).padStart(2,'0')+'</time><p>'+highlightedReportText(row.text)+'</p></article>').join('')+'</details>').join('')+'</div>';
   }
   document.addEventListener('click',async event=>{
     const button=event.target.closest('[data-author-summary]');if(!button||roomAiBusy)return;
@@ -2114,11 +2114,13 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
   }
   function stanceBadges(person){return builderStances(person).map(item=>'<span class="builder-stance '+(item.positive?'positive':'negative')+'" title="'+escapeHtml(item.name+(item.positive?' 우호':' 비판'))+'">'+(item.positive?'▲':'▼')+' '+escapeHtml(item.short)+'</span>').join('');}
   function oneLineText(person){const lead=builderStances(person).map(item=>item.name+(item.positive?' 우호':' 비판')).join(' · ');return (lead?lead+' — ':'')+String(person?.summary||'').replace(/\s+/g,' ').trim();}
-  function oneLineHtml(person){
-    if(!person?.summary)return '<p class="person-one-line one-line-missing"><b>한줄</b> 저장된 한줄이 없습니다.</p>';
-    const stances=builderStances(person),lead=stances.map(item=>item.name+(item.positive?' 우호':' 비판')).join(' · ');
-    return '<p class="person-one-line"><b>한줄</b> '+highlightedReportText(oneLineText(person))+'</p>';
+  function readableSummaryHtml(person){
+    const text=String(person?.summary||'').trim();
+    if(!text)return '<div class="person-one-line summary-copy one-line-missing"><p>저장된 요약이 없습니다.</p></div>';
+    const paragraphs=text.split(/\n+|(?<=[.!?])\s+(?=[가-힣A-Za-z“‘「])/u).map(line=>line.trim()).filter(Boolean);
+    return '<div class="person-one-line summary-copy">'+paragraphs.map(line=>'<p>'+highlightedReportText(line)+'</p>').join('')+'</div>';
   }
+  function oneLineHtml(person){return readableSummaryHtml(person);}
   function summaryPeople(records,report){
     if(!report)return pendingSummary;
     const items=records.flatMap(record=>{
@@ -2134,7 +2136,7 @@ body{background:var(--bg);color:var(--text-main)}#app{max-width:1220px;padding:2
     return '<div class="builder-result-count">'+(selectedBuilder?escapeHtml(builders.find(([code])=>code===selectedBuilder)[1])+' 언급':'시공사 언급')+' 작성자 '+matches.length+'명</div>'+matches.map(({record,messages},i)=>{
       const person=savedAuthorPerson(record,report);
       const evidence=messages.slice().sort((a,b)=>-rowOrder(a,b));
-      return '<article class="structured-person builder-person"><b><span class="speaker-rank">'+(i+1)+'</span><button type="button" class="builder-author-link" data-author="'+escapeHtml(record.name)+'">'+escapeHtml(record.name)+'</button> <small>('+record.count+'회 발언)</small>'+stanceBadges(person)+'</b>'+oneLineHtml(person)+(!person?'<button class="btn builder-one-line-action" type="button" data-author-summary="'+escapeHtml(record.name)+'">한줄 요약</button>':'')+'<details class="builder-evidence"><summary>관련 원문 '+messages.length+'건 보기</summary>'+evidence.map(row=>'<div class="builder-source"><time>'+escapeHtml(reportDateOptionLabel(row.date))+' '+String(row.hour??0).padStart(2,'0')+':'+String(row.min??0).padStart(2,'0')+'</time><p>'+highlightedReportText(row.text)+'</p></div>').join('')+'</details></article>';
+      return '<article class="structured-person builder-person"><b><span class="speaker-rank">'+(i+1)+'</span><button type="button" class="builder-author-link" data-author="'+escapeHtml(record.name)+'">'+escapeHtml(record.name)+'</button> <small>('+record.count+'회 발언)</small>'+stanceBadges(person)+'</b>'+oneLineHtml(person)+(!person?'<button class="btn builder-one-line-action" type="button" data-author-summary="'+escapeHtml(record.name)+'">요약하기</button>':'')+'<details class="builder-evidence"><summary>관련 원문 '+messages.length+'건 보기</summary>'+evidence.map(row=>'<div class="builder-source"><time>'+escapeHtml(reportDateOptionLabel(row.date))+' '+String(row.hour??0).padStart(2,'0')+':'+String(row.min??0).padStart(2,'0')+'</time><p>'+highlightedReportText(row.text)+'</p></div>').join('')+'</details></article>';
     }).join('')+(matches.length?'':'<p class="r-empty">해당 시공사를 언급한 발언이 없습니다.</p>');
   }
   function compactRoomReport(a,daily){
@@ -2729,4 +2731,37 @@ body{background:#edf1f6!important;}#app .hero{padding-top:4px!important;padding-
 #app .person-one-line>b{font-size:11px!important;font-weight:600!important;color:#657e94!important;margin-right:6px}
 #app .one-line-missing{color:#71859a!important}
 #app .builder-evidence{margin-top:7px!important}#app .builder-one-line-action{margin:6px 0 0 30px;font-size:11px!important;min-height:27px}
+</style>
+
+<style id="report-readable-copy-and-header">
+#app .author-list-title{display:block!important;width:100%;text-align:center!important;font-size:14px!important;line-height:1.5!important;padding:2px 0 5px}
+#app .author-list-title span{font-size:12px;font-weight:400;color:#71859a;white-space:nowrap}
+#app .summary-copy{display:block;white-space:normal}
+#app .structured-person .summary-copy{margin:8px 0 0 30px!important}
+#app .structured-person .summary-copy>p,#app .author-brief .summary-copy>p{margin:0!important;font-size:13px!important;line-height:1.85!important;font-weight:400!important;color:#29455f!important;word-break:keep-all;overflow-wrap:anywhere}
+#app .structured-person .summary-copy>p+p,#app .author-brief .summary-copy>p+p{margin-top:9px!important}
+#app .author-brief .summary-copy{margin:0!important}
+#app .author-brief{padding:12px 13px!important;margin-bottom:15px!important;background:#f5f8fc!important}
+#app .hero{padding:12px 14px 10px!important;border:1px solid #d6e1eb!important;border-bottom:0!important;border-radius:10px 10px 0 0!important;background:#fff!important;min-height:0!important;gap:16px!important;margin:0!important}
+#app .hero-main{gap:10px!important;min-width:0;flex:1}
+#app .brand-mark{width:30px!important;height:30px!important;min-width:30px!important;border-radius:8px!important}
+#app .hero-copy{min-width:0}#app .title-line{display:flex!important;align-items:center!important;gap:12px!important;flex-wrap:wrap!important}
+#app .title-input{width:225px!important;max-width:100%!important;font-size:20px!important;line-height:30px!important;font-weight:700!important;padding:0!important;margin:0!important}
+#app .title-date{font-size:11px!important;font-weight:400!important;white-space:nowrap!important;color:#70859a!important}
+#app .hero-status{display:flex!important;gap:10px!important;align-items:center!important;flex-wrap:wrap;justify-content:flex-end;max-width:40%;margin:0!important}
+#app .status-pill{padding:0!important;background:transparent!important;border:0!important;font-size:11px!important;line-height:1.6!important}
+#app .room-navigation{display:flex!important;align-items:center!important;gap:12px!important;padding:0 14px 10px!important;margin:0 0 10px!important;background:#fff!important;border:1px solid #d6e1eb!important;border-top:0!important;border-radius:0 0 10px 10px!important;min-height:36px!important}
+#app .rooms-nav{display:flex!important;align-items:center!important;gap:6px!important;margin:0!important;padding:0!important;flex:1;min-width:0;flex-wrap:wrap!important}
+#app .rooms-nav button{min-width:0!important;min-height:30px!important;height:30px!important;box-sizing:border-box!important;padding:5px 10px!important;font-size:13px!important;line-height:20px!important;border-radius:5px!important}
+#app .room-actions .btn{height:28px!important;min-height:28px!important;padding:3px 8px!important;border-radius:5px!important;font-size:11px!important;white-space:nowrap}
+#app .toolbar-card{margin:0 0 14px!important;padding:9px 12px!important;border:1px solid #d6e1eb!important;border-radius:8px!important;box-shadow:none!important}
+#app .toolbar{grid-template-columns:auto minmax(0,1fr) auto!important;gap:12px!important}
+#app .toolbar>.report-tools-import,#app .toolbar>.report-tools-actions{gap:6px!important}
+#app .toolbar .report-period{justify-content:flex-end!important;padding-right:12px!important;border-right:1px solid #e0e7ee!important;gap:6px!important}
+#app .toolbar .report-period input{width:116px!important;border:1px solid #cad8e5!important;border-radius:5px!important;background:#fff!important}
+#app .toolbar :is(.btn,.file-label,.report-files-menu>summary){font-size:12px!important;font-weight:500!important;border-radius:5px!important;height:32px!important;min-height:32px!important;padding:6px 10px!important;box-sizing:border-box!important}
+#app .toolbar #aiBtn{font-weight:700!important}
+@media(max-width:1350px){#app .toolbar{grid-template-columns:1fr auto!important;gap:8px!important}#app .toolbar .report-period{grid-column:1/-1!important;grid-row:2!important;justify-content:flex-start!important;border-right:0!important;padding:7px 0 0!important;border-top:1px solid #e6edf3!important}#app .toolbar>.report-tools-actions{grid-column:2;grid-row:1}}
+@media(max-width:700px){#app .hero{padding:10px!important;align-items:flex-start!important;flex-wrap:wrap!important}#app .hero-status{max-width:100%;margin-left:40px!important;justify-content:flex-start;font-size:10px!important}#app .title-input{width:210px!important;font-size:18px!important}#app .title-line{gap:0 8px!important}#app .room-navigation{padding:0 10px 10px!important;flex-wrap:wrap!important}#app .room-actions{margin-left:auto}#app .toolbar{display:grid!important;grid-template-columns:1fr!important}#app .toolbar>.report-tools-actions{grid-column:1!important;grid-row:3!important;justify-content:flex-start!important;padding-top:7px!important;border-top:1px solid #e6edf3}#app .toolbar .report-period{flex-wrap:wrap!important;gap:6px!important}#app .toolbar .report-period b{width:100%;margin-bottom:2px}#app .toolbar>.report-tools-import{flex-wrap:wrap!important}#app .toolbar .report-period input{width:125px!important}}
+.hour-message-dialog .hour-person-brief{white-space:pre-line!important;line-height:1.85!important}
 </style>
