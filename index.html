@@ -31356,7 +31356,7 @@ window.DashboardInsights=(()=>{
   }return evidence.sort((a,b)=>a.date.localeCompare(b.date));
  }
  function renderStance(host,row){
-  host.replaceChildren();host.append(E('p','ins-note','날짜와 시공사가 명확한 직접 평가 표현을 모았습니다. 질문·소문·여러 회사가 섞인 문장은 자동 판정에서 제외합니다.'));
+  host.replaceChildren();
   const evidence=stanceEvidence(row);if(!evidence.length){host.append(E('p','ins-empty','성향 변화를 확인할 날짜별 직접 평가가 없습니다.'));return;}
   for(const [company]of companies){const list=evidence.filter(e=>e.company===company);if(!list.length)continue;const s=E('section','ins-section'),states=[];
    for(const date of [...new Set(list.map(e=>e.date))]){const day=list.filter(e=>e.date===date),labels=[...new Set(day.map(e=>e.label))];states.push({date,label:labels.length===1?labels[0]:'상반된 평가'});}
@@ -31365,17 +31365,60 @@ window.DashboardInsights=(()=>{
   }
  }
  function relations(row,rows){
-  const items=[],seen=new Set();function add(name,type,source){name=String(name||'').trim();if(!name||norm(name)===norm(row.name))return;const id=norm(name)+'|'+type;if(seen.has(id))return;seen.add(id);const matches=rows.filter(r=>norm(baseName(r.name))===norm(baseName(name)));items.push({name,type,source,target:matches.length===1?matches[0]:null});}
-  const chart=row.site.relationshipChart;const uniqueName=rows.filter(r=>norm(baseName(r.name))===norm(baseName(row.name))).length===1;
-  if(chart?.nodes){const mine=chart.nodes.filter(n=>String(n.personId||'')===row.personId&&row.personId||norm(baseName(n.name))===norm(baseName(row.name))&&(n.unit?uiSummaryUnit(n.unit)===uiSummaryUnit(row.unit):uniqueName));const ids=new Set(mine.map(n=>n.id));
-   for(const edge of chart.relations||[]){let other;if(ids.has(edge.from))other=chart.nodes.find(n=>n.id===edge.to);else if(ids.has(edge.to))other=chart.nodes.find(n=>n.id===edge.from);if(other)add(other.name,edge.type||'연결',edge.label||'저장된 계보도 연결');}
+  const groups=new Map(),aliases=new Map(),ignored=new Set(['본인','소유주','담당자','배우자','위원장','정사위','위원','남편','부인','아내','아들','가족','지인','주민','부동산','갤러리','라운지','사무실','상담','방문','연락','소개','동행']);
+  const same=(a,b)=>a===b||a.id===b.id;
+  function names(person){const whole=baseName(person.name),out=[whole];if(!/부동산|상가|사업소|사무소/.test(whole))for(const token of whole.split(/\s+|·|,/))if(/^[가-힣]{2,4}$/.test(token)&&!ignored.has(token))out.push(token);return [...new Set(out)].filter(n=>n.length>=2);}
+  for(const person of rows)for(const name of names(person)){if(!aliases.has(name))aliases.set(name,[]);aliases.get(name).push(person);}
+  const selfNames=names(row).filter(n=>(aliases.get(n)||[]).length===1);
+  const escape=v=>v.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  const match=(text,name)=>new RegExp('(^|[^가-힣A-Za-z0-9])'+escape(name)+'(?=$|[^가-힣A-Za-z0-9]|씨|님|대표|사장|소장|위원|회장|부장|과장|차장|은|는|이|가|을|를|와|과|의|에게|한테)','u').test(text);
+  function resolve(name,unit=''){let candidates=aliases.get(name)||rows.filter(r=>norm(baseName(r.name))===norm(baseName(name)));if(unit)candidates=candidates.filter(r=>uiSummaryUnit(r.unit)===uiSummaryUnit(unit));return candidates.length===1?candidates[0]:null;}
+  function add(name,type,proof,target=resolve(name)){
+   name=String(name||'').trim();if(!name||ignored.has(name)||target&&same(target,row)||!target&&names(row).includes(name)||selfNames.includes(name))return;
+   const id=target?'person:'+target.id:'name:'+norm(name);if(!groups.has(id))groups.set(id,{name:target?.name||name,target,types:new Set(),evidence:[],proofKeys:new Set()});const item=groups.get(id);item.types.add(type);
+   const k=[proof.date,proof.text,proof.source].join('|');if(!item.proofKeys.has(k)){item.proofKeys.add(k);item.evidence.push(proof);}
   }
-  for(const m of row.name.matchAll(/(?:부인|남편|배우자|아들|딸|소개자)\s*[:：]?\s*([가-힣]{2,5})/g))add(m[1],m[0].replace(m[1],'').trim(),'명부 이름에 기재');
-  return items;
+  const signals=[['가족',/부부|부인|아내|남편|배우자|부친|모친|부모|형제|자매|친척|사촌|장인|장모|사돈|아들|딸/],['소개',/소개|알선|연결해|연결했|이어\s*주/],['친분',/친분|친하|친한|친구|절친|동창|지인|잘\s*알|알고\s*지내|교류|인맥/],['동행',/동행|함께\s*(?:방문|참석|투어|갤러리|라운지)|같이\s*(?:방문|참석|투어|갤러리|라운지)/]];
+  const negative=/친분.{0,6}(?:없|아니)|친하.{0,4}않|(?:전혀|서로)\s*모르|(?:가족|소개|관계).{0,6}(?:아니|무관|미확인|불명)|동행.{0,4}(?:취소|거절|안\s*함)/;
+  const pending=/예정|계획|주기로|하기로|받기로|부탁|요청|희망/;
+  const raw=[...row.logs,...rows.flatMap(r=>r.logs),...(typeof rcReportRows==='function'?rcReportRows(row.site):[])],seen=new Set();
+  for(const log of raw){
+   if(isTourBookingLog(log))continue;const text=String(log.text||log.content||log.note||'').trim(),date=uiPersonDate(uiChatDate(log.date));if(!text||date&&date>uiPersonToday())continue;
+   const pid=String(log.personId||log.excelPersonId||''),contact=String(log.contactName||log.name||log.owner||'');
+   const owner=pid?rows.find(r=>r.personId===pid):resolve(baseName(contact),log.unit||log.parcel||'');
+   const own=row.logs.includes(log)||owner&&same(owner,row),signature=[date,pid,contact,log.unit,text].join('|');if(seen.has(signature))continue;seen.add(signature);
+   if(!own&&!selfNames.some(n=>text.includes(n)))continue;
+   for(const clause of text.split(/\r?\n|(?<=[다함됨요])\.\s*|[!?。]/u).map(t=>t.trim()).filter(Boolean)){
+    const kinds=signals.filter(([,re])=>re.test(clause)).map(([label])=>label);if(!kinds.length||negative.test(clause))continue;
+    const explicitSelf=selfNames.some(n=>match(clause,n));if(!own&&!explicitSelf)continue;
+    const found=new Map();for(const [name,candidates]of aliases){if(!match(clause,name))continue;let valid=candidates;if(valid.length>1)valid=valid.filter(r=>r.unit&&clause.includes(r.unit));if(valid.length===1&&!same(valid[0],row))found.set(valid[0].id,valid[0]);}
+    // A report about this owner can use “본인”; do not borrow a third-party-only sentence.
+    if(own&&!explicitSelf&&found.size>1&&!/본인|함께|같이|동행|모임/.test(clause))continue;
+    const proof={date,text:clause,source:'보고서',contact:contact||owner?.name||row.name,author:String(log.author||log.manager||'')};
+    const label=kinds.join('·')+(pending.test(clause)?' 예정·요청':'');
+    for(const person of found.values())add(person.name,label,proof,person);
+    // Incoming links are also evidence: another owner's report explicitly names this person.
+    if(!own&&explicitSelf&&owner&&!same(owner,row)&&(!found.size||found.has(owner.id)))add(owner.name,label,proof,owner);
+    // Explicitly named relatives/introducers may have no roster row. Still show the evidence.
+    if(own||explicitSelf){
+     const unknown=[];for(const m of clause.matchAll(/(?:부인|아내|남편|배우자|부친|모친|장인|장모|사돈|소개자)\s*[:：]?\s*([가-힣]{2,4}?)(?=\s|씨|님|과|와|을|를|이|가|은|는|[,，.\]）)]|$)/gu))unknown.push(m[1]);
+     for(const m of clause.matchAll(/([가-힣]{2,4})(?:\s*(?:씨|님|위원장|위원|대표|회장|부장))?\s*(?:와|과|에게|한테)\s*(?:친분|친하|친한|지인|동창|함께|같이|동행|소개)/gu))unknown.push(m[1]);
+     for(const name of unknown)if(![...found.values()].some(p=>names(p).includes(name)))add(name,label,proof);
+    }
+   }
+  }
+  // Saved explicit connections remain supplemental; report evidence leads each card.
+  const chart=row.site.relationshipChart,uniqueName=rows.filter(r=>norm(baseName(r.name))===norm(baseName(row.name))).length===1;
+  if(chart?.nodes){const mine=chart.nodes.filter(n=>String(n.personId||'')===row.personId&&row.personId||norm(baseName(n.name))===norm(baseName(row.name))&&(n.unit?uiSummaryUnit(n.unit)===uiSummaryUnit(row.unit):uniqueName));const ids=new Set(mine.map(n=>n.id));for(const edge of chart.relations||[]){const other=ids.has(edge.from)?chart.nodes.find(n=>n.id===edge.to):ids.has(edge.to)?chart.nodes.find(n=>n.id===edge.from):null;if(other)add(other.name,edge.type||'연결',{date:'',text:edge.label||'저장된 연결',source:'계보도'},resolve(other.name,other.unit));}}
+  for(const m of row.name.matchAll(/(?:부인|남편|배우자|아들|딸|소개자)\s*[:：]?\s*([가-힣]{2,4})(?=\s|[,，\]）)]|$)/gu))add(m[1],m[0].replace(m[1],'').trim(),{date:'',text:row.name,source:'명부'});
+  return [...groups.values()].map(item=>{item.evidence.sort((a,b)=>(a.source==='보고서'?0:1)-(b.source==='보고서'?0:1)||b.date.localeCompare(a.date));return {...item,type:[...item.types].join(' · '),source:item.evidence[0]?.source||''};}).sort((a,b)=>(a.source==='보고서'?0:1)-(b.source==='보고서'?0:1)||b.evidence[0].date.localeCompare(a.evidence[0].date));
  }
- function renderRelations(host,row){host.replaceChildren();const rows=uiPersonDirectory(row.site),list=relations(row,rows);host.append(E('p','ins-note','저장된 계보도 연결과 명부에 명시된 가족·소개 관계입니다. 동명이인은 자동 연결하지 않습니다.'));
-  if(!list.length)host.append(E('p','ins-empty','저장된 관계 정보가 없습니다. 계보도에서 관계를 연결하면 여기에 표시됩니다.'));
-  for(const item of list){const card=E('article','ins-person-line');card.append(item.target?B(item.name,()=>uiOpenPersonProfile(item.target)):E('strong','',item.name),E('span','ins-tag',item.type),E('small','',item.source));if(!item.target)card.append(E('small','ins-muted','명부에서 단일 인물을 확인할 수 없음'));host.append(card);}
+ function renderRelations(host,row){host.replaceChildren();const rows=uiPersonDirectory(row.site),list=relations(row,rows);
+  if(!list.length)host.append(E('p','ins-empty','확인된 관계 인물이 없습니다.'));
+  for(const item of list){const card=E('article','ins-relation-card'),head=E('div','ins-person-line');head.append(item.target?B(item.name,()=>uiOpenPersonProfile(item.target)):E('strong','',item.name),E('span','ins-tag',item.type));if(item.target?.unit)head.append(E('small','',item.target.unit));card.append(head);
+   const latest=item.evidence[0];card.append(E('p','ins-relation-excerpt',latest.text));
+   const proof=E('details','ins-evidence');proof.append(E('summary','', '근거 '+item.evidence.length+'건'));for(const e of item.evidence){const article=E('article','');article.append(E('small','',[e.date,e.source,e.contact&&'접촉 '+e.contact,e.author&&'담당 '+e.author].filter(Boolean).join(' · ')),E('p','',e.text));proof.append(article);}card.append(proof);host.append(card);
+  }
  }
  function buildingStats(site,members=dashboardBuildingMembers(site)){
   if(!dashboardHasBuildingPlans(site))return [];
@@ -51597,3 +51640,9 @@ body.theme-dark .ins-compare-column,body.theme-dark .ins-topic,body.theme-dark .
 
 <style id="profile-six-tab-fit">html body.ux383 .person-hub-tabs{grid-template-columns:repeat(6,minmax(0,1fr))!important}@media(max-width:600px){html body.ux383 .person-hub-tabs{grid-template-columns:repeat(3,minmax(0,1fr))!important}}</style>
 <style id="insights-heat-contrast">html body.ux383 .ins-modal .ins-heat-cell :is(strong,b,small){color:inherit!important}html body.ux383 .ins-modal .ins-heat-cell strong{font-size:14px!important}html body.ux383 .ins-modal .ins-heat-cell b{font-size:18px!important;font-weight:700!important}html body.ux383 .ins-modal .ins-heat-cell small{font-size:12px!important}html body.ux383 .ins-modal :is(.ins-source p,.ins-copy,.ins-evidence p){font-size:14px!important;line-height:1.85!important}</style>
+<style id="report-relation-evidence-style">html body.ux383 .ins-relation-card{padding:10px 0 16px;border-bottom:1px solid var(--line,#d6e3dd)}html body.ux383 .ins-relation-card .ins-person-line{border:0;padding:0;gap:8px}html body.ux383 .ins-relation-card .ins-relation-excerpt{font-size:var(--ui-type-body,14px)!important;line-height:1.85!important;white-space:pre-wrap;overflow-wrap:anywhere;margin:10px 0;color:inherit}html body.ux383 .ins-relation-card .ins-evidence summary{font-size:var(--ui-type-small,12px)!important;font-weight:500}</style><style id="report-relation-text-contrast">
+html body.ux383 .ins-profile{color:var(--text-main,#233d45)!important}
+html body.ux383 .ins-profile :is(.ins-button,.ins-relation-excerpt,.ins-evidence p,.ins-evidence summary){color:inherit!important}
+html body.theme-dark.ux383 .ins-profile{color:#e3eef1!important}
+html body.theme-dark.ux383 .ins-profile .ins-evidence small{color:#b8cbd1!important}
+</style>
