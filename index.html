@@ -19691,6 +19691,7 @@ function renderDetailPanel(site){
     if(plan.buildings){const credit=document.createElement('small');credit.className='building-data-credit';credit.innerHTML='동·호수: <a href="https://map.jootek.com/map/1147010200109010000/" target="_blank" rel="noopener">주택지도</a> · 건물 윤곽: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a>';section.append(credit);}
     body.replaceChildren(section);
     const buttons=[];
+    const insightMarkers=[];
     frame.onBuildingChange=detailFrame.onBuildingChange=number=>{
       const button=buttons[Number(number)-plan.first];if(button)button.click();
     };
@@ -19753,10 +19754,12 @@ button.setAttribute('aria-pressed','false');
             return point(lat+north/111000,lng+east/88300);
           });
           const outline=new kakao.maps.Polygon({map:buildingMap,path:footprint,strokeWeight:1,strokeColor:'#427b66',strokeOpacity:.85,fillColor:'#83ac98',fillOpacity:.6});
+          insightMarkers.push({outline,button:buttons[index]});
           kakao.maps.event.addListener(outline,'click',()=>buttons[index].click());
           bounds.extend(position);
           new kakao.maps.CustomOverlay({map:buildingMap,position,content:buttons[index],xAnchor:.5,yAnchor:.5,clickable:true});
         });
+        window.DashboardInsights?.attachMap(group,site,insightMarkers,memberRows);
         buildingMap.relayout();
         const fitBuildings=()=>{
           if(!group.isConnected||!group.clientWidth)return;
@@ -31265,6 +31268,8 @@ function uiOpenPersonProfile(row){
   content.dataset.view=key;
   if(key==='overview'){summary(content);history(content,2);}
   if(key==='history')history(content);
+  if(key==='relations'){content.classList.add('ins-profile');window.DashboardInsights?.renderRelations(content,row);}
+  if(key==='stance'){content.classList.add('ins-profile');window.DashboardInsights?.renderStance(content,row);}
   if(key==='chat'){const s=uiPersonSection('톡방 발언'),records=uiChatMatchingRecords(row.site,row.unit);if(records.length){uiPersonText(s,'동·호수 기준 톡방 작성자 기록입니다.');const box=document.createElement('div');box.className='owner-chat-panel';uiRenderChatPanel(box,row.site,row.unit);s.append(box);}else uiPersonText(s,'이 브라우저에 연결된 해당 동·호수의 톡방 기록이 없습니다.');content.append(s);}
   if(key==='gallery'){
    const workbook=uiPersonSection('명부의 갤러리 기록');let items=0;for(const value of row.source.gallerySourceValues||[]){if(!value.raw)continue;uiPersonText(workbook,(value.result==='attended'?'참석':value.result==='scheduled'?'예정':'기록')+' · '+value.raw);items++;}if(!items)uiPersonText(workbook,row.gallery.size?[...row.gallery].map(v=>v==='attended'?'참석':'예정').join(' · '):'명부에 기록된 갤러리 참석·예정 정보가 없습니다.');content.append(workbook);
@@ -31273,7 +31278,7 @@ function uiOpenPersonProfile(row){
    yearInput.onchange=load;await load();
   }
  }
- for(const [key,label]of [['overview','요약·정보'],['history','상담 이력 '+row.count],['chat','톡방'],['gallery','갤러리·투어']]){const button=uxButton(label,()=>show(key),'btn');button.dataset.tab=key;button.setAttribute('role','tab');tabs.append(button);}
+ for(const [key,label]of [['overview','요약·정보'],['history','상담 이력 '+row.count],['chat','톡방'],['gallery','갤러리·투어'],['relations','관계 인물'],['stance','성향 변화']]){const button=uxButton(label,()=>show(key),'btn');button.dataset.tab=key;button.setAttribute('role','tab');tabs.append(button);}
  tabs.addEventListener('keydown',e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();const values=[...tabs.children],i=values.indexOf(document.activeElement),next=e.key==='Home'?0:e.key==='End'?values.length-1:(i+(e.key==='ArrowRight'?1:-1)+values.length)%values.length;values[next].focus();values[next].click();});host.append(tabs,content);
  const modal=uxModal('개인 상세',host);modal.dialog.classList.add('person-hub-modal');modal.dialog.parentElement.classList.add('person-hub-overlay');show('overview');modal.setOnClose(()=>{generation++;active='';});return modal;
 }
@@ -31303,6 +31308,7 @@ function uiOpenPersonSearch(site){
  const modal=uxModal('대상 검색',host);modal.dialog.classList.add('person-search-modal');modal.setOnClose(()=>{clearTimeout(timer);preparation++;});prepare();return modal;
 }
 function uiInstallPersonSearch(){
+ window.DashboardInsights?.install();
  const site=sites.find(s=>s.id===currentDetailId);if(!site)return;
  for(const anchor of [document.querySelector('#masterPanel .detail-head-actions'),document.querySelector('#mgrOwnerSearchInput')?.closest('.mgr-owner-search-row')])if(anchor&&!anchor.querySelector('[data-person-search]')){const b=uxButton('대상 검색',()=>uiOpenPersonSearch(site),'btn btn-ghost no-print');b.dataset.personSearch='1';anchor.append(b);}
 }
@@ -31313,6 +31319,119 @@ document.addEventListener('click',event=>{
  const row=uiPersonResolve(site,button.dataset.personId||button.dataset.person,button.dataset.personName||button.dataset.contact,button.dataset.personUnit||'');if(!row)return;
  event.preventDefault();event.stopImmediatePropagation();button.closest('dialog[open]')?.close();uiOpenPersonProfile(row);
 },true);
+
+/* Read-only exploration: no AI calls, no source writes, no background directory rebuilds. */
+window.DashboardInsights=(()=>{
+ const E=(tag,cls,text)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e;};
+ const B=(text,fn)=>uxButton(text,fn,'ins-button');
+ const norm=v=>String(v||'').normalize('NFKC').replace(/\s+/g,'');
+ const baseName=v=>String(v||'').split(/[\[（(]/)[0].trim();
+ const key=()=> 'hocco_insight_view_v1:'+uxAccountKey()+':'+currentOffice;
+ function prefs(){try{return JSON.parse(localStorage.getItem(key())||'{}')}catch{return {}}}
+ function save(value){localStorage.setItem(key(),JSON.stringify(value));}
+ const companies=[['포스코',/포스코|포스코이앤씨|더샵/i],['삼성',/삼성|래미안/i],['현대',/현대건설|힐스테이트|디에이치/i],['대우',/대우|푸르지오/i],['DL',/DL이앤씨|대림|아크로|이편한세상/i],['GS',/GS건설|지에스|자이/i],['롯데',/롯데|르엘|롯데캐슬/i],['HDC',/HDC|현대산업개발|아이파크/i]];
+ const topics=[['시공사 선정',/시공사|입찰|컨소시엄|건설사|선정총회/],['분담금·사업비',/분담금|사업비|공사비|금융비용|대출|이주비/],['설계·배치',/설계|배치|일조|동수|층수|용적률/],['사업 일정·인허가',/통합심의|통심|인허가|사업시행|정비계획|지연|사업 일정/],['투표·운영',/투표|정사위|동대표|임대위|의결|신탁사/],['갤러리·투어',/갤러리|라운지|투어|견학/],['생활·시설',/주차|누수|배관|교통|학교|시설|공원/]];
+ function recordList(site,rows){
+  const result=[],seen=new Set();
+  function add(row,text,date,source,signature){text=String(text||'').trim();if(!text)return;const id=source+'|'+signature;if(seen.has(id))return;seen.add(id);result.push({row,text,date:uiPersonDate(uiChatDate(date)),source});}
+  for(const row of rows){for(const log of row.logs)if(!isTourBookingLog(log))add(row,log.text,log.date,'상담',log.id||[row.id,log.date,log.text].join('|'));}
+  // One unit may have multiple roster owners: assign chat evidence once, preserving the displayed chat name.
+  const units=new Set();for(const row of rows){const unit=uiChatUnit(row.unit);if(!unit||units.has(unit))continue;units.add(unit);for(const author of uiChatMatchingRecords(site,row.unit))for(const m of author.messages)add({...row,chatName:author.name},m.text,m.date,'톡방',[unit,author.name,m.date,m.time,m.text].join('|'));}
+  return result.sort((a,b)=>b.date.localeCompare(a.date));
+ }
+ function stanceEvidence(row){
+  const evidence=[],seen=new Set();
+  const records=[...row.logs.filter(l=>!isTourBookingLog(l)).map(l=>({date:l.date,text:l.text,source:'상담'})),...uiChatMatchingRecords(row.site,row.unit).flatMap(a=>a.messages.map(m=>({...m,source:'톡방 · '+a.name})))];
+  for(const rec of records){const date=uiPersonDate(uiChatDate(rec.date));if(!date)continue;
+   for(const sentence of String(rec.text||'').split(/\n+|(?<=[.!。])\s+/u)){
+    const mentions=companies.filter(([,re])=>re.test(sentence));
+    // Multi-company comparisons and questions cannot safely establish an individual preference.
+    if(mentions.length!==1||/[?？]|(?:누가|다른 분|타인|소문|들었다|들었|전해|라고 하더)/.test(sentence))continue;
+    const positive=/(?:선호|지지|찬성|긍정|좋게|좋다고|좋습니다|좋아요|괜찮|호감|마음에 든|마음에 들|선택하고 싶|선정.*원한)/.test(sentence);
+    const negative=/(?:반대|부정적|싫|별로|못 믿|신뢰하지|원하지 않|선호하지 않|좋지 않)/.test(sentence);
+    const neutral=/(?:중립|유보|지켜보|결정하지 않|판단.*보류)/.test(sentence);
+    if(Number(positive)+Number(negative)+Number(neutral)!==1)continue;
+    const company=mentions[0][0],label=positive?'우호':negative?'부정':'유보',id=[date,company,label,sentence].join('|');if(seen.has(id))continue;seen.add(id);evidence.push({company,label,date,text:sentence,source:rec.source});
+   }
+  }return evidence.sort((a,b)=>a.date.localeCompare(b.date));
+ }
+ function renderStance(host,row){
+  host.replaceChildren();host.append(E('p','ins-note','날짜와 시공사가 명확한 직접 평가 표현을 모았습니다. 질문·소문·여러 회사가 섞인 문장은 자동 판정에서 제외합니다.'));
+  const evidence=stanceEvidence(row);if(!evidence.length){host.append(E('p','ins-empty','성향 변화를 확인할 날짜별 직접 평가가 없습니다.'));return;}
+  for(const [company]of companies){const list=evidence.filter(e=>e.company===company);if(!list.length)continue;const s=E('section','ins-section'),states=[];
+   for(const date of [...new Set(list.map(e=>e.date))]){const day=list.filter(e=>e.date===date),labels=[...new Set(day.map(e=>e.label))];states.push({date,label:labels.length===1?labels[0]:'상반된 평가'});}
+   s.append(E('h3','',company));const line=E('div','ins-timeline');for(const state of states){const chip=E('span','ins-stance '+(state.label==='우호'?'positive':state.label==='부정'?'negative':''),state.date+' · '+state.label);line.append(chip);}s.append(line);
+   const details=E('details','ins-evidence');details.append(E('summary','', '근거 발언 '+list.length+'건'));for(const e of list){const article=E('article','');article.append(E('small','',e.date+' · '+e.source),E('p','',e.text));details.append(article);}s.append(details);host.append(s);
+  }
+ }
+ function relations(row,rows){
+  const items=[],seen=new Set();function add(name,type,source){name=String(name||'').trim();if(!name||norm(name)===norm(row.name))return;const id=norm(name)+'|'+type;if(seen.has(id))return;seen.add(id);const matches=rows.filter(r=>norm(baseName(r.name))===norm(baseName(name)));items.push({name,type,source,target:matches.length===1?matches[0]:null});}
+  const chart=row.site.relationshipChart;const uniqueName=rows.filter(r=>norm(baseName(r.name))===norm(baseName(row.name))).length===1;
+  if(chart?.nodes){const mine=chart.nodes.filter(n=>String(n.personId||'')===row.personId&&row.personId||norm(baseName(n.name))===norm(baseName(row.name))&&(n.unit?uiSummaryUnit(n.unit)===uiSummaryUnit(row.unit):uniqueName));const ids=new Set(mine.map(n=>n.id));
+   for(const edge of chart.relations||[]){let other;if(ids.has(edge.from))other=chart.nodes.find(n=>n.id===edge.to);else if(ids.has(edge.to))other=chart.nodes.find(n=>n.id===edge.from);if(other)add(other.name,edge.type||'연결',edge.label||'저장된 계보도 연결');}
+  }
+  for(const m of row.name.matchAll(/(?:부인|남편|배우자|아들|딸|소개자)\s*[:：]?\s*([가-힣]{2,5})/g))add(m[1],m[0].replace(m[1],'').trim(),'명부 이름에 기재');
+  return items;
+ }
+ function renderRelations(host,row){host.replaceChildren();const rows=uiPersonDirectory(row.site),list=relations(row,rows);host.append(E('p','ins-note','저장된 계보도 연결과 명부에 명시된 가족·소개 관계입니다. 동명이인은 자동 연결하지 않습니다.'));
+  if(!list.length)host.append(E('p','ins-empty','저장된 관계 정보가 없습니다. 계보도에서 관계를 연결하면 여기에 표시됩니다.'));
+  for(const item of list){const card=E('article','ins-person-line');card.append(item.target?B(item.name,()=>uiOpenPersonProfile(item.target)):E('strong','',item.name),E('span','ins-tag',item.type),E('small','',item.source));if(!item.target)card.append(E('small','ins-muted','명부에서 단일 인물을 확인할 수 없음'));host.append(card);}
+ }
+ function buildingStats(site,members=dashboardBuildingMembers(site)){
+  if(!dashboardHasBuildingPlans(site))return [];
+  const plan=dashboardBuildingPlan(site),lines=[6,6,6,4,4,4,4,6,6,4,4,4,4,8,8,4,8,4,4,6,6,6,6,6,6,6,8,8,6,6,6,8,8,8];
+  return Array.from({length:plan.last-plan.first+1},(_,i)=>{const number=plan.first+i,total=plan.buildings?plan.buildings[i].units.length:lines[i]*(i>=19&&i<=23?18:15)+(i>=19&&i<=23?8:0);const entries=members.filter(([key])=>key.startsWith(number+'-'));const contact=entries.filter(([,m])=>m.status==='접촉').length;return {number,total,contact,registered:entries.length,rate:total?contact/total:0};});
+ }
+ const heatColor=rate=>rate===0?'#e8edef':rate<.25?'#c6e2db':rate<.5?'#89bfb0':rate<.75?'#4c927e':'#21664f';
+ function attachMap(group,site,markers,members){
+  const stats=buildingStats(site,members),wrap=E('div','ins-map-controls'),label=E('span','ins-heat-legend','낮음 ░ ▒ ▓ 높음 · 접촉 세대 / 전체 세대');const toggle=B('접촉률 지도',()=>{const on=toggle.getAttribute('aria-pressed')!=='true';toggle.setAttribute('aria-pressed',String(on));label.hidden=!on;for(const [i,m]of markers.entries()){const s=stats[i];m.outline.setOptions({fillColor:on?heatColor(s.rate):'#83ac98',fillOpacity:on?.85:.6});m.button.style.backgroundColor=on?heatColor(s.rate):'#e1eee6';m.button.style.color=on&&s.rate>=.5?'#fff':'#123d31';m.button.title=s.number+'동 · 접촉 '+s.contact+'/'+s.total+'세대 ('+(s.rate*100).toFixed(1)+'%)';}});toggle.setAttribute('aria-pressed','false');label.hidden=true;wrap.append(toggle,label);group.before(wrap);
+ }
+ function heat(host,site,rows){if(!dashboardHasBuildingPlans(site)){host.append(E('p','ins-empty','이 현장은 검증된 동별 세대 배치가 아직 연결되지 않았습니다.'));return;}
+  host.append(E('p','ins-note','접촉률 = 접촉 세대 ÷ 전체 세대. 공동명의자는 한 세대로 집계합니다. 색을 누르면 해당 동 명부를 확인합니다.'));
+  const grid=E('div','ins-heat-grid');for(const stat of buildingStats(site)){const b=B('',()=>{const box=E('div','ins-person-list');const matches=rows.filter(row=>dashboardBuildingUnitKey(row.source,site).startsWith(stat.number+'-'));box.append(E('p','ins-note','전체 '+stat.total+'세대 · 명부 연결 '+stat.registered+'세대 · 접촉 '+stat.contact+'세대'));for(const row of matches)box.append(personLine(row));if(!matches.length)box.append(E('p','ins-empty','연결된 명부가 없습니다.'));uxModal(stat.number+'동',box);});b.className='ins-heat-cell';b.style.background=heatColor(stat.rate);b.style.color=stat.rate>=.5?'#fff':'#173e35';b.append(E('strong','',stat.number+'동'),E('b','',(stat.rate*100).toFixed(1)+'%'),E('small','',stat.contact+' / '+stat.total+'세대'));grid.append(b);}host.append(grid);
+  host.append(B('동별 지도 열기',()=>{document.querySelector('.ins-modal')?.__insModal?.close();detailTab='동별';renderAll();}));
+ }
+ function personLine(row){const line=E('article','ins-person-line');line.append(B(row.name,()=>uiOpenPersonProfile(row)),E('span','',row.unit),E('small','',row.managerNames.join(' · ')||'담당 미배정'));return line;}
+ function issues(host,site,rows){
+  const toolbar=E('div','ins-toolbar'),select=E('select','');select.setAttribute('aria-label','쟁점 집계 기간');for(const [value,label]of [['30','최근 30일'],['7','최근 7일'],['','전체 기록']])select.add(new Option(label,value));toolbar.append(select);host.append(toolbar,E('p','ins-note','주제어가 포함된 상담·톡방 원문을 묶었습니다. 건수는 관련 기록 수이며, 사실 확정이나 AI 요약을 뜻하지 않습니다.'));
+  const body=E('div','');host.append(body);const records=recordList(site,rows);
+  function draw(){body.replaceChildren();const scoped=records.filter(r=>!select.value||r.date&&uiPersonDays(r.date)>=0&&uiPersonDays(r.date)<Number(select.value));const groups=topics.map(([title,re])=>({title,items:scoped.filter(r=>re.test(r.text))})).filter(g=>g.items.length).sort((a,b)=>b.items.length-a.items.length);
+   if(!groups.length)body.append(E('p','ins-empty','선택 기간에 분류할 관련 기록이 없습니다.'));
+   for(const group of groups){const card=E('details','ins-topic');card.append(E('summary','',group.title+' · '+group.items.length+'건 · '+new Set(group.items.map(r=>r.row.id)).size+'명'));let shown=0;const list=E('div',''),more=B('더 보기',()=>drawMore());card.append(list,more);function drawMore(){for(const r of group.items.slice(shown,shown+10)){const item=E('article','ins-source');item.append(E('small','', (r.date||'날짜 미기재')+' · '+r.source),B(r.row.chatName||r.row.name,()=>uiOpenPersonProfile(r.row)),E('p','',r.text));list.append(item);}shown+=10;more.hidden=shown>=group.items.length;}drawMore();body.append(card);}
+  }select.onchange=draw;draw();
+ }
+ function comparison(host,site,rows,initial){
+  host.append(E('p','ins-note','이름·동호수로 찾고 두 사람을 선택하세요. 같은 이름은 동호수로 구분합니다.'));
+  const columns=E('div','ins-compare');host.append(columns);const choices=[null,null];
+  for(let i=0;i<2;i++){const col=E('section','ins-compare-column'),search=E('input',''),select=E('select',''),body=E('div','');search.type='search';search.placeholder='이름 · 동호수 검색';search.setAttribute('aria-label',(i+1)+'번째 비교 대상 검색');select.setAttribute('aria-label',(i+1)+'번째 비교 대상');col.append(search,select,body);columns.append(col);
+   function options(){const current=select.value,q=norm(search.value);select.replaceChildren(new Option('대상 선택',''));for(const row of rows.filter(r=>!q||norm(r.name+' '+r.unit).includes(q)).slice(0,200))select.add(new Option(row.name+' · '+(row.unit||'동호수 없음'),row.id));select.value=[...select.options].some(o=>o.value===current)?current:'';}search.oninput=options;options();
+   function draw(){body.replaceChildren();const row=rows.find(r=>r.id===select.value);choices[i]=row;if(!row)return;body.append(E('h3','',row.name),E('p','ins-meta',[row.unit,row.managerNames.join(' · '),row.role].filter(Boolean).join(' · ')),E('p','ins-metric',(row.contacted?'접촉':'미접촉')+' · 상담 '+row.count+'건'),E('p','ins-note','최근 접촉 '+(row.lastContact||'기록 없음')));
+    const target=uiContactSummaryTarget(site,row.id,row.name,row.logs.filter(l=>!isTourBookingLog(l))),saved=uiLatestContactSummary(target)?.value?.text;
+    body.append(E('h4','','저장 요약'),E('p','ins-copy',saved||'저장된 요약 없음'),E('h4','','시공사 평가 표현'));const evidence=stanceEvidence(row),latest=new Map();for(const e of evidence)latest.set(e.company,e);if(!latest.size)body.append(E('p','ins-empty','확인된 직접 평가 없음'));for(const e of latest.values())body.append(E('p','',e.company+' · '+e.label+' ('+e.date+')'));
+    body.append(E('h4','','최근 상담'));for(const log of row.logs.filter(l=>!isTourBookingLog(l)).slice(0,3)){const d=E('details','ins-evidence');d.append(E('summary','',log.date+' · '+(log.author||'')),E('p','',log.text));body.append(d);}body.append(B('개인 상세',()=>uiOpenPersonProfile(row)));
+   }select.onchange=draw;if(i===0&&initial){select.value=initial.id;draw();}
+  }
+ }
+ function capture(){return {version:1,site:String(currentDetailId||''),tab:detailTab,names:[...selectedNameIds],mapWidth:uxPrefs.mapWidth||32,managers:[...selectedManagers],stage:selectedStage,district:selectedDistrict,quick:quickFilter,search:searchText,mapHidden:!!uxPrefs.mapHidden,insightTab:prefs().insightTab||'heat',density:prefs().density||'normal',order:prefs().order||['heat','issues','compare','view'],auto:true};}
+ function applyView(value){const site=sites.find(s=>String(s.id)===value.site);if(!site)return false;selectedNameIds=new Set(value.names||[]);selectedManagers=new Set(value.managers||[]);selectedStage=STAGES.includes(value.stage)?value.stage:'전체';selectedDistrict=sites.some(s=>s.district===value.district)?value.district:null;quickFilter=['all','stale','upcoming','updated','procurement'].includes(value.quick)?value.quick:'all';searchText=String(value.search||'');const input=document.getElementById('searchInput');if(input)input.value=searchText;currentDetailId=site.id;currentView='detail';detailTab=['개요','일지','동별','계보도','타사','공고','문서함'].includes(value.tab)?value.tab:'개요';editMode=false;uxPrefs.mapWidth=Math.min(68,Math.max(22,Number(value.mapWidth)||32));document.body.style.setProperty('--ux-map-width',uxPrefs.mapWidth+'vw');uxPrefs.mapHidden=!!value.mapHidden;document.body.classList.toggle('ux-map-hidden',!!value.mapHidden);uxStore();renderAll();return true;}
+ function view(host){const saved=prefs(),note=E('p','ins-note','이 브라우저·현재 사업소·계정에 저장합니다. 현장·담당·필터·열린 탭과 분석 화면의 순서·간격을 기억합니다. 공유 데이터와 계보도 배치는 변경하지 않습니다.');host.append(note);
+  const state=E('p','ins-save-status',saved.savedAt?'저장 시각 '+new Date(saved.savedAt).toLocaleString('ko-KR'):'저장된 내 화면이 없습니다.');host.append(state);
+  const density=E('select','');density.setAttribute('aria-label','분석 화면 간격');density.add(new Option('기본 간격','normal'));density.add(new Option('좁은 간격','compact'));density.value=saved.density||'normal';host.append(E('label','','분석 화면 간격'),density);
+  const list=E('div','ins-order');let order=[...new Set([...(saved.order||[]),'heat','issues','compare','view'])].filter(k=>labels[k]);function draw(){list.replaceChildren();order.forEach((k,i)=>{const row=E('div','ins-order-line');row.append(E('span','',labels[k]));const up=B('↑',()=>{[order[i-1],order[i]]=[order[i],order[i-1]];draw();}),down=B('↓',()=>{[order[i+1],order[i]]=[order[i],order[i+1]];draw();});up.disabled=i===0;down.disabled=i===order.length-1;up.setAttribute('aria-label',labels[k]+' 앞으로');down.setAttribute('aria-label',labels[k]+' 뒤로');row.append(up,down);list.append(row);});}draw();host.append(E('h3','','분석 메뉴 순서'),list);
+  const actions=E('div','ins-toolbar');actions.append(B('현재 화면 저장',()=>{try{save({...capture(),density:density.value,order,savedAt:new Date().toISOString()});state.textContent='내 화면을 저장했습니다. 다음 접속부터 자동 적용합니다.';host.closest('.ins-shell')?.classList.toggle('ins-compact',density.value==='compact');}catch{state.textContent='브라우저 저장 공간을 확인해 주세요.';}}),B('저장 화면 적용',()=>{if(!prefs().savedAt){state.textContent='먼저 현재 화면을 저장해 주세요.';return;}state.textContent=applyView(prefs())?'저장된 화면을 적용했습니다.':'저장된 현장에 접근할 수 없습니다.';}),B('저장 화면 삭제',()=>{localStorage.removeItem(key());state.textContent='저장된 내 화면을 삭제했습니다.';}));host.append(actions);
+ }
+ const labels={heat:'동별 접촉률',issues:'핵심 쟁점',compare:'두 사람 비교',view:'내 화면'};
+ function open(site,tab='heat',initial){const host=E('div','ins-shell'),nav=E('div','ins-tabs'),body=E('div','ins-body');host.classList.toggle('ins-compact',prefs().density==='compact');nav.setAttribute('role','tablist');host.append(nav,body);const rows=uiPersonDirectory(site);let modal;
+  function draw(k){for(const b of nav.children)b.setAttribute('aria-selected',String(b.dataset.key===k));body.replaceChildren();if(k==='heat')heat(body,site,rows);if(k==='issues')issues(body,site,rows);if(k==='compare')comparison(body,site,rows,initial);if(k==='view')view(body);const p=prefs();if(p.savedAt)save({...p,insightTab:k});}
+  for(const k of [...new Set([...(prefs().order||[]),...Object.keys(labels)])].filter(k=>labels[k])){const b=B(labels[k],()=>draw(k));b.dataset.key=k;b.setAttribute('role','tab');nav.append(b);}nav.onkeydown=e=>{if(!['ArrowLeft','ArrowRight'].includes(e.key))return;e.preventDefault();const buttons=[...nav.children],i=buttons.indexOf(document.activeElement),next=(i+(e.key==='ArrowRight'?1:-1)+buttons.length)%buttons.length;buttons[next].focus();buttons[next].click();};modal=uxModal(site.name+' · 현장 분석',host);modal.dialog.classList.add('ins-modal');modal.dialog.__insModal=modal;draw(labels[tab]?tab:'heat');return modal;
+ }
+ let restoreKey='';
+ function install(){const site=sites.find(s=>s.id===currentDetailId);if(!site)return;
+  const anchor=document.querySelector('#masterPanel .detail-head-actions');if(anchor&&!anchor.querySelector('[data-insights]')){const b=B('현장 분석',()=>{const active=sites.find(s=>s.id===currentDetailId);if(active)open(active,prefs().insightTab||'heat');});b.dataset.insights='1';b.className='btn btn-ghost no-print ins-entry';anchor.append(b);}
+  if(restoreKey!==key()){restoreKey=key();const p=prefs();if(p.auto&&p.savedAt&&sites.some(s=>String(s.id)===p.site)){const scheduledKey=restoreKey;setTimeout(()=>{if(key()===scheduledKey)applyView(p);},0);};}
+ }
+ return {open,install,renderRelations,renderStance,relations,stanceEvidence,buildingStats,heatColor,attachMap,recordList,capture,applyView};
+})();
 
 function uiDecorateBrowsing(){
  window.dashboardUIPolish?.decorate();
@@ -51445,3 +51564,36 @@ html body.ux383 #detailBody .rc-app.rc-studio .rc-settings-content>.rc-bulk-size
 html body.ux383 #detailBody .rc-app.rc-studio .rc-settings-content>.rc-align-tools{order:6!important}
 @media(max-width:700px){html body.ux383 #detailBody .rc-app.rc-studio .rc-settings-content>.rc-settings-row-break{display:none!important}}
 </style>
+<style id="dashboard-six-insights-style">
+.ins-modal{width:min(1100px,calc(100vw - 32px))!important;max-height:90dvh!important;overflow:auto!important}
+.ins-shell,.ins-profile{font:inherit;color:var(--text,#223f47);line-height:1.65}
+.ins-shell *,.ins-profile *{box-sizing:border-box}
+.ins-tabs,.ins-toolbar,.ins-map-controls{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:8px 0 14px}
+.ins-tabs{border-bottom:1px solid #cddfd8;padding-bottom:10px}
+.ins-button{font:inherit;font-size:12px;line-height:1.4;min-height:32px;padding:6px 12px;border:1px solid #cddbd5;border-radius:7px;background:transparent;color:inherit;cursor:pointer}
+.ins-button:hover,.ins-button[aria-selected=true],.ins-button[aria-pressed=true]{background:#deeee7;color:#184f3b;border-color:#6c9b84}
+.ins-button:disabled{opacity:.4;cursor:default}.ins-button:focus-visible,.ins-shell :is(input,select,summary):focus-visible{outline:2px solid #528b78;outline-offset:2px}
+.ins-note,.ins-empty,.ins-muted,.ins-save-status{font-size:12px;line-height:1.7;color:var(--muted,#697d76);margin:10px 0 16px}
+.ins-heat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(116px,1fr));gap:9px;margin:18px 0}
+.ins-heat-cell{min-height:96px;border:1px solid #b5ccc2;border-radius:9px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:2px;font:inherit;cursor:pointer}
+.ins-heat-cell b{font-size:18px}.ins-heat-cell strong{font-size:14px}.ins-heat-cell small{font-size:12px}
+.ins-map-controls{grid-column:1/-1;margin:0}.ins-heat-legend{font-size:12px;color:#588473}
+.ins-compare{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.ins-compare-column{min-width:0;border:1px solid #cddbd5;border-radius:10px;padding:16px}
+.ins-compare-column>input,.ins-compare-column>select{display:block;width:100%;margin-bottom:8px}
+.ins-shell :is(input,select){font:inherit;font-size:12px;min-height:34px;padding:5px 9px;border:1px solid #cddbd5;border-radius:6px;background:var(--panel,#fff);color:inherit;max-width:100%}
+.ins-source,.ins-evidence article{padding:12px 0;border-top:1px solid #d8e3de}.ins-source>small{display:block;color:var(--muted,#71827a);font-size:12px}
+.ins-source p,.ins-evidence p,.ins-copy{white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px;line-height:1.85;margin:10px 0}
+.ins-topic{padding:14px 0;border-bottom:1px solid #d1ded7}.ins-topic>summary,.ins-evidence>summary{cursor:pointer;font-size:14px;font-weight:600}
+.ins-person-line{display:flex;gap:9px;flex-wrap:wrap;align-items:center;padding:10px 0;border-bottom:1px solid #dbe4de;font-size:14px}
+.ins-person-line small{font-size:12px}.ins-tag{padding:2px 8px;background:#e9eee9;color:#456c56;border-radius:5px;font-size:12px}
+.ins-timeline{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.ins-stance{border:1px solid #ced9d3;border-radius:6px;padding:5px 9px;font-size:12px}.ins-stance.positive{color:#34775b;border-color:#7eb89d}.ins-stance.negative{color:#aa5361;border-color:#c78a95}
+.ins-section{padding:12px 0;border-bottom:1px solid #d7e0dc}.ins-shell h3,.ins-profile h3{font-size:16px;margin:12px 0}.ins-shell h4{font-size:14px;margin:18px 0 6px}.ins-metric{font-size:16px}.ins-meta{font-size:12px}
+.ins-order{max-width:430px}.ins-order-line{display:flex;align-items:center;gap:6px;padding:7px 0}.ins-order-line span{flex:1}.ins-order-line button{min-height:28px;padding:3px 9px}
+.ins-compact .ins-compare-column{padding:10px}.ins-compact .ins-source,.ins-compact .ins-topic{padding:7px 0}
+body.theme-dark .ins-compare-column,body.theme-dark .ins-topic,body.theme-dark .ins-source{border-color:#58727b}body.theme-dark .ins-shell{color:#e3eef1}body.theme-dark .ins-shell :is(input,select){background:#304c59;color:#e3eef1}body.theme-dark .ins-note,body.theme-dark .ins-empty,body.theme-dark .ins-save-status{color:#b8cbd1}body.theme-dark .ins-stance.positive{color:#a8dfc2}body.theme-dark .ins-stance.negative{color:#f4b8c0}
+@media(max-width:600px){.ins-modal{width:calc(100vw - 20px)!important;padding:14px!important}.ins-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.ins-compare{grid-template-columns:minmax(0,1fr)}.ins-heat-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.ins-heat-cell{min-height:82px}.ins-shell .ins-source p{font-size:14px}.ins-profile{min-width:0}.ins-map-controls{gap:5px}}
+
+</style>
+
+<style id="profile-six-tab-fit">html body.ux383 .person-hub-tabs{grid-template-columns:repeat(6,minmax(0,1fr))!important}@media(max-width:600px){html body.ux383 .person-hub-tabs{grid-template-columns:repeat(3,minmax(0,1fr))!important}}</style>
+<style id="insights-heat-contrast">html body.ux383 .ins-modal .ins-heat-cell :is(strong,b,small){color:inherit!important}html body.ux383 .ins-modal .ins-heat-cell strong{font-size:14px!important}html body.ux383 .ins-modal .ins-heat-cell b{font-size:18px!important;font-weight:700!important}html body.ux383 .ins-modal .ins-heat-cell small{font-size:12px!important}html body.ux383 .ins-modal :is(.ins-source p,.ins-copy,.ins-evidence p){font-size:14px!important;line-height:1.85!important}</style>
