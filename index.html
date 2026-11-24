@@ -31565,7 +31565,7 @@ window.DashboardInsights=(()=>{
   for(const stat of stats){
    const b=B('',()=>{
     const box=E('div','ins-person-list'),matches=rows.filter(row=>dashboardBuildingUnitKey(row.source,site).startsWith(stat.number+'-')).sort((a,b)=>String(a.unit||'').localeCompare(String(b.unit||''),'ko',{numeric:true})||a.name.localeCompare(b.name,'ko'));
-    box.append(E('p','ins-note','전체 '+stat.total+'세대 · 명부 연결 '+stat.registered+'세대 · 접촉 '+stat.contact+'세대'));
+    const overview=E('div','ins-unit-overview');for(const [label,value]of [['전체',stat.total],['명부 연결',stat.registered],['접촉',stat.contact]]){const item=E('span','ins-unit-stat');item.append(E('span','',label),E('strong','',value+'세대'));overview.append(item);}box.append(overview);
     for(const row of matches)box.append(personLine(row));if(!matches.length)box.append(E('p','ins-empty','연결된 명부가 없습니다.'));uxModal(stat.number+'동',box).dialog.classList.add('ins-unit-list-modal');
    });
    b.className='ins-heat-cell';b.dataset.active=String(stat.contact>0);b.setAttribute('aria-label',stat.number+'동, 접촉 '+stat.contact+' / 전체 '+stat.total+'세대, 접촉률 '+(stat.rate*100).toFixed(1)+'%, 명부 보기');
@@ -31579,7 +31579,7 @@ window.DashboardInsights=(()=>{
  }
  function personLine(row){
   const managers=(row.managerNames||[]).filter(name=>name&&!/^(?:미지정|미배정|담당 미배정|담당 없음|없음|-)$/.test(name)).join(' · '),unit=row.unit||'—',manager='담당 '+(managers||'무');
-  const line=B('',()=>uiOpenPersonProfile(row));line.className='ins-person-line';line.dataset.personRow=row.id;
+  const line=B('',()=>uiOpenPersonProfile(row));line.className='ins-person-line';line.dataset.personRow=row.id;line.dataset.assigned=String(!!managers);
   line.title=[unit,row.name,manager].join(' · ');line.setAttribute('aria-label',line.title+' · 개인 상세');
   line.append(E('strong','ins-unit-number',unit),E('span','ins-unit-name',row.name),E('small','ins-unit-manager',manager));return line;
  }
@@ -51915,5 +51915,42 @@ html body.ux383 .ins-unit-list-modal .ins-unit-manager{display:block!important;m
  html body.ux383 .ins-modal .ins-heat-grid[data-fit-density=compact] .ins-heat-track{height:3px!important}
 }
 @media(min-width:1000px){html body.ux383 .ins-modal .ins-heat-grid{grid-template-columns:repeat(7,minmax(0,1fr))!important}}
+
+</style>
+
+<style id="insights-unit-polish">
+html body.ux383 .ins-unit-list-modal{
+ --unit-ink:#263f45;--unit-muted:#7a8a90;--unit-accent:#327c70;--unit-line:#e4eae9;--unit-wash:#f5f8f7;--unit-card:#fff;
+ background:var(--unit-card)!important;color:var(--unit-ink)!important;border-color:var(--unit-line)!important;
+ border-radius:18px!important;padding:20px!important;
+}
+html body.ux383 .ins-unit-list-modal .ux-modal-head{margin:0 0 12px!important;padding:0!important;border:0!important;min-height:32px}
+html body.ux383 .ins-unit-list-modal .ux-modal-head h2{font-size:16px!important;font-weight:700!important;letter-spacing:-.4px!important;color:var(--unit-ink)!important}
+html body.ux383 .ins-unit-list-modal .ux-modal-head h2:before{content:'';display:inline-block;width:4px;height:14px;border-radius:3px;background:var(--unit-accent);margin-right:9px;vertical-align:-1px}
+html body.ux383 .ins-unit-list-modal .ux-modal-head>button{height:30px!important;min-height:30px!important;border-radius:8px!important;padding:4px 11px!important;font-size:11px!important;color:var(--unit-muted)!important;border:1px solid var(--unit-line)!important;background:var(--unit-card)!important}
+html body.ux383 .ins-unit-list-modal .ins-person-list{gap:7px!important}
+html body.ux383 .ins-unit-list-modal .ins-unit-overview{grid-column:1/-1;display:flex;align-items:center;gap:0;padding:10px 12px;margin:0 0 7px;background:var(--unit-wash);border-radius:9px;min-width:0}
+html body.ux383 .ins-unit-list-modal .ins-unit-stat{display:flex;align-items:center;gap:8px;padding:0 16px;font-size:11px;color:var(--unit-muted);line-height:18px;white-space:nowrap}
+html body.ux383 .ins-unit-list-modal .ins-unit-stat:first-child{padding-left:0}
+html body.ux383 .ins-unit-list-modal .ins-unit-stat+ .ins-unit-stat{border-left:1px solid var(--unit-line)}
+html body.ux383 .ins-unit-list-modal .ins-unit-stat strong{font-size:12px!important;font-weight:600!important;color:var(--unit-ink)!important}
+html body.ux383 .ins-unit-list-modal .ins-person-line{height:46px!important;grid-template-columns:48px minmax(0,1fr) auto!important;border-color:var(--unit-line)!important;border-radius:10px!important;background:var(--unit-card)!important;gap:7px!important;padding:8px 10px!important;transition:background .14s ease,border-color .14s ease!important;transform:none!important;box-shadow:0 1px 2px #203f3903!important}
+html body.ux383 .ins-unit-list-modal .ins-unit-number{color:var(--unit-accent)!important;font-variant-numeric:tabular-nums!important;font-size:11px!important;font-weight:600!important;letter-spacing:-.35px!important}
+html body.ux383 .ins-unit-list-modal .ins-unit-name{font-size:12px!important;color:var(--unit-ink)!important;font-weight:400!important}
+html body.ux383 .ins-unit-list-modal .ins-unit-manager{font-size:10px!important;color:var(--unit-muted)!important}
+html body.ux383 .ins-unit-list-modal .ins-person-line[data-assigned=true]{background:color-mix(in srgb,var(--unit-accent) 5%,var(--unit-card))!important;border-color:color-mix(in srgb,var(--unit-accent) 25%,var(--unit-line))!important}
+html body.ux383 .ins-unit-list-modal .ins-person-line[data-assigned=true] .ins-unit-manager{color:var(--unit-accent)!important;font-weight:600!important}
+html body.ux383 .ins-unit-list-modal .ins-person-line:hover{border-color:var(--unit-accent)!important;background:var(--unit-wash)!important}
+html body.ux383 .ins-unit-list-modal .ins-person-line:focus-visible{outline:2px solid var(--unit-accent)!important;outline-offset:1px!important}
+html body.theme-dark.ux383 .ins-unit-list-modal{--unit-ink:#e3efef;--unit-muted:#a3babf;--unit-accent:#a6d6c9;--unit-line:#49626c;--unit-wash:#304d59;--unit-card:#2b4551}
+@media(max-width:600px){
+ html body.ux383 .ins-unit-list-modal{padding:14px!important;border-radius:15px!important}
+ html body.ux383 .ins-unit-list-modal .ins-unit-overview{padding:9px 10px!important}
+ html body.ux383 .ins-unit-list-modal .ins-unit-stat{padding:0 9px!important;gap:4px!important;font-size:10px!important}
+ html body.ux383 .ins-unit-list-modal .ins-unit-stat:first-child{padding-left:0!important}
+ html body.ux383 .ins-unit-list-modal .ins-unit-stat strong{font-size:11px!important}
+ html body.ux383 .ins-unit-list-modal .ins-person-line{height:54px!important;grid-template-columns:48px minmax(0,1fr)!important;gap:2px 6px!important;padding:7px 8px!important}
+ html body.ux383 .ins-unit-list-modal .ins-unit-manager{padding-left:0!important}
+}
 
 </style>
