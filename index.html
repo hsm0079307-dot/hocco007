@@ -31564,9 +31564,9 @@ window.DashboardInsights=(()=>{
   const grid=E('div','ins-heat-grid');
   for(const stat of stats){
    const b=B('',()=>{
-    const box=E('div','ins-person-list'),matches=rows.filter(row=>dashboardBuildingUnitKey(row.source,site).startsWith(stat.number+'-'));
+    const box=E('div','ins-person-list'),matches=rows.filter(row=>dashboardBuildingUnitKey(row.source,site).startsWith(stat.number+'-')).sort((a,b)=>String(a.unit||'').localeCompare(String(b.unit||''),'ko',{numeric:true})||a.name.localeCompare(b.name,'ko'));
     box.append(E('p','ins-note','전체 '+stat.total+'세대 · 명부 연결 '+stat.registered+'세대 · 접촉 '+stat.contact+'세대'));
-    for(const row of matches)box.append(personLine(row));if(!matches.length)box.append(E('p','ins-empty','연결된 명부가 없습니다.'));uxModal(stat.number+'동',box);
+    for(const row of matches)box.append(personLine(row));if(!matches.length)box.append(E('p','ins-empty','연결된 명부가 없습니다.'));uxModal(stat.number+'동',box).dialog.classList.add('ins-unit-list-modal');
    });
    b.className='ins-heat-cell';b.dataset.active=String(stat.contact>0);b.setAttribute('aria-label',stat.number+'동, 접촉 '+stat.contact+' / 전체 '+stat.total+'세대, 접촉률 '+(stat.rate*100).toFixed(1)+'%, 명부 보기');
    const top=E('span','ins-heat-card-top');top.append(E('strong','',stat.number+'동'),E('b','',(stat.rate*100).toFixed(1)+'%'));
@@ -31577,7 +31577,12 @@ window.DashboardInsights=(()=>{
   host.append(grid);
   const footer=E('div','ins-heat-footer');footer.append(E('small','',stats.length+'개 동'),B('동별 지도 열기',()=>{document.querySelector('.ins-modal')?.__insModal?.close();detailTab='동별';renderAll();}));host.append(footer);
  }
- function personLine(row){const line=E('article','ins-person-line');line.append(B(row.name,()=>uiOpenPersonProfile(row)),E('span','',row.unit),E('small','',row.managerNames.join(' · ')||'담당 미배정'));return line;}
+ function personLine(row){
+  const managers=(row.managerNames||[]).filter(name=>name&&!/^(?:미지정|미배정|담당 미배정|담당 없음|없음|-)$/.test(name)).join(' · '),unit=row.unit||'—',manager='담당 '+(managers||'무');
+  const line=B('',()=>uiOpenPersonProfile(row));line.className='ins-person-line';line.dataset.personRow=row.id;
+  line.title=[unit,row.name,manager].join(' · ');line.setAttribute('aria-label',line.title+' · 개인 상세');
+  line.append(E('strong','ins-unit-number',unit),E('span','ins-unit-name',row.name),E('small','ins-unit-manager',manager));return line;
+ }
  function issues(host,site,rows){
   const toolbar=E('div','ins-toolbar'),select=E('select','');select.setAttribute('aria-label','쟁점 집계 기간');for(const [value,label]of [['30','최근 30일'],['7','최근 7일'],['','전체 기록']])select.add(new Option(label,value));toolbar.append(select);host.append(toolbar,E('p','ins-note','주제어가 포함된 상담·톡방 원문을 묶었습니다. 건수는 관련 기록 수이며, 사실 확정이나 AI 요약을 뜻하지 않습니다.'));
   const body=E('div','');host.append(body);const records=recordList(site,rows);
@@ -31608,8 +31613,19 @@ window.DashboardInsights=(()=>{
  }
  const labels={heat:'동별 접촉률',issues:'핵심 쟁점',compare:'두 사람 비교',view:'내 화면'};
  function open(site,tab='heat',initial){const host=E('div','ins-shell'),nav=E('div','ins-tabs'),body=E('div','ins-body');host.classList.toggle('ins-compact',prefs().density==='compact');nav.setAttribute('role','tablist');host.append(nav,body);const rows=uiPersonDirectory(site);let modal;
-  function draw(k){for(const b of nav.children)b.setAttribute('aria-selected',String(b.dataset.key===k));body.replaceChildren();if(k==='heat')heat(body,site,rows);if(k==='issues')issues(body,site,rows);if(k==='compare')comparison(body,site,rows,initial);if(k==='view')view(body);const p=prefs();if(p.savedAt)save({...p,insightTab:k});}
-  for(const k of [...new Set([...(prefs().order||[]),...Object.keys(labels)])].filter(k=>labels[k])){const b=B(labels[k],()=>draw(k));b.dataset.key=k;b.setAttribute('role','tab');nav.append(b);}nav.onkeydown=e=>{if(!['ArrowLeft','ArrowRight'].includes(e.key))return;e.preventDefault();const buttons=[...nav.children],i=buttons.indexOf(document.activeElement),next=(i+(e.key==='ArrowRight'?1:-1)+buttons.length)%buttons.length;buttons[next].focus();buttons[next].click();};modal=uxModal(site.name+' · 현장 분석',host);modal.dialog.classList.add('ins-modal');modal.dialog.__insModal=modal;draw(labels[tab]?tab:'heat');return modal;
+  function draw(k){for(const b of nav.children)b.setAttribute('aria-selected',String(b.dataset.key===k));body.replaceChildren();body.classList.remove('ins-heat-view');if(k==='heat')heat(body,site,rows);if(k==='issues')issues(body,site,rows);if(k==='compare')comparison(body,site,rows,initial);if(k==='view')view(body);const p=prefs();if(p.savedAt)save({...p,insightTab:k});requestAnimationFrame(fitHeatWindow);}
+  for(const k of [...new Set([...(prefs().order||[]),...Object.keys(labels)])].filter(k=>labels[k])){const b=B(labels[k],()=>draw(k));b.dataset.key=k;b.setAttribute('role','tab');nav.append(b);}nav.onkeydown=e=>{if(!['ArrowLeft','ArrowRight'].includes(e.key))return;e.preventDefault();const buttons=[...nav.children],i=buttons.indexOf(document.activeElement),next=(i+(e.key==='ArrowRight'?1:-1)+buttons.length)%buttons.length;buttons[next].focus();buttons[next].click();};modal=uxModal(site.name+' · 현장 분석',host);modal.dialog.classList.add('ins-modal');modal.dialog.__insModal=modal;
+  function fitHeatWindow(){
+   if(!modal?.dialog.isConnected)return;
+   const grid=body.querySelector('.ins-heat-grid');if(!grid)return;
+   if(innerWidth<=700){grid.style.removeProperty('--ins-heat-card-height');grid.removeAttribute('data-fit-density');return;}
+   const cols=getComputedStyle(grid).gridTemplateColumns.split(/\s+/).length,rowCount=Math.ceil(grid.children.length/cols),gap=parseFloat(getComputedStyle(grid).rowGap)||0;
+   const other=modal.dialog.scrollHeight-grid.getBoundingClientRect().height,limit=Math.floor(Math.min(innerHeight*.9,innerHeight-24));
+   const height=Math.max(48,Math.min(98,Math.floor((limit-other-gap*(rowCount-1)-3)/rowCount)));
+   grid.style.setProperty('--ins-heat-card-height',height+'px');grid.dataset.fitDensity=height<72?'compact':'normal';
+  }
+  const resize=()=>requestAnimationFrame(fitHeatWindow);window.addEventListener('resize',resize);modal.setOnClose(()=>window.removeEventListener('resize',resize));
+  document.fonts?.ready.then(fitHeatWindow);draw(labels[tab]?tab:'heat');return modal;
  }
  let restoreKey='';
  function install(){const site=sites.find(s=>s.id===currentDetailId);if(!site)return;
@@ -51869,5 +51885,35 @@ html body.ux383 .ins-modal .ins-heat-footer button{border-color:var(--ins-line)!
 html body.theme-dark.ux383 .ins-modal{--ins-ink:#e2edf0;--ins-muted:#a8bfc4;--ins-line:#48606a;--ins-surface:#304954;--ins-wash:#3b5661;--ins-accent:#a1d7c8}
 @media(max-width:850px){html body.ux383 .ins-modal .ins-heat-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important}}
 @media(max-width:600px){html body.ux383 .ins-modal{padding:15px!important;border-radius:14px!important}html body.ux383 .ins-modal .ins-heat-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}html body.ux383 .ins-modal .ins-heat-overview{align-items:stretch;flex-direction:column;gap:14px;padding-bottom:16px}html body.ux383 .ins-modal .ins-heat-metrics{gap:0;justify-content:space-between}html body.ux383 .ins-modal .ins-heat-metric{padding-left:12px}html body.ux383 .ins-modal .ins-heat-metric:first-child{border-left:0;padding-left:0}html body.ux383 .ins-modal .ins-heat-metric b{font-size:18px!important}html body.ux383 .ins-modal .ins-heat-cell{height:92px!important}}
+
+</style>
+
+<style id="insights-unit-list-grid">
+html body.ux383 .ins-unit-list-modal{width:min(1180px,calc(100vw - 32px))!important;padding:18px!important;border:1px solid var(--line,#dce5e5)!important;border-radius:14px!important;background:var(--card,#fff)!important;color:var(--text-main,#28434a)!important}
+html body.ux383 .ins-unit-list-modal .ins-person-list{display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:8px!important;min-width:0!important}
+html body.ux383 .ins-unit-list-modal .ins-person-list>.ins-note,html body.ux383 .ins-unit-list-modal .ins-person-list>.ins-empty{grid-column:1/-1!important;font-size:11px!important;margin:0 0 8px!important;color:var(--text-dim,#70838b)!important}
+html body.ux383 .ins-unit-list-modal .ins-person-line{display:grid!important;grid-template-columns:48px minmax(0,1fr) auto!important;align-items:center!important;gap:6px!important;min-width:0!important;width:100%!important;height:46px!important;min-height:46px!important;padding:8px 9px!important;margin:0!important;border:1px solid var(--line,#dfe7e5)!important;border-radius:8px!important;background:transparent!important;color:inherit!important;text-align:left!important;font:inherit!important;font-size:12px!important;box-shadow:none!important;cursor:pointer}
+html body.ux383 .ins-unit-list-modal .ins-person-line:hover{background:color-mix(in srgb,var(--accent,#438676) 6%,transparent)!important;border-color:var(--accent,#438676)!important}
+html body.ux383 .ins-unit-list-modal .ins-person-line:focus-visible{outline:2px solid var(--accent,#438676)!important;outline-offset:1px!important}
+html body.ux383 .ins-unit-list-modal .ins-unit-number{white-space:nowrap!important;font-size:11px!important;font-weight:600!important;color:inherit!important;letter-spacing:-.3px}
+html body.ux383 .ins-unit-list-modal .ins-unit-name{display:block!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;min-width:0!important;font-size:12px!important;color:inherit!important}
+html body.ux383 .ins-unit-list-modal .ins-unit-manager{display:block!important;max-width:64px!important;min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;font-size:10px!important;color:var(--text-dim,#70838b)!important}
+@media(max-width:1050px){html body.ux383 .ins-unit-list-modal .ins-person-list{grid-template-columns:repeat(4,minmax(0,1fr))!important}}
+@media(max-width:800px){html body.ux383 .ins-unit-list-modal .ins-person-list{grid-template-columns:repeat(3,minmax(0,1fr))!important}}
+@media(max-width:600px){html body.ux383 .ins-unit-list-modal{width:calc(100vw - 20px)!important;padding:14px!important}html body.ux383 .ins-unit-list-modal .ins-person-list{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:6px!important}html body.ux383 .ins-unit-list-modal .ins-person-line{height:54px!important;grid-template-columns:48px minmax(0,1fr)!important;gap:2px 5px!important;padding:7px!important}html body.ux383 .ins-unit-list-modal .ins-unit-manager{grid-column:1/-1!important;max-width:100%!important;font-size:10px!important}}
+
+</style>
+
+<style id="insights-heat-fit-window">
+@media(min-width:701px){
+ html body.ux383 .ins-modal .ins-heat-grid{grid-template-columns:repeat(6,minmax(0,1fr))!important;gap:8px!important}
+ html body.ux383 .ins-modal .ins-heat-cell{height:var(--ins-heat-card-height,88px)!important;padding:9px 10px!important;gap:5px!important}
+ html body.ux383 .ins-modal .ins-heat-overview{padding:2px 0 12px!important;gap:15px!important}
+ html body.ux383 .ins-modal .ins-heat-footer{padding-top:8px!important}
+ html body.ux383 .ins-modal .ins-tabs{margin-bottom:12px!important}
+ html body.ux383 .ins-modal .ins-heat-grid[data-fit-density=compact] .ins-heat-cell{padding:6px 9px!important;gap:2px!important;border-radius:8px!important}
+ html body.ux383 .ins-modal .ins-heat-grid[data-fit-density=compact] .ins-heat-track{height:3px!important}
+}
+@media(min-width:1000px){html body.ux383 .ins-modal .ins-heat-grid{grid-template-columns:repeat(7,minmax(0,1fr))!important}}
 
 </style>
