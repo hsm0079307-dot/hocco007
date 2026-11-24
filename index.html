@@ -18802,24 +18802,44 @@ function renderRelationshipChart(site){
   const findButton=document.createElement('button');findButton.type='button';findButton.dataset.rcFindOpen='';findButton.textContent='검색';findButton.setAttribute('aria-expanded','false');
   const paperButton=document.createElement('button');paperButton.type='button';paperButton.dataset.rcPaperOpen='';paperButton.textContent='배경';paperButton.setAttribute('aria-expanded','false');
   const hint=mobileBar.querySelector('small');mobileBar.insertBefore(findButton,hint);if(admin)mobileBar.insertBefore(paperButton,hint);
-  // Desktop and mobile share the same lookup, rather than separate search states.
-  if(!narrow()){const bar=document.createElement('div');bar.className='rc-desktop-find-tools';bar.append(findButton);if(admin)bar.append(paperButton);chartTools.before(bar);}
   const findPanel=chartTools.querySelector('.rc-find-panel'),paperPanel=chartTools.querySelector('.rc-paper-panel'),queryField=chartTools.querySelector('[data-rc-find-query]');
+  const desktopSearch=!narrow();let desktopBar=null;
+  if(desktopSearch){
+    desktopBar=document.createElement('div');desktopBar.className='rc-desktop-find-tools';
+    queryField.placeholder='이름 · 동호수 검색';desktopBar.append(queryField);findButton.remove();if(admin)desktopBar.append(paperButton);
+    const alignment=root.querySelector('[data-rc-align-menu]');if(alignment)alignment.after(desktopBar);else root.querySelector('.rc-quick-tools').append(desktopBar);
+    chartTools.classList.add('rc-desktop-find-panels');root.append(chartTools);
+  }
+  function positionChartPopup(){
+    if(!desktopSearch||findPanel.hidden&&paperPanel.hidden)return;
+    const anchor=queryField.getBoundingClientRect(),width=Math.min(paperPanel.hidden?340:420,innerWidth-24);
+    chartTools.style.setProperty('width',width+'px');chartTools.style.setProperty('left',Math.max(12,Math.min(anchor.left,innerWidth-width-12))+'px');
+    chartTools.style.setProperty('top',Math.min(anchor.bottom+6,innerHeight-160)+'px');
+    chartTools.style.setProperty('max-height',Math.max(140,innerHeight-Math.min(anchor.bottom+6,innerHeight-160)-12)+'px');
+  }
+  function closeChartPanels(){findPanel.hidden=true;paperPanel.hidden=true;findButton.setAttribute('aria-expanded','false');paperButton.setAttribute('aria-expanded','false');queryField.setAttribute('aria-expanded','false');}
   function toggleChartPanel(which){
     const panel=which==='search'?findPanel:paperPanel,open=panel.hidden;
     findPanel.hidden=true;paperPanel.hidden=true;panel.hidden=!open;
     findButton.setAttribute('aria-expanded',String(!findPanel.hidden));paperButton.setAttribute('aria-expanded',String(!paperPanel.hidden));
     if(open&&which==='search')queryField.focus({preventScroll:true});
     if(open&&which==='paper')syncPaperPresets();
+    queryField.setAttribute('aria-expanded',String(!findPanel.hidden));positionChartPopup();
   }
   function syncPaperPresets(){chartTools.querySelectorAll('[data-rc-paper-preset]').forEach(b=>{const p=RC_PAPER_PRESETS[Number(b.dataset.rcPaperPreset)];b.setAttribute('aria-pressed',String(data.paperColor===p.color&&data.paperStyle===p.style));});}
   findButton.onclick=()=>toggleChartPanel('search');paperButton.onclick=()=>toggleChartPanel('paper');
-  chartTools.querySelectorAll('[data-rc-panel-close]').forEach(b=>b.onclick=()=>{const search=b.dataset.rcPanelClose==='search';toggleChartPanel(search?'search':'paper');(search?findButton:paperButton).focus({preventScroll:true});});
+  chartTools.querySelectorAll('[data-rc-panel-close]').forEach(b=>b.onclick=()=>{const search=b.dataset.rcPanelClose==='search';closeChartPanels();if(!desktopSearch||!search)(search?findButton:paperButton).focus({preventScroll:true});});
+  if(desktopSearch){
+    const outside=e=>{if(!root.isConnected){document.removeEventListener('pointerdown',outside,true);return;}if(!chartTools.contains(e.target)&&!desktopBar.contains(e.target))closeChartPanels();};document.addEventListener('pointerdown',outside,true);
+    const reposition=()=>{if(!root.isConnected){document.removeEventListener('scroll',reposition,true);window.removeEventListener('resize',reposition);return;}positionChartPopup();};document.addEventListener('scroll',reposition,true);window.addEventListener('resize',reposition);
+    queryField.onfocus=()=>{if(queryField.value.trim()){findPanel.hidden=false;paperPanel.hidden=true;queryField.setAttribute('aria-expanded','true');positionChartPopup();}};
+  }
   let searchTimer;
   function runChartSearch(){
     clearTimeout(searchTimer);
     const results=chartTools.querySelector('.rc-find-results'),count=chartTools.querySelector('.rc-find-count');
-    if(!queryField.value.trim()){results.replaceChildren();count.textContent='이름을 검색하면 계보도 포함 여부를 확인할 수 있습니다.';return;}
+    if(!queryField.value.trim()){results.replaceChildren();count.textContent='이름을 검색하면 계보도 포함 여부를 확인할 수 있습니다.';if(desktopSearch)closeChartPanels();return;}
+    if(desktopSearch){findPanel.hidden=false;paperPanel.hidden=true;queryField.setAttribute('aria-expanded','true');positionChartPopup();}
     if(!searchCandidates){try{searchCandidates=rcCandidates(site);}catch{searchCandidates=[];}}
     searchResults=rcSearchPeople(data,searchCandidates,queryField.value);
     const included=searchResults.filter(p=>p.state==='included').length,missing=searchResults.filter(p=>p.state==='missing').length,hidden=searchResults.length-included-missing;
@@ -18827,12 +18847,12 @@ function renderRelationshipChart(site){
     results.innerHTML=searchResults.slice(0,50).map((p,i)=>`<button type="button" data-rc-find-result="${i}" ${p.state!=='included'?'disabled':''}><span><strong>${escapeHtml(p.name)}</strong><small>${escapeHtml([p.unit,p.manager&&'담당 '+p.manager].filter(Boolean).join(' · '))}</small></span><span class="rc-find-badge" data-state="${p.state}">${{included:'계보도 포함 ↗',missing:'계보도 미포함',hidden:'계보도 숨김'}[p.state]}</span></button>`).join('');
   }
   queryField.oninput=()=>{clearTimeout(searchTimer);searchTimer=setTimeout(runChartSearch,160);};
-  queryField.onkeydown=e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();toggleChartPanel('search');findButton.focus({preventScroll:true});}else if(e.key==='Enter'){e.preventDefault();runChartSearch();chartTools.querySelector('[data-rc-find-result]:not(:disabled)')?.click();}};
+  queryField.onkeydown=e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();closeChartPanels();if(!desktopSearch)findButton.focus({preventScroll:true});}else if(e.key==='Enter'){e.preventDefault();runChartSearch();chartTools.querySelector('[data-rc-find-result]:not(:disabled)')?.click();}};
   chartTools.querySelector('.rc-find-results').onclick=e=>{
     const b=e.target.closest('[data-rc-find-result]');if(!b||b.disabled)return;
     const p=searchResults[Number(b.dataset.rcFindResult)],n=data.nodes.find(n=>n.id===p?.id&&!n.hidden);if(!n)return;
     zoom=Math.max(.72,Math.min(1,scale()));choose(n.id);
-    findPanel.hidden=true;findButton.setAttribute('aria-expanded','false');
+    closeChartPanels();
     requestAnimationFrame(()=>{
       const node=[...preview.querySelectorAll('[data-rc-node]')].find(el=>el.dataset.rcNode===n.id);if(!node)return;
       const rect=node.getBoundingClientRect(),vp=preview.getBoundingClientRect();preview.scrollLeft+=rect.left+rect.width/2-vp.left-vp.width/2;
@@ -31523,7 +31543,13 @@ window.DashboardInsights=(()=>{
  }
  const heatColor=rate=>rate===0?'#e8edef':rate<.25?'#c6e2db':rate<.5?'#89bfb0':rate<.75?'#4c927e':'#21664f';
  function attachMap(group,site,markers,members){
-  const stats=buildingStats(site,members),wrap=E('div','ins-map-controls'),label=E('span','ins-heat-legend','낮음 ░ ▒ ▓ 높음 · 접촉 세대 / 전체 세대');const toggle=B('접촉률 지도',()=>{const on=toggle.getAttribute('aria-pressed')!=='true';toggle.setAttribute('aria-pressed',String(on));label.hidden=!on;for(const [i,m]of markers.entries()){const s=stats[i];m.outline.setOptions({fillColor:on?heatColor(s.rate):'#83ac98',fillOpacity:on?.85:.6});m.button.style.backgroundColor=on?heatColor(s.rate):'#e1eee6';m.button.style.color=on&&s.rate>=.5?'#fff':'#123d31';m.button.title=s.number+'동 · 접촉 '+s.contact+'/'+s.total+'세대 ('+(s.rate*100).toFixed(1)+'%)';}});toggle.setAttribute('aria-pressed','false');label.hidden=true;wrap.append(toggle,label);group.before(wrap);
+  const stats=buildingStats(site,members),wrap=E('div','ins-map-controls'),label=E('span','ins-heat-legend','낮음 ░ ▒ ▓ 높음 · 접촉 세대 / 전체 세대');const toggle=B('접촉률 지도',()=>{const on=toggle.getAttribute('aria-pressed')!=='true';toggle.setAttribute('aria-pressed',String(on));label.hidden=!on;for(const [i,m]of markers.entries()){const s=stats[i];m.outline.setOptions({fillColor:on?heatColor(s.rate):'#83ac98',fillOpacity:on?.85:.6});m.button.style.backgroundColor=on?heatColor(s.rate):'#e1eee6';m.button.style.color=on&&s.rate>=.5?'#fff':'#123d31';m.button.title=s.number+'동 · 접촉 '+s.contact+'/'+s.total+'세대 ('+(s.rate*100).toFixed(1)+'%)';}});toggle.setAttribute('aria-pressed','false');label.hidden=true;wrap.append(toggle,label);
+  const workspace=group.closest('.building-workspace');
+  if(workspace){
+   let heading=workspace.querySelector(':scope>.building-map-heading');
+   if(!heading){heading=E('div','building-map-heading');const title=workspace.querySelector(':scope>strong');if(title){title.before(heading);heading.append(title);}else workspace.prepend(heading);}
+   heading.querySelector('.ins-map-controls')?.remove();heading.append(wrap);
+  }else group.before(wrap);
  }
  function heat(host,site,rows){if(!dashboardHasBuildingPlans(site)){host.append(E('p','ins-empty','이 현장은 검증된 동별 세대 배치가 아직 연결되지 않았습니다.'));return;}
   host.append(E('p','ins-note','접촉률 = 접촉 세대 ÷ 전체 세대. 공동명의자는 한 세대로 집계합니다. 색을 누르면 해당 동 명부를 확인합니다.'));
@@ -50328,6 +50354,15 @@ html body #detailBody .rc-app .rc-find-results>button{border:0!important;border-
 html body #detailBody .rc-app .rc-find-results>button:disabled{opacity:1!important}
 html body #detailBody .rc-app .rc-find-results strong{color:var(--rc-ink)!important;font-size:12px!important;font-weight:600!important}
 html body #detailBody .rc-app .rc-paper-presets button span{font-size:11px!important;color:var(--rc-ink)!important}
+/* Desktop lookup stays beside alignment; results float without moving the chart. */
+html body #detailBody .rc-app .rc-quick-tools>.rc-desktop-find-tools{display:inline-flex!important;align-items:center!important;flex:0 0 auto!important;gap:6px!important;margin:0!important;padding:0!important;min-width:0!important;width:auto!important}
+html body #detailBody .rc-app .rc-desktop-find-tools input[data-rc-find-query]{width:190px!important;min-width:0!important;height:30px!important;min-height:30px!important;font-size:11px!important;padding:4px 9px!important;margin:0!important;border-radius:7px!important}
+html body #detailBody .rc-app .rc-desktop-find-tools button{height:30px!important;min-height:30px!important;padding:4px 10px!important;font-size:11px!important;margin:0!important}
+html body #detailBody .rc-app .rc-desktop-find-panels{position:fixed!important;z-index:14000!important;margin:0!important;overflow:auto!important;box-sizing:border-box!important}
+html body #detailBody .rc-app .rc-desktop-find-panels:not(:has(>section:not([hidden]))){display:none!important}
+html body #detailBody .rc-app .rc-desktop-find-panels:has(>section:not([hidden])){padding:10px!important;border:1px solid var(--rc-line)!important;border-radius:10px!important;background:var(--rc-card)!important;box-shadow:0 8px 24px #142b3820!important}
+html body #detailBody .rc-app .rc-desktop-find-panels .rc-find-results{max-height:240px!important}
+html body #detailBody .rc-app .rc-desktop-find-panels .rc-paper-presets{grid-template-columns:repeat(3,minmax(0,1fr))!important}
 
 </style>
 </body>
@@ -51768,4 +51803,13 @@ html body.ux383 .ins-profile{color:var(--text-main,#233d45)!important}
 html body.ux383 .ins-profile :is(.ins-button,.ins-relation-excerpt,.ins-evidence p,.ins-evidence summary){color:inherit!important}
 html body.theme-dark.ux383 .ins-profile{color:#e3eef1!important}
 html body.theme-dark.ux383 .ins-profile .ins-evidence small{color:#b8cbd1!important}
+</style>
+
+<style id="building-map-fixed-placement">
+html body #detailBody .building-workspace>.building-map-heading{grid-column:1/-1!important;grid-row:1!important;display:flex!important;align-items:center!important;justify-content:space-between!important;flex-wrap:wrap!important;gap:6px 12px!important;min-width:0!important}
+html body #detailBody .building-workspace>.building-map-heading>strong{font-size:inherit!important;font-weight:600!important}
+html body #detailBody .building-workspace>.building-map-heading .ins-map-controls{display:flex!important;align-items:center!important;flex-wrap:wrap!important;gap:6px!important;margin:0!important;min-width:0!important}
+html body #detailBody .building-workspace>.mokdong-building-map{grid-column:1!important;grid-row:2!important;align-self:start!important}
+@media(min-width:701px){html body #detailBody .building-workspace>iframe[data-compact="true"]{grid-column:2!important;grid-row:2!important;align-self:start!important}}
+@media(max-width:700px){html body #detailBody .building-workspace>.building-map-heading{align-items:flex-start!important}.building-map-heading .ins-heat-legend{font-size:11px}}
 </style>
