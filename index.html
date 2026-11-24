@@ -31551,10 +31551,31 @@ window.DashboardInsights=(()=>{
    heading.querySelector('.ins-map-controls')?.remove();heading.append(wrap);
   }else group.before(wrap);
  }
- function heat(host,site,rows){if(!dashboardHasBuildingPlans(site)){host.append(E('p','ins-empty','이 현장은 검증된 동별 세대 배치가 아직 연결되지 않았습니다.'));return;}
-  host.append(E('p','ins-note','접촉률 = 접촉 세대 ÷ 전체 세대. 공동명의자는 한 세대로 집계합니다. 색을 누르면 해당 동 명부를 확인합니다.'));
-  const grid=E('div','ins-heat-grid');for(const stat of buildingStats(site)){const b=B('',()=>{const box=E('div','ins-person-list');const matches=rows.filter(row=>dashboardBuildingUnitKey(row.source,site).startsWith(stat.number+'-'));box.append(E('p','ins-note','전체 '+stat.total+'세대 · 명부 연결 '+stat.registered+'세대 · 접촉 '+stat.contact+'세대'));for(const row of matches)box.append(personLine(row));if(!matches.length)box.append(E('p','ins-empty','연결된 명부가 없습니다.'));uxModal(stat.number+'동',box);});b.className='ins-heat-cell';b.style.background=heatColor(stat.rate);b.style.color=stat.rate>=.5?'#fff':'#173e35';b.append(E('strong','',stat.number+'동'),E('b','',(stat.rate*100).toFixed(1)+'%'),E('small','',stat.contact+' / '+stat.total+'세대'));grid.append(b);}host.append(grid);
-  host.append(B('동별 지도 열기',()=>{document.querySelector('.ins-modal')?.__insModal?.close();detailTab='동별';renderAll();}));
+ function heat(host,site,rows){
+  if(!dashboardHasBuildingPlans(site)){host.append(E('p','ins-empty','이 현장은 검증된 동별 세대 배치가 아직 연결되지 않았습니다.'));return;}
+  host.classList.add('ins-heat-view');
+  const stats=buildingStats(site),total=stats.reduce((n,s)=>n+s.total,0),contacts=stats.reduce((n,s)=>n+s.contact,0);
+  const overview=E('div','ins-heat-overview'),heading=E('div','ins-heat-heading');heading.append(E('small','',site.name),E('h3','','동별 접촉 현황'));
+  const metrics=E('div','ins-heat-metrics');
+  for(const [label,value,unit] of [['전체 세대',total.toLocaleString(),'세대'],['접촉 세대',contacts.toLocaleString(),'세대'],['접촉률',total?(contacts/total*100).toFixed(1):'0.0','%']]){
+   const metric=E('div','ins-heat-metric'),number=E('span','');number.append(E('b','',value),E('small','',unit));metric.append(E('span','',label),number);metrics.append(metric);
+  }
+  overview.append(heading,metrics);host.append(overview);
+  const grid=E('div','ins-heat-grid');
+  for(const stat of stats){
+   const b=B('',()=>{
+    const box=E('div','ins-person-list'),matches=rows.filter(row=>dashboardBuildingUnitKey(row.source,site).startsWith(stat.number+'-'));
+    box.append(E('p','ins-note','전체 '+stat.total+'세대 · 명부 연결 '+stat.registered+'세대 · 접촉 '+stat.contact+'세대'));
+    for(const row of matches)box.append(personLine(row));if(!matches.length)box.append(E('p','ins-empty','연결된 명부가 없습니다.'));uxModal(stat.number+'동',box);
+   });
+   b.className='ins-heat-cell';b.dataset.active=String(stat.contact>0);b.setAttribute('aria-label',stat.number+'동, 접촉 '+stat.contact+' / 전체 '+stat.total+'세대, 접촉률 '+(stat.rate*100).toFixed(1)+'%, 명부 보기');
+   const top=E('span','ins-heat-card-top');top.append(E('strong','',stat.number+'동'),E('b','',(stat.rate*100).toFixed(1)+'%'));
+   const track=E('span','ins-heat-track'),fill=E('i','');fill.style.width=Math.min(100,Math.max(0,stat.rate*100))+'%';track.append(fill);track.setAttribute('aria-hidden','true');
+   const bottom=E('span','ins-heat-card-bottom');bottom.append(E('span','', '접촉 '+stat.contact),E('small','', '/ '+stat.total+'세대'),E('span','ins-heat-arrow','↗'));
+   b.append(top,track,bottom);grid.append(b);
+  }
+  host.append(grid);
+  const footer=E('div','ins-heat-footer');footer.append(E('small','',stats.length+'개 동'),B('동별 지도 열기',()=>{document.querySelector('.ins-modal')?.__insModal?.close();detailTab='동별';renderAll();}));host.append(footer);
  }
  function personLine(row){const line=E('article','ins-person-line');line.append(B(row.name,()=>uiOpenPersonProfile(row)),E('span','',row.unit),E('small','',row.managerNames.join(' · ')||'담당 미배정'));return line;}
  function issues(host,site,rows){
@@ -51812,4 +51833,41 @@ html body #detailBody .building-workspace>.building-map-heading .ins-map-control
 html body #detailBody .building-workspace>.mokdong-building-map{grid-column:1!important;grid-row:2!important;align-self:start!important}
 @media(min-width:701px){html body #detailBody .building-workspace>iframe[data-compact="true"]{grid-column:2!important;grid-row:2!important;align-self:start!important}}
 @media(max-width:700px){html body #detailBody .building-workspace>.building-map-heading{align-items:flex-start!important}.building-map-heading .ins-heat-legend{font-size:11px}}
+</style>
+
+<style id="insights-heat-refined">
+html body.ux383 #masterPanel#masterPanel .detail-tabs .detail-head-actions>[data-insights]{border:0!important;box-shadow:none!important;background:transparent!important;border-radius:7px!important;min-width:0!important;padding:4px 8px!important;margin:0!important;font-family:inherit!important;font-size:var(--ui-type-small,12px)!important;font-weight:400!important;letter-spacing:normal!important;color:var(--text-dim)!important}
+html body.ux383 #masterPanel#masterPanel .detail-tabs .detail-head-actions>[data-insights]:hover{background:color-mix(in srgb,var(--accent) 9%,transparent)!important;color:var(--text-main)!important}
+html body.ux383 #masterPanel#masterPanel .detail-tabs .detail-head-actions>[data-insights]:focus-visible{outline:2px solid var(--accent)!important;outline-offset:1px!important}
+html body.ux383 .ins-modal{--ins-ink:#28434a;--ins-muted:#72848b;--ins-line:#e0e9e7;--ins-surface:#fff;--ins-wash:#f5f9f8;--ins-accent:#397d70;background:var(--ins-surface)!important;color:var(--ins-ink)!important;border:1px solid var(--ins-line)!important;border-radius:18px!important;padding:20px!important}
+html body.ux383 .ins-modal .ins-tabs{gap:4px!important;border-bottom:1px solid var(--ins-line)!important;margin:10px 0 18px!important;padding:0 0 10px!important}
+html body.ux383 .ins-modal .ins-tabs .ins-button{border:0!important;box-shadow:none!important;border-radius:7px!important;padding:7px 13px!important;min-height:32px!important;background:transparent!important;color:var(--ins-muted)!important;font-size:12px!important;font-weight:500!important}
+html body.ux383 .ins-modal .ins-tabs .ins-button[aria-selected=true]{background:var(--ins-wash)!important;color:var(--ins-accent)!important;font-weight:600!important}
+html body.ux383 .ins-modal .ins-heat-overview{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:6px 0 20px;margin:0 0 4px}
+html body.ux383 .ins-modal .ins-heat-heading>small{font-size:11px!important;color:var(--ins-muted)!important}
+html body.ux383 .ins-modal .ins-heat-heading h3{margin:4px 0 0!important;font-size:16px!important;font-weight:600!important;color:var(--ins-ink)!important}
+html body.ux383 .ins-modal .ins-heat-metrics{display:flex;gap:26px;align-items:center}
+html body.ux383 .ins-modal .ins-heat-metric{display:flex;flex-direction:column;gap:2px;padding-left:22px;border-left:1px solid var(--ins-line)}
+html body.ux383 .ins-modal .ins-heat-metric>span:first-child{font-size:11px!important;color:var(--ins-muted)!important}
+html body.ux383 .ins-modal .ins-heat-metric b{font-size:20px!important;font-weight:600!important;color:var(--ins-ink)!important;font-variant-numeric:tabular-nums}
+html body.ux383 .ins-modal .ins-heat-metric small{font-size:11px!important;color:var(--ins-muted)!important;margin-left:3px}
+html body.ux383 .ins-modal .ins-heat-grid{display:grid!important;grid-template-columns:repeat(6,minmax(0,1fr))!important;gap:10px!important;margin:0!important}
+html body.ux383 .ins-modal .ins-heat-cell{display:flex!important;flex-direction:column!important;align-items:stretch!important;justify-content:space-between!important;gap:11px!important;min-width:0!important;min-height:0!important;height:98px!important;padding:13px 12px!important;border:1px solid var(--ins-line)!important;border-radius:10px!important;background:var(--ins-surface)!important;color:var(--ins-ink)!important;text-align:left!important;box-shadow:0 2px 5px #203a3403!important;font:inherit!important;transition:border-color .15s,box-shadow .15s}
+html body.ux383 .ins-modal .ins-heat-cell:hover{border-color:var(--ins-accent)!important;box-shadow:0 3px 10px #29483f12!important;background:var(--ins-wash)!important}
+html body.ux383 .ins-modal .ins-heat-card-top{display:flex;align-items:baseline;justify-content:space-between;gap:5px}
+html body.ux383 .ins-modal .ins-heat-card-top strong{font-size:12px!important;font-weight:600!important;color:var(--ins-ink)!important}
+html body.ux383 .ins-modal .ins-heat-card-top b{font-size:16px!important;font-weight:600!important;color:var(--ins-accent)!important;font-variant-numeric:tabular-nums;letter-spacing:-.4px}
+html body.ux383 .ins-modal .ins-heat-cell[data-active=false] .ins-heat-card-top b{color:var(--ins-muted)!important}
+html body.ux383 .ins-modal .ins-heat-track{display:block!important;width:100%!important;height:4px!important;border-radius:4px!important;background:var(--ins-line)!important;overflow:hidden}
+html body.ux383 .ins-modal .ins-heat-track i{display:block!important;height:100%!important;border-radius:4px;background:var(--ins-accent)!important}
+html body.ux383 .ins-modal .ins-heat-card-bottom{display:flex;align-items:center;gap:3px;font-size:11px!important;color:var(--ins-muted)!important;white-space:nowrap}
+html body.ux383 .ins-modal .ins-heat-card-bottom small{font-size:11px!important;color:inherit!important}
+html body.ux383 .ins-modal .ins-heat-arrow{margin-left:auto;color:var(--ins-accent);font-size:12px}
+html body.ux383 .ins-modal .ins-heat-footer{display:flex;align-items:center;justify-content:space-between;padding:14px 0 0}
+html body.ux383 .ins-modal .ins-heat-footer>small{font-size:11px!important;color:var(--ins-muted)!important}
+html body.ux383 .ins-modal .ins-heat-footer button{border-color:var(--ins-line)!important;background:var(--ins-wash)!important;color:var(--ins-accent)!important;font-size:12px!important}
+html body.theme-dark.ux383 .ins-modal{--ins-ink:#e2edf0;--ins-muted:#a8bfc4;--ins-line:#48606a;--ins-surface:#304954;--ins-wash:#3b5661;--ins-accent:#a1d7c8}
+@media(max-width:850px){html body.ux383 .ins-modal .ins-heat-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important}}
+@media(max-width:600px){html body.ux383 .ins-modal{padding:15px!important;border-radius:14px!important}html body.ux383 .ins-modal .ins-heat-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}html body.ux383 .ins-modal .ins-heat-overview{align-items:stretch;flex-direction:column;gap:14px;padding-bottom:16px}html body.ux383 .ins-modal .ins-heat-metrics{gap:0;justify-content:space-between}html body.ux383 .ins-modal .ins-heat-metric{padding-left:12px}html body.ux383 .ins-modal .ins-heat-metric:first-child{border-left:0;padding-left:0}html body.ux383 .ins-modal .ins-heat-metric b{font-size:18px!important}html body.ux383 .ins-modal .ins-heat-cell{height:92px!important}}
+
 </style>
