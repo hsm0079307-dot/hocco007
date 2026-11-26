@@ -3656,9 +3656,17 @@ function openInChecklist(){
   if(previewKey) selectDate(previewKey, true);
 }
 
+function ensureChecklistDateOption(key){
+  const select=document.getElementById('dateFilter');if(!select||!key)return;
+  // A selected next-month day may be outside the base month's date options.
+  if(!Array.from(select.options).some(option=>option.value===key)){
+    const option=document.createElement('option');option.value=key;option.textContent=labelFor(key);select.appendChild(option);
+  }
+  select.value=key;
+}
 function selectDate(key, scroll){
   currentDateKey = key;
-  document.getElementById("dateFilter").value = key;
+  ensureChecklistDateOption(key);
   document.querySelectorAll(".cell.active").forEach(c=>c.classList.remove("active"));
   const calCell = document.getElementById("cal-"+key);
   if(calCell) calCell.classList.add("active");
@@ -4417,7 +4425,7 @@ function computeDateHeadcount(key){
   selectDate=function(key,scroll){
     if(!isMobileV4()) return desktopSelectDate(key,scroll);
     currentDateKey=key;
-    const sel=document.getElementById('dateFilter');if(sel) sel.value=key;
+    ensureChecklistDateOption(key);
     document.querySelectorAll('.cell.active').forEach(c=>c.classList.remove('active'));
     const calCell=document.getElementById('cal-'+key);if(calCell) calCell.classList.add('active');
     const body=document.getElementById('checklistBody');if(!body) return;
@@ -6991,7 +6999,8 @@ body.pro-show-legacy .checklist-section,body.pro-show-legacy .car{display:block!
 
   function render(){
     build();
-    const b=baseDate(); if(!selectedKey)selectedKey=pickSelectedForMonth(b);
+    const b=baseDate(); if(currentDateKey)selectedKey=currentDateKey;
+    if(!selectedKey)selectedKey=pickSelectedForMonth(b);
     document.getElementById('proTitle').textContent=matchMedia('(max-width:760px)').matches?'투어일정':sourceTitle();
     renderSites();renderCalendar();renderMini();renderDetail();
     const lg=document.getElementById('proLegendG'),lt=document.getElementById('proLegendT');if(lg)lg.classList.toggle('off',typeof activeCategories!=='undefined'&&!activeCategories.gallery);if(lt)lt.classList.toggle('off',typeof activeCategories!=='undefined'&&!activeCategories.tour);
@@ -7000,6 +7009,7 @@ body.pro-show-legacy .checklist-section,body.pro-show-legacy .car{display:block!
   function wrap(name){const old=window[name];if(typeof old!=='function'||old.__pro20)return;const fn=function(){const r=old.apply(this,arguments);setTimeout(render,0);return r};fn.__pro20=true;window[name]=fn}
   let proViewportWidth=document.documentElement.clientWidth;
   function refreshSharedMobile(event){
+    if(!matchMedia('(max-width:760px)').matches)return;
     if(event?.type==='resize'&&event.isTrusted){
       const width=document.documentElement.clientWidth;
       if(width===proViewportWidth)return;
@@ -7008,8 +7018,8 @@ body.pro-show-legacy .checklist-section,body.pro-show-legacy .car{display:block!
     const month=baseDate();
     const inMonth=k=>Number(String(k||'').split('-')[0])===month.getMonth()+1;
     const current=typeof currentDateKey==='string'?currentDateKey:'';
-    if(current&&inMonth(current))selectedKey=current;
-    else if(!selectedKey||!inMonth(selectedKey))selectedKey=pickSelectedForMonth(month);
+    if(current)selectedKey=current;
+    else if(!selectedKey)selectedKey=pickSelectedForMonth(month);
     try{currentDateKey=selectedKey;previewKey=selectedKey;}catch(e){}
     render();
   }
@@ -8778,7 +8788,7 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
     const fmenu=q('#fdFilterMenu');q('#fdFilterBtn').onclick=e=>{e.stopPropagation();fmenu.classList.toggle('on')};
     const admin=q('#fdAdminMenu');q('#fdAdminBtn').onclick=e=>{e.stopPropagation();admin.classList.toggle('on')};admin.addEventListener('click',e=>{const b=e.target.closest('[data-admin]');if(!b)return;admin.classList.remove('on');const a=b.dataset.admin;try{if(a==='save')saveCalendarData();else if(a==='capacity')openCapacitySettings();else if(a==='excel')exportExcel();else if(a==='print')window.print();else if(a==='backup')backupScheduleData();else if(a==='restore')restoreScheduleDataPrompt();else if(a==='password')changePassword();else if(a==='print-all')printAllDates();else if(a==='home-guide')showHomeScreenGuide()}catch(err){}});document.addEventListener('click',e=>{if(!e.target.closest('.fd-admin-wrap'))admin.classList.remove('on');if(!e.target.closest('.fd-search-wrap'))q('#fdSearchResults')?.classList.remove('on');if(!e.target.closest('.fd-filter-wrap'))fmenu?.classList.remove('on');if(!e.composedPath().includes(q('#fdNextWeekControls'))){const next=q('#fdNextWeekControls');if(next)next.open=false}});
   }
-  function render(){if(!desktop())return;build();if(!viewDate)viewDate=monthFromHidden();q('#fdMonthTitle').textContent=`${viewDate.getFullYear()}년 ${viewDate.getMonth()+1}월`;const s=monthCount();q('#fdMonthHint').textContent=`전체 ${s.total}건 · 예상 ${s.head}명`;renderFilters();renderCalendar();renderDetail();renderSummary();try{if(selectedKey)selectDate(selectedKey,false)}catch(e){}}
+  function render(){if(!desktop())return;build();if(currentDateKey)selectedKey=currentDateKey;if(!viewDate)viewDate=monthFromHidden();q('#fdMonthTitle').textContent=`${viewDate.getFullYear()}년 ${viewDate.getMonth()+1}월`;const s=monthCount();q('#fdMonthHint').textContent=`전체 ${s.total}건 · 예상 ${s.head}명`;renderFilters();renderCalendar();renderDetail();renderSummary();try{if(selectedKey)selectDate(selectedKey,false)}catch(e){}}
   function init(){if(!desktop())return;build();viewDate=monthFromHidden();const now=new Date();let preferred='';if(now.getFullYear()===viewDate.getFullYear()&&now.getMonth()===viewDate.getMonth())preferred=key(now);if(!preferred){const ks=monthKeys(viewDate.getFullYear(),viewDate.getMonth());preferred=ks.find(k=>{const x=totalRawEvents(k);return x.total>0})||((viewDate.getMonth()+1)+'-1')}selectedKey=preferred;try{currentDateKey=selectedKey;previewKey=selectedKey}catch(e){};render();
     const oldChange=window.onScheduleDataChanged;if(typeof oldChange==='function'&&!oldChange.__fd){const f=function(){const r=oldChange.apply(this,arguments);setTimeout(render,0);return r};f.__fd=true;window.onScheduleDataChanged=f}
     const oldApply=window.applyRange;if(typeof oldApply==='function'&&!oldApply.__fd){const f=function(){const r=oldApply.apply(this,arguments);setTimeout(()=>{viewDate=monthFromHidden();render()},0);return r};f.__fd=true;window.applyRange=f}
@@ -8789,8 +8799,8 @@ body.pro-customer-open .pro-customer-sheet{opacity:1;visibility:visible;pointer-
     viewDate=monthFromHidden();
     const isInMonth=k=>{const date=parseKey(k,viewDate.getFullYear());return date.getMonth()===viewDate.getMonth();};
     const current=typeof currentDateKey==='string'?currentDateKey:'';
-    if(current&&isInMonth(current))selectedKey=current;
-    else if(!selectedKey||!isInMonth(selectedKey))selectedKey=(viewDate.getMonth()+1)+'-1';
+    if(current)selectedKey=current;
+    else if(!selectedKey)selectedKey=(viewDate.getMonth()+1)+'-1';
     render();
   }
   window.addEventListener('calendar-data-applied',refreshSharedSchedule);
